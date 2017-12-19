@@ -870,7 +870,7 @@ bool PlannerInterface::solve(
     }
 
     postProcessPath(path);
-    SV_SHOW_INFO(makePathVisualization(path));
+    SV_SHOW_INFO_NAMED("trajectory", makePathVisualization(path));
 
     ROS_DEBUG_NAMED(PI_LOGGER, "smoothed path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
@@ -1115,8 +1115,8 @@ bool PlannerInterface::plan(double allowed_time, std::vector<RobotState>& path)
     // NOTE: this should be done after setting the start/goal in the environment
     // to allow the heuristic to tailor the visualization to the current
     // scenario
-    SV_SHOW_DEBUG(getBfsWallsVisualization());
-    SV_SHOW_DEBUG(getBfsValuesVisualization());
+    SV_SHOW_DEBUG_NAMED("bfs_walls", getBfsWallsVisualization());
+    SV_SHOW_DEBUG_NAMED("bfs_values", getBfsValuesVisualization());
 
     ROS_WARN_NAMED(PI_LOGGER, "Planning!!!!!");
     bool b_ret = false;
