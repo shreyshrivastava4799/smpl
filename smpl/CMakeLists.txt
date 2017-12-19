@@ -49,7 +49,7 @@ else()
     add_definitions(-DSMPL_LOG_FILE_AND_LINE=1)
 endif()
 
-add_definitions(-DSBPL_VISUALIZE_MIN_SEVERITY=SBPL_VISUALIZE_SEVERITY_INFO)
+add_definitions(-DSV_PACKAGE_NAME="smpl")
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})

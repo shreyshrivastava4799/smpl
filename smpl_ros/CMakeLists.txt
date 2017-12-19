@@ -42,6 +42,8 @@ catkin_package(
         Boost
         sbpl)
 
+add_definitions(-DSV_PACKAGE_NAME="smpl_ros")
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})

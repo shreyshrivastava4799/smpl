@@ -27,6 +27,8 @@ find_package(Eigen REQUIRED)
 
 catkin_package()
 
+add_definitions(-DSV_PACKAGE_NAME="smpl_test")
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
