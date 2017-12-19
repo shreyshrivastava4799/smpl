@@ -216,7 +216,8 @@ void ManipLattice::GetSuccs(
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << parent_entry->state);
     SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
-    SV_SHOW_DEBUG(getStateVisualization(parent_entry->state, "expansion"));
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
 
     int goal_succ_count = 0;
 
@@ -309,7 +310,8 @@ void ManipLattice::GetLazySuccs(
     SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     const RobotState& source_angles = state_entry->state;
-    SV_SHOW_DEBUG(getStateVisualization(source_angles, "expansion"));
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(source_angles, vis_name));
 
     std::vector<Action> actions;
     if (!m_actions->apply(source_angles, actions)) {
@@ -377,7 +379,8 @@ int ManipLattice::GetTrueCost(int parentID, int childID)
     assert(child_entry && child_entry->coord.size() >= robot()->jointVariableCount());
 
     const RobotState& parent_angles = parent_entry->state;
-    SV_SHOW_DEBUG(getStateVisualization(parent_angles, "expansion"));
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_angles, vis_name));
 
     std::vector<Action> actions;
     if (!m_actions->apply(parent_angles, actions)) {
@@ -803,12 +806,14 @@ bool ManipLattice::setStart(const RobotState& state)
 
     // check if the start configuration is in collision
     if (!collisionChecker()->isStateValid(state, true)) {
-        SV_SHOW_WARN(collisionChecker()->getCollisionModelVisualization(state));
+        auto* vis_name = "invalid_start";
+        SV_SHOW_WARN_NAMED(vis_name, collisionChecker()->getCollisionModelVisualization(state));
         SMPL_WARN(" -> in collision");
         return false;
     }
 
-    SV_SHOW_INFO(getStateVisualization(state, "start_config"));
+    auto* vis_name = "start_config";
+    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(state, vis_name));
 
     // get arm position in environment
     RobotCoord start_coord(robot()->jointVariableCount());
@@ -884,7 +889,8 @@ bool ManipLattice::extractPath(
             opath.push_back(entry->state);
         }
 
-        SV_SHOW_INFO(getStateVisualization(opath.back(), "goal_state"));
+        auto* vis_name = "goal_config";
+        SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(opath.back(), vis_name));
         return true;
     }
 
@@ -975,7 +981,8 @@ bool ManipLattice::extractPath(
 
     // we made it!
     path = std::move(opath);
-    SV_SHOW_INFO(getStateVisualization(path.back(), "goal_state"));
+    auto* vis_name = "goal_config";
+    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(path.back(), vis_name));
     return true;
 }
 
@@ -1046,7 +1053,8 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
             Eigen::AngleAxisd(gc.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
             Eigen::AngleAxisd(gc.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
             Eigen::AngleAxisd(gc.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
-    SV_SHOW_INFO(visual::MakePoseMarkers(goal_pose, m_viz_frame_id, "target_goal"));
+    auto* vis_name = "goal_pose";
+    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal_pose, m_viz_frame_id, vis_name));
 
     using namespace std::chrono;
     auto now = clock::now();
