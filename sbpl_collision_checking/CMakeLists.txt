@@ -5,6 +5,7 @@ set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(Boost REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 find_package(catkin
     REQUIRED
@@ -27,12 +28,11 @@ find_package(catkin
         urdf
         visualization_msgs)
 
-find_package(Eigen REQUIRED)
 find_package(octomap REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS
-        include
+        include ${EIGEN3_INCLUDE_DIR}
     LIBRARIES
         sbpl_collision_checking
     CATKIN_DEPENDS
@@ -54,13 +54,12 @@ catkin_package(
         visualization_msgs
     DEPENDS
         Boost
-        Eigen
         OCTOMAP)
 
 add_definitions(-DROSCONSOLE_MIN_SEVERITY=ROSCONSOLE_SEVERITY_INFO)
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${OCTOMAP_INCLUDE_DIRS})
 include_directories(include)
