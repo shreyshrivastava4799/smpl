@@ -203,9 +203,9 @@ int main(int argc, char* argv[])
     std::vector<shapes::ShapeConstPtr> shapes;
     sbpl::collision::Affine3dVector transforms;
 
-    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
-
-    shapes.push_back(ao_shape);
+//    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
+    shapes::ShapeConstPtr ao_shape(new shapes::Cylinder(0.10, 0.20));
+    shapes.push_back(std::move(ao_shape));
     transforms.push_back(Eigen::Affine3d::Identity());
 
     const std::string attach_link = "ee_link";
