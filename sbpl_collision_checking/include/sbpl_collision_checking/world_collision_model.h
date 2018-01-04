@@ -59,8 +59,6 @@ public:
     WorldCollisionModel(OccupancyGrid* grid);
     WorldCollisionModel(const WorldCollisionModel& o, OccupancyGrid* grid);
 
-    ~WorldCollisionModel();
-
     auto grid() -> OccupancyGrid* { return m_grid; }
     auto grid() const -> const OccupancyGrid* { return m_grid; }
 
