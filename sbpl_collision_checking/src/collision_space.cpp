@@ -45,13 +45,31 @@
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <moveit_msgs/RobotState.h>
+#include <octomap_msgs/conversions.h>
 #include <smpl/angles.h>
 #include <smpl/debug/marker_conversions.h>
 
 namespace sbpl {
 namespace collision {
 
-static const char* CC_LOGGER = "cspace";
+static const char* LOG = "cspace";
+
+/// \class CollisionSpace
+///
+/// This class provides a unified interface to a complete collision model for
+/// checking robot state and motion validity. The collision model detects both
+/// collisions with the world and self collisions.
+///
+/// Storage for world objects is managed within the CollisionSpace. Collision
+/// objects may be inserted using either existing objects or built from
+/// CollisionObject or OctomapWithPose messages. The collision objects are linked
+/// to an underlying WorldCollisionModel to construct their volumetric
+/// representation. In addition to disallowing duplicates, as is enforced by the
+/// internal WorldCollisionModel, objects are also uniquely identified by their
+/// string id's, so that no two objects with the same id can exist simultaneously
+/// within the CollisionSpace. This is done so that multiple insertions of the
+/// same CollisionObject or OctomapWithPose message do not create multiple
+/// objects within the WorldCollisionModel.
 
 CollisionSpace::~CollisionSpace()
 {
@@ -62,7 +80,7 @@ CollisionSpace::~CollisionSpace()
 /// \return true if the scene was updated correctly; false otherwise
 bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
 {
-    ROS_INFO_NAMED(CC_LOGGER, "Updating the Collision Space from Planning Scene '%s'", scene.name.c_str());
+    ROS_INFO_NAMED(LOG, "Updating the Collision Space from Planning Scene '%s'", scene.name.c_str());
 
     // TODO: currently ignored fields from moveit_msgs::PlanningScene
     // * fixed_frame_transforms
@@ -75,14 +93,14 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
     //////////////////////
 
     if (scene.robot_model_name != m_rcm->name()) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Planning Scene passed to CollisionSpace::setPlanningScene is not for this robot");
+        ROS_ERROR_NAMED(LOG, "Planning Scene passed to CollisionSpace::setPlanningScene is not for this robot");
         return false;
     }
 
     // TODO: for full planning scenes, remove all collision objects from the
     // world collision model
     if (!scene.is_diff) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Collision space does not support complete planning scene updates");
+        ROS_ERROR_NAMED(LOG, "Collision space does not support complete planning scene updates");
         return false;
     }
 
@@ -94,7 +112,7 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
 
     const sensor_msgs::JointState& joint_state = robot_state.joint_state;
     if (joint_state.name.size() != joint_state.position.size()) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
+        ROS_ERROR_NAMED(LOG, "Robot state does not contain correct number of joint positions (Expected: %zd, Actual: %zd)", scene.robot_state.joint_state.name.size(), scene.robot_state.joint_state.position.size());
         return false;
     }
 
@@ -120,7 +138,7 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
             robot_state.attached_collision_objects;
     for (const auto& aco : attached_collision_objects) {
         if (!processAttachedCollisionObject(aco)) {
-            ROS_ERROR_NAMED(CC_LOGGER, "Failed to process attached collision object");
+            ROS_ERROR_NAMED(LOG, "Failed to process attached collision object");
             return false;
         }
     }
@@ -143,17 +161,17 @@ bool CollisionSpace::setPlanningScene(const moveit_msgs::PlanningScene& scene)
     const auto& planning_scene_world = scene.world;
 
     const auto& collision_objects = planning_scene_world.collision_objects;
-    ROS_INFO_NAMED(CC_LOGGER, "Processing %zd collision objects", scene.world.collision_objects.size());
+    ROS_INFO_NAMED(LOG, "Processing %zd collision objects", scene.world.collision_objects.size());
     for (const moveit_msgs::CollisionObject& collision_object : scene.world.collision_objects) {
         if (!processCollisionObject(collision_object)) {
-            ROS_ERROR_NAMED(CC_LOGGER, "Failed to process collision object '%s'", collision_object.id.c_str());
+            ROS_ERROR_NAMED(LOG, "Failed to process collision object '%s'", collision_object.id.c_str());
             return false;
         }
     }
 
     const auto& octomap = planning_scene_world.octomap;
     if (!processOctomapMsg(octomap)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to process octomap '%s'", octomap.octomap.id.c_str());
+        ROS_ERROR_NAMED(LOG, "Failed to process octomap '%s'", octomap.octomap.id.c_str());
         return false;
     }
 
@@ -227,7 +245,18 @@ void CollisionSpace::setAllowedCollisionMatrix(
 /// \return true if the object was inserted; false otherwise
 bool CollisionSpace::insertObject(const ObjectConstPtr& object)
 {
-    return m_wcm->insertObject(object);
+    if (m_wcm->hasObjectWithName(object->id_)) {
+        ROS_WARN_NAMED(LOG, "Reject insertion of object '%s'. Object with same name already exists.", object->id_.c_str());
+        return false;
+    }
+
+    if (!m_wcm->insertObject(object.get())) {
+        ROS_WARN_NAMED(LOG, "Reject insertion of object '%s'. Failed to add to world collision model.", object->id_.c_str());
+        return false;
+    }
+
+    m_collision_objects.push_back(object);
+    return true;
 }
 
 /// \brief Remove an object from the world
@@ -235,15 +264,16 @@ bool CollisionSpace::insertObject(const ObjectConstPtr& object)
 /// \return true if the object was removed; false otherwise
 bool CollisionSpace::removeObject(const ObjectConstPtr& object)
 {
-    return m_wcm->removeObject(object);
-}
+    // don't need to check against object name here since it would be redundant
 
-/// \brief Remove an object from the world
-/// \param object_name The name of the object
-/// \return true if the object was removed; false otherwise
-bool CollisionSpace::removeObject(const std::string& object_name)
-{
-    return m_wcm->removeObject(object_name);
+    if (!m_wcm->removeObject(object.get())) {
+        ROS_WARN_NAMED(LOG, "Reject removal of object '%s'. Failed to remove from world collision model.", object->id_.c_str());
+        return false;
+    }
+
+    auto rit = std::remove(begin(m_collision_objects), end(m_collision_objects), object);
+    m_collision_objects.erase(rit, end(m_collision_objects));
+    return true;
 }
 
 /// \brief Move an object in the world
@@ -251,7 +281,7 @@ bool CollisionSpace::removeObject(const std::string& object_name)
 /// \return true if the object was moved; false otherwise
 bool CollisionSpace::moveShapes(const ObjectConstPtr& object)
 {
-    return m_wcm->moveShapes(object);
+    return m_wcm->moveShapes(object.get());
 }
 
 /// \brief Append shapes to an object
@@ -259,7 +289,7 @@ bool CollisionSpace::moveShapes(const ObjectConstPtr& object)
 /// \return true if the shapes were appended to the object; false otherwise
 bool CollisionSpace::insertShapes(const ObjectConstPtr& object)
 {
-    return m_wcm->insertShapes(object);
+    return m_wcm->insertShapes(object.get());
 }
 
 /// \brief Remove shapes from an object
@@ -267,7 +297,7 @@ bool CollisionSpace::insertShapes(const ObjectConstPtr& object)
 /// \return true if the shapes were removed; false otherwise
 bool CollisionSpace::removeShapes(const ObjectConstPtr& object)
 {
-    return m_wcm->removeShapes(object);
+    return m_wcm->removeShapes(object.get());
 }
 
 /// \brief Process a collision object
@@ -276,7 +306,18 @@ bool CollisionSpace::removeShapes(const ObjectConstPtr& object)
 bool CollisionSpace::processCollisionObject(
     const moveit_msgs::CollisionObject& object)
 {
-    return m_wcm->processCollisionObject(object);
+    if (object.operation == moveit_msgs::CollisionObject::ADD) {
+        return addCollisionObject(object);
+    } else if (object.operation == moveit_msgs::CollisionObject::REMOVE) {
+        return removeCollisionObject(object);
+    } else if (object.operation == moveit_msgs::CollisionObject::APPEND) {
+        return appendCollisionObject(object);
+    } else if (object.operation == moveit_msgs::CollisionObject::MOVE) {
+        return moveCollisionObject(object);
+    } else {
+        ROS_ERROR_NAMED(LOG, "Collision object operation '%d' is not supported", object.operation);
+        return false;
+    }
 }
 
 /// \brief Process an octomap
@@ -285,7 +326,7 @@ bool CollisionSpace::processCollisionObject(
 bool CollisionSpace::processOctomapMsg(
     const octomap_msgs::OctomapWithPose& octomap)
 {
-    return m_wcm->insertOctomap(octomap);
+    return insertOctomap(octomap);
 }
 
 /// \brief Attach a collision object to the robot
@@ -592,7 +633,7 @@ bool CollisionSpace::interpolatePath(
     if (withinJointPositionLimits(start) ||
         withinJointPositionLimits(finish))
     {
-        ROS_ERROR_NAMED(CC_LOGGER, "Joint limits violated");
+        ROS_ERROR_NAMED(LOG, "Joint limits violated");
         return false;
     }
 
@@ -625,21 +666,6 @@ auto CollisionSpace::getCollisionModelVisualization(const motion::RobotState& st
     return markers;
 }
 
-CollisionSpace::CollisionSpace() :
-    m_grid(),
-    m_rcm(),
-    m_rmcm(),
-    m_abcm(),
-    m_rcs(),
-    m_abcs(),
-    m_wcm(),
-    m_scm(),
-    m_group_name(),
-    m_gidx(-1),
-    m_planning_joint_to_collision_model_indices()
-{
-}
-
 /// \brief Initialize the Collision Space
 /// \param urdf_string String description of the robot in URDF format
 /// \param config Collision model configuration
@@ -655,7 +681,7 @@ bool CollisionSpace::init(
 {
     auto urdf = boost::make_shared<urdf::Model>();
     if (!urdf->initString(urdf_string)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to parse URDF");
+        ROS_ERROR_NAMED(LOG, "Failed to parse URDF");
         return false;
     }
 
@@ -675,7 +701,7 @@ bool CollisionSpace::init(
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
 {
-    ROS_DEBUG_NAMED(CC_LOGGER, "Initializing collision space for group '%s'", group_name.c_str());
+    ROS_DEBUG_NAMED(LOG, "Initializing collision space for group '%s'", group_name.c_str());
 
     auto rcm = RobotCollisionModel::Load(urdf, config);
     return init(grid, rcm, group_name, planning_joints);
@@ -695,13 +721,13 @@ bool CollisionSpace::init(
     m_grid = grid;
     m_rcm = rcm;
     if (!m_rcm) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Failed to initialize the Robot Collision Model");
+        ROS_ERROR_NAMED(LOG, "Failed to initialize the Robot Collision Model");
         return false;
     }
 
     for (const std::string& joint_name : planning_joints) {
         if (!m_rcm->hasJointVar(joint_name)) {
-            ROS_ERROR_NAMED(CC_LOGGER, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
+            ROS_ERROR_NAMED(LOG, "Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
             return false;
         }
     }
@@ -717,7 +743,7 @@ bool CollisionSpace::init(
     }
 
     if (!m_rcm->hasGroup(group_name)) {
-        ROS_ERROR_NAMED(CC_LOGGER, "Group '%s' was not found in the Robot Collision Model", group_name.c_str());
+        ROS_ERROR_NAMED(LOG, "Group '%s' was not found in the Robot Collision Model", group_name.c_str());
         return false;
     }
 
@@ -840,36 +866,199 @@ auto BuildCollisionSpace(
     }
 }
 
-auto CollisionSpaceBuilder::build(
-    OccupancyGrid* grid,
-    const std::string& urdf_string,
-    const CollisionModelConfig& config,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints)
-    -> std::unique_ptr<CollisionSpace>
+ObjectConstPtr CollisionSpace::findCollisionObject(const std::string& id) const
 {
-    return BuildCollisionSpace(grid, urdf_string, config, group_name, planning_joints);
+    for (auto& object : m_collision_objects) {
+        if (object->id_ == id) {
+            return object;
+        }
+    }
+    return nullptr;
 }
 
-auto CollisionSpaceBuilder::build(
-    OccupancyGrid* grid,
-    const urdf::ModelInterface& urdf,
-    const CollisionModelConfig& config,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints)
-    -> std::unique_ptr<CollisionSpace>
+// Return true if this collision object is suitable to be added to the world
+// collision model. Note this does not yet check for duplicates, since they are
+// rejected immediately before being inserted.
+bool CollisionSpace::checkCollisionObjectAdd(
+    const moveit_msgs::CollisionObject& object) const
 {
-    return BuildCollisionSpace(grid, urdf, config, group_name, planning_joints);
+    if (object.header.frame_id != m_grid->getReferenceFrame()) {
+        ROS_ERROR("Collision object must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
+        return false;
+    }
+
+    if (object.primitives.size() != object.primitive_poses.size()) {
+        ROS_ERROR("Mismatched sizes of primitives and primitive poses");
+        return false;
+    }
+
+    if (object.meshes.size() != object.mesh_poses.size()) {
+        ROS_ERROR("Mismatches sizes of meshes and mesh poses");
+        return false;
+    }
+
+    // check solid primitive for correct format
+    for (auto& prim : object.primitives) {
+        switch (prim.type) {
+        case shape_msgs::SolidPrimitive::BOX:
+        {
+            if (prim.dimensions.size() != 3) {
+                ROS_ERROR("Invalid number of dimensions for box of collision object '%s' (Expected: %d, Actual: %zu)", object.id.c_str(), 3, prim.dimensions.size());
+                return false;
+            }
+        }   break;
+        case shape_msgs::SolidPrimitive::SPHERE:
+        {
+            if (prim.dimensions.size() != 1) {
+                ROS_ERROR("Invalid number of dimensions for sphere of collision object '%s' (Expected: %d, Actual: %zu)", object.id.c_str(), 1, prim.dimensions.size());
+                return false;
+            }
+        }   break;
+        case shape_msgs::SolidPrimitive::CYLINDER:
+        {
+            if (prim.dimensions.size() != 2) {
+                ROS_ERROR("Invalid number of dimensions for cylinder of collision object '%s' (Expected: %d, Actual: %zu)", object.id.c_str(), 2, prim.dimensions.size());
+                return false;
+            }
+        }   break;
+        case shape_msgs::SolidPrimitive::CONE:
+        {
+            if (prim.dimensions.size() != 2) {
+                ROS_ERROR("Invalid number of dimensions for cone of collision object '%s' (Expected: %d, Actual: %zu)", object.id.c_str(), 2, prim.dimensions.size());
+                return false;
+            }
+        }   break;
+        default:
+            ROS_ERROR("Unrecognized SolidPrimitive type");
+            return false;
+        }
+    }
+
+    return true;
 }
 
-auto CollisionSpaceBuilder::build(
-    OccupancyGrid* grid,
-    const RobotCollisionModelConstPtr& rcm,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints)
-    -> std::unique_ptr<CollisionSpace>
+bool CollisionSpace::addCollisionObject(
+    const moveit_msgs::CollisionObject& object)
 {
-    return BuildCollisionSpace(grid, rcm, group_name, planning_joints);
+    if (!checkCollisionObjectAdd(object)) {
+        ROS_WARN_NAMED(LOG, "Reject addition of collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    ObjectConstPtr op = ConvertCollisionObjectToObject(object);
+    if (!op) {
+        ROS_ERROR("Failed to convert collision object to internal representation");
+        return false;
+    }
+
+    return insertObject(op);
+}
+
+bool CollisionSpace::removeCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    // find the collision object with this name
+    auto _object = findCollisionObject(object.id);
+    if (!_object) {
+        ROS_WARN_NAMED(LOG, "Reject removal of collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    return removeObject(_object);
+}
+
+bool CollisionSpace::appendCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    auto _object = findCollisionObject(object.id);
+    if (!_object) {
+        ROS_WARN_NAMED(LOG, "Reject append to missing collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    return insertShapes(_object);
+}
+
+bool CollisionSpace::moveCollisionObject(
+    const moveit_msgs::CollisionObject& object)
+{
+    auto _object = findCollisionObject(object.id);
+    if (!_object) {
+        ROS_WARN_NAMED(LOG, "Rejecting move of missing collision object '%s'", object.id.c_str());
+        return false;
+    }
+
+    return moveShapes(_object);
+}
+
+bool CollisionSpace::insertOctomap(
+    const octomap_msgs::OctomapWithPose& octomap)
+{
+    if (!checkInsertOctomap(octomap)) {
+        ROS_ERROR_NAMED(LOG, "Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
+        return false;
+    }
+
+    ObjectConstPtr op = convertOctomapToObject(octomap);
+    if (!op) {
+        ROS_ERROR_NAMED(LOG, "Failed to convert octomap message to collision object");
+        return false;
+    }
+
+    return insertObject(op);
+}
+
+template <class SharedPtr, class... Args>
+auto make_shared_ptr(Args&&... args) -> SharedPtr {
+    using T = typename SharedPtr::element_type;
+    return SharedPtr(new T(std::forward<Args>(args)...));
+}
+
+auto CollisionSpace::convertOctomapToObject(
+    const octomap_msgs::OctomapWithPose& octomap) const -> ObjectConstPtr
+{
+    // convert binary octomap message to octree
+    octomap::AbstractOcTree* abstract_tree =
+            octomap_msgs::binaryMsgToMap(octomap.octomap);
+    if (!abstract_tree) {
+        ROS_ERROR_NAMED(LOG, "Failed to convert binary msg data to octomap");
+        return ObjectConstPtr();
+    }
+
+    octomap::OcTree* tree = dynamic_cast<octomap::OcTree*>(abstract_tree);
+    if (!tree) {
+        ROS_ERROR_NAMED(LOG, "Abstract Octree from binary msg data must be a concrete OcTree");
+        return ObjectConstPtr();
+    }
+
+    decltype(shapes::OcTree().octree) ot(tree);         // snap into a shared_ptr
+    shapes::ShapeConstPtr sp(new shapes::OcTree(ot));   // snap into a shape
+
+    Eigen::Affine3d transform;
+    tf::poseMsgToEigen(octomap.origin, transform);
+
+    // construct the object
+    auto o = std::make_shared<Object>(octomap.octomap.id); // snap into an object
+    o->shapes_.push_back(sp);
+    o->shape_poses_.push_back(transform);
+
+    return o;
+}
+
+bool CollisionSpace::checkInsertOctomap(
+    const octomap_msgs::OctomapWithPose& octomap) const
+{
+    if (octomap.header.frame_id != m_grid->getReferenceFrame()) {
+        ROS_ERROR_NAMED(LOG, "Octomap must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
+        return false;
+    }
+
+    if (!octomap.octomap.binary) {
+        ROS_ERROR_NAMED(LOG, "Octomap must be a binary octomap");
+        return false;
+    }
+
+    return true;
 }
 
 } // namespace collision

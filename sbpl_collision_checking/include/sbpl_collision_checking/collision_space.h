@@ -67,7 +67,6 @@ class CollisionSpace : public motion::CollisionChecker
 {
 public:
 
-    CollisionSpace();
     ~CollisionSpace();
 
     bool init(
@@ -111,7 +110,6 @@ public:
     ///@{
     bool insertObject(const ObjectConstPtr& object);
     bool removeObject(const ObjectConstPtr& object);
-    bool removeObject(const std::string& object_name);
     bool moveShapes(const ObjectConstPtr& object);
     bool insertShapes(const ObjectConstPtr& object);
     bool removeShapes(const ObjectConstPtr& object);
@@ -133,18 +131,26 @@ public:
         const moveit_msgs::AttachedCollisionObject& obj);
     ///@}
 
-    const std::string& getReferenceFrame() const;
+    auto getReferenceFrame() const -> const std::string&
+    { return m_grid->getReferenceFrame(); }
 
-    const std::string& getGroupName() const;
+    auto getGroupName() const -> const std::string& { return m_group_name; }
 
-    const RobotCollisionModelConstPtr&  robotCollisionModel() const;
-    const RobotMotionCollisionModelConstPtr& robotMotionCollisionModel() const;
+    auto robotCollisionModel() const -> const RobotCollisionModelConstPtr&
+    { return m_rcm; }
+
+    auto robotMotionCollisionModel() const
+        -> const RobotMotionCollisionModelConstPtr&
+    { return m_rmcm; }
 
     auto grid() -> OccupancyGrid* { return m_grid; }
     auto grid() const -> const OccupancyGrid* { return m_grid; }
 
-    WorldCollisionModelConstPtr  worldCollisionModel() const;
-    SelfCollisionModelConstPtr   selfCollisionModel() const;
+    auto worldCollisionModel() const -> WorldCollisionModelConstPtr
+    { return m_wcm; }
+
+    auto selfCollisionModel() const -> SelfCollisionModelConstPtr
+    { return m_scm; }
 
     /// \name Visualization
     ///@{
@@ -197,7 +203,9 @@ public:
 
     /// \name Required Functions from CollisionChecker
     ///@{
-    bool isStateValid(const motion::RobotState& state, bool verbose = false) override;
+    bool isStateValid(
+        const motion::RobotState& state,
+        bool verbose = false) override;
 
     bool isStateToStateValid(
         const motion::RobotState& start,
@@ -229,17 +237,21 @@ private:
     AttachedBodiesCollisionStatePtr m_abcs;
     std::vector<double>             m_joint_vars;
 
+    std::vector<ObjectConstPtr>     m_collision_objects;
+
     WorldCollisionModelPtr          m_wcm;
     SelfCollisionModelPtr           m_scm;
 
     // Collision Group
     std::string                     m_group_name;
-    int                             m_gidx;
+    int                             m_gidx = -1;
 
     // Planning Joint Information
     std::vector<int>                m_planning_joint_to_collision_model_indices;
 
-    size_t planningVariableCount() const;
+    size_t planningVariableCount() const {
+        return m_planning_joint_to_collision_model_indices.size();
+    }
 
     bool isContinuous(int vidx) const;
     bool hasLimit(int vidx) const;
@@ -257,52 +269,26 @@ private:
     void copyState();
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
+
+    ObjectConstPtr findCollisionObject(const std::string& id) const;
+
+    bool checkCollisionObjectAdd(
+        const moveit_msgs::CollisionObject& object) const;
+
+    bool addCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool removeCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool appendCollisionObject(const moveit_msgs::CollisionObject& object);
+    bool moveCollisionObject(const moveit_msgs::CollisionObject& object);
+
+    bool insertOctomap(
+        const octomap_msgs::OctomapWithPose& octomap);
+
+    auto convertOctomapToObject(
+        const octomap_msgs::OctomapWithPose& octomap) const -> ObjectConstPtr;
+
+    bool checkInsertOctomap(
+        const octomap_msgs::OctomapWithPose& octomap) const;
 };
-
-/// \brief Return the reference frame of the occupancy grid
-inline
-const std::string& CollisionSpace::getReferenceFrame() const
-{
-    return m_grid->getReferenceFrame();
-}
-
-/// \brief Return the group being collision checked
-inline
-const std::string& CollisionSpace::getGroupName() const
-{
-    return m_group_name;
-}
-
-inline
-const RobotCollisionModelConstPtr& CollisionSpace::robotCollisionModel() const
-{
-    return m_rcm;
-}
-
-inline
-const RobotMotionCollisionModelConstPtr&
-CollisionSpace::robotMotionCollisionModel() const
-{
-    return m_rmcm;
-}
-
-inline
-WorldCollisionModelConstPtr CollisionSpace::worldCollisionModel() const
-{
-    return m_wcm;
-}
-
-inline
-SelfCollisionModelConstPtr CollisionSpace::selfCollisionModel() const
-{
-    return m_scm;
-}
-
-inline
-size_t CollisionSpace::planningVariableCount() const
-{
-    return m_planning_joint_to_collision_model_indices.size();
-}
 
 inline
 bool CollisionSpace::isContinuous(int vidx) const
@@ -357,34 +343,6 @@ auto BuildCollisionSpace(
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
     -> std::unique_ptr<CollisionSpace>;
-
-class CollisionSpaceBuilder
-{
-public:
-
-    auto build(
-        OccupancyGrid* grid,
-        const std::string& urdf_string,
-        const CollisionModelConfig& config,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints)
-        -> std::unique_ptr<CollisionSpace>;
-
-    auto build(
-        OccupancyGrid* grid,
-        const urdf::ModelInterface& urdf,
-        const CollisionModelConfig& config,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints)
-        -> std::unique_ptr<CollisionSpace>;
-
-    auto build(
-        OccupancyGrid* grid,
-        const RobotCollisionModelConstPtr& rcm,
-        const std::string& group_name,
-        const std::vector<std::string>& planning_joints)
-        -> std::unique_ptr<CollisionSpace>;
-};
 
 } // namespace collision
 } // namespace sbpl

@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_collision_world_collision_model_h
-#define sbpl_collision_world_collision_model_h
+#ifndef SBPL_COLLISION_CHECKING_WORLD_COLLISION_MODEL_H
+#define SBPL_COLLISION_CHECKING_WORLD_COLLISION_MODEL_H
 
 // standard includes
 #include <memory>
@@ -52,8 +52,6 @@
 namespace sbpl {
 namespace collision {
 
-class WorldCollisionModelImpl;
-
 class WorldCollisionModel
 {
 public:
@@ -63,35 +61,73 @@ public:
 
     ~WorldCollisionModel();
 
-    OccupancyGrid* grid();
-    const OccupancyGrid* grid() const;
+    auto grid() -> OccupancyGrid* { return m_grid; }
+    auto grid() const -> const OccupancyGrid* { return m_grid; }
 
-    bool insertObject(const ObjectConstPtr& object);
-    bool removeObject(const ObjectConstPtr& object);
-    bool moveShapes(const ObjectConstPtr& object);
-    bool insertShapes(const ObjectConstPtr& object);
-    bool removeShapes(const ObjectConstPtr& object);
+    bool insertObject(const Object* object);
+    bool removeObject(const Object* object);
 
-    bool processCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool insertOctomap(const octomap_msgs::OctomapWithPose& octomap);
+    bool moveShapes(const Object* object);
+    bool insertShapes(const Object* object);
+    bool removeShapes(const Object* object);
 
-    bool removeObject(const std::string& object_name);
+    bool hasObject(const Object* object) const;
+    bool hasObjectWithName(const std::string& id) const;
 
-    /// \brief Reset the underlying occupancy grid.
-    ///
-    /// Resets the WorldCollisionModel by clearing the underlying occupancy grid and
-    /// revoxelizing all of the managed objects.
+    void removeAllObjects();
+
     void reset();
 
-    visualization_msgs::MarkerArray getWorldVisualization() const;
-    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
+    auto getWorldVisualization() const -> visualization_msgs::MarkerArray;
+    auto getCollisionWorldVisualization() const -> visualization_msgs::MarkerArray;
 
-    void setPadding(double padding);
-    double padding() const;
+    void setPadding(double padding) { m_padding = padding; }
+    double padding() const { return m_padding; }
 
 private:
 
-    std::unique_ptr<WorldCollisionModelImpl> m_impl;
+    OccupancyGrid* m_grid;
+
+    using VoxelList = std::vector<Eigen::Vector3d>;
+    struct ObjectCollisionModel {
+        const Object* object;
+
+        // occupied voxels for this object in the grid reference frame, one
+        // list for each shape in the object
+        std::vector<VoxelList> cached_voxels;
+    };
+    std::vector<ObjectCollisionModel> m_object_models;
+
+    double m_padding;
+
+    ////////////////////
+    // Generic Shapes //
+    ////////////////////
+
+    bool haveObject(const Object* object) const;
+
+    auto getObjectCollisionModel(const Object* object) const
+        -> const ObjectCollisionModel*;
+
+    bool checkObjectInsert(const Object* object) const;
+    bool checkObjectRemove(const Object* object) const;
+    bool checkObjectMoveShape(const Object* object) const;
+    bool checkObjectInsertShape(const Object* object) const;
+    bool checkObjectRemoveShape(const Object* object) const;
+
+    ///////////////////
+    // Visualization //
+    ///////////////////
+
+    void getAllCollisionObjectVoxels(
+        std::vector<geometry_msgs::Point>& points) const;
+
+    void appendWorldObjectVisualization(
+        const Object& object,
+        std::vector<double>& hue,
+        const std::string& ns,
+        int id,
+        visualization_msgs::MarkerArray& ma) const;
 };
 
 typedef std::shared_ptr<WorldCollisionModel> WorldCollisionModelPtr;

@@ -56,9 +56,9 @@ struct Sphere
     double          radius;
 };
 
-typedef collision_detection::World::Object Object;
-typedef collision_detection::World::ObjectPtr ObjectPtr;
-typedef collision_detection::World::ObjectConstPtr ObjectConstPtr;
+using Object = collision_detection::World::Object;
+using ObjectPtr = std::shared_ptr<Object>;
+using ObjectConstPtr = std::shared_ptr<const Object>;
 
 typedef collision_detection::AllowedCollisionMatrix AllowedCollisionMatrix;
 

@@ -42,7 +42,6 @@
 #include <geometric_shapes/shapes.h>
 #include <leatherman/utils.h>
 #include <moveit/collision_detection/world.h>
-#include <octomap_msgs/conversions.h>
 
 // project includes
 #include <sbpl_collision_checking/voxel_operations.h>
@@ -51,127 +50,35 @@
 namespace sbpl {
 namespace collision {
 
-static const char* WCM_LOGGER = "world";
+static const char* LOG = "world";
 
-/////////////////////////////////////////
-// WorldCollisionModelImpl Declaration //
-/////////////////////////////////////////
+/// \class WorldCollisionModel
+///
+/// This class manages the collision representations for a set of objects in a
+/// scene. Objects are represented in the collision model as the voxels they
+/// occupy and the associated distance map is automatically updated when objects
+/// are inserted or removed.
+///
+/// Storage for the objects themselves is managed externally and must be stable
+/// throughout the lifetime of the WorldCollisionModel. If the object should
+/// change in any way, the WorldCollisionModel should be notified accordingly
+/// to remain consistent.
+///
+/// The collision model disallows duplicates of the same object, with uniqueness
+/// determined by the object's address.
 
-class WorldCollisionModelImpl
-{
-public:
-
-    WorldCollisionModelImpl(OccupancyGrid* grid);
-    WorldCollisionModelImpl(
-        const WorldCollisionModelImpl& o,
-        OccupancyGrid* grid);
-
-    OccupancyGrid* grid();
-    const OccupancyGrid* grid() const;
-
-    bool insertObject(const ObjectConstPtr& object);
-    bool removeObject(const ObjectConstPtr& object);
-    bool moveShapes(const ObjectConstPtr& object);
-    bool insertShapes(const ObjectConstPtr& object);
-    bool removeShapes(const ObjectConstPtr& object);
-
-    bool processCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool insertOctomap(const octomap_msgs::OctomapWithPose& octomap);
-
-    bool removeObject(const std::string& object_name);
-
-    void reset();
-
-    visualization_msgs::MarkerArray getWorldVisualization() const;
-    visualization_msgs::MarkerArray getCollisionWorldVisualization() const;
-
-    void setPadding(double padding);
-    double padding() const;
-
-private:
-
-    OccupancyGrid* m_grid;
-
-    // set of collision objects
-    std::map<std::string, ObjectConstPtr> m_object_map;
-
-    // voxelization of objects in the grid reference frame
-    typedef std::vector<Eigen::Vector3d> VoxelList;
-    std::map<std::string, std::vector<VoxelList>> m_object_voxel_map;
-
-    double m_padding;
-
-    ////////////////////
-    // Generic Shapes //
-    ////////////////////
-
-    bool haveObject(const std::string& name) const;
-
-    bool checkObjectInsert(const Object& object) const;
-    bool checkObjectRemove(const Object& object) const;
-    bool checkObjectRemove(const std::string& object_name) const;
-    bool checkObjectMoveShape(const Object& object) const;
-    bool checkObjectInsertShape(const Object& object) const;
-    bool checkObjectRemoveShape(const Object& object) const;
-
-    ///////////////////////
-    // Collision Objects //
-    ///////////////////////
-
-    ObjectConstPtr convertOctomapToObject(
-        const octomap_msgs::OctomapWithPose& octomap) const;
-
-    // return whether or not to accept an incoming collision object
-    bool checkCollisionObjectAdd(
-        const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectRemove(
-        const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectAppend(
-        const moveit_msgs::CollisionObject& object) const;
-    bool checkCollisionObjectMove(
-        const moveit_msgs::CollisionObject& object) const;
-
-    bool checkInsertOctomap(const octomap_msgs::OctomapWithPose& octomap) const;
-
-    bool addCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool removeCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool appendCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool moveCollisionObject(const moveit_msgs::CollisionObject& object);
-
-    void removeAllCollisionObjects();
-
-    ///////////////////
-    // Visualization //
-    ///////////////////
-
-    void getAllCollisionObjectVoxels(
-        std::vector<geometry_msgs::Point>& points) const;
-
-    visualization_msgs::MarkerArray getWorldObjectMarkerArray(
-        const Object& object,
-        std::vector<double>& hue,
-        const std::string& ns,
-        int id) const;
-};
-
-////////////////////////////////////////
-// WorldCollisionModelImpl Definition //
-////////////////////////////////////////
-
-WorldCollisionModelImpl::WorldCollisionModelImpl(OccupancyGrid* grid) :
+WorldCollisionModel::WorldCollisionModel(OccupancyGrid* grid) :
     m_grid(grid),
-    m_object_map(),
-    m_object_voxel_map(),
     m_padding(0.0)
 {
 }
 
-WorldCollisionModelImpl::WorldCollisionModelImpl(
-    const WorldCollisionModelImpl& o,
+WorldCollisionModel::WorldCollisionModel(
+    const WorldCollisionModel& o,
     OccupancyGrid* grid)
 :
     m_grid(grid),
-    m_object_voxel_map(o.m_object_voxel_map),
+    m_object_models(o.m_object_models),
     m_padding(o.m_padding)
 {
     // TODO: check for different voxel origin/resolution/etc here...if they
@@ -180,24 +87,14 @@ WorldCollisionModelImpl::WorldCollisionModelImpl(
     *grid = *m_grid;
 }
 
-OccupancyGrid* WorldCollisionModelImpl::grid()
+/// Add an object to the collision model. The object will be automatically
+/// rasterized and the distance map updated.
+bool WorldCollisionModel::insertObject(const Object* object)
 {
-    return m_grid;
-}
-
-const OccupancyGrid* WorldCollisionModelImpl::grid() const
-{
-    return m_grid;
-}
-
-bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
-{
-    if (!checkObjectInsert(*object)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of collision object '%s'", object->id_.c_str());
+    if (!checkObjectInsert(object)) {
+        ROS_ERROR_NAMED(LOG, "Rejecting addition of collision object '%s'", object->id_.c_str());
         return false;
     }
-
-    assert(m_object_voxel_map.find(object->id_) == m_object_voxel_map.end());
 
     const double res = m_grid->resolution();
     const Eigen::Vector3d origin(
@@ -213,136 +110,118 @@ bool WorldCollisionModelImpl::insertObject(const ObjectConstPtr& object)
 
     std::vector<std::vector<Eigen::Vector3d>> all_voxels;
     if (!VoxelizeObject(*object, res, origin, gmin, gmax, all_voxels)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to voxelize object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(LOG, "Failed to voxelize object '%s'", object->id_.c_str());
         return false;
     }
 
-    auto vit = m_object_voxel_map.insert(
-            std::make_pair(object->id_, std::vector<VoxelList>()));
-    vit.first->second = std::move(all_voxels);
-    assert(vit.second);
+    {
+        ObjectCollisionModel model;
+        model.object = object;
+        model.cached_voxels = std::move(all_voxels);
+        m_object_models.push_back(std::move(model));
+    }
 
-    m_object_map.insert(std::make_pair(object->id_, object));
-
-    for (const auto& voxel_list : vit.first->second) {
-        ROS_DEBUG_NAMED(WCM_LOGGER, "Adding %zu voxels from collision object '%s' to the distance transform",
-                voxel_list.size(), object->id_.c_str());
+    for (auto& voxel_list : m_object_models.back().cached_voxels) {
+        ROS_DEBUG_NAMED(LOG, "Adding %zu voxels from collision object '%s' to the distance transform", voxel_list.size(), object->id_.c_str());
         m_grid->addPointsToField(voxel_list);
     }
 
     return true;
 }
 
-bool WorldCollisionModelImpl::removeObject(const ObjectConstPtr& object)
+/// Remove an object from the collision model. The voxels occupied by this
+/// object will be cleared and the distance map updated.
+bool WorldCollisionModel::removeObject(const Object* object)
 {
-    return removeObject(object->id_);
-}
-
-bool WorldCollisionModelImpl::removeObject(const std::string& object_name)
-{
-    if (!checkObjectRemove(object_name)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting removal of collision object '%s'", object_name.c_str());
+    if (!checkObjectRemove(object)) {
+        ROS_ERROR_NAMED(LOG, "Rejecting removal of collision object '%s'", object->id_.c_str());
         return false;
     }
 
-    auto oit = m_object_map.find(object_name);
-    assert(oit != m_object_map.end());
+    auto* model = getObjectCollisionModel(object);
+    assert(model != NULL);
 
-    auto vit = m_object_voxel_map.find(object_name);
-    assert(vit != m_object_voxel_map.end());
-
-    for (const auto& voxel_list : vit->second) {
-        ROS_DEBUG_NAMED(WCM_LOGGER, "Removing %zu grid cells from the distance transform", voxel_list.size());
+    for (auto& voxel_list : model->cached_voxels) {
+        ROS_DEBUG_NAMED(LOG, "Removing %zu grid cells from the distance transform", voxel_list.size());
         m_grid->removePointsFromField(voxel_list);
     }
 
-    m_object_voxel_map.erase(vit);
-    m_object_map.erase(oit);
+    auto rit = std::remove_if(begin(m_object_models), end(m_object_models),
+            [&](const ObjectCollisionModel& model) {
+                return model.object == object;
+            });
+    m_object_models.erase(rit, end(m_object_models));
     return true;
 }
 
-bool WorldCollisionModelImpl::moveShapes(const ObjectConstPtr& object)
+/// Update the collision model in response to a collision object moving or
+/// shapes moving with a collision object.
+bool WorldCollisionModel::moveShapes(const Object* object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
-bool WorldCollisionModelImpl::insertShapes(const ObjectConstPtr& object)
+/// Update the collision model in response to shapes being added to a collision
+/// object.
+bool WorldCollisionModel::insertShapes(const Object* object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
-bool WorldCollisionModelImpl::removeShapes(const ObjectConstPtr& object)
+/// Update the collision model in response to shapes being removed from a
+/// collision object.
+bool WorldCollisionModel::removeShapes(const Object* object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
-bool WorldCollisionModelImpl::processCollisionObject(
-    const moveit_msgs::CollisionObject& object)
+/// Return true if the collision model contains the object.
+bool WorldCollisionModel::hasObject(const Object* object) const
 {
-    if (object.operation == moveit_msgs::CollisionObject::ADD) {
-        return addCollisionObject(object);
-    }
-    else if (object.operation == moveit_msgs::CollisionObject::REMOVE) {
-        return removeCollisionObject(object);
-    }
-    else if (object.operation == moveit_msgs::CollisionObject::APPEND) {
-        return appendCollisionObject(object);
-    }
-    else if (object.operation == moveit_msgs::CollisionObject::MOVE) {
-        return moveCollisionObject(object);
-    }
-    else {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Collision object operation '%d' is not supported", object.operation);
-        return false;
-    }
+    return haveObject(object);
 }
 
-bool WorldCollisionModelImpl::insertOctomap(
-    const octomap_msgs::OctomapWithPose& octomap)
+/// Return true if any object has id $id.
+bool WorldCollisionModel::hasObjectWithName(const std::string& id) const
 {
-    if (!checkInsertOctomap(octomap)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of octomap '%s'", octomap.octomap.id.c_str());
-        return false;
+    for (auto& model : m_object_models) {
+        if (model.object->id_ == id) {
+            return true;
+        }
     }
-
-    ObjectConstPtr op = convertOctomapToObject(octomap);
-    if (!op) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert octomap message to collision object");
-        return false;
-    }
-
-    return insertObject(op);
+    return false;
 }
 
-void WorldCollisionModelImpl::reset()
+/// Reset the occupancy grid and distance map by removing all occupied voxels,
+/// reinserting all object occupied voxels, and updating the distance map
+void WorldCollisionModel::reset()
 {
     m_grid->reset();
-    for (const auto& entry : m_object_voxel_map) {
-        for (const auto& voxel_list : entry.second) {
+    for (auto& model : m_object_models) {
+        for (auto& voxel_list : model.cached_voxels) {
             m_grid->addPointsToField(voxel_list);
         }
     }
 }
 
-visualization_msgs::MarkerArray
-WorldCollisionModelImpl::getWorldVisualization() const
+/// Return a visualization of the objects in the collision model.
+auto WorldCollisionModel::getWorldVisualization() const
+    -> visualization_msgs::MarkerArray
 {
     visualization_msgs::MarkerArray ma;
-    for (const auto& ent : m_object_map) {
-        const ObjectConstPtr& object = ent.second;
-        std::vector<double> hue(object->shapes_.size(), 200);
-        visualization_msgs::MarkerArray ma1 =
-                getWorldObjectMarkerArray(*object, hue, object->id_, 0);
-        ma.markers.insert(ma.markers.end(), ma1.markers.begin(), ma1.markers.end());
+    for (auto& model : m_object_models) {
+        std::vector<double> hue(model.object->shapes_.size(), 200);
+        appendWorldObjectVisualization(*model.object, hue, model.object->id_, 0, ma);
     }
     return ma;
 }
 
-visualization_msgs::MarkerArray
-WorldCollisionModelImpl::getCollisionWorldVisualization() const
+/// Return a visualization of the object occupied voxels.
+auto WorldCollisionModel::getCollisionWorldVisualization() const
+    -> visualization_msgs::MarkerArray
 {
     visualization_msgs::MarkerArray ma;
 
@@ -376,267 +255,91 @@ WorldCollisionModelImpl::getCollisionWorldVisualization() const
     return ma;
 }
 
-void WorldCollisionModelImpl::setPadding(double padding)
+bool WorldCollisionModel::haveObject(const Object* object) const
 {
-    m_padding = padding;
+    auto it = std::find_if(begin(m_object_models), end(m_object_models),
+            [object](const ObjectCollisionModel& model) {
+                return model.object == object;
+            });
+    return it != end(m_object_models);
 }
 
-double WorldCollisionModelImpl::padding() const
+auto WorldCollisionModel::getObjectCollisionModel(const Object* object) const
+    -> const ObjectCollisionModel*
 {
-    return m_padding;
-}
-
-bool WorldCollisionModelImpl::haveObject(const std::string& name) const
-{
-    return m_object_map.find(name) != m_object_map.end();
-}
-
-bool WorldCollisionModelImpl::checkObjectInsert(const Object& object) const
-{
-    if (haveObject(object.id_)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Already have collision object '%s'", object.id_.c_str());
-        return false;
-    }
-
-    if (object.shapes_.size() != object.shape_poses_.size()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatched sizes of shapes and shape poses");
-        return false;
-    }
-
-    return true;
-}
-
-bool WorldCollisionModelImpl::checkObjectRemove(const Object& object) const
-{
-    return checkObjectRemove(object.id_);
-}
-
-bool WorldCollisionModelImpl::checkObjectRemove(const std::string& name) const
-{
-    return haveObject(name);
-}
-
-bool WorldCollisionModelImpl::checkObjectMoveShape(const Object& object) const
-{
-    return haveObject(object.id_);
-}
-
-bool WorldCollisionModelImpl::checkObjectInsertShape(const Object& object) const
-{
-    return haveObject(object.id_);
-}
-
-bool WorldCollisionModelImpl::checkObjectRemoveShape(const Object& object) const
-{
-    return haveObject(object.id_);
-}
-
-ObjectConstPtr WorldCollisionModelImpl::convertOctomapToObject(
-    const octomap_msgs::OctomapWithPose& octomap) const
-{
-    // convert binary octomap message to octree
-    octomap::AbstractOcTree* abstract_tree =
-            octomap_msgs::binaryMsgToMap(octomap.octomap);
-    if (!abstract_tree) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert binary msg data to octomap");
-        return ObjectConstPtr();
-    }
-
-    octomap::OcTree* tree = dynamic_cast<octomap::OcTree*>(abstract_tree);
-    if (!tree) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Abstract Octree from binary msg data must be a concrete OcTree");
-        return ObjectConstPtr();
-    }
-
-    boost::shared_ptr<const octomap::OcTree> ot(tree);
-
-    // wrap with a shape
-    shapes::ShapeConstPtr sp = boost::make_shared<shapes::OcTree>(ot);
-
-    Eigen::Affine3d transform;
-    tf::poseMsgToEigen(octomap.origin, transform);
-
-    // construct the object
-    auto o = boost::make_shared<Object>(octomap.octomap.id);
-    o->shapes_.push_back(sp);
-    o->shape_poses_.push_back(transform);
-
-    return o;
-}
-
-bool WorldCollisionModelImpl::checkCollisionObjectAdd(
-    const moveit_msgs::CollisionObject& object) const
-{
-    if (haveObject(object.id)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Already have collision object '%s'", object.id.c_str());
-        return false;
-    }
-
-    if (object.header.frame_id != m_grid->getReferenceFrame()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Collision object must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
-        return false;
-    }
-
-    if (object.primitives.size() != object.primitive_poses.size()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatched sizes of primitives and primitive poses");
-        return false;
-    }
-
-    if (object.meshes.size() != object.mesh_poses.size()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatches sizes of meshes and mesh poses");
-        return false;
-    }
-
-    // check solid primitive for correct format
-    for (const shape_msgs::SolidPrimitive& prim : object.primitives) {
-        switch (prim.type) {
-        case shape_msgs::SolidPrimitive::BOX:
-        {
-            if (prim.dimensions.size() != 3) {
-                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for box of collision object '%s' (Expected: %d, Actual: %zu)",
-                        object.id.c_str(), 3, prim.dimensions.size());
-                return false;
-            }
-        }   break;
-        case shape_msgs::SolidPrimitive::SPHERE:
-        {
-            if (prim.dimensions.size() != 1) {
-                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for sphere of collision object '%s' (Expected: %d, Actual: %zu)",
-                        object.id.c_str(), 1, prim.dimensions.size());
-                return false;
-            }
-        }   break;
-        case shape_msgs::SolidPrimitive::CYLINDER:
-        {
-            if (prim.dimensions.size() != 2) {
-                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for cylinder of collision object '%s' (Expected: %d, Actual: %zu)",
-                        object.id.c_str(), 2, prim.dimensions.size());
-                return false;
-            }
-        }   break;
-        case shape_msgs::SolidPrimitive::CONE:
-        {
-            if (prim.dimensions.size() != 2) {
-                ROS_ERROR_NAMED(WCM_LOGGER, "Invalid number of dimensions for cone of collision object '%s' (Expected: %d, Actual: %zu)",
-                        object.id.c_str(), 2, prim.dimensions.size());
-                return false;
-            }
-        }   break;
-        default:
-            ROS_ERROR_NAMED(WCM_LOGGER, "Unrecognized SolidPrimitive type");
-            return false;
+    for (auto& model : m_object_models) {
+        if (model.object == object) {
+            return &model;
         }
     }
+    return NULL;
+}
+
+// Return true if the model does not already contain this object and the object
+// is not malformed.
+bool WorldCollisionModel::checkObjectInsert(const Object* object) const
+{
+    if (haveObject(object)) {
+        ROS_ERROR_NAMED(LOG, "Already have collision object '%s'", object->id_.c_str());
+        return false;
+    }
+
+    if (object->shapes_.size() != object->shape_poses_.size()) {
+        ROS_ERROR_NAMED(LOG, "Mismatched sizes of shapes and shape poses");
+        return false;
+    }
+
+//    assert(std::find_if(begin(m_object_models), end(m_object_models),
+//        [object](const ObjectCollisionModel& model) {
+//            return model.object == object;
+//        }) == end(m_object_models));
 
     return true;
 }
 
-bool WorldCollisionModelImpl::checkCollisionObjectRemove(
-    const moveit_msgs::CollisionObject& object) const
+// Return true if the model contains this object, so that it may be removed.
+bool WorldCollisionModel::checkObjectRemove(const Object* object) const
 {
-    return haveObject(object.id);
+    return haveObject(object);
 }
 
-bool WorldCollisionModelImpl::checkCollisionObjectAppend(
-    const moveit_msgs::CollisionObject& object) const
+// Return true if the model contains this object, so that it may be moved
+bool WorldCollisionModel::checkObjectMoveShape(const Object* object) const
 {
-    return m_object_map.find(object.id) != m_object_map.end();
+    return haveObject(object);
 }
 
-bool WorldCollisionModelImpl::checkCollisionObjectMove(
-    const moveit_msgs::CollisionObject& object) const
+// Return true if the model contains this object, so that it may be updated.
+bool WorldCollisionModel::checkObjectInsertShape(const Object* object) const
 {
-    return m_object_map.find(object.id) != m_object_map.end();
+    return haveObject(object);
 }
 
-bool WorldCollisionModelImpl::checkInsertOctomap(
-    const octomap_msgs::OctomapWithPose& octomap) const
+// Return true if the model contains this object, so that it may be updated.
+bool WorldCollisionModel::checkObjectRemoveShape(const Object* object) const
 {
-    if (haveObject(octomap.octomap.id)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Already have collision object '%s'", octomap.octomap.id.c_str());
-        return false;
-    }
-
-    if (octomap.header.frame_id != m_grid->getReferenceFrame()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Octomap must be specified in the grid reference frame (%s)", m_grid->getReferenceFrame().c_str());
-        return false;
-    }
-
-    if (!octomap.octomap.binary) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Octomap must be a binary octomap");
-        return false;
-    }
-
-    return true;
+    return haveObject(object);
 }
 
-bool WorldCollisionModelImpl::addCollisionObject(const moveit_msgs::CollisionObject& object)
+void WorldCollisionModel::removeAllObjects()
 {
-    if (!checkCollisionObjectAdd(object)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting addition of collision object '%s'", object.id.c_str());
-        return false;
-    }
-
-    ObjectConstPtr op = ConvertCollisionObjectToObject(object);
-    if (!op) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Failed to convert collision object to internal representation");
-        return false;
-    }
-
-    return insertObject(op);
-}
-
-bool WorldCollisionModelImpl::removeCollisionObject(const moveit_msgs::CollisionObject& object)
-{
-    return removeObject(object.id);
-}
-
-bool WorldCollisionModelImpl::appendCollisionObject(const moveit_msgs::CollisionObject& object)
-{
-    if (!checkCollisionObjectAppend(object)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting append to collision object '%s'", object.id.c_str());
-        return false;
-    }
-
-    // TODO: implement
-    ROS_ERROR_NAMED(WCM_LOGGER, "appendCollisionObject unimplemented");
-    return false;
-}
-
-bool WorldCollisionModelImpl::moveCollisionObject(const moveit_msgs::CollisionObject& object)
-{
-    if (!checkCollisionObjectMove(object)) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Rejecting move of collision object '%s'", object.id.c_str());
-        return false;
-    }
-
-    // TODO: implement
-    ROS_ERROR_NAMED(WCM_LOGGER, "moveCollisionObject unimplemented");
-    return false;
-}
-
-void WorldCollisionModelImpl::removeAllCollisionObjects()
-{
-    for (const auto& entry : m_object_map) {
-        removeObject(entry.first);
+    // while loop since m_object_models is not stable here
+    while (!m_object_models.empty()) {
+        bool res = removeObject(m_object_models.front().object);
+        assert(res);
     }
 }
 
-void WorldCollisionModelImpl::getAllCollisionObjectVoxels(
+void WorldCollisionModel::getAllCollisionObjectVoxels(
     std::vector<geometry_msgs::Point>& points) const
 {
-    for (const auto& entry : m_object_map) {
-        const std::string& name = entry.first;
-        const ObjectConstPtr& object = entry.second;
-        auto vlsit = m_object_voxel_map.find(name);
-        assert(vlsit != m_object_voxel_map.end());
-        for (size_t sidx = 0; sidx < object->shapes_.size(); ++sidx) {
-            const shapes::ShapeConstPtr& shape = object->shapes_[sidx];
-            const bool is_collision_object = shape->type != shapes::OCTREE;
-            if (is_collision_object) {
-                assert(vlsit->second.size() > sidx);
-                const VoxelList& vl = vlsit->second[sidx];
-                for (const Eigen::Vector3d& voxel : vl) {
+    for (auto& model : m_object_models) {
+        for (size_t sidx = 0; sidx < model.object->shapes_.size(); ++sidx) {
+            auto& shape = model.object->shapes_[sidx];
+            if (shape->type != shapes::OCTREE) {
+                auto& shape_voxels = model.cached_voxels[sidx];
+                points.reserve(points.size() + shape_voxels.size());
+                for (auto& voxel : shape_voxels) {
                     geometry_msgs::Point point;
                     point.x = voxel.x();
                     point.y = voxel.y();
@@ -648,17 +351,16 @@ void WorldCollisionModelImpl::getAllCollisionObjectVoxels(
     }
 }
 
-visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArray(
+void WorldCollisionModel::appendWorldObjectVisualization(
     const Object& object,
     std::vector<double>& hue,
     const std::string& ns,
-    int id) const
+    int id,
+    visualization_msgs::MarkerArray& ma) const
 {
-    visualization_msgs::MarkerArray ma;
-
     if (object.shapes_.size() != object.shape_poses_.size()) {
-        ROS_ERROR_NAMED(WCM_LOGGER, "Mismatched sizes of shapes and shape poses");
-        return ma;
+        ROS_ERROR_NAMED(LOG, "Mismatched sizes of shapes and shape poses");
+        return;
     }
 
     std::vector<std::vector<double>> colors;
@@ -669,13 +371,13 @@ visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArr
     }
 
     for (size_t i = 0; i < object.shapes_.size(); ++i) {
-        const shapes::ShapeConstPtr& shape = object.shapes_[i];
-        const Eigen::Affine3d& pose = object.shape_poses_[i];
+        auto& shape = object.shapes_[i];
+        auto& pose = object.shape_poses_[i];
 
         // fill in type and scale
         visualization_msgs::Marker m;
         if (!shapes::constructMarkerFromShape(shape.get(), m)) {
-            ROS_WARN_NAMED(WCM_LOGGER, "Failed to construct marker from shape");
+            ROS_WARN_NAMED(LOG, "Failed to construct marker from shape");
         }
 
         m.header.seq = 0;
@@ -695,108 +397,6 @@ visualization_msgs::MarkerArray WorldCollisionModelImpl::getWorldObjectMarkerArr
 
         ma.markers.push_back(m);
     }
-
-    return ma;
-}
-
-////////////////////////////////////
-// WorldCollisionModel Definition //
-////////////////////////////////////
-
-WorldCollisionModel::WorldCollisionModel(OccupancyGrid* grid) :
-    m_impl(new WorldCollisionModelImpl(grid))
-{
-}
-
-WorldCollisionModel::WorldCollisionModel(
-    const WorldCollisionModel& o,
-    OccupancyGrid* grid)
-:
-    m_impl(new WorldCollisionModelImpl(*o.m_impl, grid))
-{
-}
-
-WorldCollisionModel::~WorldCollisionModel()
-{
-}
-
-OccupancyGrid* WorldCollisionModel::grid()
-{
-    return m_impl->grid();
-}
-
-const OccupancyGrid* WorldCollisionModel::grid() const
-{
-    return m_impl->grid();
-}
-
-bool WorldCollisionModel::insertObject(const ObjectConstPtr& object)
-{
-    return m_impl->insertObject(object);
-}
-
-bool WorldCollisionModel::removeObject(const ObjectConstPtr& object)
-{
-    return m_impl->removeObject(object);
-}
-
-bool WorldCollisionModel::moveShapes(const ObjectConstPtr& object)
-{
-    return m_impl->moveShapes(object);
-}
-
-bool WorldCollisionModel::insertShapes(const ObjectConstPtr& object)
-{
-    return m_impl->insertShapes(object);
-}
-
-bool WorldCollisionModel::removeShapes(const ObjectConstPtr& object)
-{
-    return m_impl->removeShapes(object);
-}
-
-bool WorldCollisionModel::processCollisionObject(
-    const moveit_msgs::CollisionObject& object)
-{
-    return m_impl->processCollisionObject(object);
-}
-
-bool WorldCollisionModel::insertOctomap(
-    const octomap_msgs::OctomapWithPose& octomap)
-{
-    return m_impl->insertOctomap(octomap);
-}
-
-bool WorldCollisionModel::removeObject(const std::string& object_name)
-{
-    return m_impl->removeObject(object_name);
-}
-
-void WorldCollisionModel::reset()
-{
-    return m_impl->reset();
-}
-
-visualization_msgs::MarkerArray
-WorldCollisionModel::getWorldVisualization() const
-{
-    return m_impl->getWorldVisualization();
-}
-
-visualization_msgs::MarkerArray
-WorldCollisionModel::getCollisionWorldVisualization() const
-{
-    return m_impl->getCollisionWorldVisualization();
-}
-
-void WorldCollisionModel::setPadding(double padding)
-{
-    return m_impl->setPadding(padding);
-}
-
-double WorldCollisionModel::padding() const
-{
-    return m_impl->padding();
 }
 
 } // namespace collision
