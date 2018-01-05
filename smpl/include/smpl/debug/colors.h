@@ -6,7 +6,7 @@
 namespace sbpl {
 namespace visual {
 
-Color MakeColorHSV(float h, float s = 1.0, float v = 1.0, float a = 1.0);
+Color MakeColorHSV(float h, float s = 1.0f, float v = 1.0f, float a = 1.0f);
 
 void hsv_to_rgb(float* r, float* g, float* b, float h, float s, float v);
 void rgb_to_hsv(float* h, float* s, float* v, float r, float g, float b);

@@ -1095,8 +1095,6 @@ auto AdaptiveWorkspaceLattice::getStateVisualization(
 auto AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
     -> visual::Marker
 {
-    visual::Marker m;
-
     std::vector<Eigen::Vector3d> points;
     for (int x = 0; x < m_grid->numCellsX(); ++x) {
     for (int y = 0; y < m_grid->numCellsY(); ++y) {

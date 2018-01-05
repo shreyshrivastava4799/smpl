@@ -239,7 +239,10 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
 
     // ...and this will also flush the bfs...
 
-    const size_t max_points = 4 * 4096;
+    // arbitrary limit on size of visualization...64Mb worth of points+colors
+    const size_t max_points =
+            (64 * 1024 * 1024) /
+            (sizeof(visual::Color) + sizeof(Eigen::Vector3d));
 
     std::vector<Eigen::Vector3d> points;
     std::vector<visual::Color> colors;
@@ -278,6 +281,7 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
             color.r = clamp(color.r, 0.0f, 1.0f);
             color.g = clamp(color.g, 0.0f, 1.0f);
             color.b = clamp(color.b, 0.0f, 1.0f);
+            color.a = 1.0f;
 
             Eigen::Vector3d p;
             grid()->gridToWorld(c.x, c.y, c.z, p.x(), p.y(), p.z());

@@ -225,11 +225,10 @@ void ConvertMarkerToMarkerMsg(
         mm.colors.resize(colors.size());
         for (size_t i = 0; i < colors.size(); ++i) {
             std_msgs::ColorRGBA c;
-            c.r = colors[i].r;
-            c.g = colors[i].g;
-            c.b = colors[i].b;
-            c.a = colors[i].a;
-            mm.colors.push_back(c);
+            mm.colors[i].r = colors[i].r;
+            mm.colors[i].g = colors[i].g;
+            mm.colors[i].b = colors[i].b;
+            mm.colors[i].a = colors[i].a;
         }
     }
 

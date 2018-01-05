@@ -586,11 +586,8 @@ int main(int argc, char* argv[])
     tf::transformMsgToKDL(transform, f);
     rm->setKinematicsToPlanningTransform(f, "what?");
 
-    SV_SHOW_INFO(cc.getBoundingBoxVisualization());
-    auto markers = cc.getCollisionWorldVisualization();
-    ROS_INFO("Publish %zu collision world markers", markers.markers.size());
     SV_SHOW_INFO(cc.getCollisionRobotVisualization());
-    SV_SHOW_INFO(markers);
+    SV_SHOW_INFO(cc.getCollisionWorldVisualization());
     SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
 
     ///////////////////
