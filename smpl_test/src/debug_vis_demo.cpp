@@ -86,12 +86,38 @@ void VisualizeCylinder()
     while (ros::ok()) {
         auto now = ros::Time::now();
 
-        SV_SHOW_INFO_NAMED("cylinder", MakeCylinderMarker((now - beginning).toSec()));
+        SV_SHOW_WARN_NAMED("cylinder", MakeCylinderMarker((now - beginning).toSec()));
 
         loop_rate.sleep();
     }
 }
 
+/// This program demonstrates functionality provided by smpl's debug
+/// visualization module and associates. There's a few important things being
+/// demonstrated here:
+///
+/// (1) smpl's debug visualization module works through a global debug
+///     visualizer, registered by the user. Here, we register a global debug
+///     visualizer that visualizes markers by publishing messages of type
+///     visualization_msgs/MarkerArray, converted from smpl's visual::Marker.
+///
+/// (2) Visualization levels are set dynamically so that the demonstration
+///     alternates between visualizing a cube and visualizing a sphere. The
+///     level of the cylinder visualization is also modified, but not set high
+///     enough to disable the visualization. Also, to set visualization levels
+///     dynamically, the name of the visualization must be resolved via the
+///     SV_NAME_PREFIX macro. which is a concatenation of the root visualization
+///     name and the name given to all visualizations in the package, configured
+///     in cmake via SV_PACKAGE_NAME.
+///
+/// (3) Thread-safety of the module is stressed by visualizing the objects and
+///     modifying the visualization levels in parallel.
+///
+/// (4) Some other things that would be worth demonstrating: (i) visualization
+///     names shared between different visualization macros, (ii) alternative
+///     macros i.e. cond and timed variants, (iii) direct Marker/MarkerArray
+///     interoperability, (iv) other marker types...
+///
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "debug_vis_demo");
@@ -116,6 +142,9 @@ int main(int argc, char* argv[])
             sbpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".sphere",
                     sbpl::visual::Level::Info);
+            sbpl::visual::set_visualization_level(
+                    std::string(SV_NAME_PREFIX) + ".cylinder",
+                    sbpl::visual::Level::Warn);
         } else {
             sbpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".cube",
@@ -123,6 +152,9 @@ int main(int argc, char* argv[])
             sbpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".sphere",
                     sbpl::visual::Level::Warn);
+            sbpl::visual::set_visualization_level(
+                    std::string(SV_NAME_PREFIX) + ".cylinder",
+                    sbpl::visual::Level::Info);
         }
         enabled = !enabled;
 
