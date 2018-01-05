@@ -806,6 +806,7 @@ bool PlannerInterface::checkConstructionArgs() const
 }
 
 bool PlannerInterface::solve(
+    // TODO: this planning scene is probably not being used in any meaningful way
     const moveit_msgs::PlanningScene& planning_scene,
     const moveit_msgs::MotionPlanRequest& req,
     moveit_msgs::MotionPlanResponse& res)
