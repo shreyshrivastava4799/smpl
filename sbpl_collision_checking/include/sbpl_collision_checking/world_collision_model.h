@@ -38,19 +38,14 @@
 #include <vector>
 
 // system includes
-#include <moveit_msgs/CollisionObject.h>
-#include <octomap_msgs/OctomapWithPose.h>
+#include <Eigen/Dense>
 #include <smpl/occupancy_grid.h>
-#include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
-
-// project includes
-#include <sbpl_collision_checking/attached_bodies_collision_state.h>
-#include <sbpl_collision_checking/robot_collision_state.h>
-#include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
 namespace collision {
+
+struct CollisionObject;
 
 class WorldCollisionModel
 {
@@ -62,14 +57,14 @@ public:
     auto grid() -> OccupancyGrid* { return m_grid; }
     auto grid() const -> const OccupancyGrid* { return m_grid; }
 
-    bool insertObject(const Object* object);
-    bool removeObject(const Object* object);
+    bool insertObject(const CollisionObject* object);
+    bool removeObject(const CollisionObject* object);
 
-    bool moveShapes(const Object* object);
-    bool insertShapes(const Object* object);
-    bool removeShapes(const Object* object);
+    bool moveShapes(const CollisionObject* object);
+    bool insertShapes(const CollisionObject* object);
+    bool removeShapes(const CollisionObject* object);
 
-    bool hasObject(const Object* object) const;
+    bool hasObject(const CollisionObject* object) const;
     bool hasObjectWithName(const std::string& id) const;
 
     void removeAllObjects();
@@ -88,7 +83,7 @@ private:
 
     using VoxelList = std::vector<Eigen::Vector3d>;
     struct ObjectCollisionModel {
-        const Object* object;
+        const CollisionObject* object;
 
         // occupied voxels for this object in the grid reference frame, one
         // list for each shape in the object
@@ -102,30 +97,16 @@ private:
     // Generic Shapes //
     ////////////////////
 
-    bool haveObject(const Object* object) const;
+    bool haveObject(const CollisionObject* object) const;
 
-    auto getObjectCollisionModel(const Object* object) const
+    auto getObjectCollisionModel(const CollisionObject* object) const
         -> const ObjectCollisionModel*;
 
-    bool checkObjectInsert(const Object* object) const;
-    bool checkObjectRemove(const Object* object) const;
-    bool checkObjectMoveShape(const Object* object) const;
-    bool checkObjectInsertShape(const Object* object) const;
-    bool checkObjectRemoveShape(const Object* object) const;
-
-    ///////////////////
-    // Visualization //
-    ///////////////////
-
-    void getAllCollisionObjectVoxels(
-        std::vector<geometry_msgs::Point>& points) const;
-
-    void appendWorldObjectVisualization(
-        const Object& object,
-        std::vector<double>& hue,
-        const std::string& ns,
-        int id,
-        visualization_msgs::MarkerArray& ma) const;
+    bool checkObjectInsert(const CollisionObject* object) const;
+    bool checkObjectRemove(const CollisionObject* object) const;
+    bool checkObjectMoveShape(const CollisionObject* object) const;
+    bool checkObjectInsertShape(const CollisionObject* object) const;
+    bool checkObjectRemoveShape(const CollisionObject* object) const;
 };
 
 typedef std::shared_ptr<WorldCollisionModel> WorldCollisionModelPtr;

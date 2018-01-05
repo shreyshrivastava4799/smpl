@@ -120,24 +120,10 @@ int main(int argc, char **argv)
     ROS_INFO("Initialized the collision space.");
 
     // add robot's pose in map
-    moveit_msgs::PlanningScene scene;
-    scene.world.octomap.header.frame_id = world_frame;
-    scene.robot_state.multi_dof_joint_state.header.frame_id = "base_link";
-    scene.robot_state.multi_dof_joint_state.joint_names.push_back("torso_lift_link");
 
-    geometry_msgs::Transform t;
-    t.translation.x = -0.06;
-    t.translation.y = 0.0;
-    t.translation.z = 0.34;
-    t.rotation.w = 1.0;
-    t.rotation.x = t.rotation.y = t.rotation.z = 0.0;
-    scene.robot_state.multi_dof_joint_state.transforms.push_back(t);
-
-    scene.robot_state.joint_state.name.push_back("right_gripper_finger_joint");
-    scene.robot_state.joint_state.name.push_back("left_gripper_finger_joint");
-    scene.robot_state.joint_state.position.push_back(0.08);
-    scene.robot_state.joint_state.position.push_back(0.08);
-    cspace.setPlanningScene(scene);
+    cspace.setWorldToModelTransform(Eigen::Affine3d::Identity());
+    cspace.setJointPosition("right_gripper_finger_joint", 0.08);
+    cspace.setJointPosition("left_gripper_finger_joint", 0.08);
 
     std::vector<double> angles(7, 0.0);
     angles[0] = -0.7;

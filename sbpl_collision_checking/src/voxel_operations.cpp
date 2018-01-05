@@ -5,6 +5,7 @@
 
 // system includes
 #include <eigen_conversions/eigen_msg.h>
+#include <moveit/collision_detection/world.h>
 #include <octomap/octomap.h>
 #include <ros/console.h>
 #include <smpl/geometry/voxelize.h>
@@ -104,6 +105,18 @@ bool VoxelizePlane(
 
 static
 bool VoxelizePlane(
+    const PlaneShape& plane,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    ROS_ERROR("Cannot voxelize plane without boundary information");
+    return false;
+}
+
+static
+bool VoxelizePlane(
     const shape_msgs::Plane& plane,
     const geometry_msgs::Pose& pose,
     double res,
@@ -112,6 +125,48 @@ bool VoxelizePlane(
 {
     ROS_ERROR("Cannot voxelize planes without boundary information");
     return false;
+}
+
+static
+bool VoxelizeNonPlaneShape(
+    const CollisionShape& shape,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    switch (shape.type) {
+    case ShapeType::Sphere: {
+        auto& sphere = static_cast<const SphereShape&>(shape);
+        return VoxelizeSphere(sphere, pose, res, go, voxels);
+    }   break;
+    case ShapeType::Cylinder: {
+        auto& cylinder = static_cast<const CylinderShape&>(shape);
+        return VoxelizeCylinder(cylinder, pose, res, go, voxels);
+    }   break;
+    case ShapeType::Cone: {
+        auto& cone = static_cast<const ConeShape&>(shape);
+        return VoxelizeCone(cone, pose, res, go, voxels);
+    }   break;
+    case ShapeType::Box: {
+        auto& box = static_cast<const BoxShape&>(shape);
+        return VoxelizeBox(box, pose, res, go, voxels);
+    }   break;
+    case ShapeType::Plane: {
+        auto& plane = static_cast<const PlaneShape&>(shape);
+        return VoxelizePlane(plane, pose, res, go, voxels);
+    }   break;
+    case ShapeType::Mesh: {
+        auto& mesh = static_cast<const MeshShape&>(shape);
+        return VoxelizeMesh(mesh, pose, res, go, voxels);
+    }   break;
+    case ShapeType::OcTree: {
+        auto& octree = static_cast<const OcTreeShape&>(shape);
+        return VoxelizeOcTree(octree, pose, res, go, voxels);
+    }   break;
+    default:
+        return false;
+    }
 }
 
 static
@@ -187,14 +242,40 @@ bool VoxelizeNonPlaneShape(
 /// This function disallows plane voxelization, which requires additional
 /// boundary information.
 bool VoxelizeObject(
-    const Object& object,
+    const collision_detection::World::Object& object,
     double res,
     const Eigen::Vector3d& go,
     std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
 {
+    assert(object.shapes_.size() == object.shape_poses_.size());
     for (size_t i = 0; i < object.shapes_.size(); ++i) {
-        const shapes::ShapeConstPtr& shape = object.shapes_[i];
-        const Eigen::Affine3d& pose = object.shape_poses_[i];
+        auto& shape = object.shapes_[i];
+        auto& pose = object.shape_poses_[i];
+        std::vector<Eigen::Vector3d> voxels;
+        if (!VoxelizeShape(*shape, pose, res, go, voxels)) {
+            all_voxels.clear();
+            return false;
+        }
+        all_voxels.push_back(std::move(voxels));
+    }
+
+    return true;
+}
+
+/// Voxelize an object composed of several shapes
+///
+/// This function disallows plane voxelization, which requires additional
+/// boundary information.
+bool VoxelizeObject(
+    const CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    assert(object.shapes.size() == object.shape_poses.size());
+    for (size_t i = 0; i < object.shapes.size(); ++i) {
+        auto& shape = object.shapes[i];
+        auto& pose = object.shape_poses[i];
         std::vector<Eigen::Vector3d> voxels;
         if (!VoxelizeShape(*shape, pose, res, go, voxels)) {
             all_voxels.clear();
@@ -236,16 +317,40 @@ bool VoxelizeCollisionObject(
 }
 
 bool VoxelizeObject(
-    const Object& object,
+    const collision_detection::World::Object& object,
     double res,
     const Eigen::Vector3d& go,
     const Eigen::Vector3d& gmin,
     const Eigen::Vector3d& gmax,
     std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
 {
+    assert(object.shapes_.size() == object.shape_poses_.size());
     for (size_t i = 0; i < object.shapes_.size(); ++i) {
-        const shapes::ShapeConstPtr& shape = object.shapes_[i];
-        const Eigen::Affine3d& pose = object.shape_poses_[i];
+        auto& shape = object.shapes_[i];
+        auto& pose = object.shape_poses_[i];
+        std::vector<Eigen::Vector3d> voxels;
+        if (!VoxelizeShape(*shape, pose, res, go, gmin, gmax, voxels)) {
+            all_voxels.clear();
+            return false;
+        }
+        all_voxels.push_back(std::move(voxels));
+    }
+
+    return true;
+}
+
+bool VoxelizeObject(
+    const CollisionObject& object,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<std::vector<Eigen::Vector3d>>& all_voxels)
+{
+    assert(object.shapes.size() == object.shape_poses.size());
+    for (size_t i = 0; i < object.shapes.size(); ++i) {
+        auto& shape = object.shapes[i];
+        auto& pose = object.shape_poses[i];
         std::vector<Eigen::Vector3d> voxels;
         if (!VoxelizeShape(*shape, pose, res, go, gmin, gmax, voxels)) {
             all_voxels.clear();
@@ -279,6 +384,150 @@ bool VoxelizeCollisionObject(
     if (!VoxelizeMeshes(object, res, go, all_voxels)) {
         all_voxels.clear();
         return false;
+    }
+
+    return true;
+}
+
+bool VoxelizeShape(
+    const CollisionShape& shape,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    return VoxelizeNonPlaneShape(shape, pose, res, go, voxels);
+}
+
+bool VoxelizeShape(
+    const CollisionShape& shape,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    if (shape.type != ShapeType::Plane) {
+        return VoxelizeNonPlaneShape(shape, pose, res, go, voxels);
+    } else {
+        auto& plane = static_cast<const PlaneShape&>(shape);
+        return VoxelizePlane(plane, pose, res, go, gmin, gmax, voxels);
+    }
+}
+
+bool VoxelizeSphere(
+    const SphereShape& sphere,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double radius = sphere.radius;
+    geometry::VoxelizeSphere(radius, pose, res, go, voxels, false);
+    return true;
+}
+
+bool VoxelizeCylinder(
+    const CylinderShape& cylinder,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double radius = cylinder.radius;
+    const double height = cylinder.height;
+    geometry::VoxelizeCylinder(radius, height, pose, res, go, voxels, false);
+    return true;
+}
+
+bool VoxelizeCone(
+    const ConeShape& cone,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double radius = cone.radius;
+    const double height = cone.height;
+    geometry::VoxelizeCone(radius, height, pose, res, go, voxels, false);
+    return true;
+}
+
+bool VoxelizeBox(
+    const BoxShape& box,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    const double length = box.size[0];
+    const double width = box.size[1];
+    const double height = box.size[2];
+    geometry::VoxelizeBox(length, width, height, pose, res, go, voxels, false);
+    return true;
+}
+
+bool VoxelizePlane(
+    const PlaneShape& plane,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    const Eigen::Vector3d& gmin,
+    const Eigen::Vector3d& gmax,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    // TODO: incorporate pose
+    geometry::VoxelizePlane(
+            plane.a, plane.b, plane.c, plane.d, gmin, gmax, res, go, voxels);
+    return true;
+}
+
+bool VoxelizeMesh(
+    const MeshShape& mesh,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    // TODO: eww mesh duplication
+    std::vector<Eigen::Vector3d> vertices(mesh.vertex_count);
+    for (unsigned int i = 0; i < mesh.vertex_count; ++i) {
+        vertices[i] = Eigen::Vector3d(
+                mesh.vertices[3 * i + 0],
+                mesh.vertices[3 * i + 1],
+                mesh.vertices[3 * i + 2]);
+    }
+    std::vector<int> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
+    geometry::VoxelizeMesh(vertices, indices, pose, res, go, voxels, false);
+    return true;
+}
+
+bool VoxelizeOcTree(
+    const OcTreeShape& octree,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    auto& tree = octree.octree;
+    for (auto lit = tree->begin_leafs(); lit != tree->end_leafs(); ++lit) {
+        if (tree->isNodeOccupied(*lit)) {
+            if (lit.getSize() <= res) {
+                voxels.push_back(Eigen::Vector3d(lit.getX(), lit.getY(), lit.getZ()));
+            } else {
+                double ceil_val = ceil(lit.getSize() / res) * res;
+                for (double x = lit.getX() - ceil_val; x < lit.getX() + ceil_val; x += res) {
+                for (double y = lit.getY() - ceil_val; y < lit.getY() + ceil_val; y += res) {
+                for (double z = lit.getZ() - ceil_val; z < lit.getZ() + ceil_val; z += res) {
+                    Eigen::Vector3d pt(x, y, z);
+                    pt = pose * pt;
+                    voxels.push_back(pt);
+                }
+                }
+                }
+            }
+        }
     }
 
     return true;
@@ -390,6 +639,7 @@ bool VoxelizeMesh(
     const Eigen::Vector3d& go,
     std::vector<Eigen::Vector3d>& voxels)
 {
+    // TODO: eww mesh duplication
     std::vector<Eigen::Vector3d> vertices(mesh.vertex_count);
     for (unsigned int i = 0; i < mesh.vertex_count; ++i) {
         vertices[i] = Eigen::Vector3d(
@@ -409,7 +659,7 @@ bool VoxelizeOcTree(
     const Eigen::Vector3d& go,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    auto tree = octree.octree;
+    auto& tree = octree.octree;
     for (auto lit = tree->begin_leafs(); lit != tree->end_leafs(); ++lit) {
         if (tree->isNodeOccupied(*lit)) {
             if (lit.getSize() <= res) {

@@ -40,14 +40,8 @@
 
 // system includes
 #include <Eigen/Dense>
-#include <geometry_msgs/Point.h>
-#include <geometry_msgs/Pose.h>
-#include <moveit_msgs/AttachedCollisionObject.h>
-#include <moveit_msgs/CollisionObject.h>
-#include <moveit_msgs/PlanningScene.h>
 #include <smpl/collision_checker.h>
 #include <smpl/occupancy_grid.h>
-#include <shape_msgs/MeshTriangle.h>
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
@@ -89,8 +83,6 @@ public:
         const std::string& group_name,
         const std::vector<std::string>& planning_joints);
 
-    bool setPlanningScene(const moveit_msgs::PlanningScene& scene);
-
     /// \name Robot State
     ///@{
     bool setJointPosition(const std::string& name, double position);
@@ -101,20 +93,18 @@ public:
 
     /// \name Self Collisions
     ///@{
-    const AllowedCollisionMatrix& allowedCollisionMatrix() const;
+    auto allowedCollisionMatrix() const -> const AllowedCollisionMatrix&;
     void updateAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
     void setAllowedCollisionMatrix(const AllowedCollisionMatrix& acm);
     ///@}
 
     /// \name World Collision Model
     ///@{
-    bool insertObject(const ObjectConstPtr& object);
-    bool removeObject(const ObjectConstPtr& object);
-    bool moveShapes(const ObjectConstPtr& object);
-    bool insertShapes(const ObjectConstPtr& object);
-    bool removeShapes(const ObjectConstPtr& object);
-    bool processCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool processOctomapMsg(const octomap_msgs::OctomapWithPose& octomap);
+    bool insertObject(const CollisionObject* object);
+    bool removeObject(const CollisionObject* object);
+    bool moveShapes(const CollisionObject* object);
+    bool insertShapes(const CollisionObject* object);
+    bool removeShapes(const CollisionObject* object);
     ///@}
 
     /// \name Attached Objects
@@ -126,9 +116,6 @@ public:
         const std::string& link_name);
 
     bool detachObject(const std::string& id);
-
-    bool processAttachedCollisionObject(
-        const moveit_msgs::AttachedCollisionObject& obj);
     ///@}
 
     auto getReferenceFrame() const -> const std::string&
@@ -237,8 +224,6 @@ private:
     AttachedBodiesCollisionStatePtr m_abcs;
     std::vector<double>             m_joint_vars;
 
-    std::vector<ObjectConstPtr>     m_collision_objects;
-
     WorldCollisionModelPtr          m_wcm;
     SelfCollisionModelPtr           m_scm;
 
@@ -263,32 +248,41 @@ private:
     void updateState(
         std::vector<double>& state,
         const std::vector<double>& vals);
-    void updateState(
-        std::vector<double>& state,
-        const double* vals);
+    void updateState(std::vector<double>& state, const double* vals);
     void copyState();
 
     bool withinJointPositionLimits(const std::vector<double>& positions) const;
-
-    ObjectConstPtr findCollisionObject(const std::string& id) const;
-
-    bool checkCollisionObjectAdd(
-        const moveit_msgs::CollisionObject& object) const;
-
-    bool addCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool removeCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool appendCollisionObject(const moveit_msgs::CollisionObject& object);
-    bool moveCollisionObject(const moveit_msgs::CollisionObject& object);
-
-    bool insertOctomap(
-        const octomap_msgs::OctomapWithPose& octomap);
-
-    auto convertOctomapToObject(
-        const octomap_msgs::OctomapWithPose& octomap) const -> ObjectConstPtr;
-
-    bool checkInsertOctomap(
-        const octomap_msgs::OctomapWithPose& octomap) const;
 };
+
+typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;
+typedef std::shared_ptr<const CollisionSpace> CollisionSpaceConstPtr;
+
+auto BuildCollisionSpace(
+    OccupancyGrid* grid,
+    const std::string& urdf_string,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>;
+
+auto BuildCollisionSpace(
+    OccupancyGrid* grid,
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>;
+
+auto BuildCollisionSpace(
+    OccupancyGrid* grid,
+    const RobotCollisionModelConstPtr& rcm,
+    const std::string& group_name,
+    const std::vector<std::string>& planning_joints)
+    -> std::unique_ptr<CollisionSpace>;
+
+///////////////////////////
+// Inline Implementation //
+///////////////////////////
 
 inline
 bool CollisionSpace::isContinuous(int vidx) const
@@ -317,32 +311,6 @@ double CollisionSpace::maxLimit(int vidx) const
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
     return m_rcm->jointVarMaxPosition(jidx);
 }
-
-typedef std::shared_ptr<CollisionSpace> CollisionSpacePtr;
-typedef std::shared_ptr<const CollisionSpace> CollisionSpaceConstPtr;
-
-auto BuildCollisionSpace(
-    OccupancyGrid* grid,
-    const std::string& urdf_string,
-    const CollisionModelConfig& config,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints)
-    -> std::unique_ptr<CollisionSpace>;
-
-auto BuildCollisionSpace(
-    OccupancyGrid* grid,
-    const urdf::ModelInterface& urdf,
-    const CollisionModelConfig& config,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints)
-    -> std::unique_ptr<CollisionSpace>;
-
-auto BuildCollisionSpace(
-    OccupancyGrid* grid,
-    const RobotCollisionModelConstPtr& rcm,
-    const std::string& group_name,
-    const std::vector<std::string>& planning_joints)
-    -> std::unique_ptr<CollisionSpace>;
 
 } // namespace collision
 } // namespace sbpl

@@ -165,8 +165,8 @@ bool RobotCollisionState::setJointVarPositions(const double* positions)
     return true;
 }
 
-visualization_msgs::MarkerArray
-RobotCollisionState::getVisualization(int gidx) const
+auto RobotCollisionState::getVisualization(int gidx) const
+    -> visualization_msgs::MarkerArray
 {
     ASSERT_VECTOR_RANGE(m_group_states, gidx);
     const CollisionGroupState& group_state = m_group_states[gidx];

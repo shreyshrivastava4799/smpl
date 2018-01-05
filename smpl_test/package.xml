@@ -8,8 +8,6 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
-    <build_depend>cmake_modules</build_depend>
-
     <depend>geometry_msgs</depend>
     <depend>leatherman</depend>
     <depend>moveit_msgs</depend>
@@ -19,6 +17,5 @@
     <depend>smpl</depend>
     <depend>sbpl_collision_checking</depend>
     <depend>sbpl_kdl_robot_model</depend>
-    <depend>sbpl_pr2_robot_model</depend>
     <depend>visualization_msgs</depend>
 </package>

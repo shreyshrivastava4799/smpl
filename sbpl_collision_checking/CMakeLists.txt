@@ -77,6 +77,7 @@ add_library(
     src/robot_motion_collision_model.cpp
     src/robot_collision_state.cpp
     src/self_collision_model.cpp
+    src/shape_visualization.cpp
     src/types.cpp
     src/voxel_operations.cpp
     src/world_collision_detector.cpp

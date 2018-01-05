@@ -6,10 +6,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
+find_package(Eigen3 REQUIRED)
+
 find_package(catkin
     REQUIRED
     COMPONENTS
-        cmake_modules
         geometry_msgs
         leatherman
         moveit_msgs
@@ -18,23 +19,20 @@ find_package(catkin
         smpl
         sbpl_collision_checking
         sbpl_kdl_robot_model
-        sbpl_pr2_robot_model
         visualization_msgs)
 
 find_package(orocos_kdl REQUIRED)
-
-find_package(Eigen REQUIRED)
 
 catkin_package()
 
 add_definitions(-DSV_PACKAGE_NAME="smpl_test")
 
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-include_directories(SYSTEM ${Eigen_INCLUDE_DIRS})
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
 
-add_executable(callPlanner src/call_planner.cpp)
+add_executable(callPlanner src/call_planner.cpp src/collision_space_scene.cpp)
 target_link_libraries(callPlanner ${catkin_LIBRARIES})
 
 add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)

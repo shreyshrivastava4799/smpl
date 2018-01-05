@@ -32,20 +32,16 @@
 #include <sbpl_collision_checking/world_collision_model.h>
 
 // standard includes
-#include <map>
+#include <algorithm>
+#include <utility>
 
 // system includes
-#include <Eigen/Dense>
-#include <boost/make_shared.hpp>
 #include <eigen_conversions/eigen_msg.h>
-#include <geometric_shapes/shape_operations.h>
-#include <geometric_shapes/shapes.h>
 #include <leatherman/utils.h>
-#include <moveit/collision_detection/world.h>
 
 // project includes
 #include <sbpl_collision_checking/voxel_operations.h>
-#include "collision_operations.h"
+#include <sbpl_collision_checking/shape_visualization.h>
 
 namespace sbpl {
 namespace collision {
@@ -89,10 +85,10 @@ WorldCollisionModel::WorldCollisionModel(
 
 /// Add an object to the collision model. The object will be automatically
 /// rasterized and the distance map updated.
-bool WorldCollisionModel::insertObject(const Object* object)
+bool WorldCollisionModel::insertObject(const CollisionObject* object)
 {
     if (!checkObjectInsert(object)) {
-        ROS_ERROR_NAMED(LOG, "Rejecting addition of collision object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(LOG, "Rejecting addition of collision object '%s'", object->id.c_str());
         return false;
     }
 
@@ -110,7 +106,7 @@ bool WorldCollisionModel::insertObject(const Object* object)
 
     std::vector<std::vector<Eigen::Vector3d>> all_voxels;
     if (!VoxelizeObject(*object, res, origin, gmin, gmax, all_voxels)) {
-        ROS_ERROR_NAMED(LOG, "Failed to voxelize object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(LOG, "Failed to voxelize object '%s'", object->id.c_str());
         return false;
     }
 
@@ -122,7 +118,7 @@ bool WorldCollisionModel::insertObject(const Object* object)
     }
 
     for (auto& voxel_list : m_object_models.back().cached_voxels) {
-        ROS_DEBUG_NAMED(LOG, "Adding %zu voxels from collision object '%s' to the distance transform", voxel_list.size(), object->id_.c_str());
+        ROS_DEBUG_NAMED(LOG, "Adding %zu voxels from collision object '%s' to the distance transform", voxel_list.size(), object->id.c_str());
         m_grid->addPointsToField(voxel_list);
     }
 
@@ -131,10 +127,10 @@ bool WorldCollisionModel::insertObject(const Object* object)
 
 /// Remove an object from the collision model. The voxels occupied by this
 /// object will be cleared and the distance map updated.
-bool WorldCollisionModel::removeObject(const Object* object)
+bool WorldCollisionModel::removeObject(const CollisionObject* object)
 {
     if (!checkObjectRemove(object)) {
-        ROS_ERROR_NAMED(LOG, "Rejecting removal of collision object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(LOG, "Rejecting removal of collision object '%s'", object->id.c_str());
         return false;
     }
 
@@ -156,7 +152,7 @@ bool WorldCollisionModel::removeObject(const Object* object)
 
 /// Update the collision model in response to a collision object moving or
 /// shapes moving with a collision object.
-bool WorldCollisionModel::moveShapes(const Object* object)
+bool WorldCollisionModel::moveShapes(const CollisionObject* object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
@@ -164,7 +160,7 @@ bool WorldCollisionModel::moveShapes(const Object* object)
 
 /// Update the collision model in response to shapes being added to a collision
 /// object.
-bool WorldCollisionModel::insertShapes(const Object* object)
+bool WorldCollisionModel::insertShapes(const CollisionObject* object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
@@ -172,14 +168,14 @@ bool WorldCollisionModel::insertShapes(const Object* object)
 
 /// Update the collision model in response to shapes being removed from a
 /// collision object.
-bool WorldCollisionModel::removeShapes(const Object* object)
+bool WorldCollisionModel::removeShapes(const CollisionObject* object)
 {
     // TODO: optimized version
     return removeObject(object) && insertObject(object);
 }
 
 /// Return true if the collision model contains the object.
-bool WorldCollisionModel::hasObject(const Object* object) const
+bool WorldCollisionModel::hasObject(const CollisionObject* object) const
 {
     return haveObject(object);
 }
@@ -188,7 +184,7 @@ bool WorldCollisionModel::hasObject(const Object* object) const
 bool WorldCollisionModel::hasObjectWithName(const std::string& id) const
 {
     for (auto& model : m_object_models) {
-        if (model.object->id_ == id) {
+        if (model.object->id == id) {
             return true;
         }
     }
@@ -213,9 +209,39 @@ auto WorldCollisionModel::getWorldVisualization() const
 {
     visualization_msgs::MarkerArray ma;
     for (auto& model : m_object_models) {
-        std::vector<double> hue(model.object->shapes_.size(), 200);
-        appendWorldObjectVisualization(*model.object, hue, model.object->id_, 0, ma);
+        if (model.object->shapes.size() != model.object->shape_poses.size()) {
+            ROS_ERROR_NAMED(LOG, "Mismatched sizes of shapes and shape poses");
+            continue;
+        }
+
+        double r, g, b;
+        leatherman::HSVtoRGB(&r, &g, &b, 200.0, 1.0, 1.0);
+
+        for (size_t i = 0; i < model.object->shapes.size(); ++i) {
+            auto& shape = model.object->shapes[i];
+            auto& pose = model.object->shape_poses[i];
+
+            // fill in type and scale
+            visualization_msgs::Marker m;
+            if (!MakeCollisionShapeMarker(*shape, m)) {
+                ROS_WARN_NAMED(LOG, "Failed to construct marker from shape");
+            }
+
+            m.header.frame_id = m_grid->getReferenceFrame();
+            m.ns = model.object->id;
+            m.id = (int)i;
+            // m.type filled in above
+            m.action = visualization_msgs::Marker::ADD;
+            tf::poseEigenToMsg(pose, m.pose);
+            m.color.r = r;
+            m.color.g = g;
+            m.color.b = b;
+            m.color.a = 1.0f;
+
+            ma.markers.push_back(m);
+        }
     }
+
     return ma;
 }
 
@@ -226,7 +252,22 @@ auto WorldCollisionModel::getCollisionWorldVisualization() const
     visualization_msgs::MarkerArray ma;
 
     std::vector<geometry_msgs::Point> voxels;
-    getAllCollisionObjectVoxels(voxels);
+    for (auto& model : m_object_models) {
+        for (size_t sidx = 0; sidx < model.object->shapes.size(); ++sidx) {
+            auto& shape = model.object->shapes[sidx];
+            if (shape->type != ShapeType::OcTree) {
+                auto& shape_voxels = model.cached_voxels[sidx];
+                voxels.reserve(voxels.size() + shape_voxels.size());
+                for (auto& voxel : shape_voxels) {
+                    geometry_msgs::Point point;
+                    point.x = voxel.x();
+                    point.y = voxel.y();
+                    point.z = voxel.z();
+                    voxels.push_back(point);
+                }
+            }
+        }
+    }
 
     visualization_msgs::Marker marker;
     marker.header.seq = 0;
@@ -255,7 +296,7 @@ auto WorldCollisionModel::getCollisionWorldVisualization() const
     return ma;
 }
 
-bool WorldCollisionModel::haveObject(const Object* object) const
+bool WorldCollisionModel::haveObject(const CollisionObject* object) const
 {
     auto it = std::find_if(begin(m_object_models), end(m_object_models),
             [object](const ObjectCollisionModel& model) {
@@ -264,7 +305,8 @@ bool WorldCollisionModel::haveObject(const Object* object) const
     return it != end(m_object_models);
 }
 
-auto WorldCollisionModel::getObjectCollisionModel(const Object* object) const
+auto WorldCollisionModel::getObjectCollisionModel(
+    const CollisionObject* object) const
     -> const ObjectCollisionModel*
 {
     for (auto& model : m_object_models) {
@@ -277,14 +319,14 @@ auto WorldCollisionModel::getObjectCollisionModel(const Object* object) const
 
 // Return true if the model does not already contain this object and the object
 // is not malformed.
-bool WorldCollisionModel::checkObjectInsert(const Object* object) const
+bool WorldCollisionModel::checkObjectInsert(const CollisionObject* object) const
 {
     if (haveObject(object)) {
-        ROS_ERROR_NAMED(LOG, "Already have collision object '%s'", object->id_.c_str());
+        ROS_ERROR_NAMED(LOG, "Already have collision object '%s'", object->id.c_str());
         return false;
     }
 
-    if (object->shapes_.size() != object->shape_poses_.size()) {
+    if (object->shapes.size() != object->shape_poses.size()) {
         ROS_ERROR_NAMED(LOG, "Mismatched sizes of shapes and shape poses");
         return false;
     }
@@ -298,25 +340,25 @@ bool WorldCollisionModel::checkObjectInsert(const Object* object) const
 }
 
 // Return true if the model contains this object, so that it may be removed.
-bool WorldCollisionModel::checkObjectRemove(const Object* object) const
+bool WorldCollisionModel::checkObjectRemove(const CollisionObject* object) const
 {
     return haveObject(object);
 }
 
 // Return true if the model contains this object, so that it may be moved
-bool WorldCollisionModel::checkObjectMoveShape(const Object* object) const
+bool WorldCollisionModel::checkObjectMoveShape(const CollisionObject* object) const
 {
     return haveObject(object);
 }
 
 // Return true if the model contains this object, so that it may be updated.
-bool WorldCollisionModel::checkObjectInsertShape(const Object* object) const
+bool WorldCollisionModel::checkObjectInsertShape(const CollisionObject* object) const
 {
     return haveObject(object);
 }
 
 // Return true if the model contains this object, so that it may be updated.
-bool WorldCollisionModel::checkObjectRemoveShape(const Object* object) const
+bool WorldCollisionModel::checkObjectRemoveShape(const CollisionObject* object) const
 {
     return haveObject(object);
 }
@@ -327,75 +369,6 @@ void WorldCollisionModel::removeAllObjects()
     while (!m_object_models.empty()) {
         bool res = removeObject(m_object_models.front().object);
         assert(res);
-    }
-}
-
-void WorldCollisionModel::getAllCollisionObjectVoxels(
-    std::vector<geometry_msgs::Point>& points) const
-{
-    for (auto& model : m_object_models) {
-        for (size_t sidx = 0; sidx < model.object->shapes_.size(); ++sidx) {
-            auto& shape = model.object->shapes_[sidx];
-            if (shape->type != shapes::OCTREE) {
-                auto& shape_voxels = model.cached_voxels[sidx];
-                points.reserve(points.size() + shape_voxels.size());
-                for (auto& voxel : shape_voxels) {
-                    geometry_msgs::Point point;
-                    point.x = voxel.x();
-                    point.y = voxel.y();
-                    point.z = voxel.z();
-                    points.push_back(point);
-                }
-            }
-        }
-    }
-}
-
-void WorldCollisionModel::appendWorldObjectVisualization(
-    const Object& object,
-    std::vector<double>& hue,
-    const std::string& ns,
-    int id,
-    visualization_msgs::MarkerArray& ma) const
-{
-    if (object.shapes_.size() != object.shape_poses_.size()) {
-        ROS_ERROR_NAMED(LOG, "Mismatched sizes of shapes and shape poses");
-        return;
-    }
-
-    std::vector<std::vector<double>> colors;
-    colors.resize(hue.size(), std::vector<double>(4, 1.0));
-    for (size_t i = 0; i < colors.size(); ++i) {
-        leatherman::HSVtoRGB(
-                &colors[i][0], &colors[i][1], &colors[i][2], hue[i], 1.0, 1.0);
-    }
-
-    for (size_t i = 0; i < object.shapes_.size(); ++i) {
-        auto& shape = object.shapes_[i];
-        auto& pose = object.shape_poses_[i];
-
-        // fill in type and scale
-        visualization_msgs::Marker m;
-        if (!shapes::constructMarkerFromShape(shape.get(), m)) {
-            ROS_WARN_NAMED(LOG, "Failed to construct marker from shape");
-        }
-
-        m.header.seq = 0;
-        m.header.stamp = ros::Time(0);
-        m.header.frame_id = m_grid->getReferenceFrame();
-        m.ns = ns;
-        m.id = id + i;
-        // m.type filled in above
-        m.action = visualization_msgs::Marker::ADD;
-        tf::poseEigenToMsg(pose, m.pose);
-        m.color.r = colors[i][0];
-        m.color.g = colors[i][1];
-        m.color.b = colors[i][2];
-        m.color.a = colors[i][3];
-        m.lifetime = ros::Duration(0);
-        m.frame_locked = false;
-
-        ma.markers.push_back(m);
     }
 }
 

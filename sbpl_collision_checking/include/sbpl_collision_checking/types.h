@@ -44,8 +44,6 @@
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 #include <moveit/collision_detection/collision_matrix.h>
-#include <moveit/collision_detection/world.h>
-#include <moveit_msgs/CollisionObject.h>
 
 namespace sbpl {
 namespace collision {
@@ -56,18 +54,16 @@ struct Sphere
     double          radius;
 };
 
-using Object = collision_detection::World::Object;
-using ObjectPtr = std::shared_ptr<Object>;
-using ObjectConstPtr = std::shared_ptr<const Object>;
-
-typedef collision_detection::AllowedCollisionMatrix AllowedCollisionMatrix;
+using AllowedCollisionMatrix = collision_detection::AllowedCollisionMatrix;
 
 namespace AllowedCollision {
-typedef collision_detection::AllowedCollision::Type Type;
+using Type = collision_detection::AllowedCollision::Type;
 } // namespace Allowed Collision
 
-typedef Eigen::aligned_allocator<Eigen::Affine3d> Affine3dAllocator;
-typedef std::vector<Eigen::Affine3d, Affine3dAllocator> Affine3dVector;
+template <class T>
+using AlignedVector = std::vector<T, Eigen::aligned_allocator<T>>;
+
+using Affine3dVector = AlignedVector<Eigen::Affine3d>;
 
 template <
     class Key,
@@ -77,8 +73,7 @@ template <
     class Allocator = std::allocator<std::pair<const Key, T>>>
 using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
-inline
-std::string AffineToString(const Eigen::Affine3d& t)
+inline std::string AffineToString(const Eigen::Affine3d& t)
 {
     const Eigen::Vector3d pos(t.translation());
     const Eigen::Quaterniond rot(t.rotation());
@@ -87,9 +82,6 @@ std::string AffineToString(const Eigen::Affine3d& t)
     snprintf(buff, ENOUGH, "{ pos = (%0.3f, %0.3f, %0.3f), rot = (%0.3f, %0.3f, %0.3f, %0.3f) }", pos.x(), pos.y(), pos.z(), rot.w(), rot.x(), rot.y(), rot.z());
     return std::string(buff);
 }
-
-ObjectConstPtr ConvertCollisionObjectToObject(
-    const moveit_msgs::CollisionObject& co);
 
 struct CollisionDetail
 {
