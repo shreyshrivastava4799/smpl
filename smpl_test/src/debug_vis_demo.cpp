@@ -37,6 +37,19 @@ auto MakeSphereMarker(double t) -> sbpl::visual::Marker
     return marker;
 }
 
+auto MakeCylinderMarker(double t) -> sbpl::visual::Marker
+{
+    ROS_INFO("make cylinder marker");
+    auto marker = sbpl::visual::Marker{ };
+    marker.pose.position = Eigen::Vector3d(0.0, 0.0, std::sin(t));
+    marker.pose.orientation = Eigen::Quaterniond::Identity();
+    marker.shape = sbpl::visual::Cylinder{ 0.5, 1.0 };
+    marker.color = sbpl::visual::Color{ 0.0f, 0.0f, 1.0f, 1.0f };
+    marker.frame_id = "map";
+    marker.ns = "cylinder";
+    return marker;
+}
+
 void VisualizeCube()
 {
     auto beginning = ros::Time::now();
@@ -65,6 +78,20 @@ void VisualizeSphere()
     }
 }
 
+void VisualizeCylinder()
+{
+    auto beginning = ros::Time::now();
+
+    ros::Rate loop_rate(30.0);
+    while (ros::ok()) {
+        auto now = ros::Time::now();
+
+        SV_SHOW_INFO_NAMED("cylinder", MakeCylinderMarker((now - beginning).toSec()));
+
+        loop_rate.sleep();
+    }
+}
+
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "debug_vis_demo");
@@ -75,6 +102,7 @@ int main(int argc, char* argv[])
 
     std::thread cube_vis_thread(VisualizeCube);
     std::thread sphere_vis_thread(VisualizeSphere);
+    std::thread cylinder_vis_thread(VisualizeCylinder);
 
     ROS_INFO("SV_PACKAGE_NAME: %s", SV_NAME_PREFIX);
 
@@ -103,6 +131,7 @@ int main(int argc, char* argv[])
 
     cube_vis_thread.join();
     sphere_vis_thread.join();
+    cylinder_vis_thread.join();
 
     sbpl::visual::unset_visualizer();
     return 0;

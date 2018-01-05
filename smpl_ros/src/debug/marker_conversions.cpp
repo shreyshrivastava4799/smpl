@@ -140,8 +140,8 @@ void ConvertMarkerToMarkerMsg(
         mm.scale.z = boost::get<Ellipse>(m.shape).axis_z;
         break;
     case SHAPE_CYLINDER:
-        mm.scale.x = boost::get<Cylinder>(m.shape).radius;
-        mm.scale.y = boost::get<Cylinder>(m.shape).radius;
+        mm.scale.x = 2.0 * boost::get<Cylinder>(m.shape).radius;
+        mm.scale.y = 2.0 * boost::get<Cylinder>(m.shape).radius;
         mm.scale.z = boost::get<Cylinder>(m.shape).height;
         mm.type = visualization_msgs::Marker::CYLINDER;
         break;
