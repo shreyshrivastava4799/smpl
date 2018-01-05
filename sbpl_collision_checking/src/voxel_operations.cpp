@@ -504,15 +504,14 @@ bool VoxelizeMesh(
 }
 
 bool VoxelizeOcTree(
-    const OcTreeShape& octree,
+    const octomap::OcTree& tree,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& go,
     std::vector<Eigen::Vector3d>& voxels)
 {
-    auto& tree = octree.octree;
-    for (auto lit = tree->begin_leafs(); lit != tree->end_leafs(); ++lit) {
-        if (tree->isNodeOccupied(*lit)) {
+    for (auto lit = tree.begin_leafs(); lit != tree.end_leafs(); ++lit) {
+        if (tree.isNodeOccupied(*lit)) {
             if (lit.getSize() <= res) {
                 voxels.push_back(Eigen::Vector3d(lit.getX(), lit.getY(), lit.getZ()));
             } else {
@@ -529,8 +528,18 @@ bool VoxelizeOcTree(
             }
         }
     }
-
     return true;
+}
+
+bool VoxelizeOcTree(
+    const OcTreeShape& octree,
+    const Eigen::Affine3d& pose,
+    double res,
+    const Eigen::Vector3d& go,
+    std::vector<Eigen::Vector3d>& voxels)
+{
+    auto& tree = octree.octree;
+    return VoxelizeOcTree(*tree, pose, res, go, voxels);
 }
 
 bool VoxelizeShape(
@@ -660,26 +669,7 @@ bool VoxelizeOcTree(
     std::vector<Eigen::Vector3d>& voxels)
 {
     auto& tree = octree.octree;
-    for (auto lit = tree->begin_leafs(); lit != tree->end_leafs(); ++lit) {
-        if (tree->isNodeOccupied(*lit)) {
-            if (lit.getSize() <= res) {
-                voxels.push_back(Eigen::Vector3d(lit.getX(), lit.getY(), lit.getZ()));
-            } else {
-                double ceil_val = ceil(lit.getSize() / res) * res;
-                for (double x = lit.getX() - ceil_val; x < lit.getX() + ceil_val; x += res) {
-                for (double y = lit.getY() - ceil_val; y < lit.getY() + ceil_val; y += res) {
-                for (double z = lit.getZ() - ceil_val; z < lit.getZ() + ceil_val; z += res) {
-                    Eigen::Vector3d pt(x, y, z);
-                    pt = pose * pt;
-                    voxels.push_back(pt);
-                }
-                }
-                }
-            }
-        }
-    }
-
-    return true;
+    return VoxelizeOcTree(*tree, pose, res, go, voxels);
 }
 
 bool VoxelizeSolidPrimitive(
