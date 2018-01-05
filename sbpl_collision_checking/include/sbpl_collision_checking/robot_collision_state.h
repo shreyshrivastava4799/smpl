@@ -60,39 +60,39 @@ public:
 
     /// \name Robot State
     ///@{
-    auto   worldToModelTransform() const -> const Eigen::Affine3d&;
-    bool   setWorldToModelTransform(const Eigen::Affine3d& transform);
+    auto worldToModelTransform() const -> const Eigen::Affine3d&;
+    bool setWorldToModelTransform(const Eigen::Affine3d& transform);
 
-    auto   jointVarPositions() const -> const std::vector<double>&;
-    auto   linkTransforms() const -> const Affine3dVector&;
+    auto jointVarPositions() const -> const std::vector<double>&;
+    auto linkTransforms() const -> const Affine3dVector&;
 
     double jointVarPosition(const std::string& var_name) const;
     double jointVarPosition(int vidx) const;
 
     const double* getJointVarPositions() const;
 
-    bool   setJointVarPosition(const std::string& var_name, double position);
-    bool   setJointVarPosition(int vidx, double position);
+    bool setJointVarPosition(const std::string& var_name, double position);
+    bool setJointVarPosition(int vidx, double position);
 
-    bool   setJointVarPositions(const double* positions);
+    bool setJointVarPositions(const double* positions);
 
-    auto   linkTransform(const std::string& link_name) const ->
-            const Eigen::Affine3d&;
-    auto   linkTransform(int lidx) const -> const Eigen::Affine3d&;
+    auto linkTransform(const std::string& link_name) const
+        -> const Eigen::Affine3d&;
+    auto linkTransform(int lidx) const -> const Eigen::Affine3d&;
 
-    bool   linkTransformDirty(const std::string& link_name) const;
-    bool   linkTransformDirty(int lidx) const;
+    bool linkTransformDirty(const std::string& link_name) const;
+    bool linkTransformDirty(int lidx) const;
 
     /// \brief Update the transforms of all links in the kinematic tree
     /// \return Whether the transform required updating; all link transforms
     ///         will be up to date in all cases afterwards
-    bool   updateLinkTransforms();
+    bool updateLinkTransforms();
 
     /// \brief Update the transform of a link in the kinematic tree
     /// \return Whether the transform required updating; the link transform will
     ///         be up to date in all cases afterwards
-    bool   updateLinkTransform(int lidx);
-    bool   updateLinkTransform(const std::string& link_name);
+    bool updateLinkTransform(int lidx);
+    bool updateLinkTransform(const std::string& link_name);
     ///@}
 
     int linkTransformVersion(int lidx) const;
@@ -115,22 +115,22 @@ public:
 
     /// \brief Return the indices of the collision sphere states belonging to
     ///        this group
-    auto   groupSpheresStateIndices(const std::string& group_name) const ->
-            const std::vector<int>&;
-    auto   groupSpheresStateIndices(int gidx) const ->
-            const std::vector<int>&;
+    auto groupSpheresStateIndices(const std::string& group_name) const
+        -> const std::vector<int>&;
+    auto groupSpheresStateIndices(int gidx) const
+        -> const std::vector<int>&;
 
     /// \brief Return the indices of the collision voxels states NOT belonging
     ///        to this group.
-    auto  groupOutsideVoxelsStateIndices(const std::string& group_name) const ->
-            const std::vector<int>&;
-    auto   groupOutsideVoxelsStateIndices(int gidx) const ->
-            const std::vector<int>&;
+    auto groupOutsideVoxelsStateIndices(const std::string& group_name) const
+        -> const std::vector<int>&;
+    auto groupOutsideVoxelsStateIndices(int gidx) const
+        -> const std::vector<int>&;
     ///@}
 
     auto getVisualization() const -> visualization_msgs::MarkerArray;
-    auto getVisualization(const std::string& group_name) const ->
-            visualization_msgs::MarkerArray;
+    auto getVisualization(const std::string& group_name) const
+        -> visualization_msgs::MarkerArray;
     auto getVisualization(int gidx) const -> visualization_msgs::MarkerArray;
 
 private:
@@ -173,10 +173,12 @@ private:
     bool checkCollisionStateReferences() const;
 };
 
+typedef std::shared_ptr<RobotCollisionState> RobotCollisionStatePtr;
+typedef std::shared_ptr<const RobotCollisionState> RobotCollisionStateConstPtr;
+
 static const char* RCS_LOGGER = "robot_state";
 
-inline
-RobotCollisionState::RobotCollisionState(
+inline RobotCollisionState::RobotCollisionState(
     const RobotCollisionModel* model)
 :
     m_model(model),
@@ -195,20 +197,18 @@ RobotCollisionState::RobotCollisionState(
     initCollisionState();
 }
 
-inline
-const RobotCollisionModel* RobotCollisionState::model() const
+inline auto RobotCollisionState::model() const -> const RobotCollisionModel*
 {
     return m_model;
 }
 
-inline
-const Eigen::Affine3d& RobotCollisionState::worldToModelTransform() const
+inline auto RobotCollisionState::worldToModelTransform() const
+    -> const Eigen::Affine3d&
 {
     return m_link_transforms[0];
 }
 
-inline
-bool RobotCollisionState::setWorldToModelTransform(
+inline bool RobotCollisionState::setWorldToModelTransform(
     const Eigen::Affine3d& transform)
 {
     bool updated = false;
@@ -301,40 +301,36 @@ bool RobotCollisionState::setWorldToModelTransform(
     }
 }
 
-inline
-const std::vector<double>& RobotCollisionState::jointVarPositions() const
+inline auto RobotCollisionState::jointVarPositions() const
+    -> const std::vector<double>&
 {
     return m_jvar_positions;
 }
 
-inline
-const Affine3dVector& RobotCollisionState::linkTransforms() const
+inline auto RobotCollisionState::linkTransforms() const -> const Affine3dVector&
 {
     return m_link_transforms;
 }
 
-inline
-double RobotCollisionState::jointVarPosition(const std::string& var_name) const
+inline double RobotCollisionState::jointVarPosition(
+    const std::string& var_name) const
 {
     const int vidx = m_model->jointVarIndex(var_name);
     return m_jvar_positions[vidx];
 }
 
-inline
-double RobotCollisionState::jointVarPosition(int vidx) const
+inline double RobotCollisionState::jointVarPosition(int vidx) const
 {
     ASSERT_VECTOR_RANGE(m_jvar_positions, vidx);
     return m_jvar_positions[vidx];
 }
 
-inline
-const double* RobotCollisionState::getJointVarPositions() const
+inline const double* RobotCollisionState::getJointVarPositions() const
 {
     return m_jvar_positions.data();
 }
 
-inline
-bool RobotCollisionState::setJointVarPosition(
+inline bool RobotCollisionState::setJointVarPosition(
     const std::string& var_name,
     double position)
 {
@@ -342,37 +338,35 @@ bool RobotCollisionState::setJointVarPosition(
     return setJointVarPosition(vidx, position);
 }
 
-inline
-const Eigen::Affine3d& RobotCollisionState::linkTransform(
+inline auto RobotCollisionState::linkTransform(
     const std::string& link_name) const
+    -> const Eigen::Affine3d&
 {
     const int lidx = m_model->linkIndex(link_name);
     return m_link_transforms[lidx];
 }
 
-inline
-const Eigen::Affine3d& RobotCollisionState::linkTransform(int lidx) const
+inline auto RobotCollisionState::linkTransform(int lidx) const
+    -> const Eigen::Affine3d&
 {
     ASSERT_VECTOR_RANGE(m_link_transforms, lidx);
     return m_link_transforms[lidx];
 }
 
-inline
-bool RobotCollisionState::linkTransformDirty(const std::string& link_name) const
+inline bool RobotCollisionState::linkTransformDirty(
+    const std::string& link_name) const
 {
     const int lidx = m_model->linkIndex(link_name);
     return m_dirty_link_transforms[lidx];
 }
 
-inline
-bool RobotCollisionState::linkTransformDirty(int lidx) const
+inline bool RobotCollisionState::linkTransformDirty(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_dirty_link_transforms, lidx);
     return m_dirty_link_transforms[lidx];
 }
 
-inline
-bool RobotCollisionState::updateLinkTransforms()
+inline bool RobotCollisionState::updateLinkTransforms()
 {
     ROS_DEBUG_NAMED(RCS_LOGGER, "Updating all link transforms");
     bool updated = false;
@@ -382,8 +376,7 @@ bool RobotCollisionState::updateLinkTransforms()
     return updated;
 }
 
-inline
-bool RobotCollisionState::updateLinkTransform(int lidx)
+inline bool RobotCollisionState::updateLinkTransform(int lidx)
 {
     ASSERT_VECTOR_RANGE(m_dirty_link_transforms, lidx);
     if (!m_dirty_link_transforms[lidx]) {
@@ -430,36 +423,33 @@ bool RobotCollisionState::updateLinkTransform(int lidx)
     return true;
 }
 
-inline
-int RobotCollisionState::linkTransformVersion(int lidx) const
+inline int RobotCollisionState::linkTransformVersion(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_transform_versions, lidx);
     return m_link_transform_versions[lidx];
 }
 
-inline
-bool RobotCollisionState::updateLinkTransform(const std::string& link_name)
+inline bool RobotCollisionState::updateLinkTransform(
+    const std::string& link_name)
 {
     const int lidx = m_model->linkIndex(link_name);
     return updateLinkTransform(lidx);
 }
 
-inline
-const CollisionVoxelsState& RobotCollisionState::voxelsState(int vsidx) const
+inline auto RobotCollisionState::voxelsState(int vsidx) const
+    -> const CollisionVoxelsState&
 {
     ASSERT_VECTOR_RANGE(m_voxels_states, vsidx);
     return m_voxels_states[vsidx];
 }
 
-inline
-bool RobotCollisionState::voxelsStateDirty(int vsidx) const
+inline bool RobotCollisionState::voxelsStateDirty(int vsidx) const
 {
     ASSERT_VECTOR_RANGE(m_dirty_voxels_states, vsidx);
     return m_dirty_voxels_states[vsidx];
 }
 
-inline
-bool RobotCollisionState::updateVoxelsStates()
+inline bool RobotCollisionState::updateVoxelsStates()
 {
     ROS_DEBUG_NAMED(RCS_LOGGER, "Updating all voxels states");
     bool updated = false;
@@ -469,8 +459,7 @@ bool RobotCollisionState::updateVoxelsStates()
     return updated;
 }
 
-inline
-bool RobotCollisionState::updateVoxelsState(int vsidx)
+inline bool RobotCollisionState::updateVoxelsState(int vsidx)
 {
     ASSERT_VECTOR_RANGE(m_dirty_voxels_states, vsidx);
 
@@ -496,8 +485,7 @@ bool RobotCollisionState::updateVoxelsState(int vsidx)
     return true;
 }
 
-inline
-int RobotCollisionState::linkSpheresStateIndex(int lidx) const
+inline int RobotCollisionState::linkSpheresStateIndex(int lidx) const
 {
     ASSERT_VECTOR_RANGE(m_link_spheres_states, lidx);
     const CollisionSpheresState* ss = m_link_spheres_states[lidx];
@@ -508,25 +496,22 @@ int RobotCollisionState::linkSpheresStateIndex(int lidx) const
     }
 }
 
-inline
-const CollisionSpheresState& RobotCollisionState::spheresState(
-    int ssidx) const
+inline auto RobotCollisionState::spheresState(int ssidx) const
+    -> const CollisionSpheresState&
 {
     ASSERT_VECTOR_RANGE(m_spheres_states, ssidx);
     return m_spheres_states[ssidx];
 }
 
-inline
-const CollisionSphereState& RobotCollisionState::sphereState(
-    const SphereIndex& sidx) const
+inline auto RobotCollisionState::sphereState(const SphereIndex& sidx) const
+    -> const CollisionSphereState&
 {
     ASSERT_VECTOR_RANGE(m_spheres_states, sidx.ss);
     ASSERT_VECTOR_RANGE(m_spheres_states[sidx.ss].spheres, sidx.s);
     return m_spheres_states[sidx.ss].spheres[sidx.s];
 }
 
-inline
-bool RobotCollisionState::sphereStateDirty(const SphereIndex& sidx) const
+inline bool RobotCollisionState::sphereStateDirty(const SphereIndex& sidx) const
 {
     ASSERT_VECTOR_RANGE(m_spheres_states, sidx.ss);
     const CollisionSpheresState& spheres_state = m_spheres_states[sidx.ss];
@@ -535,8 +520,7 @@ bool RobotCollisionState::sphereStateDirty(const SphereIndex& sidx) const
     return m_dirty_link_transforms[lidx] || spheres_state.spheres[sidx.s].version != link_version;
 }
 
-inline
-bool RobotCollisionState::updateSphereStates()
+inline bool RobotCollisionState::updateSphereStates()
 {
     ROS_DEBUG_NAMED(RCS_LOGGER, "Updating all sphere positions");
     bool updated = false;
@@ -546,8 +530,7 @@ bool RobotCollisionState::updateSphereStates()
     return updated;
 }
 
-inline
-bool RobotCollisionState::updateSphereStates(int ssidx)
+inline bool RobotCollisionState::updateSphereStates(int ssidx)
 {
     bool updated = false;
     const CollisionSpheresState& spheres_state = m_spheres_states[ssidx];
@@ -557,8 +540,7 @@ bool RobotCollisionState::updateSphereStates(int ssidx)
     return updated;
 }
 
-inline
-bool RobotCollisionState::updateSphereState(const SphereIndex& sidx)
+inline bool RobotCollisionState::updateSphereState(const SphereIndex& sidx)
 {
     CollisionSpheresState& spheres_state = m_spheres_states[sidx.ss];
     const int lidx = spheres_state.model->link_index;
@@ -580,48 +562,49 @@ bool RobotCollisionState::updateSphereState(const SphereIndex& sidx)
     return true;
 }
 
-inline
-const std::vector<int>& RobotCollisionState::groupSpheresStateIndices(
+inline auto RobotCollisionState::groupSpheresStateIndices(
     const std::string& group_name) const
+    -> const std::vector<int>&
 {
     const int gidx = m_model->groupIndex(group_name);
     return m_group_states[gidx].spheres_indices;
 }
 
-inline
-const std::vector<int>& RobotCollisionState::groupSpheresStateIndices(
-    int gidx) const
+inline auto RobotCollisionState::groupSpheresStateIndices(int gidx) const
+    -> const std::vector<int>&
 {
     ASSERT_VECTOR_RANGE(m_group_states, gidx);
     return m_group_states[gidx].spheres_indices;
 }
 
-inline
-const std::vector<int>& RobotCollisionState::groupOutsideVoxelsStateIndices(
+inline auto RobotCollisionState::groupOutsideVoxelsStateIndices(
     const std::string& group_name) const
+    -> const std::vector<int>&
 {
     const int gidx = m_model->groupIndex(group_name);
     return m_group_states[gidx].voxels_indices;
 }
 
-inline
-const std::vector<int>& RobotCollisionState::groupOutsideVoxelsStateIndices(
-    int gidx) const
+inline auto RobotCollisionState::groupOutsideVoxelsStateIndices(int gidx) const
+    -> const std::vector<int>&
 {
     ASSERT_VECTOR_RANGE(m_group_states, gidx);
     return m_group_states[gidx].voxels_indices;
 }
 
-inline
-visualization_msgs::MarkerArray
-RobotCollisionState::getVisualization() const
+inline auto RobotCollisionState::getVisualization() const
+    -> visualization_msgs::MarkerArray
 {
     // TODO: cull out spheres duplicated between groups
     visualization_msgs::MarkerArray ma;
     for (int i = 0; i < m_model->groupCount(); ++i) {
-        auto marr = getVisualization(i);
         auto prev_size = ma.markers.size();
-        ma.markers.insert(ma.markers.end(), marr.markers.begin(), marr.markers.end());
+
+        auto marr = getVisualization(i);
+        for (auto& m : marr.markers) {
+            ma.markers.push_back(std::move(m));
+        }
+
         for (size_t i = prev_size; i < ma.markers.size(); ++i) {
             ma.markers[i].id = i;
         }
@@ -629,17 +612,13 @@ RobotCollisionState::getVisualization() const
     return ma;
 }
 
-inline
-visualization_msgs::MarkerArray
-RobotCollisionState::getVisualization(
+inline auto RobotCollisionState::getVisualization(
     const std::string& group_name) const
+    -> visualization_msgs::MarkerArray
 {
     const int gidx = m_model->groupIndex(group_name);
     return getVisualization(gidx);
 }
-
-typedef std::shared_ptr<RobotCollisionState> RobotCollisionStatePtr;
-typedef std::shared_ptr<const RobotCollisionState> RobotCollisionStateConstPtr;
 
 } // namespace collision
 } // namespace sbpl
