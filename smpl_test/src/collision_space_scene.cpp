@@ -10,10 +10,15 @@ static const char* LOG = "collision_space_scene";
 
 using namespace sbpl::collision;
 
+template <class T, class... Args>
+auto make_unique(Args&&... args) -> std::unique_ptr<T> {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
 auto ConvertCollisionObjectToObject(const moveit_msgs::CollisionObject& co)
-    -> collision_detection::World::ObjectConstPtr
+    -> std::unique_ptr<const collision_detection::World::Object>
 {
-    collision_detection::World::ObjectPtr o(new collision_detection::World::Object(co.id));
+    auto o = make_unique<collision_detection::World::Object>(co.id);
 
     for (size_t pidx = 0; pidx < co.primitives.size(); ++pidx) {
         const shape_msgs::SolidPrimitive& prim = co.primitives[pidx];
@@ -22,7 +27,7 @@ auto ConvertCollisionObjectToObject(const moveit_msgs::CollisionObject& co)
         shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(prim));
         if (!sp) {
             ROS_ERROR("Failed to construct shape from primitive message");
-            return collision_detection::World::ObjectConstPtr();
+            return nullptr;
         }
 
         Eigen::Affine3d transform;
@@ -39,7 +44,7 @@ auto ConvertCollisionObjectToObject(const moveit_msgs::CollisionObject& co)
         shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(mesh));
         if (!sp) {
             ROS_ERROR("Failed to construct shape from mesh message");
-            return collision_detection::World::ObjectConstPtr();
+            return nullptr;
         }
 
         Eigen::Affine3d transform;
@@ -56,7 +61,7 @@ auto ConvertCollisionObjectToObject(const moveit_msgs::CollisionObject& co)
         shapes::ShapeConstPtr sp(shapes::constructShapeFromMsg(plane));
         if (!sp) {
             ROS_ERROR("Failed to construct shape from plane message");
-            return collision_detection::World::ObjectConstPtr();
+            return nullptr;
         }
 
         Eigen::Affine3d transform;
@@ -66,24 +71,24 @@ auto ConvertCollisionObjectToObject(const moveit_msgs::CollisionObject& co)
         o->shape_poses_.push_back(transform);
     }
 
-    return collision_detection::World::ObjectConstPtr(o);
+    return std::move(o);
 }
 
 auto ConvertOctomapToObject(const octomap_msgs::OctomapWithPose& octomap)
-    -> collision_detection::World::ObjectConstPtr
+    -> std::unique_ptr<const collision_detection::World::Object>
 {
     // convert binary octomap message to octree
     octomap::AbstractOcTree* abstract_tree =
             octomap_msgs::binaryMsgToMap(octomap.octomap);
     if (!abstract_tree) {
         ROS_WARN_NAMED(LOG, "Failed to convert binary msg data to octomap");
-        return collision_detection::World::ObjectConstPtr();
+        return nullptr;
     }
 
     octomap::OcTree* tree = dynamic_cast<octomap::OcTree*>(abstract_tree);
     if (!tree) {
         ROS_WARN_NAMED(LOG, "Abstract Octree from binary msg data must be a concrete OcTree");
-        return collision_detection::World::ObjectConstPtr();
+        return nullptr;
     }
 
     decltype(shapes::OcTree().octree) ot(tree);         // snap into a shared_ptr
@@ -93,7 +98,7 @@ auto ConvertOctomapToObject(const octomap_msgs::OctomapWithPose& octomap)
     tf::poseMsgToEigen(octomap.origin, transform);
 
     // construct the object
-    auto o = std::make_shared<collision_detection::World::Object>(octomap.octomap.id); // snap into an object
+    auto o = make_unique<collision_detection::World::Object>(octomap.octomap.id); // snap into an object
     o->shapes_.push_back(sp);
     o->shape_poses_.push_back(transform);
 
@@ -166,11 +171,6 @@ bool CollisionSpaceScene::ProcessCollisionObjectMsg(
         ROS_WARN_NAMED(LOG, "Collision object operation '%d' is not supported", object.operation);
         return false;
     }
-}
-
-template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T> {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
 bool CollisionSpaceScene::AddCollisionObjectMsg(
