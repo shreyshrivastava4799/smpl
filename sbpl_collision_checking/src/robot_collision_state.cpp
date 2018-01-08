@@ -165,6 +165,28 @@ bool RobotCollisionState::setJointVarPositions(const double* positions)
     return true;
 }
 
+auto RobotCollisionState::getVisualization() const
+    -> visualization_msgs::MarkerArray
+{
+    std::vector<std::vector<double>> sphere_positions;
+    std::vector<double> sphere_radii;
+
+    for (auto& spheres : m_spheres_states) {
+        for (auto& sphere : spheres.spheres) {
+            if (!sphere.isLeaf()) {
+                continue;
+            }
+
+            sphere_positions.push_back({ sphere.pos.x(), sphere.pos.y(), sphere.pos.z() });
+            sphere_radii.push_back(sphere.model->radius);
+        }
+    }
+
+    const int hue = 90;
+    return viz::getSpheresMarkerArray(
+            sphere_positions, sphere_radii, hue, "", "collision_model", 0);
+}
+
 auto RobotCollisionState::getVisualization(int gidx) const
     -> visualization_msgs::MarkerArray
 {

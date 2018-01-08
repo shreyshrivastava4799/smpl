@@ -592,26 +592,6 @@ inline auto RobotCollisionState::groupOutsideVoxelsStateIndices(int gidx) const
     return m_group_states[gidx].voxels_indices;
 }
 
-inline auto RobotCollisionState::getVisualization() const
-    -> visualization_msgs::MarkerArray
-{
-    // TODO: cull out spheres duplicated between groups
-    visualization_msgs::MarkerArray ma;
-    for (int i = 0; i < m_model->groupCount(); ++i) {
-        auto prev_size = ma.markers.size();
-
-        auto marr = getVisualization(i);
-        for (auto& m : marr.markers) {
-            ma.markers.push_back(std::move(m));
-        }
-
-        for (size_t i = prev_size; i < ma.markers.size(); ++i) {
-            ma.markers[i].id = i;
-        }
-    }
-    return ma;
-}
-
 inline auto RobotCollisionState::getVisualization(
     const std::string& group_name) const
     -> visualization_msgs::MarkerArray
