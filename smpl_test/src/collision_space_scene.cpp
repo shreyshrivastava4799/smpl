@@ -102,7 +102,7 @@ auto ConvertOctomapToObject(const octomap_msgs::OctomapWithPose& octomap)
     o->shapes_.push_back(sp);
     o->shape_poses_.push_back(transform);
 
-    return o;
+    return std::move(o);
 }
 
 void CollisionSpaceScene::SetCollisionSpace(CollisionSpace* cspace)
