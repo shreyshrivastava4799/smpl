@@ -84,6 +84,7 @@ add_library(
     src/distance_map/euclid_distance_map.cpp
     src/distance_map/sparse_distance_map.cpp
     src/geometry/bounding_spheres.cpp
+    src/geometry/intersect.cpp
     src/geometry/mesh_utils.cpp
     src/geometry/voxelize.cpp
     src/graph/action_space.cpp

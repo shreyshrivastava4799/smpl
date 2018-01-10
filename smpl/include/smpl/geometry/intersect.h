@@ -27,30 +27,14 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef sbpl_geometry_triangle_h
-#define sbpl_geometry_triangle_h
-
-#include <Eigen/Dense>
+#include <smpl/geometry/triangle.h>
 
 namespace sbpl {
+namespace geometry {
 
-struct Triangle
-{
-    Eigen::Vector3d a;
-    Eigen::Vector3d b;
-    Eigen::Vector3d c;
+struct Triangle;
 
-    Triangle() : a(), b(), c() { }
+bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps = 1e-4);
 
-    Triangle(
-        const Eigen::Vector3d& a,
-        const Eigen::Vector3d& b,
-        const Eigen::Vector3d& c)
-    :
-        a(a), b(b), c(c)
-    { }
-};
-
-}
-
-#endif
+} // namespace geometry
+} // namespace sbpl
