@@ -134,7 +134,7 @@ static void ExpandState(LazySMHAStar& search, State* state, size_t hidx)
 {
     SMPL_DEBUG_NAMED(LOG, "Expand state %d", state->graph_state);
 
-    assert(!closed_in_add_search(state) || !closed_in_anc_search(state));
+    assert(!state->closed_in_add || !state->closed_in_anc);
 
     if (hidx == 0) {
         state->closed_in_anc = true;
@@ -157,8 +157,8 @@ static void ExpandState(LazySMHAStar& search, State* state, size_t hidx)
             search.costs_,
             search.true_costs_);
 
-    assert(search.succs.size() == search.costs.size());
-    assert(search.succs.size() == search.true_costs.size());
+    assert(search.succs_.size() == search.costs_.size());
+    assert(search.succs_.size() == search.true_costs_.size());
 
     for (size_t i = 0; i < search.succs_.size(); ++i) {
         int succ_id = search.succs_[i];
@@ -215,9 +215,9 @@ static void ExpandState(LazySMHAStar& search, State* state, size_t hidx)
 static void EvaluateState(LazySMHAStar& search, State* s, size_t hidx)
 {
     assert(!s->true_cost);
-    assert(!s->closed);
+//    assert(!s->closed);
     assert(!s->cands.empty());
-    assert(!m_open.contains(s->open_index));
+//    assert(!m_open.contains(s->open_index));
 
     //
 

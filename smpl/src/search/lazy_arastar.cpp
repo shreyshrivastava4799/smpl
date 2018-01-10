@@ -84,8 +84,8 @@ static void ExpandState(LazyARAStar& search, State* state) {
             search.costs_,
             search.true_costs_);
 
-    assert(search.succs.size() == search.costs.size());
-    assert(search.succs.size() == search.true_costs.size());
+    assert(search.succs_.size() == search.costs_.size());
+    assert(search.succs_.size() == search.true_costs_.size());
 
     for (size_t i = 0; i < search.succs_.size(); ++i) {
         int succ_id = search.succs_[i];
@@ -136,7 +136,7 @@ static void EvaluateState(LazyARAStar& search, State* s) {
     assert(!s->true_cost);
     assert(!s->closed);
     assert(!s->cands.empty());
-    assert(!m_open.contains(s->open_index));
+    assert(!search.open_.contains(s));
 
     // get the best candidate
     auto& cands = s->cands;
