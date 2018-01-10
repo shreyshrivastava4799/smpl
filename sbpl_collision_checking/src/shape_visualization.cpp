@@ -54,7 +54,7 @@ bool MakeConeShapeMarker(
     m.scale.x = m.scale.y = m.scale.z = 1.0;
 
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> indices;
+    std::vector<std::uint32_t> indices;
     sbpl::geometry::CreateIndexedConeMesh(shape.radius, shape.height, vertices, indices);
 
     std::vector<geometry_msgs::Point> dense_vertices;

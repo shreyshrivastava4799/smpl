@@ -50,20 +50,20 @@ namespace geometry {
 template <typename Discretizer>
 static void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     VoxelGrid<Discretizer>& vg,
     bool fill = false);
 
 template <typename Discretizer>
 static void VoxelizeMeshAwesome(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     VoxelGrid<Discretizer>& vg);
 
 template <typename Discretizer>
 void VoxelizeMeshNaive(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& triangles,
+    const std::vector<std::uint32_t>& triangles,
     VoxelGrid<Discretizer>& vg);
 
 template <typename Discretizer>
@@ -114,7 +114,7 @@ static bool CompareZ(const Eigen::Vector3d& u, const Eigen::Vector3d& v);
 template <typename Discretizer>
 static void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     VoxelGrid<Discretizer>& vg,
     bool fill)
 {
@@ -134,7 +134,7 @@ static void VoxelizeMesh(
 template <typename Discretizer>
 void VoxelizeMeshAwesome(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     VoxelGrid<Discretizer>& vg)
 {
     for (int i = 0; i < (int)indices.size() / 3; i++) {
@@ -148,7 +148,7 @@ void VoxelizeMeshAwesome(
 template <typename Discretizer>
 void VoxelizeMeshNaive(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& triangles,
+    const std::vector<std::uint32_t>& triangles,
     VoxelGrid<Discretizer>& vg)
 {
     // create a triangle mesh for the voxel grid surrounding the mesh
@@ -679,7 +679,7 @@ void VoxelizeBox(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedBoxMesh(length, width, height, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
 }
@@ -697,7 +697,7 @@ void VoxelizeBox(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedBoxMesh(length, width, height, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
@@ -713,7 +713,7 @@ void VoxelizeBox(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedBoxMesh(length, width, height, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
 }
@@ -729,7 +729,7 @@ void VoxelizeBox(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedBoxMesh(length, width, height, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
@@ -746,7 +746,7 @@ void VoxelizeSphere(
 {
     // TODO: make lng_count and lat_count lines configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedSphereMesh(radius, 7, 8, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
 }
@@ -763,7 +763,7 @@ void VoxelizeSphere(
 {
     // TODO: make lng_count and lat_count lines configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedSphereMesh(radius, 7, 8, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
@@ -782,7 +782,7 @@ void VoxelizeSphere(
 {
     // TODO: make lng_count and lat_count lines configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedSphereMesh(radius, 7, 8, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
 }
@@ -801,7 +801,7 @@ void VoxelizeSphere(
 {
     // TODO: make lng_count and lat_count lines configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedSphereMesh(radius, 7, 8, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
@@ -819,7 +819,7 @@ void VoxelizeCylinder(
 {
     // TODO: make rim_count configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedCylinderMesh(radius, length, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
 }
@@ -837,7 +837,7 @@ void VoxelizeCylinder(
 {
     // TODO: make rim_count configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedCylinderMesh(radius, length, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
@@ -857,7 +857,7 @@ void VoxelizeCylinder(
 {
     // TODO: make rim_count configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedCylinderMesh(radius, height, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
 }
@@ -877,7 +877,7 @@ void VoxelizeCylinder(
 {
     // TODO: make rim_count configurable or parameters
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedCylinderMesh(radius, height, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
@@ -894,7 +894,7 @@ void VoxelizeCone(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedConeMesh(radius, height, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
 }
@@ -911,7 +911,7 @@ void VoxelizeCone(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedConeMesh(radius, height, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxels, fill);
@@ -930,7 +930,7 @@ void VoxelizeCone(
     bool fill)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedConeMesh(radius, height, vertices, triangles);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
 }
@@ -950,7 +950,7 @@ void VoxelizeCone(
 {
     // TODO: implement
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedConeMesh(radius, height, vertices, triangles);
     TransformVertices(pose, vertices);
     VoxelizeMesh(vertices, triangles, res, voxel_origin, voxels, fill);
@@ -961,7 +961,7 @@ void VoxelizeCone(
 /// Output voxels are appended to the input voxel vector.
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     double res,
     std::vector<Eigen::Vector3d>& voxels,
     bool fill)
@@ -990,7 +990,7 @@ void VoxelizeMesh(
 /// Output voxels are appended to the input voxel vector.
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& triangles,
+    const std::vector<std::uint32_t>& triangles,
     const Eigen::Affine3d& pose,
     double res,
     std::vector<Eigen::Vector3d>& voxels,
@@ -1007,7 +1007,7 @@ void VoxelizeMesh(
 /// Output voxels are appended to the input voxel vector.
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& triangles,
+    const std::vector<std::uint32_t>& triangles,
     double res,
     const Eigen::Vector3d& voxel_origin,
     std::vector<Eigen::Vector3d>& voxels,
@@ -1040,7 +1040,7 @@ void VoxelizeMesh(
 /// Output voxels are appended to the input voxel vector.
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& voxel_origin,
@@ -1061,7 +1061,7 @@ void VoxelizePlane(
     std::vector<Eigen::Vector3d>& voxels)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> indices;
+    std::vector<std::uint32_t> indices;
     CreateIndexedPlaneMesh(a, b, c, d, min, max, vertices, indices);
     VoxelizeMesh(vertices, indices, res, voxels);
 }
@@ -1077,7 +1077,7 @@ void VoxelizePlane(
     std::vector<Eigen::Vector3d>& voxels)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> indices;
+    std::vector<std::uint32_t> indices;
     CreateIndexedPlaneMesh(a, b, c, d, min, max, vertices, indices);
     VoxelizeMesh(vertices, indices, res, voxel_origin, voxels);
 }
@@ -1107,7 +1107,7 @@ void VoxelizeSphereList(
 
     for (std::size_t i = 0; i < radii.size(); i++) {
         std::vector<Eigen::Vector3d> vertices;
-        std::vector<int> indices;
+        std::vector<std::uint32_t> indices;
         CreateIndexedSphereMesh(radii[i], 9, 10, vertices, indices);
 
         TransformVertices(poses[i], vertices);

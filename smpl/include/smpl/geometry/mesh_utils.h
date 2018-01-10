@@ -47,40 +47,40 @@ void CreateIndexedBoxMesh(
     double width,
     double height,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices);
+    std::vector<std::uint32_t>& indices);
 
 void CreateIndexedSphereMesh(
     double radius,
     int lng_count,
     int lat_count,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& triangles);
+    std::vector<std::uint32_t>& triangles);
 
 void CreateIndexedCylinderMesh(
     double radius,
     double height,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices);
+    std::vector<std::uint32_t>& indices);
 
 void CreateIndexedConeMesh(
     double radius,
     double height,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices);
+    std::vector<std::uint32_t>& indices);
 
 void CreateIndexedPlaneMesh(
     double a, double b, double c, double d,
     const Eigen::Vector3d& min,
     const Eigen::Vector3d& max,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices);
+    std::vector<std::uint32_t>& indices);
 
 /// \brief Create a mesh representation of a grid
 template <typename Discretizer>
 void CreateIndexedGridMesh(
     const VoxelGrid<Discretizer>& vg,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices);
+    std::vector<std::uint32_t>& indices);
 
 void CreateBoxMesh(
     double length,

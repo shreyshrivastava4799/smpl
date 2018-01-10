@@ -31,6 +31,7 @@
 #define SMPL_BOUNDING_SPHERES_H
 
 // standard includes
+#include <cstdint>
 #include <vector>
 
 // system includes
@@ -57,7 +58,7 @@ void ComputeConeBoundingSpheres(
 
 void ComputeMeshBoundingSpheres(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     double radius, std::vector<Eigen::Vector3d>& centers);
 
 } // namespace geometry

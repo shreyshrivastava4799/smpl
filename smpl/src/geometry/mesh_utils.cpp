@@ -41,7 +41,7 @@ void CreateIndexedBoxMesh(
     double width,
     double height,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices)
+    std::vector<std::uint32_t>& indices)
 {
     vertices.reserve(vertices.size() + 8);
     indices.reserve(indices.size() + 36);
@@ -118,7 +118,7 @@ void CreateIndexedSphereMesh(
     int longitude_count,
     int latitude_count,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices)
+    std::vector<std::uint32_t>& indices)
 {
     // TODO: handle the case where there is only one line of longitude and thus
     // there are no quadrilaterals to break up into two triangles and the method
@@ -209,7 +209,7 @@ void CreateIndexedCylinderMesh(
     double radius,
     double length,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices)
+    std::vector<std::uint32_t>& indices)
 {
     const int rim_count = 16;
 
@@ -269,7 +269,7 @@ void CreateIndexedConeMesh(
     double radius,
     double height,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices)
+    std::vector<std::uint32_t>& indices)
 {
     const int rim_count = 16;
     const double bottom_z = -0.5 * height;
@@ -304,7 +304,7 @@ void CreateIndexedPlaneMesh(
     const Eigen::Vector3d& min,
     const Eigen::Vector3d& max,
     std::vector<Eigen::Vector3d>& vertices,
-    std::vector<int>& indices)
+    std::vector<std::uint32_t>& indices)
 {
     Eigen::Vector3d corners[8] =
     {

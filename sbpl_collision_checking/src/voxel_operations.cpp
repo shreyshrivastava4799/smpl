@@ -13,10 +13,10 @@
 namespace sbpl {
 namespace collision {
 
-std::vector<int> ConvertToVertexIndices(
+std::vector<std::uint32_t> ConvertToVertexIndices(
     const std::vector<shape_msgs::MeshTriangle>& triangles)
 {
-    std::vector<int> triangle_indices(3 * triangles.size());
+    std::vector<std::uint32_t> triangle_indices(3 * triangles.size());
     for (int j = 0; j < triangles.size(); ++j) {
         triangle_indices[3 * j + 0] = triangles[j].vertex_indices[0];
         triangle_indices[3 * j + 1] = triangles[j].vertex_indices[1];
@@ -498,7 +498,7 @@ bool VoxelizeMesh(
                 mesh.vertices[3 * i + 1],
                 mesh.vertices[3 * i + 2]);
     }
-    std::vector<int> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
+    std::vector<std::uint32_t> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
     geometry::VoxelizeMesh(vertices, indices, pose, res, go, voxels, false);
     return true;
 }
@@ -656,7 +656,7 @@ bool VoxelizeMesh(
                 mesh.vertices[3 * i + 1],
                 mesh.vertices[3 * i + 2]);
     }
-    std::vector<int> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
+    std::vector<std::uint32_t> indices(mesh.triangles, mesh.triangles + 3 * mesh.triangle_count);
     geometry::VoxelizeMesh(vertices, indices, pose, res, go, voxels, false);
     return true;
 }
@@ -806,7 +806,7 @@ bool VoxelizeMesh(
         vertices[vidx] = Eigen::Vector3d(vertex.x, vertex.y, vertex.z);
     }
 
-    std::vector<int> indices = ConvertToVertexIndices(mesh.triangles);
+    std::vector<std::uint32_t> indices = ConvertToVertexIndices(mesh.triangles);
 
     Eigen::Affine3d eigen_pose;
     tf::poseMsgToEigen(pose, eigen_pose);

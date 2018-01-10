@@ -172,14 +172,14 @@ void VoxelizeCone(
 
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     double res,
     std::vector<Eigen::Vector3d>& voxels,
     bool fill = false);
 
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     const Eigen::Affine3d& pose,
     double res,
     std::vector<Eigen::Vector3d>& voxels,
@@ -187,7 +187,7 @@ void VoxelizeMesh(
 
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     double res,
     const Eigen::Vector3d& voxel_origin,
     std::vector<Eigen::Vector3d>& voxels,
@@ -195,7 +195,7 @@ void VoxelizeMesh(
 
 void VoxelizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
+    const std::vector<std::uint32_t>& indices,
     const Eigen::Affine3d& pose,
     double res,
     const Eigen::Vector3d& voxel_origin,

@@ -59,7 +59,7 @@ void ComputeBoxBoundingSpheres(
     double radius, std::vector<Eigen::Vector3d>& centers)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedBoxMesh(length, width, height, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
 }
@@ -73,7 +73,7 @@ void ComputeSphereBoundingSpheres(
     double radius, std::vector<Eigen::Vector3d>& centers)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedSphereMesh(cradius, 7, 8, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
 }
@@ -87,7 +87,7 @@ void ComputeCylinderBoundingSpheres(
     double radius, std::vector<Eigen::Vector3d>& centers)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedCylinderMesh(cradius, cheight, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
 }
@@ -101,7 +101,7 @@ void ComputeConeBoundingSpheres(
     double radius, std::vector<Eigen::Vector3d>& centers)
 {
     std::vector<Eigen::Vector3d> vertices;
-    std::vector<int> triangles;
+    std::vector<std::uint32_t> triangles;
     CreateIndexedConeMesh(cradius, cheight, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
 }
