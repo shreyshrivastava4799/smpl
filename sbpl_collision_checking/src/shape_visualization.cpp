@@ -117,7 +117,7 @@ bool MakeOcTreeShapeMarker(
     const OcTreeShape& shape,
     visualization_msgs::Marker& m)
 {
-    assert(shape.tree != NULL);
+    assert(shape.octree != NULL);
 
     m.type = visualization_msgs::Marker::CUBE_LIST;
 
