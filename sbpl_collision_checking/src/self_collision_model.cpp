@@ -33,6 +33,8 @@
 
 // system includes
 #include <leatherman/print.h>
+#include <smpl/geometry/triangle.h>
+#include <smpl/geometry/intersect.h>
 
 // project includes
 #include "collision_operations.h"
@@ -190,6 +192,15 @@ private:
     bool checkRobotAttachedBodySpheresStateCollisions(double& dist);
     bool checkRobotAttachedBodySpheresStateCollisions(
         const AllowedCollisionsInterface& aci,
+        double& dist);
+
+    bool checkSpheresStateCollision(
+        RobotCollisionState& stateA,
+        RobotCollisionState& stateB,
+        int ss1i,
+        int ss2i,
+        const CollisionSpheresState& ss1,
+        const CollisionSpheresState& ss2,
         double& dist);
 
     template <typename StateTypeA, typename StateTypeB>
@@ -911,13 +922,13 @@ bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(
             continue;
         }
 
-        const std::string& l1_name = m_rcm->linkName(lidx1);
+        auto& l1_name = m_rcm->linkName(lidx1);
         for (int l2 = l1 + 1; l2 < group_link_indices.size(); ++l2) {
             const int lidx2 = group_link_indices[l2];
             if (!m_rcm->hasSpheresModel(lidx2)) {
                 continue;
             }
-            const std::string& l2_name = m_rcm->linkName(lidx2);
+            auto& l2_name = m_rcm->linkName(lidx2);
 
             AllowedCollision::Type type;
             if (aci.getEntry(l2_name, l1_name, type) &&
@@ -929,8 +940,8 @@ bool SelfCollisionModelImpl::checkRobotSpheresStateCollisions(
 
             const int ss1i = m_rcs.linkSpheresStateIndex(lidx1);
             const int ss2i = m_rcs.linkSpheresStateIndex(lidx2);
-            const CollisionSpheresState& ss1 = m_rcs.spheresState(ss1i);
-            const CollisionSpheresState& ss2 = m_rcs.spheresState(ss2i);
+            auto& ss1 = m_rcs.spheresState(ss1i);
+            auto& ss2 = m_rcs.spheresState(ss2i);
             if (!checkSpheresStateCollision(
                     m_rcs, m_rcs, ss1i, ss2i, ss1, ss2, dist))
             {
@@ -1082,6 +1093,67 @@ bool SelfCollisionModelImpl::checkRobotAttachedBodySpheresStateCollisions(
     return true;
 }
 
+bool CheckGeometryCollision(
+    const CollisionGeometry& shape1,
+    const CollisionGeometry& shape2,
+    int shape_index1,
+    int shape_index2,
+    const Eigen::Affine3d& pose1,
+    const Eigen::Affine3d& pose2)
+{
+    Eigen::Affine3d p1 = pose1 * shape1.offset;
+    Eigen::Affine3d p2 = pose2 * shape2.offset;
+
+    if (shape1.shape->type == ShapeType::Mesh &&
+        shape2.shape->type == ShapeType::Mesh)
+    {
+        auto* m1 = static_cast<const MeshShape*>(shape1.shape);
+        auto* m2 = static_cast<const MeshShape*>(shape2.shape);
+        auto t11 = m1->triangles[3 * shape_index1 + 0];
+        auto t12 = m1->triangles[3 * shape_index1 + 1];
+        auto t13 = m1->triangles[3 * shape_index1 + 2];
+
+        auto t21 = m2->triangles[3 * shape_index2 + 0];
+        auto t22 = m2->triangles[3 * shape_index2 + 1];
+        auto t23 = m2->triangles[3 * shape_index2 + 2];
+
+        Eigen::Vector3d u1, u2, u3, v1, v2, v3;
+        u1.x() = m1->vertices[3 * t11 + 0];
+        u1.y() = m1->vertices[3 * t11 + 1];
+        u1.z() = m1->vertices[3 * t11 + 2];
+
+        u2.x() = m1->vertices[3 * t12 + 0];
+        u2.y() = m1->vertices[3 * t12 + 1];
+        u2.z() = m1->vertices[3 * t12 + 2];
+
+        u3.x() = m1->vertices[3 * t13 + 0];
+        u3.y() = m1->vertices[3 * t13 + 1];
+        u3.z() = m1->vertices[3 * t13 + 2];
+
+        v1.x() = m2->vertices[3 * t21 + 0];
+        v1.y() = m2->vertices[3 * t21 + 1];
+        v1.z() = m2->vertices[3 * t21 + 2];
+
+        v2.x() = m2->vertices[3 * t22 + 0];
+        v2.y() = m2->vertices[3 * t22 + 1];
+        v2.z() = m2->vertices[3 * t22 + 2];
+
+        v3.x() = m2->vertices[3 * t23 + 0];
+        v3.y() = m2->vertices[3 * t23 + 1];
+        v3.z() = m2->vertices[3 * t23 + 2];
+
+        sbpl::geometry::Triangle t1, t2;
+        t1.a = p1 * u1;
+        t1.b = p1 * u2;
+        t1.c = p1 * u3;
+        t2.a = p2 * v1;
+        t2.b = p2 * v2;
+        t2.c = p2 * v3;
+        return !sbpl::geometry::Intersects(t1, t2, 1e-4);
+    }
+    return true;
+}
+
 /// \tparam StateA RobotCollisionState or AttachedBodiesCollisionState
 /// \tparam StateB RobotCollisionState or AttachedBodiesCollisionState
 /// \param ss1i The index of the first spheres state
@@ -1143,6 +1215,156 @@ bool SelfCollisionModelImpl::checkSpheresStateCollision(
                 ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
                 dist = cd2;
                 return false;
+            }
+            // collision between leaves is ok
+            continue;
+        }
+
+        // choose a sphere node to split
+        bool split1;
+        if (s1s->isLeaf()) { // split sphere 2
+            split1 = false;
+        } else if (s2s->isLeaf()) { // split sphere 1
+            split1 = true;
+        } else { // choose a node to split
+            // heuristic -> split the larger sphere to obtain more
+            // information about the underlying surface, assuming the leaf
+            // spheres are often about the same size
+            if (s1m->radius > s2m->radius) {
+                split1 = true;
+            } else {
+                split1 = false;
+            }
+        }
+
+        if (split1) {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s1m->name.c_str());
+            const CollisionSphereState* sl = s1s->left;
+            const CollisionSphereState* sr = s1s->right;
+            // update children positions
+            stateA.updateSphereState(SphereIndex(ss1i, sl->index()));
+            stateA.updateSphereState(SphereIndex(ss1i, sr->index()));
+
+            // heuristic -> examine the pair of spheres that are closer together
+            // first for a better chance at detecting collision
+
+            // dist from split sphere's left child to other sphere
+            const double cd2l2 = (s2s->pos - sl->pos).squaredNorm();
+            // dist from split sphere's right child to other sphere
+            const double cd2r2 = (s2s->pos - sr->pos).squaredNorm();
+
+            if (cd2l2 < cd2r2) {
+                // examine right child after the left child
+                q.push_back(std::make_pair(sr, s2s));
+                q.push_back(std::make_pair(sl, s2s));
+            } else {
+                // examine the left child after the right child
+                q.push_back(std::make_pair(sl, s2s));
+                q.push_back(std::make_pair(sr, s2s));
+            }
+        } else {
+            ROS_DEBUG_NAMED(SCM_LOGGER, "Splitting node '%s'", s2m->name.c_str());
+            // equivalent comments from above
+            const CollisionSphereState* sl = s2s->left;
+            const CollisionSphereState* sr = s2s->right;
+
+            stateB.updateSphereState(SphereIndex(ss2i, sl->index()));
+            stateB.updateSphereState(SphereIndex(ss2i, sr->index()));
+
+            double cd1l2 = (s1s->pos - sl->pos).squaredNorm();
+            double cd1r2 = (s1s->pos - sr->pos).squaredNorm();
+
+            if (cd1l2 < cd1r2) {
+                q.push_back(std::make_pair(s1s, sr));
+                q.push_back(std::make_pair(s1s, sl));
+            } else {
+                q.push_back(std::make_pair(s1s, sl));
+                q.push_back(std::make_pair(s1s, sr));
+            }
+        }
+    }
+    ROS_DEBUG_NAMED(SCM_LOGGER, "queue exhaused");
+
+    // queue exhaused = no collision found
+    return true;
+}
+
+bool SelfCollisionModelImpl::checkSpheresStateCollision(
+    RobotCollisionState& stateA,
+    RobotCollisionState& stateB,
+    int ss1i,
+    int ss2i,
+    const CollisionSpheresState& ss1,
+    const CollisionSpheresState& ss2,
+    double& dist)
+{
+    ROS_DEBUG_NAMED(SCM_LOGGER, "Check spheres state collision");
+    auto sqrd = [](double d) { return d * d; };
+
+    // assertion: both collision spheres are updated when they are removed from the stack
+    stateA.updateSphereState(SphereIndex(ss1i, ss1.spheres.root()->index()));
+    stateB.updateSphereState(SphereIndex(ss2i, ss2.spheres.root()->index()));
+
+    auto& q = m_q;
+    q.clear();
+    q.push_back(std::make_pair(ss1.spheres.root(), ss2.spheres.root()));
+    while (!q.empty()) {
+        // get the next pair of spheres to check
+        const CollisionSphereState *s1s, *s2s;
+        std::tie(s1s, s2s) = q.back();
+        q.pop_back();
+
+        const CollisionSphereModel* s1m = s1s->model;
+        const CollisionSphereModel* s2m = s2s->model;
+
+        ROS_DEBUG_NAMED(SCM_LOGGER, "Checking '%s' x '%s' collision", s1m->name.c_str(), s2m->name.c_str());
+
+        Eigen::Vector3d dx = s2s->pos - s1s->pos;
+        const double cd2 = dx.squaredNorm(); // center distance squared
+        const double cr2 = sqrd(s1m->radius + s2m->radius); // combined radius squared
+
+        if (cd2 > cr2) {
+            // no collision between spheres -> back out
+            continue;
+        }
+
+        if (s1s->isLeaf() && s2s->isLeaf()) {
+            // collision found! check acm
+            collision_detection::AllowedCollision::Type type;
+            if (m_acm.getEntry(s1m->name, s2m->name, type)) {
+                if (type != collision_detection::AllowedCollision::ALWAYS) {
+                    ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                    dist = cd2;
+                    return false;
+                }
+            } else {
+                if (s1s->model->geom && s2s->model->geom) {
+                    // shape pose = pose of link * offset of shape
+                    auto l1_index = s1s->parent_state->model->link_index;
+                    auto l2_index = s2s->parent_state->model->link_index;
+                    assert(stateA.linkTransformDirty(l1_index) == false);
+                    assert(stateB.linkTransformDirty(l2_index) == false);
+
+                    auto& l1_pose = stateA.linkTransform(l1_index);
+                    auto& l2_pose = stateB.linkTransform(l2_index);
+                    auto& pose1 = l1_pose;
+                    auto& pose2 = l2_pose;
+                    if (!CheckGeometryCollision(
+                            *s1s->model->geom,
+                            *s2s->model->geom,
+                            s1s->model->shape_index,
+                            s2s->model->shape_index,
+                            pose1,
+                            pose2))
+                    {
+                        dist = cd2;
+                        return false;
+                    }
+                } else {
+                    ROS_DEBUG_NAMED(SCM_LOGGER, "  *collision* '%s' x '%s'", s1m->name.c_str(), s2m->name.c_str());
+                    dist = cd2;
+                    return false;
+                }
             }
             // collision between leaves is ok
             continue;
