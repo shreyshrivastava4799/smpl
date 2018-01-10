@@ -233,6 +233,7 @@ void CollisionSphereModelTree::buildFrom(
     }
 
     buildRecursive<CollisionSphereModel>(sptrs.begin(), sptrs.end());
+
     const CollisionSphereModel* root = &m_tree[0];
     size_t leaf_count = 0;
     for (size_t i = 0; i < m_tree.size(); ++i) {
@@ -332,6 +333,30 @@ double CollisionSphereModelTree::maxLeafRadius() const
     }
 }
 
+void InitCollisionSphereModelFromSphere(
+    CollisionSphereModel& cs,
+    const CollisionSphereModel& sphere)
+{
+    cs.name = sphere.name;
+    cs.center = sphere.center;
+    cs.radius = sphere.radius;
+    cs.priority = sphere.priority;
+    cs.geom = sphere.geom;
+    cs.shape_index = sphere.shape_index;
+}
+
+void InitCollisionSphereModelFromSphere(
+    CollisionSphereModel& cs,
+    const CollisionSphereConfig& sphere)
+{
+    cs.name = sphere.name;
+    cs.center = Eigen::Vector3d(sphere.x, sphere.y, sphere.z);
+    cs.radius = sphere.radius;
+    cs.priority = sphere.priority;
+//    cs.geom;
+//    cs.shape_index;
+}
+
 /// \brief Compute the bounding sphere tree for a subset of model spheres
 /// \return The index into \p m_tree where the top-most bounding sphere was stored
 template <typename Sphere>
@@ -349,10 +374,13 @@ size_t CollisionSphereModelTree::buildRecursive(
         m_tree.emplace_back();
         CollisionSphereModel& cs = m_tree.back();
         const Sphere& s = **msfirst;
-        cs.name = s.name; // ok, no i'm not making traits for these
-        cs.center = Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
-        cs.radius = get_radius(s);
-        cs.priority = s.priority; // ...or this
+        InitCollisionSphereModelFromSphere(cs, s);
+//        cs.name = s.name; // ok, no i'm not making traits for these
+//        cs.center = Eigen::Vector3d(get_x(s), get_y(s), get_z(s));
+//        cs.radius = get_radius(s);
+//        cs.priority = s.priority; // ...or this
+//        cs.geom = s.geom;
+//        cs.shape_index = s.shape_index;
         reinterpret_cast<size_t&>(cs.left) = std::numeric_limits<size_t>::max();
         reinterpret_cast<size_t&>(cs.right) = std::numeric_limits<size_t>::max();
         ROS_DEBUG("Leaf sphere '%s'", cs.name.c_str());

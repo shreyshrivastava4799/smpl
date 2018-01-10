@@ -48,25 +48,26 @@ namespace collision {
 
 class CollisionSpheresModel;
 
+struct CollisionGeometry;
+
 /// \brief Collision Sphere Model Specification
 struct CollisionSphereModel
 {
     std::string name;
     Eigen::Vector3d center; ///< offset from link center
     double radius;
-    int priority;
-    const CollisionSpheresModel* parent;
-    const CollisionSphereModel *left, *right;
+    int priority = 0;
+    const CollisionSpheresModel* parent = nullptr;
+    const CollisionSphereModel* left = nullptr;
+    const CollisionSphereModel* right = nullptr;
 
-    CollisionSphereModel() :
-        name(),
-        center(),
-        radius(),
-        priority(),
-        parent(nullptr),
-        left(nullptr),
-        right(nullptr)
-    { }
+    /// collision geometry this sphere is attached to, relevant to leaf spheres
+    /// TODO: wasted space for internal spheres?
+    const CollisionGeometry* geom = nullptr; 
+    /// For specific collision geometry, identifies which piece of the shape
+    /// this collision sphere is attached to, e.g. the index of a triangle
+    /// within a triangle mesh.
+    int shape_index = 0;
 
     // nodes can either have 0 or 2 children
     bool isLeaf() const { return left == right; }

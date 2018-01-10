@@ -48,6 +48,7 @@
 #include <sbpl_collision_checking/base_collision_models.h>
 #include <sbpl_collision_checking/collision_model_config.h>
 #include <sbpl_collision_checking/debug.h>
+#include <sbpl_collision_checking/shapes.h>
 #include <sbpl_collision_checking/types.h>
 
 namespace sbpl {
@@ -79,8 +80,14 @@ class RobotCollisionModel
 {
 public:
 
-    static
-    RobotCollisionModelPtr Load(
+    static auto Load(
+        const urdf::ModelInterface& urdf,
+        const CollisionModelConfig& config)
+        -> RobotCollisionModelPtr;
+
+    RobotCollisionModel() = default;
+
+    bool init(
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
@@ -215,6 +222,18 @@ private:
     /// \name Collision Model
     ///@{
 
+    // storage for collision shapes found in the urdf model
+    std::vector<std::vector<double>>            m_vertex_buffers;
+    std::vector<std::vector<std::uint32_t>>     m_index_buffers;
+    std::vector<BoxShape> m_box_shapes;
+    std::vector<CylinderShape> m_cylinder_shapes;
+    std::vector<SphereShape> m_sphere_shapes;
+    std::vector<MeshShape> m_mesh_shapes;
+
+    // map from link to collision shapes; links appear in the order they
+    // are specified in the urdf
+    std::vector<LinkCollisionGeometry> m_link_geometries;
+
     // one entry for each link that has a spheres model
     std::vector<CollisionSpheresModel>  m_spheres_models;
 
@@ -237,12 +256,6 @@ private:
 //    bool hasSpheresModelOverride(int lidx, const std::string& group_name) const;
 //    bool hasSpheresModelOverride(int lidx, int gidx) const;
 
-    RobotCollisionModel();
-
-    bool init(
-        const urdf::ModelInterface& urdf,
-        const CollisionModelConfig& config);
-
     // this function will take care of appending joint information independent
     // of the type of joint including, name, origin, axis, and offsets into
     // joint variable array
@@ -261,30 +274,27 @@ private:
     bool initRobotModel(
         const urdf::ModelInterface& urdf,
         const WorldJointConfig& config);
+
     bool initCollisionModel(
         const urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
+
+    bool initCollisionShapes(const urdf::ModelInterface& urdf);
+    bool createCollisionShape(const urdf::Collision& collision);
 
     bool expandGroups(
         const std::vector<CollisionGroupConfig>& groups,
         std::vector<CollisionGroupConfig>& expanded_groups) const;
 
-    // this hierarchy is almost identical to the voxelization workflow and is
-    // begging to be templated?...or maybe its not that important
-    bool generateSpheresModel(
-        const urdf::ModelInterface& urdf,
-        const std::string& link_name,
+    bool generateSphereModels(
+        int urdf_link_index,
         double radius,
-        std::vector<CollisionSphereConfig>& spheres) const;
+        std::vector<CollisionSphereModel>& spheres) const;
+    
     bool generateBoundingSpheres(
-        const urdf::Collision& collision,
+        const CollisionGeometry* geom,
         double radius,
-        std::vector<CollisionSphereConfig>& spheres) const;
-    bool generateBoundingSpheres(
-        const urdf::Geometry& geom,
-        const Eigen::Affine3d& pose,
-        double res,
-        std::vector<CollisionSphereConfig>& spheres) const;
+        std::vector<CollisionSphereModel>& spheres) const;
 
     bool checkCollisionModelConfig(const CollisionModelConfig& config);
 
@@ -308,6 +318,11 @@ private:
         double res,
         std::vector<Eigen::Vector3d>& voxels) const;
 };
+
+auto LoadRobotCollisionModel(
+    const urdf::ModelInterface& urdf,
+    const CollisionModelConfig& config)
+    -> std::unique_ptr<RobotCollisionModel>;
 
 inline
 const std::string& RobotCollisionModel::name() const

@@ -121,6 +121,21 @@ struct CollisionObject {
     AlignedVector<Eigen::Affine3d> shape_poses;
 };
 
+/// Helper struct to represent geometry attached to a robot link. Bundles
+/// together a reference to the collision shape and its fixed offset from
+/// the link's origin.
+struct CollisionGeometry {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    const CollisionShape* shape;
+    Eigen::Affine3d offset;
+};
+
+/// Another helper struct to store all collision geometry attached to a robot
+/// link.
+struct LinkCollisionGeometry {
+    std::vector<CollisionGeometry> geometries;
+};
+
 } // namespace collision
 } // namespace sbpl
 
