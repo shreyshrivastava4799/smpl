@@ -114,14 +114,8 @@ private:
 
     struct AttachedBodyState
     {
-        CollisionVoxelsState* voxels_state;
-        CollisionSpheresState* spheres_state;
-
-        AttachedBodyState() :
-            voxels_state(nullptr),
-            spheres_state(nullptr)
-        {
-        }
+        CollisionVoxelsState* voxels_state = nullptr;
+        CollisionSpheresState* spheres_state = nullptr;
     };
 
     const AttachedBodiesCollisionModel*     m_model;
