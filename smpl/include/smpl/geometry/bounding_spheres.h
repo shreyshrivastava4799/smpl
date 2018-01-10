@@ -61,6 +61,22 @@ void ComputeMeshBoundingSpheres(
     const std::vector<std::uint32_t>& indices,
     double radius, std::vector<Eigen::Vector3d>& centers);
 
+void ComputeMeshBoundingSpheres(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<std::uint32_t>& indices,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers,
+    std::vector<std::uint32_t>& triangle_indices);
+
+void ComputeMeshBoundingSpheres(
+    const double* vertex_data,
+    size_t vertex_count,
+    const std::uint32_t* triangle_data,
+    size_t triangle_count,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers,
+    std::vector<std::uint32_t>& triangle_indices);
+
 } // namespace geometry
 } // namespace sbpl
 

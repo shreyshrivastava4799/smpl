@@ -40,13 +40,6 @@
 #include <smpl/geometry/voxelize.h>
 #include <smpl/geometry/mesh_utils.h>
 
-#define SPHERE_DEBUG 0
-#if SPHERE_DEBUG
-#define SPHERE_LOG(stuff) stuff
-#else
-#define SPHERE_LOG(stuff)
-#endif
-
 namespace sbpl {
 namespace geometry {
 
@@ -106,27 +99,43 @@ void ComputeConeBoundingSpheres(
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
 }
 
-/// \brief Cover the surface of a mesh with a set of spheres.
-///
-/// This function will only append sphere centers to the output vector.
-void ComputeMeshBoundingSpheres(
-    const std::vector<Eigen::Vector3d>& vertices,
-    const std::vector<int>& indices,
-    double radius, std::vector<Eigen::Vector3d>& centers)
+struct EigenVertexArrayIndexer {
+    const std::vector<Eigen::Vector3d>& vertices;
+
+    EigenVertexArrayIndexer(const std::vector<Eigen::Vector3d>& vertices) :
+        vertices(vertices) { }
+
+    double x(int index) const { return vertices[index].x(); }
+    double y(int index) const { return vertices[index].y(); }
+    double z(int index) const { return vertices[index].z(); }
+};
+
+struct DoubleArrayVertexArrayIndexer {
+    const double* arr;
+
+    DoubleArrayVertexArrayIndexer(const double* arr) : arr(arr) { }
+
+    double x(int index) const { return arr[3 * index]; }
+    double y(int index) const { return arr[3 * index + 1]; }
+    double z(int index) const { return arr[3 * index + 2]; }
+};
+
+template <class VertexIndexer, class Callable>
+void ComputeMeshBoundingSpheresInternal(
+    VertexIndexer indexer,
+    const std::uint32_t* indices,
+    size_t triangle_count,
+    double radius,
+    Callable proc)
 {
-    const int triangle_count = indices.size() / 3;
-
-    // for each triangle
     for (int tidx = 0; tidx < triangle_count; ++tidx) {
-        const Eigen::Vector3d& a = vertices[indices[3 * tidx]];
-        const Eigen::Vector3d& b = vertices[indices[3 * tidx + 1]];
-        const Eigen::Vector3d& c = vertices[indices[3 * tidx + 2]];
+        std::uint32_t iv1 = indices[3 * tidx];
+        std::uint32_t iv2 = indices[3 * tidx + 1];
+        std::uint32_t iv3 = indices[3 * tidx + 2];
 
-        SPHERE_LOG(std::printf("a: %0.3f, %0.3f, %0.3f\n", a.x(), a.y(), a.z());)
-        SPHERE_LOG(std::printf("b: %0.3f, %0.3f, %0.3f\n", b.x(), b.y(), b.z());)
-        SPHERE_LOG(std::printf("c: %0.3f, %0.3f, %0.3f\n", c.x(), c.y(), c.z());)
-
-        SPHERE_LOG(std::printf("enclosing triangle %d\n", tidx);)
+        Eigen::Vector3d a(indexer.x(iv1), indexer.y(iv1), indexer.z(iv1));
+        Eigen::Vector3d b(indexer.x(iv2), indexer.y(iv2), indexer.z(iv2));
+        Eigen::Vector3d c(indexer.x(iv3), indexer.y(iv3), indexer.z(iv3));
 
         //  compute the pose of the triangle
         const double a2 = (b - c).squaredNorm();
@@ -139,17 +148,26 @@ void ComputeMeshBoundingSpheres(
         bc1 /= s;
         bc2 /= s;
         bc3 /= s;
-        Eigen::Vector3d bc(bc1, bc2, bc3);
 
-        SPHERE_LOG(std::printf("a2 = %0.3f, b2 = %0.3f, c2 = %0.3f\n", a2, b2, c2);)
-        SPHERE_LOG(std::printf("bc1 = %0.3f, bc2 = %0.3f, bc3 = %0.3f\n", bc1, bc2, bc3);)
-        SPHERE_LOG(std::printf("bc: %0.3f, %0.3f, %0.3f\n", bc.x(), bc.y(), bc.z());)
+        Eigen::Vector3d p = bc1 * a + bc2 * b + bc3 * c;
 
-        Eigen::Vector3d p = bc[0] * a + bc[1] * b + bc[2] * c;
-        SPHERE_LOG(std::printf("p: %0.3f, %0.3f, %0.3f\n", p.x(), p.y(), p.z());)
+        if ((p - a).squaredNorm() <= radius * radius &&
+            (p - b).squaredNorm() <= radius * radius &&
+            (p - c).squaredNorm() <= radius * radius)
+        {
+            proc(p, tidx);
+            continue;
+        }
 
         Eigen::Vector3d z = (c - b).cross(b - a);
-        z.normalize();
+
+        // normalize or skip z
+        auto len = z.norm();
+        if (len < 1e-6) {
+            continue;
+        }
+        z /= len;
+
         Eigen::Vector3d x;
         if (a2 > b2 && a2 > c2) {
             x = b - c;
@@ -160,7 +178,14 @@ void ComputeMeshBoundingSpheres(
         else {
             x = a - b;
         }
-        x.normalize();
+
+        // normalize or skip
+        len = x.norm();
+        if (len < 1e-6) {
+            continue;
+        }
+        x /= len;
+
         Eigen::Vector3d y = z.cross(x);
         Eigen::Affine3d T_mesh_triangle;
         T_mesh_triangle(0, 0) = x[0];
@@ -183,13 +208,12 @@ void ComputeMeshBoundingSpheres(
         T_mesh_triangle(2, 3) = p[2];
         T_mesh_triangle(3, 3) = 1.0;
 
+        Eigen::Affine3d T_triangle_mesh = T_mesh_triangle.inverse();
+
         //  transform the triangle vertices into the triangle frame
-        Eigen::Vector3d at = T_mesh_triangle.inverse() * a;
-        Eigen::Vector3d bt = T_mesh_triangle.inverse() * b;
-        Eigen::Vector3d ct = T_mesh_triangle.inverse() * c;
-        SPHERE_LOG(std::printf("at: %0.3f, %0.3f, %0.3f\n", at.x(), at.y(), at.z());)
-        SPHERE_LOG(std::printf("bt: %0.3f, %0.3f, %0.3f\n", bt.x(), bt.y(), bt.z());)
-        SPHERE_LOG(std::printf("ct: %0.3f, %0.3f, %0.3f\n", ct.x(), ct.y(), ct.z());)
+        Eigen::Vector3d at = T_triangle_mesh * a;
+        Eigen::Vector3d bt = T_triangle_mesh * b;
+        Eigen::Vector3d ct = T_triangle_mesh * c;
 
         double minx = std::min(at.x(), std::min(bt.x(), ct.x()));
         double miny = std::min(at.y(), std::min(bt.y(), ct.y()));
@@ -210,13 +234,69 @@ void ComputeMeshBoundingSpheres(
                 MemoryCoord mc(x, y, 0);
                 if (vg[mc]) {
                     WorldCoord wc = vg.memoryToWorld(mc);
-                    centers.push_back(
-                            T_mesh_triangle *
-                            Eigen::Vector3d(wc.x, wc.y, wc.z));
+                    proc(T_mesh_triangle * Eigen::Vector3d(wc.x, wc.y, wc.z),
+                            tidx);
                 }
             }
         }
     }
+}
+
+/// \brief Cover the surface of a mesh with a set of spheres.
+///
+/// This function will only append sphere centers to the output vector.
+void ComputeMeshBoundingSpheres(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<std::uint32_t>& indices,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers)
+{
+    ComputeMeshBoundingSpheresInternal(
+            EigenVertexArrayIndexer(vertices),
+            indices.data(),
+            indices.size() / 3,
+            radius,
+            [&](const Eigen::Vector3d& center, int tidx) {
+                centers.push_back(center);
+            });
+}
+
+void ComputeMeshBoundingSpheres(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<std::uint32_t>& indices,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers,
+    std::vector<std::uint32_t>& triangle_indices)
+{
+    ComputeMeshBoundingSpheresInternal(
+            EigenVertexArrayIndexer(vertices),
+            indices.data(),
+            indices.size() / 3, 
+            radius,
+            [&](const Eigen::Vector3d& center, int tidx) {
+                centers.push_back(center);
+                triangle_indices.push_back(tidx);
+            });
+}
+
+void ComputeMeshBoundingSpheres(
+    const double* vertex_data,
+    size_t vertex_count,
+    const std::uint32_t* triangle_data,
+    size_t triangle_count,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers,
+    std::vector<std::uint32_t>& triangle_indices)
+{
+    ComputeMeshBoundingSpheresInternal(
+        DoubleArrayVertexArrayIndexer(vertex_data),
+        triangle_data,
+        triangle_count,
+        radius,
+        [&](const Eigen::Vector3d& center, int tidx) {
+            centers.push_back(center);
+            triangle_indices.push_back(tidx);
+        });
 }
 
 } // namespace geometry
