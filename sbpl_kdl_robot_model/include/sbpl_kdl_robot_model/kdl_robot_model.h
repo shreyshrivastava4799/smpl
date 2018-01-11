@@ -36,6 +36,7 @@
 // standard includes
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // system includes
@@ -75,7 +76,7 @@ public:
 
     const std::string& getKinematicsFrame() const;
 
-    /// \brief Transform between Kinematics frame <-> Planning frame
+    /// Set the transform from the kinematics frame to the planning frame.
     void setKinematicsToPlanningTransform(
         const KDL::Frame& f,
         const std::string& name);
@@ -83,49 +84,46 @@ public:
     bool setPlanningLink(const std::string& name);
     const std::string& getPlanningLink() const;
 
-    /// \brief Compute the forward kinematics pose of a link in the robot model.
+    /// Compute the forward kinematics pose of a link in the robot model.
     virtual bool computeFK(
         const std::vector<double>& angles,
         const std::string& name,
         KDL::Frame& f);
 
     virtual bool computeFastIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution);
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        RobotState& solution);
 
     bool computeIKSearch(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution,
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        RobotState& solution,
         double timeout);
 
     void printRobotModelInformation();
 
-    /// \name Required Public Functions from InverseKinematicsInterface
+    /// \name InverseKinematicsInterface Interface
     ///@{
     bool computeIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution,
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        RobotState& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED) override;
 
     bool computeIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector< std::vector<double>>& solutions,
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        std::vector<RobotState>& solutions,
         ik_option::IkOption option = ik_option::UNRESTRICTED) override;
     ///@}
 
-    /// \name Required Public Functions from ForwardKinematicsInterface
+    /// \name ForwardKinematicsInterface Interface
     ///@{
-    bool computeFK(
-        const std::vector<double>& angles,
-        const std::string& name,
-        std::vector<double>& pose) override;
+    Eigen::Affine3d computeFK(const RobotState& angles) override;
     ///@}
 
-    /// \name Required Public Functions from RobotModel
+    /// \name RobotModel Interface
     ///@{
     double minPosLimit(int jidx) const override { return min_limits_[jidx]; }
     double maxPosLimit(int jidx) const override { return max_limits_[jidx]; }
@@ -137,13 +135,9 @@ public:
     bool checkJointLimits(
         const std::vector<double>& angles,
         bool verbose = false) override;
-
-    bool computePlanningLinkFK(
-        const std::vector<double>& angles,
-        std::vector<double>& pose) override;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name Extension Interface
     ///@{
     Extension* getExtension(size_t class_code) override;
     ///@}
@@ -160,7 +154,7 @@ protected:
 
     bool initialized_;
 
-    boost::shared_ptr<urdf::Model> urdf_;
+    urdf::Model urdf_;
     int free_angle_;
     std::string chain_root_name_;
     std::string chain_tip_name_;
@@ -180,10 +174,9 @@ protected:
     std::vector<double> max_limits_;
     std::vector<double> vel_limits_;
     std::vector<double> eff_limits_;
-    std::map<std::string, int> joint_map_;
-    std::map<std::string, int> link_map_;
+    std::unordered_map<std::string, int> joint_map_;
+    std::unordered_map<std::string, int> link_map_;
 
-    double normalizeAngle(double a, double a_min, double a_max) const;
     void normalizeAngles(KDL::JntArray& angles) const;
     void normalizeAngles(std::vector<double>& angles) const;
     bool normalizeAnglesIntoRange(

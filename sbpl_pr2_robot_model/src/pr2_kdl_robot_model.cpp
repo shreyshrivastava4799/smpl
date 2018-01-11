@@ -37,6 +37,7 @@
 #include <leatherman/utils.h>
 #include <ros/ros.h>
 #include <smpl/angles.h>
+#include <eigen_conversions/eigen_kdl.h>
 
 using namespace std;
 
@@ -85,7 +86,7 @@ bool PR2KDLRobotModel::init(
 
     // PR2 Specific IK Solver
     pr2_ik_solver_.reset(new pr2_arm_kinematics::PR2ArmIKSolver(
-            *urdf_, chain_root_name_, chain_tip_name_, 0.02, 2));
+            urdf_, chain_root_name_, chain_tip_name_, 0.02, 2));
     if (!pr2_ik_solver_->active_) {
         ROS_ERROR("The pr2 IK solver is NOT active. Exiting.");
         initialized_ = false;
@@ -115,24 +116,13 @@ bool PR2KDLRobotModel::init(
 }
 
 bool PR2KDLRobotModel::computeIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double>& solution,
+    const Eigen::Affine3d& pose,
+    const RobotState& start,
+    RobotState& solution,
     ik_option::IkOption option)
 {
-    //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
     KDL::Frame frame_des;
-    frame_des.p.x(pose[0]);
-    frame_des.p.y(pose[1]);
-    frame_des.p.z(pose[2]);
-
-    if (pose.size() == 6) {
-        // RPY
-        frame_des.M = KDL::Rotation::RPY(pose[3], pose[4], pose[5]);
-    } else {
-        // quaternion
-        frame_des.M = KDL::Rotation::Quaternion(pose[3], pose[4], pose[5], pose[6]);
-    }
+    tf::transformEigenToKDL(pose, frame_des);
 
     // transform into kinematics frame
     frame_des = T_planning_to_kinematics_ * frame_des;
@@ -147,11 +137,7 @@ bool PR2KDLRobotModel::computeIK(
 
     // choose solver
     if (option == ik_option::RESTRICT_XYZ) {
-        std::vector<double> rpy(3, 0);
-        std::vector<double> fpose(6, 0);
-        std::vector<double> epose(6, 0);
-        frame_des.M.GetRPY(rpy[0], rpy[1], rpy[2]);
-        const std::vector<double> rpy2(rpy);
+        KDL::Frame fpose, epose;
 
         // get pose of forearm link
         if (!computeFK(start, forearm_roll_link_name_, fpose)) {
@@ -165,7 +151,21 @@ bool PR2KDLRobotModel::computeIK(
             return false;
         }
 
-        return rpy_solver_->computeRPYOnly(rpy2, start, fpose, epose, 1, solution);
+        std::vector<double> vfpose(6, 0.0);
+        vfpose[0] = fpose.p.x();
+        vfpose[1] = fpose.p.y();
+        vfpose[2] = fpose.p.z();
+        fpose.M.GetRPY(vfpose[3], vfpose[4], vfpose[5]);
+
+        std::vector<double> vepose(6, 0.0);
+        vepose[0] = epose.p.x();
+        vepose[1] = epose.p.y();
+        vepose[2] = epose.p.z();
+        epose.M.GetRPY(vepose[3], vepose[4], vepose[5]);
+
+        std::vector<double> rpy(3, 0.0);
+        frame_des.M.GetRPY(rpy[0], rpy[1], rpy[2]);
+        return rpy_solver_->computeRPYOnly(rpy, start, vfpose, vepose, 1, solution);
     } else {
         const double timeout = 0.2;
         const double consistency_limit = 2.0 * M_PI;
@@ -188,23 +188,12 @@ bool PR2KDLRobotModel::computeIK(
 }
 
 bool PR2KDLRobotModel::computeFastIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double>& solution)
+    const Eigen::Affine3d& pose,
+    const RobotState& start,
+    RobotState& solution)
 {
-    //pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
     KDL::Frame frame_des;
-    frame_des.p.x(pose[0]);
-    frame_des.p.y(pose[1]);
-    frame_des.p.z(pose[2]);
-
-    if (pose.size() == 6) {
-        // RPY
-        frame_des.M = KDL::Rotation::RPY(pose[3],pose[4],pose[5]);
-    } else {
-        // quaternion
-        frame_des.M = KDL::Rotation::Quaternion(pose[3],pose[4],pose[5],pose[6]);
-    }
+    tf::transformEigenToKDL(pose, frame_des);
 
     // transform into kinematics frame
     frame_des = T_planning_to_kinematics_ * frame_des;

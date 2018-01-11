@@ -185,9 +185,7 @@ protected:
     int getOrCreateState(const RobotCoord& coord, const RobotState& state);
     int reserveHashEntry();
 
-    bool computePlanningFrameFK(
-        const RobotState& state,
-        std::vector<double>& pose) const;
+    Eigen::Affine3d computePlanningFrameFK(const RobotState& state) const;
 
     int cost(
         ManipLatticeState* HashEntry1,
@@ -237,8 +235,8 @@ private:
 
     void startNewSearch();
 
-    auto getTargetOffsetPose(const std::vector<double>& tip_pose) const
-        -> std::vector<double>;
+    auto getTargetOffsetPose(const Eigen::Affine3d& tip_pose) const
+        -> Eigen::Affine3d;
 
     /// \name planning
     ///@{

@@ -40,6 +40,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Eigen/Dense>
+
 #include <smpl/extension.h>
 #include <smpl/types.h>
 
@@ -92,21 +94,13 @@ public:
 
     virtual ~ForwardKinematicsInterface();
 
-    /// \brief Compute the forward kinematics pose of a link in the robot model.
-    virtual bool computeFK(
-        const RobotState& state,
-        const std::string& name,
-        std::vector<double>& pose) = 0;
-
     /// \brief Compute forward kinematics of the planning link.
     ///
     /// The output pose, stored in \p pose, should be of the format
     /// { x, y, z, R, P, Y } of the planning link
     ///
     /// \return true if forward kinematics were computed; false otherwise
-    virtual bool computePlanningLinkFK(
-        const RobotState& state,
-        std::vector<double>& pose) = 0;
+    virtual Eigen::Affine3d computeFK(const RobotState& state) = 0;
 };
 
 namespace ik_option {
@@ -132,14 +126,14 @@ public:
 
     /// \brief Compute an inverse kinematics solution.
     virtual bool computeIK(
-        const std::vector<double>& pose,
+        const Eigen::Affine3d& pose,
         const RobotState& start,
         RobotState& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 
     /// \brief Compute multiple inverse kinematic solutions.
     virtual bool computeIK(
-        const std::vector<double>& pose,
+        const Eigen::Affine3d& pose,
         const RobotState& start,
         std::vector<RobotState>& solutions,
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
@@ -159,7 +153,7 @@ public:
     /// \brief Compute an inverse kinematics solution while restricting all
     ///     redundant joint variables to the seed state.
     virtual bool computeFastIK(
-        const std::vector<double>& pose,
+        const Eigen::Affine3d& pose,
         const RobotState& start,
         RobotState& solution) = 0;
 };

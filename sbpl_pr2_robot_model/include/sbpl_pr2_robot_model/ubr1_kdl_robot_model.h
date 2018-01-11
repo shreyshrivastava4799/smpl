@@ -62,11 +62,10 @@ public:
 
     virtual ~UBR1KDLRobotModel();
 
-    /* Inverse Kinematics */
     virtual bool computeIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution,
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        RobotState& solution,
         int option = ik_option::UNRESTRICTED);
 
   private:

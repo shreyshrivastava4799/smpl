@@ -160,7 +160,13 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         switch (goal().type) {
         case GoalType::XYZ_GOAL:
         case GoalType::XYZ_RPY_GOAL:
-            ss << "pose: " << goal().tgt_off_pose;
+            double y, p, r;
+            angles::get_euler_zyx(goal().tgt_off_pose.rotation(), y, p, r);
+            ss << "pose: { " <<
+                    goal().tgt_off_pose.translation().x() << ", " <<
+                    goal().tgt_off_pose.translation().y() << ", " << 
+                    goal().tgt_off_pose.translation().z() << ", " << 
+                    y << ", " << p << ", " << r << " }";
             break;
         case GoalType::JOINT_STATE_GOAL:
             ss << "state: " << goal().angles;
@@ -446,33 +452,11 @@ const RobotState& ManipLattice::extractState(int state_id)
 bool ManipLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 {
     if (state_id == getGoalStateID()) {
-        assert(goal().tgt_off_pose.size() >= 6);
-        Eigen::Matrix3d R;
-        angles::from_euler_zyx(
-                goal().tgt_off_pose[5],
-                goal().tgt_off_pose[4],
-                goal().tgt_off_pose[3],
-                R);
-        pose =
-                Eigen::Translation3d(
-                        goal().tgt_off_pose[0],
-                        goal().tgt_off_pose[1],
-                        goal().tgt_off_pose[2]) *
-                Eigen::Affine3d(R);
+        pose = goal().tgt_off_pose;
         return true;
     }
 
-    std::vector<double> vpose;
-    if (!computePlanningFrameFK(m_states[state_id]->state, vpose)) {
-        SMPL_WARN("Failed to compute fk for state %d", state_id);
-        return false;
-    }
-
-    Eigen::Matrix3d R;
-    angles::from_euler_zyx(vpose[5], vpose[4], vpose[3], R);
-    pose =
-            Eigen::Translation3d(vpose[0], vpose[1], vpose[2]) *
-            Eigen::Affine3d(R);
+    pose = computePlanningFrameFK(m_states[state_id]->state);
     return true;
 }
 
@@ -597,23 +581,16 @@ int ManipLattice::reserveHashEntry()
     return state_id;
 }
 
-/// NOTE: const although RobotModel::computePlanningLinkFK used underneath may
+/// NOTE: const although RobotModel::computeFK used underneath may
 /// not be
-bool ManipLattice::computePlanningFrameFK(
-    const RobotState& state,
-    std::vector<double>& pose) const
+auto ManipLattice::computePlanningFrameFK(const RobotState& state) const
+    -> Eigen::Affine3d
 {
     assert(state.size() == robot()->jointVariableCount());
     assert(m_fk_iface);
 
-    if (!m_fk_iface->computePlanningLinkFK(state, pose)) {
-        return false;
-    }
-
-    pose = getTargetOffsetPose(pose);
-
-    assert(pose.size() == 6);
-    return true;
+    auto pose = m_fk_iface->computeFK(state);
+    return getTargetOffsetPose(pose);
 }
 
 int ManipLattice::cost(
@@ -705,15 +682,11 @@ bool ManipLattice::isGoal(const RobotState& state)
     case GoalType::XYZ_RPY_GOAL:
     {
         // get pose of planning link
-        std::vector<double> pose;
-        if (!computePlanningFrameFK(state, pose)) {
-            SMPL_WARN("Failed to compute FK for planning frame");
-            return false;
-        }
+        auto pose = computePlanningFrameFK(state);
 
-        const double dx = fabs(pose[0] - goal().tgt_off_pose[0]);
-        const double dy = fabs(pose[1] - goal().tgt_off_pose[1]);
-        const double dz = fabs(pose[2] - goal().tgt_off_pose[2]);
+        const double dx = fabs(pose.translation()[0] - goal().tgt_off_pose.translation()[0]);
+        const double dy = fabs(pose.translation()[1] - goal().tgt_off_pose.translation()[1]);
+        const double dz = fabs(pose.translation()[2] - goal().tgt_off_pose.translation()[2]);
         if (dx <= goal().xyz_tolerance[0] &&
             dy <= goal().xyz_tolerance[1] &&
             dz <= goal().xyz_tolerance[2])
@@ -726,19 +699,17 @@ bool ManipLattice::isGoal(const RobotState& state)
                         duration_cast<duration<double>>(time_to_goal_region);
                 m_near_goal = true;
                 SMPL_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec.",
-                        pose[0], pose[1], pose[2],
+                        pose.translation()[0],
+                        pose.translation()[1],
+                        pose.translation()[2],
                         goal().xyz_tolerance[0],
-                        goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
+                        goal().tgt_off_pose.translation()[0],
+                        goal().tgt_off_pose.translation()[1],
+                        goal().tgt_off_pose.translation()[2],
                         time_to_goal_s.count());
             }
-            Eigen::Quaterniond qg(
-                    Eigen::AngleAxisd(goal().tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(goal().tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(goal().tgt_off_pose[3], Eigen::Vector3d::UnitX()));
-            Eigen::Quaterniond q(
-                    Eigen::AngleAxisd(pose[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(pose[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(pose[3], Eigen::Vector3d::UnitX()));
+            Eigen::Quaterniond qg(goal().tgt_off_pose.rotation());
+            Eigen::Quaterniond q(pose.rotation());
             if (q.dot(qg) < 0.0) {
                 qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
             }
@@ -753,15 +724,10 @@ bool ManipLattice::isGoal(const RobotState& state)
     case GoalType::XYZ_GOAL:
     {
         // get pose of planning link
-        std::vector<double> pose;
-        if (!computePlanningFrameFK(state, pose)) {
-            SMPL_WARN("Failed to compute FK for planning frame");
-            return false;
-        }
-
-        if (fabs(pose[0] - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
-            fabs(pose[1] - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
-            fabs(pose[2] - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2])
+        auto pose = computePlanningFrameFK(state);
+        if (fabs(pose.translation()[0] - goal().tgt_off_pose.translation()[0]) <= goal().xyz_tolerance[0] &&
+            fabs(pose.translation()[1] - goal().tgt_off_pose.translation()[1]) <= goal().xyz_tolerance[1] &&
+            fabs(pose.translation()[2] - goal().tgt_off_pose.translation()[2]) <= goal().xyz_tolerance[2])
         {
             return true;
         }
@@ -1034,36 +1000,19 @@ RobotState ManipLattice::getStartConfiguration() const
 /// Set a 6-dof goal pose for the planning link
 bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 {
-    // check arguments
-    if (gc.pose.size() != 6) {
-        SMPL_ERROR_NAMED(params()->graph_log, "Goal pose has incorrect format");
-        return false;
-    }
-
-    if (gc.tgt_off_pose.size() != 6) {
-        SMPL_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
-        return false;
-    }
-
-    Eigen::Affine3d goal_pose(
-            Eigen::Translation3d(
-                    gc.tgt_off_pose[0],
-                    gc.tgt_off_pose[1],
-                    gc.tgt_off_pose[2]) *
-            Eigen::AngleAxisd(gc.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(gc.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(gc.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
     auto* vis_name = "goal_pose";
-    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal_pose, m_viz_frame_id, vis_name));
+    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(gc.tgt_off_pose, m_viz_frame_id, vis_name));
 
     using namespace std::chrono;
     auto now = clock::now();
     auto now_s = duration_cast<duration<double>>(now.time_since_epoch());
     SMPL_DEBUG_NAMED(params()->graph_log, "time: %f", now_s.count());
     SMPL_DEBUG_NAMED(params()->graph_log, "A new goal has been set.");
-    SMPL_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose[0], gc.pose[1], gc.pose[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose.translation()[0], gc.pose.translation()[1], gc.pose.translation()[2]);
     SMPL_DEBUG_NAMED(params()->graph_log, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
-    SMPL_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", gc.pose[3], gc.pose[4], gc.pose[5]);
+    double yaw, pitch, roll;
+    angles::get_euler_zyx(gc.pose.rotation(), yaw, pitch, roll);
+    SMPL_DEBUG_NAMED(params()->graph_log, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
     SMPL_DEBUG_NAMED(params()->graph_log, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
 
     startNewSearch();
@@ -1098,21 +1047,11 @@ void ManipLattice::startNewSearch()
 }
 
 /// \brief Return the 6-dof goal pose for the offset from the tip link.
-std::vector<double> ManipLattice::getTargetOffsetPose(
-    const std::vector<double>& tip_pose) const
+auto ManipLattice::getTargetOffsetPose(const Eigen::Affine3d& tip_pose) const
+    -> Eigen::Affine3d
 {
-    // pose represents T_planning_eef
-    Eigen::Affine3d T_planning_tipoff = // T_planning_eef * T_eef_tipoff
-            Eigen::Translation3d(tip_pose[0], tip_pose[1], tip_pose[2]) *
-            Eigen::AngleAxisd(tip_pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(tip_pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(tip_pose[3], Eigen::Vector3d::UnitX()) *
-            Eigen::Translation3d(
-                    goal().xyz_offset[0],
-                    goal().xyz_offset[1],
-                    goal().xyz_offset[2]);
-    const Eigen::Vector3d voff(T_planning_tipoff.translation());
-    return { voff.x(), voff.y(), voff.z(), tip_pose[3], tip_pose[4], tip_pose[5] };
+    return tip_pose * Eigen::Translation3d(
+            goal().xyz_offset[0], goal().xyz_offset[1], goal().xyz_offset[2]);
 }
 
 } // namespace motion

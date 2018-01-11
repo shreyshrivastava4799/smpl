@@ -1006,11 +1006,10 @@ bool PlannerInterface::setGoalConfiguration(
 
     // TODO: really need to reevaluate the necessity of the planning link
     if (m_fk_iface) {
-        m_fk_iface->computePlanningLinkFK(goal.angles, goal.pose);
+        goal.pose = m_fk_iface->computeFK(goal.angles);
         goal.tgt_off_pose = goal.pose;
     } else {
-        goal.pose.resize(6, 0.0);
-        goal.tgt_off_pose.resize(6, 0.0);
+        goal.pose = goal.tgt_off_pose = Eigen::Affine3d::Identity();
     }
 
     // set sbpl environment goal
@@ -1050,12 +1049,7 @@ bool PlannerInterface::setGoalPosition(
 
     GoalConstraint goal;
     goal.type = GoalType::XYZ_RPY_GOAL;
-    goal.pose.resize(6);
-    goal.pose[0] = goal_pose.translation()[0];
-    goal.pose[1] = goal_pose.translation()[1];
-    goal.pose[2] = goal_pose.translation()[2];
-    angles::get_euler_zyx(
-            goal_pose.rotation(), goal.pose[5], goal.pose[4], goal.pose[3]);
+    goal.pose = goal_pose;
     goal.xyz_offset[0] = offset.x();
     goal.xyz_offset[1] = offset.y();
     goal.xyz_offset[2] = offset.z();
@@ -1075,21 +1069,15 @@ bool PlannerInterface::setGoalPosition(
 
     ROS_INFO_NAMED(PI_LOGGER, "New Goal");
     ROS_INFO_NAMED(PI_LOGGER, "    frame: %s", m_params.planning_frame.c_str());
-    ROS_INFO_NAMED(PI_LOGGER, "    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", goal.pose[0], goal.pose[1], goal.pose[2], goal.pose[3], goal.pose[4], goal.pose[5]);
+    double yaw, pitch, roll;
+    angles::get_euler_zyx(goal.pose.rotation(), yaw, pitch, roll);
+    ROS_INFO_NAMED(PI_LOGGER, "    pose: (x: %0.3f, y: %0.3f, z: %0.3f, R: %0.3f, P: %0.3f, Y: %0.3f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2], yaw, pitch, roll);
     ROS_INFO_NAMED(PI_LOGGER, "    offset: (%0.3f, %0.3f, %0.3f)", goal.xyz_offset[0], goal.xyz_offset[1], goal.xyz_offset[2]);
     ROS_INFO_NAMED(PI_LOGGER, "    tolerance: (dx: %0.3f, dy: %0.3f, dz: %0.3f, dR: %0.3f, dP: %0.3f, dY: %0.3f)", sbpl_tolerance[0], sbpl_tolerance[1], sbpl_tolerance[2], sbpl_tolerance[3], sbpl_tolerance[4], sbpl_tolerance[5]);
 
     // ...a lot more relies on this than I had hoped
     Eigen::Affine3d target_pose = goal_pose * Eigen::Translation3d(offset);
-    goal.tgt_off_pose =
-    {
-        target_pose.translation()[0],
-        target_pose.translation()[1],
-        target_pose.translation()[2],
-        goal.pose[3],
-        goal.pose[4],
-        goal.pose[5]
-    };
+    goal.tgt_off_pose = target_pose;
 
     if (!m_pspace->setGoal(goal)) {
         ROS_ERROR("Failed to set goal");

@@ -38,11 +38,30 @@
 #include <leatherman/utils.h>
 #include <ros/ros.h>
 #include <smpl/angles.h>
+#include <eigen_conversions/eigen_kdl.h>
 
 using namespace std;
 
 namespace sbpl {
 namespace motion {
+
+static double normalizeAngle(double a, double a_min, double a_max)
+{
+    // normalize to [-2*pi, 2*pi] range
+    if (std::fabs(a) > 2.0 * M_PI) {
+        a = std::fmod(a, 2.0 * M_PI);
+    }
+
+    while (a > a_max) {
+        a -= 2.0 * M_PI;
+    }
+
+    while (a < a_min) {
+        a += 2.0 * M_PI;
+    }
+
+    return a;
+}
 
 KDLRobotModel::KDLRobotModel() :
     initialized_(false),
@@ -69,13 +88,12 @@ bool KDLRobotModel::init(
     free_angle_ = free_angle;
 
     ROS_INFO("Initialize KDL Robot Model");
-    urdf_ = boost::shared_ptr<urdf::Model>(new urdf::Model());
-    if (!urdf_->initString(robot_description)) {
+    if (!urdf_.initString(robot_description)) {
         ROS_ERROR("Failed to parse the URDF.");
         return false;
     }
 
-    if (!kdl_parser::treeFromUrdfModel(*urdf_, ktree_)) {
+    if (!kdl_parser::treeFromUrdfModel(urdf_, ktree_)) {
         ROS_ERROR("Failed to parse the kdl tree from robot description.");
         return false;
     }
@@ -94,14 +112,10 @@ bool KDLRobotModel::init(
     }
 
     // check if our chain includes all planning joints
-    for (size_t i = 0; i < planning_joints.size(); ++i) {
-        if (planning_joints[i].empty()) {
-            ROS_ERROR("Planning joint name is empty (index: %d).", int(i));
-            return false;
-        }
+    for (auto& planning_joint : planning_joints) {
         int index;
-        if (!leatherman::getJointIndex(kchain_, planning_joints[i], index)) {
-            ROS_ERROR("Failed to find '%s' in the kinematic chain. Maybe your chain root or tip joints are wrong? (%s, %s)", planning_joints[i].c_str(), chain_root_name_.c_str(), chain_tip_name_.c_str());
+        if (!leatherman::getJointIndex(kchain_, planning_joint, index)) {
+            ROS_ERROR("Failed to find '%s' in the kinematic chain. Maybe your chain root or tip joints are wrong? (%s, %s)", planning_joint.c_str(), chain_root_name_.c_str(), chain_tip_name_.c_str());
             return false;
         }
     }
@@ -168,24 +182,6 @@ void KDLRobotModel::setKinematicsToPlanningTransform(
 {
     T_kinematics_to_planning_ = f;
     T_planning_to_kinematics_ = f.Inverse();
-}
-
-double KDLRobotModel::normalizeAngle(double a, double a_min, double a_max) const
-{
-    // normalize to [-2*pi, 2*pi] range
-    if (std::fabs(a) > 2.0 * M_PI) {
-        a = std::fmod(a, 2.0 * M_PI);
-    }
-
-    while (a > a_max) {
-        a -= 2.0 * M_PI;
-    }
-
-    while (a < a_min) {
-        a += 2.0 * M_PI;
-    }
-
-    return a;
 }
 
 void KDLRobotModel::normalizeAngles(KDL::JntArray& angles) const
@@ -278,13 +274,12 @@ bool KDLRobotModel::getJointLimits(
     double& eff_limit)
 {
     bool found_joint = false;
-    boost::shared_ptr<const urdf::Link> link = urdf_->getLink(chain_tip_name_);
+    auto link = urdf_.getLink(chain_tip_name_);
     while (link && (link->name != chain_root_name_) && !found_joint) {
-        boost::shared_ptr<const urdf::Joint> joint =
-                urdf_->getJoint(link->parent_joint->name);
+        auto joint = urdf_.getJoint(link->parent_joint->name);
         if (joint->name.compare(joint_name) == 0) {
-            if (joint->type != urdf::Joint::UNKNOWN && joint->type !=
-                    urdf::Joint::FIXED)
+            if (joint->type != urdf::Joint::UNKNOWN &&
+                joint->type != urdf::Joint::FIXED)
             {
                 if (joint->type != urdf::Joint::CONTINUOUS) {
                     continuous = false;
@@ -307,7 +302,7 @@ bool KDLRobotModel::getJointLimits(
             }
             found_joint = true;
         }
-        link = urdf_->getLink(link->getParent()->name);
+        link = urdf_.getLink(link->getParent()->name);
     }
     return found_joint;
 }
@@ -352,6 +347,11 @@ bool KDLRobotModel::computeFK(
     const std::string& name,
     KDL::Frame& f)
 {
+    auto link_index_it = link_map_.find(name);
+    if (link_index_it == end(link_map_)) {
+        return false;
+    }
+
     for (size_t i = 0; i < angles.size(); ++i) {
         jnt_pos_in_(i) = angles[i];
     }
@@ -359,73 +359,45 @@ bool KDLRobotModel::computeFK(
     normalizeAngles(jnt_pos_in_);
 
     KDL::Frame f1;
-    if (fk_solver_->JntToCart(jnt_pos_in_, f1, link_map_[name]) < 0) {
+    if (fk_solver_->JntToCart(jnt_pos_in_, f1, link_index_it->second) < 0) {
         ROS_ERROR("JntToCart returned < 0.");
         return false;
     }
     f = T_kinematics_to_planning_ * f1;
 
-//    KDL::Frame f1;
-//    for (std::map<std::string, int>::const_iterator iter = link_map_.begin();
-//        iter != link_map_.end(); ++iter)
-//    {
-//        if (fk_solver_->JntToCart(jnt_pos_in_, f1, iter->second) < 0) {
-//            ROS_ERROR("JntToCart returned < 0.");
-//            return false;
-//        }
-//
-//        f = T_kinematics_to_planning_ * f1;
-//    }
-
     return true;
 }
 
-bool KDLRobotModel::computeFK(
-    const std::vector<double>& angles,
-    const std::string& name,
-    std::vector<double>& pose)
+Eigen::Affine3d KDLRobotModel::computeFK(const RobotState& angles)
 {
-    KDL::Frame f;
-    pose.resize(6, 0);
-    if (computeFK(angles, name, f)) {
-        pose[0] = f.p[0];
-        pose[1] = f.p[1];
-        pose[2] = f.p[2];
-        f.M.GetRPY(pose[3], pose[4], pose[5]);
-        return true;
+    auto link_index_it = link_map_.find(planning_link_);
+    if (link_index_it == end(link_map_)) {
+        ROS_ERROR("Planning link is not part of the KDL chain");
+        return Eigen::Affine3d::Identity();
     }
-    return false;
-}
 
-bool KDLRobotModel::computePlanningLinkFK(
-    const std::vector<double>& angles,
-    std::vector<double>& pose)
-{
     KDL::Frame f, f1;
-    pose.resize(6, 0);
     for (size_t i = 0; i < angles.size(); ++i) {
         jnt_pos_in_(i) = angles[i];
     }
     normalizeAngles(jnt_pos_in_);
 
-    if (fk_solver_->JntToCart(jnt_pos_in_, f1, link_map_[planning_link_]) < 0) {
+    if (fk_solver_->JntToCart(jnt_pos_in_, f1, link_index_it->second) < 0) {
         ROS_ERROR("JntToCart returned < 0.");
-        return false;
+        return Eigen::Affine3d::Identity();
     }
 
     f = T_kinematics_to_planning_ * f1;
 
-    pose[0] = f.p[0];
-    pose[1] = f.p[1];
-    pose[2] = f.p[2];
-    f.M.GetRPY(pose[3], pose[4], pose[5]);
-    return true;
+    Eigen::Affine3d out;
+    tf::transformKDLToEigen(f, out);
+    return out;
 }
 
 bool KDLRobotModel::computeIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double>& solution,
+    const Eigen::Affine3d& pose,
+    const RobotState& start,
+    RobotState& solution,
     ik_option::IkOption option)
 {
     if (option == ik_option::RESTRICT_XYZ) {
@@ -436,15 +408,15 @@ bool KDLRobotModel::computeIK(
 }
 
 bool KDLRobotModel::computeIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector< std::vector<double>>& solutions,
+    const Eigen::Affine3d& pose,
+    const RobotState& start,
+    std::vector<RobotState>& solutions,
     ik_option::IkOption option)
 {
     if (option == ik_option::RESTRICT_XYZ) {
         return false;
     }
-    std::vector<double> solution;
+    RobotState solution;
     if (computeIKSearch(pose, start, solution, 0.005)) {
         solutions.push_back(solution);
     }
@@ -452,24 +424,12 @@ bool KDLRobotModel::computeIK(
 }
 
 bool KDLRobotModel::computeFastIK(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double>& solution)
+    const Eigen::Affine3d& pose,
+    const RobotState& start,
+    RobotState& solution)
 {
-    // pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
-
     KDL::Frame frame_des;
-    frame_des.p.x(pose[0]);
-    frame_des.p.y(pose[1]);
-    frame_des.p.z(pose[2]);
-
-    if (pose.size() == 6) {
-        // RPY
-        frame_des.M = KDL::Rotation::RPY(pose[3],pose[4],pose[5]);
-    } else {
-        // quaternion
-        frame_des.M = KDL::Rotation::Quaternion(pose[3],pose[4],pose[5],pose[6]);
-    }
+    tf::transformEigenToKDL(pose, frame_des);
 
     // transform into kinematics frame
     frame_des = T_planning_to_kinematics_ * frame_des;
@@ -496,24 +456,13 @@ bool KDLRobotModel::computeFastIK(
 }
 
 bool KDLRobotModel::computeIKSearch(
-    const std::vector<double>& pose,
-    const std::vector<double>& start,
-    std::vector<double>& solution,
+    const Eigen::Affine3d& pose,
+    const RobotState& start,
+    RobotState& solution,
     double timeout)
 {
-    // pose: {x,y,z,r,p,y} or {x,y,z,qx,qy,qz,qw}
     KDL::Frame frame_des;
-    frame_des.p.x(pose[0]);
-    frame_des.p.y(pose[1]);
-    frame_des.p.z(pose[2]);
-
-    if (pose.size() == 6) {
-        // RPY
-        frame_des.M = KDL::Rotation::RPY(pose[3], pose[4], pose[5]);
-    } else {
-        // quaternion
-        frame_des.M = KDL::Rotation::Quaternion(pose[3], pose[4], pose[5], pose[6]);
-    }
+    tf::transformEigenToKDL(pose, frame_des);
 
     // transform into kinematics frame
     frame_des = T_planning_to_kinematics_ * frame_des;
@@ -543,7 +492,7 @@ bool KDLRobotModel::computeIKSearch(
             normalizeAngles(solution);
             return true;
         }
-        if (!getCount(count,num_positive_increments,-num_negative_increments)) {
+        if (!getCount(count, num_positive_increments, -num_negative_increments)) {
             return false;
         }
         jnt_pos_in_(free_angle_) = initial_guess + search_discretization_angle * count;
@@ -565,16 +514,12 @@ void KDLRobotModel::printRobotModelInformation()
     leatherman::printKDLChain(kchain_, "robot_model");
 
     ROS_INFO("Joint<->Index Map:");
-    for (std::map<std::string, int>::const_iterator iter = joint_map_.begin();
-            iter != joint_map_.end(); ++iter)
-    {
+    for (auto iter = joint_map_.begin(); iter != joint_map_.end(); ++iter) {
         ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
     }
 
     ROS_INFO("Link<->KDL_Index Map:");
-    for (std::map<std::string, int>::const_iterator iter = link_map_.begin();
-            iter != link_map_.end(); ++iter)
-    {
+    for (auto iter = link_map_.begin(); iter != link_map_.end(); ++iter) {
         ROS_INFO("%22s: %d", iter->first.c_str(), iter->second);
     }
 }

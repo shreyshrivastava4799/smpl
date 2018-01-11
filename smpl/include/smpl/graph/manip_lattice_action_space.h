@@ -125,7 +125,7 @@ protected:
 
     bool computeIkAction(
         const RobotState& state,
-        const std::vector<double>& goal,
+        const Eigen::Affine3d& goal,
         double dist_to_goal,
         ik_option::IkOption option,
         std::vector<Action>& actions);

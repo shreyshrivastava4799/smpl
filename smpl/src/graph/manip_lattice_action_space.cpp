@@ -321,19 +321,21 @@ bool ManipLatticeActionSpace::apply(
         return false;
     }
 
-    std::vector<double> pose;
-    if (!m_fk_iface->computePlanningLinkFK(parent, pose)) {
-        SMPL_ERROR("Failed to compute forward kinematics for planning link");
-        return false;
-    }
+    auto pose = m_fk_iface->computeFK(parent);
 
     // get distance to the goal pose
     double goal_dist = 0.0;
     double start_dist = 0.0;
     if (planningSpace()->numHeuristics() > 0) {
         RobotHeuristic* h = planningSpace()->heuristic(0);
-        goal_dist = h->getMetricGoalDistance(pose[0], pose[1], pose[2]);
-        start_dist = h->getMetricStartDistance(pose[0], pose[1], pose[2]);
+        goal_dist = h->getMetricGoalDistance(
+                pose.translation()[0],
+                pose.translation()[1],
+                pose.translation()[2]);
+        start_dist = h->getMetricStartDistance(
+                pose.translation()[0],
+                pose.translation()[1],
+                pose.translation()[2]);
     }
 
     std::vector<Action> act;
@@ -363,7 +365,7 @@ bool ManipLatticeActionSpace::getAction(
     }
 
     GoalType goal_type = planningSpace()->goal().type;
-    const std::vector<double>& goal_pose = planningSpace()->goal().pose;
+    auto& goal_pose = planningSpace()->goal().pose;
 
     switch (mp.type) {
     case MotionPrimitive::LONG_DISTANCE:
@@ -439,7 +441,7 @@ bool ManipLatticeActionSpace::applyMotionPrimitive(
 
 bool ManipLatticeActionSpace::computeIkAction(
     const RobotState& state,
-    const std::vector<double>& goal,
+    const Eigen::Affine3d& goal,
     double dist_to_goal,
     ik_option::IkOption option,
     std::vector<Action>& actions)
@@ -452,8 +454,6 @@ bool ManipLatticeActionSpace::computeIkAction(
         //get actions for multiple ik solutions
         std::vector<std::vector<double>> solutions;
         if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
-            SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)",
-                    to_cstring(option), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
         actions.resize(solutions.size());
@@ -465,7 +465,6 @@ bool ManipLatticeActionSpace::computeIkAction(
         //get single action for single ik solution
         std::vector<double> ik_sol;
         if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
-            SMPL_DEBUG("IK '%s' failed. (dist_to_goal: %0.3f)  (goal: xyz: %0.3f %0.3f %0.3f rpy: %0.3f %0.3f %0.3f)", to_cstring(option), dist_to_goal, goal[0], goal[1], goal[2], goal[3], goal[4], goal[5]);
             return false;
         }
         actions.resize(1);

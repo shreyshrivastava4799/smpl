@@ -43,20 +43,9 @@ public:
 
     /// \name Required Public Functions from ForwardKinematicsInterface
     ///@{
-    bool computeFK(
-        const smpl::RobotState& state,
-        const std::string& name,
-        std::vector<double>& pose) override
+    Eigen::Affine3d computeFK(const smpl::RobotState& state) override
     {
-        return computePlanningLinkFK(state, pose);
-    }
-
-    bool computePlanningLinkFK(
-        const smpl::RobotState& state,
-        std::vector<double>& pose) override
-    {
-        pose = { state[0], state[1], 0.0, 0.0, 0.0, 0.0 };
-        return true;
+        return Eigen::Affine3d(Eigen::Translation3d(state[0], state[1], 0.0));
     }
     ///@}
 

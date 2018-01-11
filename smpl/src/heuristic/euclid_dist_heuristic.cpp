@@ -97,8 +97,12 @@ void EuclidDistHeuristic::setWeightRot(double wr)
 
 double EuclidDistHeuristic::getMetricGoalDistance(double x, double y, double z)
 {
-    const std::vector<double>& goal_pose = planningSpace()->goal().pose;
-    return EuclideanDistance(x, y, z, goal_pose[0], goal_pose[1], goal_pose[2]);
+    auto& goal_pose = planningSpace()->goal().pose;
+    return EuclideanDistance(
+            x, y, z,
+            goal_pose.translation()[0],
+            goal_pose.translation()[1],
+            goal_pose.translation()[2]);
 }
 
 double EuclidDistHeuristic::getMetricStartDistance(double x, double y, double z)
@@ -127,10 +131,9 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
             return 0;
         }
 
-        const std::vector<double>& goal_pose = planningSpace()->goal().pose;
-        const Eigen::Affine3d goal_transform = createPose(goal_pose);
+        auto& goal_pose = planningSpace()->goal().pose;
 
-        const double dist = computeDistance(p, goal_transform);
+        const double dist = computeDistance(p, goal_pose);
 
         const int h = FIXED_POINT_RATIO * dist;
 
@@ -145,8 +148,8 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
             return 0;
         }
 
-        const std::vector<double>& goal_pose = planningSpace()->goal().pose;
-        Eigen::Vector3d gp(goal_pose[0], goal_pose[1], goal_pose[2]);
+        auto& goal_pose = planningSpace()->goal().pose;
+        Eigen::Vector3d gp(goal_pose.translation());
 
         double dist = computeDistance(p, gp);
 
@@ -167,14 +170,14 @@ int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
 {
     if (m_pose_ext) {
         if (from_id == planningSpace()->getGoalStateID()) {
-            Eigen::Affine3d gp(createPose(planningSpace()->goal().pose));
+            auto& gp = planningSpace()->goal().pose;
             Eigen::Affine3d p;
             if (!m_pose_ext->projectToPose(to_id, p)) {
                 return 0;
             }
             return (int)(FIXED_POINT_RATIO * computeDistance(gp, p));
         } else if (to_id == planningSpace()->getGoalStateID()) {
-            Eigen::Affine3d gp(createPose(planningSpace()->goal().pose));
+            auto& gp = planningSpace()->goal().pose;
             Eigen::Affine3d p;
             if (!m_pose_ext->projectToPose(from_id, p)) {
                 return 0;
@@ -191,14 +194,14 @@ int EuclidDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
         }
     } else if (m_point_ext) {
         if (from_id == planningSpace()->getGoalStateID()) {
-            Eigen::Vector3d gp(createPoint(planningSpace()->goal().pose));
+            Eigen::Vector3d gp(planningSpace()->goal().pose.translation());
             Eigen::Vector3d p;
             if (!m_pose_ext->projectToPoint(to_id, p)) {
                 return 0;
             }
             return (int)(FIXED_POINT_RATIO * computeDistance(gp, p));
         } else if (to_id == planningSpace()->getGoalStateID()) {
-            Eigen::Vector3d gp(createPoint(planningSpace()->goal().pose));
+            Eigen::Vector3d gp(planningSpace()->goal().pose.translation());
             Eigen::Vector3d p;
             if (!m_pose_ext->projectToPoint(from_id, p)) {
                 return 0;

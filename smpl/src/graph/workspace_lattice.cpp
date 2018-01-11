@@ -121,19 +121,7 @@ bool WorkspaceLattice::init(
 bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 {
     if (state_id == getGoalStateID()) {
-        assert(goal().tgt_off_pose.size() >= 6);
-        Eigen::Matrix3d R;
-        angles::from_euler_zyx(
-                goal().tgt_off_pose[5],
-                goal().tgt_off_pose[4],
-                goal().tgt_off_pose[3],
-                R);
-        pose =
-                Eigen::Translation3d(
-                        goal().tgt_off_pose[0],
-                        goal().tgt_off_pose[1],
-                        goal().tgt_off_pose[2]) *
-                Eigen::Affine3d(R);
+        pose = goal().tgt_off_pose;
         return true;
     }
 
@@ -611,26 +599,8 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         return false;
     }
 
-    if (goal.pose.size() != 6) {
-        SMPL_ERROR("goal element has incorrect format");
-        return false;
-    }
-
-    if (goal.tgt_off_pose.size() != 6) {
-        SMPL_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
-        return false;
-    }
-
-    Eigen::Affine3d goal_pose(
-            Eigen::Translation3d(
-                    goal.tgt_off_pose[0],
-                    goal.tgt_off_pose[1],
-                    goal.tgt_off_pose[2]) *
-            Eigen::AngleAxisd(goal.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(goal.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(goal.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
     auto* vis_name = "goal_pose";
-    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal_pose, m_viz_frame_id, vis_name));
+    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal.tgt_off_pose, m_viz_frame_id, vis_name));
 
     SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
 
@@ -642,9 +612,11 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         SMPL_WARN("No valid IK solution for the goal pose.");
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose[0], goal.pose[1], goal.pose[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
     SMPL_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
-    SMPL_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", goal.pose[3], goal.pose[4], goal.pose[5]);
+    double y, p, r;
+    angles::get_euler_zyx(goal.pose.rotation(), y, p, r);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", r, p, y);
     SMPL_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
 
     m_near_goal = false;
@@ -706,9 +678,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
         SMPL_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
         return false;
     case GoalType::XYZ_RPY_GOAL: {
-        double dx = std::fabs(state[0] - goal().tgt_off_pose[0]);
-        double dy = std::fabs(state[1] - goal().tgt_off_pose[1]);
-        double dz = std::fabs(state[2] - goal().tgt_off_pose[2]);
+        double dx = std::fabs(state[0] - goal().tgt_off_pose.translation()[0]);
+        double dy = std::fabs(state[1] - goal().tgt_off_pose.translation()[1]);
+        double dz = std::fabs(state[2] - goal().tgt_off_pose.translation()[2]);
         if (dx <= goal().xyz_tolerance[0] &&
             dy <= goal().xyz_tolerance[1] &&
             dz <= goal().xyz_tolerance[2])
@@ -722,10 +694,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
                 SMPL_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
             }
 
-            Eigen::Quaterniond qg(
-                    Eigen::AngleAxisd(goal().tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(goal().tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(goal().tgt_off_pose[3], Eigen::Vector3d::UnitX()));
+            Eigen::Quaterniond qg(goal().tgt_off_pose.rotation());
             Eigen::Quaterniond q(
                     Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *

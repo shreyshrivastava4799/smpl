@@ -84,7 +84,9 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
     int gx, gy, gz;
     grid()->worldToGrid(
-            goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
+            goal.tgt_off_pose.translation()[0],
+            goal.tgt_off_pose.translation()[1],
+            goal.tgt_off_pose.translation()[2],
             gx, gy, gz);
 
     SMPL_DEBUG_NAMED(LOG, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);

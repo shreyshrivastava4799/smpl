@@ -123,12 +123,13 @@ void WorkspaceLatticeBase::stateRobotToWorkspace(
     const RobotState& state,
     WorkspaceState& ostate) const
 {
-    SixPose pose;
-    bool res = m_fk_iface->computePlanningLinkFK(state, pose);
-    assert(res); // forward kinematics shouldn't fail
+    auto pose = m_fk_iface->computeFK(state);
 
     ostate.resize(m_dof_count);
-    std::copy(pose.begin(), pose.end(), ostate.begin());
+    ostate[0] = pose.translation().x();
+    ostate[1] = pose.translation().y();
+    ostate[2] = pose.translation().z();
+    angles::get_euler_zyx(pose.rotation(), ostate[5], ostate[4], ostate[3]);
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
         ostate[6 + fai] = state[m_fangle_indices[fai]];
     }
@@ -147,12 +148,16 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
     const WorkspaceState& state,
     RobotState& ostate) const
 {
-    SixPose pose(state.begin(), state.begin() + 6);
-
     RobotState seed(robot()->jointVariableCount(), 0);
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
         seed[m_fangle_indices[fai]] = state[6 + fai];
     }
+
+    Eigen::Affine3d pose =
+            Eigen::Translation3d(state[0], state[1], state[2]) *
+            Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX());
 
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
@@ -189,7 +194,11 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
     const RobotState& seed,
     RobotState& ostate) const
 {
-    SixPose pose(state.begin(), state.begin() + 6);
+    Eigen::Affine3d pose =
+            Eigen::Translation3d(state[0], state[1], state[2]) *
+            Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX());
 
     // TODO: unrestricted variant?
     return m_rm_iface->computeFastIK(pose, seed, ostate);

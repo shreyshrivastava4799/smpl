@@ -291,10 +291,7 @@ double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, dou
 
 double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, double z)
 {
-    Eigen::Vector3d gp(
-            planningSpace()->goal().tgt_off_pose[0],
-            planningSpace()->goal().tgt_off_pose[1],
-            planningSpace()->goal().tgt_off_pose[2]);
+    Eigen::Vector3d gp(planningSpace()->goal().tgt_off_pose.translation());
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
 
@@ -329,8 +326,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 
     projectExperienceGraph();
 
-    Eigen::Vector3d gp(
-            goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2]);
+    Eigen::Vector3d gp(goal.tgt_off_pose.translation());
 
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());

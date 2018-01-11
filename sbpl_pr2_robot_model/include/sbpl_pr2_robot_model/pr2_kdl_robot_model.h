@@ -73,15 +73,15 @@ public:
         int free_angle = DEFAULT_FREE_ANGLE_INDEX) override;
 
     bool computeIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution,
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        RobotState& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED) override;
 
     bool computeFastIK(
-        const std::vector<double>& pose,
-        const std::vector<double>& start,
-        std::vector<double>& solution) override;
+        const Eigen::Affine3d& pose,
+        const RobotState& start,
+        RobotState& solution) override;
     ///@}
 
 private:

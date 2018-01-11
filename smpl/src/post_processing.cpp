@@ -188,24 +188,14 @@ public:
         }
 
         // compute forward kinematics for the start an end configurations
-        std::vector<double> from_pose, to_pose;
-        if (!m_fk_iface->computePlanningLinkFK(start, from_pose) ||
-            !m_fk_iface->computePlanningLinkFK(end, to_pose))
-        {
-            return false;
-        }
+        auto from_pose = m_fk_iface->computeFK(start);
+        auto to_pose = m_fk_iface->computeFK(end);
 
-        Eigen::Vector3d pstart(from_pose[0], from_pose[1], from_pose[2]);
-        Eigen::Vector3d pend(to_pose[0], to_pose[1], to_pose[2]);
+        Eigen::Vector3d pstart(from_pose.translation());
+        Eigen::Vector3d pend(to_pose.translation());
 
-        Eigen::Quaterniond qstart(
-                Eigen::AngleAxisd(from_pose[5], Eigen::Vector3d::UnitZ()) *
-                Eigen::AngleAxisd(from_pose[4], Eigen::Vector3d::UnitY()) *
-                Eigen::AngleAxisd(from_pose[3], Eigen::Vector3d::UnitX()));
-        Eigen::Quaterniond qend(
-                Eigen::AngleAxisd(to_pose[5], Eigen::Vector3d::UnitZ()) *
-                Eigen::AngleAxisd(to_pose[4], Eigen::Vector3d::UnitY()) *
-                Eigen::AngleAxisd(to_pose[3], Eigen::Vector3d::UnitX()));
+        Eigen::Quaterniond qstart(from_pose.rotation());
+        Eigen::Quaterniond qend(to_pose.rotation());
 
         if (qstart.dot(qend) < 0.0) {
             // negate one end of the quaternion path to ensure interpolation
@@ -234,21 +224,12 @@ public:
             Eigen::Vector3d ppos = (1.0 - alpha) * pstart + alpha * pend;
             Eigen::Quaterniond prot = qstart.slerp(alpha, qend);
 
-            const Eigen::Affine3d ptrans = prot * Eigen::Translation3d(ppos);
-            Eigen::Vector3d rpy = ptrans.rotation().eulerAngles(2, 1, 0);
-
-            std::vector<double> ipose(6, 0.0);
-            ipose[0] = ppos.x();
-            ipose[1] = ppos.y();
-            ipose[2] = ppos.z();
-            ipose[3] = rpy[2];
-            ipose[4] = rpy[1];
-            ipose[5] = rpy[0];
+            const Eigen::Affine3d ptrans = Eigen::Translation3d(ppos) * prot;
 
             // run inverse kinematics with the previous pose as the seed state
             const RobotState& prev_wp = cpath.back();
             RobotState wp(m_rm->getPlanningJoints().size(), 0.0);
-            if (!m_ik_iface->computeIK(ipose, prev_wp, wp)) {
+            if (!m_ik_iface->computeIK(ptrans, prev_wp, wp)) {
                 return false;
             }
 

@@ -102,12 +102,16 @@ void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 
     int ogx, ogy, ogz;
     grid()->worldToGrid(
-            goal.tgt_off_pose[0], goal.tgt_off_pose[1], goal.tgt_off_pose[2],
+            goal.tgt_off_pose.translation()[0],
+            goal.tgt_off_pose.translation()[1],
+            goal.tgt_off_pose.translation()[2],
             ogx, ogy, ogz);
 
     int plgx, plgy, plgz;
     grid()->worldToGrid(
-            goal.pose[0], goal.pose[1], goal.pose[2],
+            goal.pose.translation()[0],
+            goal.pose.translation()[1],
+            goal.pose.translation()[2],
             plgx, plgy, plgz);
 
     SMPL_DEBUG_NAMED(LOG, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
@@ -304,14 +308,14 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
     int h_planning_link = 0;
     if (use_ee && m_ers && m_fk_iface) {
         const RobotState& state = m_ers->extractState(state_id);
-        std::vector<double> pose;
-        if (m_fk_iface->computePlanningLinkFK(state, pose)) {
-            Eigen::Vector3i eex;
-            grid()->worldToGrid(pose[0], pose[1], pose[2], eex[0], eex[1], eex[2]);
-            h_planning_link = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
-        } else {
-            SMPL_ERROR_NAMED(LOG, "Failed to compute FK for planning link (state = %d)", state_id);
-        }
+        auto pose = m_fk_iface->computeFK(state);
+        Eigen::Vector3i eex;
+        grid()->worldToGrid(
+                pose.translation()[0],
+                pose.translation()[1],
+                pose.translation()[2],
+                eex[0], eex[1], eex[2]);
+        h_planning_link = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
     }
 
     return combine_costs(h_planning_frame, h_planning_link);

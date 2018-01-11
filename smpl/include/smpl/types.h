@@ -37,6 +37,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Eigen/Dense>
+
 namespace sbpl {
 namespace motion {
 
@@ -158,17 +160,19 @@ enum GoalType
 
 struct GoalConstraint
 {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
     // Relevant for joint state goals
     RobotState angles;
     std::vector<double> angle_tolerances;
 
     // Relevant for workspace goals
-    std::vector<double> pose;           // goal pose of the planning link as (x, y, z, R, P, Y)
+    Eigen::Affine3d pose;               // goal pose of the planning link
     double xyz_offset[3];               // offset from the planning link
     double xyz_tolerance[3];            // (x, y, z) tolerance
     double rpy_tolerance[3];            // (R, P, Y) tolerance
 
-    std::vector<double> tgt_off_pose;   // goal pose offset from planning link
+    Eigen::Affine3d tgt_off_pose;       // goal pose offset from planning link
     int xyz[3];                         // planning frame cell (x, y, z)
 
     GoalType type;                      // type of goal constraint

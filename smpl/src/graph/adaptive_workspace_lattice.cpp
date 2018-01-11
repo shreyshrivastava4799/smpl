@@ -129,10 +129,7 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
 {
     AdaptiveState* state = m_states[state_id];
     if (state_id == m_goal_state_id) {
-        assert(goal().tgt_off_pose.size() >= 3);
-        pos.x() = goal().tgt_off_pose[0];
-        pos.y() = goal().tgt_off_pose[1];
-        pos.z() = goal().tgt_off_pose[2];
+        pos = goal().tgt_off_pose.translation();
     } else if (state->hid) {
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         WorkspaceState state;
@@ -159,7 +156,9 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
     if (state_id == m_goal_state_id) {
         SMPL_INFO_NAMED(params()->graph_log, "Skip adding high-dimensional region around goal");
         m_grid->worldToGrid(
-                goal().tgt_off_pose[0], goal().tgt_off_pose[1], goal().tgt_off_pose[2],
+                goal().tgt_off_pose.translation()[0],
+                goal().tgt_off_pose.translation()[1],
+                goal().tgt_off_pose.translation()[2],
                 gp.x(), gp.y(), gp.z());
     } else if (state->hid) {
         SMPL_INFO_NAMED(params()->graph_log, "Grow high-dimensional region around hi state %d", state_id);
@@ -221,9 +220,9 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
         AdaptiveState* state = m_states[state_id];
 
         if (state_id == m_goal_state_id) {
-            px = goal().tgt_off_pose[0];
-            py = goal().tgt_off_pose[1];
-            pz = goal().tgt_off_pose[2];
+            px = goal().tgt_off_pose.translation()[0];
+            py = goal().tgt_off_pose.translation()[1];
+            pz = goal().tgt_off_pose.translation()[2];
         }
         else if (state->hid) {
             AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
@@ -596,27 +595,9 @@ bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         return false;
     }
 
-    if (goal.pose.size() != 6) {
-        SMPL_ERROR("goal element has incorrect format");
-        return false;
-    }
-
-    if (goal.tgt_off_pose.size() != 6) {
-        SMPL_ERROR_NAMED(params()->graph_log, "Goal target offset pose has incorrect format");
-        return false;
-    }
-
-    Eigen::Affine3d goal_pose(
-            Eigen::Translation3d(
-                    goal.tgt_off_pose[0],
-                    goal.tgt_off_pose[1],
-                    goal.tgt_off_pose[2]) *
-            Eigen::AngleAxisd(goal.tgt_off_pose[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(goal.tgt_off_pose[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(goal.tgt_off_pose[3], Eigen::Vector3d::UnitX()));
     auto* vis_name = "goal_pose";
     SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(
-            goal_pose, m_grid->getReferenceFrame(), vis_name));
+            goal.tgt_off_pose, m_grid->getReferenceFrame(), vis_name));
 
     SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
 
@@ -628,9 +609,11 @@ bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         SMPL_WARN("No valid IK solution for the goal pose.");
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose[0], goal.pose[1], goal.pose[2]);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
     SMPL_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
-    SMPL_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", goal.pose[3], goal.pose[4], goal.pose[5]);
+    double yaw, pitch, roll;
+    angles::get_euler_zyx(goal.pose.rotation(), yaw, pitch, roll);
+    SMPL_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
     SMPL_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
 
     m_near_goal = false;
@@ -1063,19 +1046,23 @@ bool AdaptiveWorkspaceLattice::checkAction(
 
 bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
 {
-    return std::fabs(state[0] - goal().tgt_off_pose[0]) <= goal().xyz_tolerance[0] &&
-            std::fabs(state[1] - goal().tgt_off_pose[1]) <= goal().xyz_tolerance[1] &&
-            std::fabs(state[2] - goal().tgt_off_pose[2]) <= goal().xyz_tolerance[2] &&
-            angles::shortest_angle_dist(state[3], goal().tgt_off_pose[3]) <= goal().rpy_tolerance[0] &&
-            angles::shortest_angle_dist(state[4], goal().tgt_off_pose[4]) <= goal().rpy_tolerance[1] &&
-            angles::shortest_angle_dist(state[5], goal().tgt_off_pose[5]) <= goal().rpy_tolerance[2];
+    double y, p, r;
+    angles::get_euler_zyx(goal().tgt_off_pose.rotation(), y, p, r);
+    return std::fabs(state[0] - goal().tgt_off_pose.translation()[0]) <= goal().xyz_tolerance[0] &&
+            std::fabs(state[1] - goal().tgt_off_pose.translation()[1]) <= goal().xyz_tolerance[1] &&
+            std::fabs(state[2] - goal().tgt_off_pose.translation()[2]) <= goal().xyz_tolerance[2] &&
+            angles::shortest_angle_dist(state[3], r) <= goal().rpy_tolerance[0] &&
+            angles::shortest_angle_dist(state[4], p) <= goal().rpy_tolerance[1] &&
+            angles::shortest_angle_dist(state[5], y) <= goal().rpy_tolerance[2];
 }
 
 bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
 {
-    const double dx = std::fabs(x - goal().tgt_off_pose[0]);
-    const double dy = std::fabs(y - goal().tgt_off_pose[1]);
-    const double dz = std::fabs(z - goal().tgt_off_pose[2]);
+    Eigen::Vector3d p(x, y, z);
+    Eigen::Vector3d dp = p - goal().tgt_off_pose.translation();
+    const double dx = std::fabs(dp.x());
+    const double dy = std::fabs(dp.y());
+    const double dz = std::fabs(dp.z());
     return dx <= goal().xyz_tolerance[0] &&
             dy <= goal().xyz_tolerance[1] &&
             dz <= goal().xyz_tolerance[2];
