@@ -90,23 +90,15 @@ static bool CoplanarTrianglesIntersect(
     // triangles are maximized
 
     // Project the coplanar triangles into the X-Y plane
-    std::vector<Eigen::Vector2d> firstTri2DVertices;
-    Eigen::Vector2d u1;
-    u1[0] = v10[0]; u1[1] = v10[1];
-    firstTri2DVertices.push_back(u1);
-    u1[0] = v11[0]; u1[1] = v11[1];
-    firstTri2DVertices.push_back(u1);
-    u1[0] = v12[0]; u1[1] = v12[1];
-    firstTri2DVertices.push_back(u1);
+    Eigen::Vector2d t1_verts_2d[3];
+    t1_verts_2d[0] = Eigen::Vector2d(v10.x(), v10.y());
+    t1_verts_2d[1] = Eigen::Vector2d(v11.x(), v11.y());
+    t1_verts_2d[2] = Eigen::Vector2d(v12.x(), v12.y());
 
-    std::vector<Eigen::Vector2d> secondTri2DVertices;
-    Eigen::Vector2d u2;
-    u2[0] = v20[0]; u2[1] = v20[1];
-    secondTri2DVertices.push_back(u2);
-    u2[0] = v21[0]; u2[1] = v21[1];
-    secondTri2DVertices.push_back(u2);
-    u2[0] = v22[0]; u2[1] = v22[1];
-    secondTri2DVertices.push_back(u2);
+    Eigen::Vector2d t2_verts_2d[3];
+    t2_verts_2d[0] = Eigen::Vector2d(v20.x(), v20.y());
+    t2_verts_2d[1] = Eigen::Vector2d(v21.x(), v21.y());
+    t2_verts_2d[2] = Eigen::Vector2d(v22.x(), v22.y());
 
     ////////////////////////////////////////////////////////////////////
     /// Perform collision tests between two-dimensional line segments //
@@ -115,11 +107,11 @@ static bool CoplanarTrianglesIntersect(
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             // the points defining the first segment
-            auto& pt1 = firstTri2DVertices[i];
-            auto& pt2 = firstTri2DVertices[(i + 1) % 3];
+            auto& pt1 = t1_verts_2d[i];
+            auto& pt2 = t1_verts_2d[(i + 1) % 3];
             // the points defining the second segment
-            auto& pt3 = secondTri2DVertices[j];
-            auto& pt4 = secondTri2DVertices[(j + 1) % 3];
+            auto& pt3 = t2_verts_2d[j];
+            auto& pt4 = t2_verts_2d[(j + 1) % 3];
 
             double denom = (pt1[0] - pt2[0]) * (pt3[1] - pt4[1]) - (pt1[1] - pt2[1]) * (pt3[0] - pt4[0]);
             double tmp1 = pt1[0] * pt2[1] - pt1[1] * pt2[0];
@@ -156,57 +148,36 @@ static bool CoplanarTrianglesIntersect(
     ////////////////////////////////////////////////////////////////////////////////
 
     // compute center point of first triangle
-    Eigen::Vector2d firstTriangleCenter(0.0, 0.0);
-    for (int i = 0; i < 3; i++) {
-        firstTriangleCenter[0] += firstTri2DVertices[i][0];
-        firstTriangleCenter[1] += firstTri2DVertices[i][1];
-    }
-    firstTriangleCenter[0] /= 3;
-    firstTriangleCenter[1] /= 3;
+    Eigen::Vector2d t1_center = t1_verts_2d[0] + t1_verts_2d[1] + t1_verts_2d[2];
+    t1_center /= 3.0;
 
     // compute center point of second triangle
-    Eigen::Vector2d secondTriangleCenter(0.0, 0.0);
-    for (int i = 0; i < 3; i++) {
-        secondTriangleCenter[0] += secondTri2DVertices[i][0];
-        secondTriangleCenter[1] += secondTri2DVertices[i][1];
-    }
-    secondTriangleCenter[0] /= 3;
-    secondTriangleCenter[1] /= 3;
+    Eigen::Vector2d t2_center = t2_verts_2d[0] + t2_verts_2d[1] + t2_verts_2d[2];
+    t2_center /= 3.0;
 
-    Eigen::Vector3d firstTriangleCenterTo3D(firstTriangleCenter[0], firstTriangleCenter[1], 0.0);
-    Eigen::Vector3d secondTriangleCenterTo3D(secondTriangleCenter[0], secondTriangleCenter[1], 0.0);
-    Eigen::Vector3d u10To3D(firstTri2DVertices[0][0], firstTri2DVertices[0][1], 0.0);
-    Eigen::Vector3d u11To3D(firstTri2DVertices[1][0], firstTri2DVertices[1][1], 0.0);
-    Eigen::Vector3d u12To3D(firstTri2DVertices[2][0], firstTri2DVertices[2][1], 0.0);
-    Eigen::Vector3d u20To3D(secondTri2DVertices[0][0], secondTri2DVertices[0][1], 0.0);
-    Eigen::Vector3d u21To3D(secondTri2DVertices[1][0], secondTri2DVertices[1][1], 0.0);
-    Eigen::Vector3d u22To3D(secondTri2DVertices[2][0], secondTri2DVertices[2][1], 0.0);
+    Eigen::Vector3d firstTriangleCenterTo3D(t1_center[0], t1_center[1], 0.0);
+    Eigen::Vector3d secondTriangleCenterTo3D(t2_center[0], t2_center[1], 0.0);
+    Eigen::Vector3d u10To3D(t1_verts_2d[0][0], t1_verts_2d[0][1], 0.0);
+    Eigen::Vector3d u11To3D(t1_verts_2d[1][0], t1_verts_2d[1][1], 0.0);
+    Eigen::Vector3d u12To3D(t1_verts_2d[2][0], t1_verts_2d[2][1], 0.0);
+    Eigen::Vector3d u20To3D(t2_verts_2d[0][0], t2_verts_2d[0][1], 0.0);
+    Eigen::Vector3d u21To3D(t2_verts_2d[1][0], t2_verts_2d[1][1], 0.0);
+    Eigen::Vector3d u22To3D(t2_verts_2d[2][0], t2_verts_2d[2][1], 0.0);
 
-    // Awesome code re-use
-    if (PointOnTriangle(firstTriangleCenterTo3D, u20To3D, u21To3D, u22To3D) ||
-        PointOnTriangle(secondTriangleCenterTo3D, u10To3D, u11To3D, u12To3D))
-    {
-        return true;
-    }
-
-    return false;
+    return
+        PointOnTriangle(firstTriangleCenterTo3D, u20To3D, u21To3D, u22To3D) ||
+        PointOnTriangle(secondTriangleCenterTo3D, u10To3D, u11To3D, u12To3D);
 }
 
 bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
 {
     // Vertices 0, 1, and 2 on triangle 1
-    Eigen::Vector3d v10(tr1.a.x(), tr1.a.y(), tr1.a.z());
-    Eigen::Vector3d v11(tr1.b.x(), tr1.b.y(), tr1.b.z());
-    Eigen::Vector3d v12(tr1.c.x(), tr1.c.y(), tr1.c.z());
+    auto& v10(tr1.a); auto& v11(tr1.b); auto& v12(tr1.c);
+    auto& v20(tr2.a); auto& v21(tr2.b); auto& v22(tr2.c);
 
-    // Vertices 0, 1, and 2 on triangle 2
-    Eigen::Vector3d v20(tr2.a.x(), tr2.a.y(), tr2.a.z());
-    Eigen::Vector3d v21(tr2.b.x(), tr2.b.y(), tr2.b.z());
-    Eigen::Vector3d v22(tr2.c.x(), tr2.c.y(), tr2.c.z());
-
-    ////////////////////////////////////////////////////////////////////////////////
-    /// Reject if Triangle 1's vertices are all on the same side of Triangle 2
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    // Reject if Triangle 1's vertices are all on the same side of Triangle 2 //
+    ////////////////////////////////////////////////////////////////////////////
 
     // Calculate parameters for the plane in which triangle 2 lies
     Eigen::Vector3d n2 = (v21 - v20).cross(v22 - v20);
@@ -221,7 +192,9 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     // approx. dv10 != 0.0, dv11 != 0.0, dv12 != 0.0
     if (std::fabs(dv10) > eps && std::fabs(dv11) > eps && std::fabs(dv12) > eps) {
         // all points lie to one side of the triangle
-        if ((dv10 > 0 && dv11 > 0 && dv12 > 0) || (dv10 < 0 && dv11 < 0 && dv12 < 0)) {
+        if ((dv10 > 0.0 && dv11 > 0.0 && dv12 > 0.0) ||
+            (dv10 < 0.0 && dv11 < 0.0 && dv12 < 0.0))
+        {
             return false;
         }
     } else if (std::fabs(dv10) < eps && std::fabs(dv11) < eps && std::fabs(dv12) < eps) {
@@ -230,9 +203,9 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
         return false;
     }
 
-    ////////////////////////////////////////////////////////////////////////////////
-    /// Reject if Triangle 2's vertices are all on the same side of Triangle 1
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    // Reject if Triangle 2's vertices are all on the same side of Triangle 1 //
+    ////////////////////////////////////////////////////////////////////////////
 
     // Calculate parameters for the plane in which triangle 1 lies
     Eigen::Vector3d n1 = (v11 - v10).cross(v12 - v10);
@@ -247,7 +220,9 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     // approx. dv20 != 0.0, dv21 != 0.0, dv22 != 0.0
     if (std::fabs(dv20) > eps && std::fabs(dv21) > eps && std::fabs(dv22) > eps) {
         // all points lie to one side of the triangle
-        if ((dv20 > 0 && dv21 > 0 && dv22 > 0) || (dv20 < 0 && dv21 < 0 && dv22 < 0)) {
+        if ((dv20 > 0.0 && dv21 > 0.0 && dv22 > 0.0) ||
+            (dv20 < 0.0 && dv21 < 0.0 && dv22 < 0.0))
+        {
             return false;
         }
     }
@@ -259,33 +234,58 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     // The direction of the line of intersection between the two planes
     Eigen::Vector3d D = n1.cross(n2);
 
+#define USE_MAX_COMP 1
+#if USE_MAX_COMP
+    int max_comp;
+    {
+        max_comp = 0;
+        double d_max_comp = std::fabs(D.x());
+        const double ymag = std::fabs(D.y());
+        const double zmag = std::fabs(D.z());
+        if (ymag > d_max_comp) {
+            max_comp = 1;
+            d_max_comp = ymag;
+        }
+        if (zmag > d_max_comp) {
+            max_comp = 2;
+            d_max_comp = zmag;
+        }
+    }
+#endif
+
     ////////////////////////////////////////////////////////////////////////////////////////
     /// Get the interval on the line where Triangle 1 Intersects
     ////////////////////////////////////////////////////////////////////////////////////////
 
-    double t1;
-    double t2;
-
+#if USE_MAX_COMP
+    double pv10 = v10[max_comp];
+    double pv11 = v11[max_comp];
+    double pv12 = v12[max_comp];
+#else
     double pv10 = D.dot(v10);
     double pv11 = D.dot(v11);
     double pv12 = D.dot(v12);
+#endif
 
-    if ((dv10 > 0 && dv11 < 0 && dv12 < 0) ||
-        (dv10 < 0 && dv11 > 0 && dv12 > 0))
+    double t1;
+    double t2;
+
+    if ((dv10 > 0.0 && dv11 < 0.0 && dv12 < 0.0) ||
+        (dv10 < 0.0 && dv11 > 0.0 && dv12 > 0.0))
     {
         // vertex 0 of triangle 1 is on the opposite side
         // vertices 1 and 2 are on the same side
         t1 = pv11 + (pv10 - pv11) * (dv11 / (dv11 - dv10));
         t2 = pv12 + (pv10 - pv12) * (dv12 / (dv12 - dv10));
     } else if (
-        (dv11 > 0 && dv10 < 0 && dv12 < 0) ||
-        (dv11 < 0 && dv10 > 0 && dv12 > 0))
+        (dv11 > 0.0 && dv10 < 0.0 && dv12 < 0.0) ||
+        (dv11 < 0.0 && dv10 > 0.0 && dv12 > 0.0))
     {
         // vertex 1 of triangle 1 is on the opposite side
         // vertices 0 and 2 are on the same side
         t1 = pv10 + (pv11 - pv10) * (dv10 / (dv10 - dv11));
         t2 = pv12 + (pv11 - pv12) * (dv12 / (dv12 - dv11));
-    } else { //if((dv12 > 0 && dv10 < 0 && dv11 < 0) || (dv12 < 0 && dv10 > 0 && dv11 > 0))
+    } else {
         // vertex 2 of triangle 1 is on the opposite side
         // vertices 0 and 1 are on the same side
         t1 = pv10 + (pv12 - pv10) * (dv10 / (dv10 - dv12));
@@ -296,29 +296,35 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     /// Get the interval on the line where Triangle 2 Intersects
     ////////////////////////////////////////////////////////////////////////////////////////
 
-    double t3;
-    double t4;
-
+#if USE_MAX_COMP
+    double pv20 = v20[max_comp];
+    double pv21 = v21[max_comp];
+    double pv22 = v22[max_comp];
+#else
     double pv20 = D.dot(v20);
     double pv21 = D.dot(v21);
     double pv22 = D.dot(v22);
+#endif
+#undef USE_MAX_COMP
 
-    if ((dv20 > 0 && dv21 < 0 && dv22 < 0) ||
-        (dv20 < 0 && dv21 > 0 && dv22 > 0))
+    double t3;
+    double t4;
+    if ((dv20 > 0.0 && dv21 < 0.0 && dv22 < 0.0) ||
+        (dv20 < 0.0 && dv21 > 0.0 && dv22 > 0.0))
     {
         // vertex 0 of Triangle 2 is on the opposite side
         // vertices 1 and 2 are on the same side
         t3 = pv21 + (pv20 - pv21) * (dv21 / (dv21 - dv20));
         t4 = pv22 + (pv20 - pv22) * (dv22 / (dv22 - dv20));
     } else if (
-        (dv21 > 0 && dv20 < 0 && dv22 < 0) ||
-        (dv21 < 0 && dv20 > 0 && dv22 > 0))
+        (dv21 > 0.0 && dv20 < 0.0 && dv22 < 0.0) ||
+        (dv21 < 0.0 && dv20 > 0.0 && dv22 > 0.0))
     {
         // Vertex 1 of Triangle 2 is on the opposite side
         // vertices 0 and 2 are on the same side
         t3 = pv20 + (pv21 - pv20) * (dv20 / (dv20 - dv21));
         t4 = pv22 + (pv21 - pv22) * (dv22 / (dv22 - dv21));
-    } else { //if((dv22 > 0 && dv20 < 0 && dv21 < 0) || (dv22 < 0 && dv20 > 0 && dv21 > 0))
+    } else {
         // Vertex 2 of triangle 2 is on the opposite side
         // vertices 0 and 1 are on the same side
         t3 = pv20 + (pv22 - pv20) * (dv20 / (dv20 - dv22));
@@ -329,26 +335,16 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     /// Test for intersection of the above intervals
     ////////////////////////////////////////////////////////////////////////////////
 
-    double temp = t1;
-    t1 = std::min(t1, t2);
-    t2 = std::max(temp, t2);
-
-    temp = t3;
-    t3 = std::min(t3, t4);
-    t4 = std::max(temp, t4);
-
-    // if intervals overlap, triangles intersect
-    bool overlap = false;
-    overlap |= (t3 <= t2 && t2 <= t4);
-    overlap |= (t3 <= t1 && t1 <= t4);
-    overlap |= (t1 <= t3 && t3 <= t2);
-    overlap |= (t1 <= t4 && t4 <= t2);
-
-    if (overlap) {
-        return true;
+    if (t1 > t2) {
+        std::swap(t1, t2);
     }
 
-    return false;
+    if (t3 > t4) {
+        std::swap(t3, t4);
+    }
+
+    // if intervals overlap, triangles intersect
+    return t2 >= t3 && t1 <= t4;
 }
 
 } // namespace geometry
