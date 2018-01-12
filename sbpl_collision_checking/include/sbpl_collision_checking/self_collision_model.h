@@ -52,7 +52,7 @@
 namespace sbpl {
 namespace collision {
 
-class SelfCollisionModelImpl;
+#define SCDL_USE_META_TREE 0
 
 SBPL_CLASS_FORWARD(SelfCollisionModel);
 class SelfCollisionModel
@@ -135,7 +135,138 @@ public:
 
 private:
 
-    std::unique_ptr<SelfCollisionModelImpl> m_impl;
+    OccupancyGrid*                          m_grid;
+    const RobotCollisionModel*              m_rcm;
+    const AttachedBodiesCollisionModel*     m_abcm;
+
+    RobotCollisionState                     m_rcs;
+    AttachedBodiesCollisionState            m_abcs;
+
+    // cached group information updated when a collision check for a different
+    // group is made
+    int                                     m_gidx;
+    std::vector<int>                        m_voxels_indices;
+    std::vector<int>                        m_ab_voxels_indices;
+
+    // cached set of spheres state pairs that should be checked for self
+    // collisions when using the internal allowed collision matrix
+    std::vector<std::pair<int, int>>        m_checked_spheres_states;
+    std::vector<std::pair<int, int>>        m_checked_attached_body_spheres_states;
+    std::vector<std::pair<int, int>>        m_checked_attached_body_robot_spheres_states;
+
+    AllowedCollisionMatrix                  m_acm;
+    double                                  m_padding;
+
+    // queue storage for sphere hierarchy traversal
+    using SpherePair =
+            std::pair<const CollisionSphereState*, const CollisionSphereState*>;
+    std::vector<SpherePair> m_q;
+    std::vector<const CollisionSphereState*>    m_vq;
+
+    std::vector<Eigen::Vector3d> m_v_rem;
+    std::vector<Eigen::Vector3d> m_v_ins;
+
+#if SCDL_USE_META_TREE
+    // cached group information for building meta trees
+    typedef hash_map<const CollisionSphereModel*, const CollisionSphereState*> ModelStateMap;
+    ModelStateMap                               m_model_state_map;
+    std::vector<CollisionSphereModel>           m_root_models;
+    std::vector<const CollisionSphereModel*>    m_root_model_pointers;
+    CollisionSpheresModel                       m_meta_model;
+    CollisionSpheresState                       m_meta_state;
+#endif
+
+    void initAllowedCollisionMatrix();
+
+    bool checkCommonInputs(
+        const RobotCollisionState& state,
+        const AttachedBodiesCollisionState& ab_state,
+        const int gidx) const;
+
+    void prepareState(int gidx, const double* state);
+    void updateGroup(int gidx);
+    void copyState(const double* state);
+    void updateVoxelsStates();
+
+    // update the state of outside-group voxels and check for collisions between
+    // spheres and occupied voxels
+    bool checkRobotVoxelsStateCollisions(double& dist);
+    bool checkAttachedBodyVoxelsStateCollisions(double& dist);
+
+    // check for collisions between inside-group spheres
+    bool checkRobotSpheresStateCollisions(double& dist);
+    bool checkRobotSpheresStateCollisions(
+        const AllowedCollisionsInterface& aci,
+        double& dist);
+    bool checkAttachedBodySpheresStateCollisions(double& dist);
+    bool checkAttachedBodySpheresStateCollisions(
+        const AllowedCollisionsInterface& aci,
+        double& dist);
+    bool checkRobotAttachedBodySpheresStateCollisions(double& dist);
+    bool checkRobotAttachedBodySpheresStateCollisions(
+        const AllowedCollisionsInterface& aci,
+        double& dist);
+
+    bool checkSpheresStateCollision(
+        RobotCollisionState& stateA,
+        RobotCollisionState& stateB,
+        int ss1i,
+        int ss2i,
+        const CollisionSpheresState& ss1,
+        const CollisionSpheresState& ss2,
+        double& dist);
+
+    template <typename StateTypeA, typename StateTypeB>
+    bool checkSpheresStateCollision(
+        StateTypeA& stateA,
+        StateTypeB& stateB,
+        const int ss1i, const int ss2i,
+        const CollisionSpheresState& ss1,
+        const CollisionSpheresState& ss2,
+        double& dist);
+
+    void updateCheckedSpheresIndices();
+    void updateRobotCheckedSphereIndices();
+    void updateRobotAttachedBodyCheckedSphereIndices();
+    void updateAttachedBodyCheckedSphereIndices();
+
+    void updateMetaSphereTrees();
+
+    double robotVoxelsCollisionDistance();
+    double robotSpheresCollisionDistance();
+    double robotSpheresCollisionDistance(const AllowedCollisionsInterface& aci);
+
+    double attachedBodyVoxelsCollisionDistance();
+    double attachedBodySpheresCollisionDistance();
+    double attachedBodySpheresCollisionDistance(const AllowedCollisionsInterface& aci);
+
+    double spheresStateCollisionDistance(
+        const int ss1i, const int ss2i,
+        const CollisionSpheresState& ss1,
+        const CollisionSpheresState& ss2);
+
+    double sphereDistance(
+        const CollisionSphereState& s1,
+        const CollisionSphereState& s2) const;
+
+    bool getRobotVoxelsStateCollisionDetails(CollisionDetails& details);
+    bool getAttachedBodyVoxelsStateCollisionDetails(CollisionDetails& details);
+
+    bool getRobotSpheresStateCollisionDetails(CollisionDetails& details);
+    bool getRobotSpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
+
+    bool getAttachedBodySpheresStateCollisionDetails(CollisionDetails& details);
+    bool getAttachedBodySpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
+
+    bool getRobotAttachedBodySpheresStateCollisionDetails(
+        CollisionDetails& details);
+    bool getRobotAttachedBodySpheresStateCollisionDetails(
+        const AllowedCollisionsInterface& aci,
+        CollisionDetails& details);
 };
 
 } // namespace collision
