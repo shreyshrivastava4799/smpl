@@ -570,6 +570,7 @@ bool CollisionSpace::init(
         return false;
     }
 
+    m_planning_variables = planning_joints;
     m_group_name = group_name;
     m_gidx = m_rcm->groupIndex(m_group_name);
 

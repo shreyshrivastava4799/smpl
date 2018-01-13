@@ -83,6 +83,10 @@ public:
         const std::string& group_name,
         const std::vector<std::string>& planning_joints);
 
+    auto getPlanningVariables() const -> const std::vector<std::string>& {
+        return m_planning_variables;
+    }
+
     /// \name Robot State
     ///@{
     bool setJointPosition(const std::string& name, double position);
@@ -214,6 +218,7 @@ public:
 private:
 
     OccupancyGrid*                  m_grid;
+    std::vector<std::string>        m_planning_variables;
 
     RobotCollisionModelConstPtr         m_rcm;
     AttachedBodiesCollisionModelPtr     m_abcm;
