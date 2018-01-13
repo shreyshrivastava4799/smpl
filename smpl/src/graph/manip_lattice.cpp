@@ -164,8 +164,8 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
             angles::get_euler_zyx(goal().tgt_off_pose.rotation(), y, p, r);
             ss << "pose: { " <<
                     goal().tgt_off_pose.translation().x() << ", " <<
-                    goal().tgt_off_pose.translation().y() << ", " << 
-                    goal().tgt_off_pose.translation().z() << ", " << 
+                    goal().tgt_off_pose.translation().y() << ", " <<
+                    goal().tgt_off_pose.translation().z() << ", " <<
                     y << ", " << p << ", " << r << " }";
             break;
         case GoalType::JOINT_STATE_GOAL:
@@ -1024,13 +1024,10 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 /// \brief Set a full joint configuration goal.
 bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
 {
-    if (goal.type == GoalType::XYZ_GOAL ||
-        goal.type == GoalType::XYZ_RPY_GOAL)
+    if (goal.angles.size() != robot()->jointVariableCount() ||
+        goal.angle_tolerances.size() != robot()->jointVariableCount())
     {
-        if (!m_fk_iface) {
-            SMPL_WARN("ForwardKinematicsInterface required for pose goals");
-            return false;
-        }
+        return false;
     }
 
     startNewSearch();
