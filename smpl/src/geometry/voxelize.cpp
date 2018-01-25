@@ -137,10 +137,10 @@ void VoxelizeMeshAwesome(
     const std::vector<int>& indices,
     VoxelGrid<Discretizer>& vg)
 {
-    for (int i = 0; i < (int)indices.size() / 3; i++) {
-        const Eigen::Vector3d& a = vertices[indices[3 * i + 0]];
-        const Eigen::Vector3d& b = vertices[indices[3 * i + 1]];
-        const Eigen::Vector3d& c = vertices[indices[3 * i + 2]];
+    for (size_t i = 0; i < indices.size(); i += 3) {
+        auto& a = vertices[indices[i + 0]];
+        auto& b = vertices[indices[i + 1]];
+        auto& c = vertices[indices[i + 2]];
         VoxelizeTriangle(a, b, c, vg);
     }
 }
@@ -209,15 +209,15 @@ void ExtractVoxels(
     std::vector<Eigen::Vector3d>& voxels)
 {
     for (int x = 0; x < vg.sizeX(); x++) {
-        for (int y = 0; y < vg.sizeY(); y++) {
-            for (int z = 0; z < vg.sizeZ(); z++) {
-                MemoryCoord mc(x, y, z);
-                if (vg[mc]) {
-                    WorldCoord wc = vg.memoryToWorld(mc);
-                    voxels.push_back(Eigen::Vector3d(wc.x, wc.y, wc.z));
-                }
-            }
+    for (int y = 0; y < vg.sizeY(); y++) {
+    for (int z = 0; z < vg.sizeZ(); z++) {
+        MemoryCoord mc(x, y, z);
+        if (vg[mc]) {
+            WorldCoord wc = vg.memoryToWorld(mc);
+            voxels.push_back(Eigen::Vector3d(wc.x, wc.y, wc.z));
         }
+    }
+    }
     }
 }
 
@@ -1013,10 +1013,7 @@ void VoxelizeMesh(
     std::vector<Eigen::Vector3d>& voxels,
     bool fill)
 {
-    if (((int)triangles.size()) % 3 != 0) {
-        std::cerr << "Incorrect indexed triangles format" << std::endl;
-        return;
-    }
+    assert(triangles.size() % 3 == 0);
 
     Eigen::Vector3d min;
     Eigen::Vector3d max;
@@ -1026,9 +1023,8 @@ void VoxelizeMesh(
     }
 
     const Eigen::Vector3d size = max - min;
-    PivotVoxelGrid vg(
-            min, size, Eigen::Vector3d(res, res, res),
-            Eigen::Vector3d(voxel_origin.x(), voxel_origin.y(), voxel_origin.z()));
+//    PivotVoxelGrid vg(min, size, Eigen::Vector3d(res, res, res), voxel_origin);
+    PivotVoxelGrid vg(min, max, Eigen::Vector3d(res, res, res), voxel_origin, 0);
 
     VoxelizeMesh(vertices, triangles, vg, fill);
     ExtractVoxels(vg, voxels);
