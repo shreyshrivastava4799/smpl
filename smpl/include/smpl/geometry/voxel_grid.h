@@ -94,7 +94,23 @@ public:
         m_origin(origin),
         m_size(size),
         m_res(res)
-    { }
+    {
+        m_min = origin;
+        m_max = origin + size;
+    }
+
+    VoxelGridBase(
+        const Eigen::Vector3d& min,
+        const Eigen::Vector3d& max,
+        const Eigen::Vector3d& res,
+        int)
+    {
+        m_min = min;
+        m_max = max;
+        m_origin = min;
+        m_size = max - min;
+        m_res = res;
+    }
 
     const Eigen::Vector3d& origin() const { return m_origin; }
     const Eigen::Vector3d& size() const { return m_size; }
@@ -102,6 +118,8 @@ public:
 
 protected:
 
+    Eigen::Vector3d m_min;
+    Eigen::Vector3d m_max;
     Eigen::Vector3d m_origin;
     Eigen::Vector3d m_size;
     Eigen::Vector3d m_res;
@@ -124,6 +142,31 @@ public:
         const Discretizer& x_disc,
         const Discretizer& y_disc,
         const Discretizer& z_disc);
+
+    VoxelGrid(
+        const Eigen::Vector3d& min,
+        const Eigen::Vector3d& max,
+        const Eigen::Vector3d& res,
+        const Discretizer& x_disc,
+        const Discretizer& y_disc,
+        const Discretizer& z_disc,
+        int d)
+    :
+        Base(min, max, res, d),
+        m_x_disc(x_disc),
+        m_y_disc(y_disc),
+        m_z_disc(z_disc)
+    {
+        m_min_gc.x = m_x_disc.discretize(min.x());
+        m_min_gc.y = m_y_disc.discretize(min.y());
+        m_min_gc.z = m_z_disc.discretize(min.z());
+
+        m_max_gc.x = m_x_disc.discretize(max.x());
+        m_max_gc.y = m_y_disc.discretize(max.y());
+        m_max_gc.z = m_z_disc.discretize(max.z());
+
+        m_grid.resize(sizeX() * sizeY() * sizeZ(), false);
+    }
 
     int sizeX() const { return m_max_gc.x - m_min_gc.x + 1; }
     int sizeY() const { return m_max_gc.y - m_min_gc.y + 1; }
@@ -199,6 +242,7 @@ template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator()(const MemoryIndex& index)
 {
+    assert(index.idx >= 0 && index.idx < m_grid.size());
     return m_grid[index.idx];
 }
 
@@ -206,55 +250,56 @@ template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator()(const MemoryCoord& coord)
 {
-    return m_grid[memoryToIndex(coord).idx];
+    return this->operator()(memoryToIndex(coord));
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator()(const GridCoord& coord)
 {
-    return m_grid[gridToIndex(coord).idx];
+    return this->operator()(gridToIndex(coord));
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator()(const WorldCoord& coord)
 {
-    return m_grid[worldToIndex(coord).idx];
+    return this->operator()(worldToIndex(coord));
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator[](const MemoryIndex& index)
 {
-    return m_grid[index.idx];
+    return this->operator()(index);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator[](const MemoryCoord& coord)
 {
-    return m_grid[memoryToIndex(coord).idx];
+    return this->operator()(coord);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator[](const GridCoord& coord)
 {
-    return m_grid[gridToIndex(coord).idx];
+    return this->operator()(coord);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type&
 VoxelGrid<Discretizer>::operator[](const WorldCoord& coord)
 {
-    return m_grid[worldToIndex(coord).idx];
+    return this->operator()(coord);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator()(const MemoryIndex& index) const
 {
+    assert(index.idx >= 0 && index.idx < m_grid.size());
     return m_grid[index.idx];
 }
 
@@ -262,49 +307,49 @@ template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator()(const MemoryCoord& coord) const
 {
-    return m_grid[memoryToIndex(coord).idx];
+    return this->operator()(memoryToIndex(coord));
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator()(const GridCoord& coord) const
 {
-    return m_grid[gridToIndex(coord).idx];
+    return this->operator()(gridToIndex(coord));
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator()(const WorldCoord& coord) const
 {
-    return m_grid[worldToIndex(coord).idx];
+    return this->operator()(worldToIndex(coord));
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator[](const MemoryIndex& index) const
 {
-    return m_grid[index.idx];
+    return this->operator()(index);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator[](const MemoryCoord& coord) const
 {
-    return m_grid[memoryToIndex(coord).idx];
+    return this->operator()(coord);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator[](const GridCoord& coord) const
 {
-    return m_grid[gridToIndex(coord).idx];
+    return this->operator()(coord);
 }
 
 template <typename Discretizer>
 typename VoxelGrid<Discretizer>::value_type
 VoxelGrid<Discretizer>::operator[](const WorldCoord& coord) const
 {
-    return m_grid[worldToIndex(coord).idx];
+    return this->operator()(coord);
 }
 
 template <typename Discretizer>
@@ -440,8 +485,23 @@ public:
         VoxelGrid(
             origin, size, res,
             PivotDiscretizer(res.x(), pivot.x()),
-            PivotDiscretizer(res.x(), pivot.y()),
-            PivotDiscretizer(res.x(), pivot.z()))
+            PivotDiscretizer(res.y(), pivot.y()),
+            PivotDiscretizer(res.z(), pivot.z()))
+    { }
+
+    PivotVoxelGrid(
+        const Eigen::Vector3d& min,
+        const Eigen::Vector3d& max,
+        const Eigen::Vector3d& res,
+        const Eigen::Vector3d& pivot,
+        int d)
+    :
+        VoxelGrid(
+            min, max, res,
+            PivotDiscretizer(res.x(), pivot.x()),
+            PivotDiscretizer(res.y(), pivot.y()),
+            PivotDiscretizer(res.z(), pivot.z()),
+            d)
     { }
 };
 

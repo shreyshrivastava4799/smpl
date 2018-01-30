@@ -114,7 +114,11 @@ void VoxelizeTriangle(
 
     Eigen::Vector3d mintri;
     Eigen::Vector3d maxtri;
-    ComputeAxisAlignedBoundingBox({ a, b, c }, mintri, maxtri);
+    std::vector<Eigen::Vector3d> tri_verts(3);
+    tri_verts[0] = a;
+    tri_verts[1] = b;
+    tri_verts[2] = c;
+    ComputeAxisAlignedBoundingBox(tri_verts, mintri, maxtri);
 
     const WorldCoord minwc(mintri.x(), mintri.y(), mintri.z());
     const WorldCoord maxwc(maxtri.x(), maxtri.y(), maxtri.z());
@@ -123,59 +127,57 @@ void VoxelizeTriangle(
 
     // consider all voxels that this triangle can voxelize
     for (int gx = mingc.x; gx <= maxgc.x; gx++) {
-        for (int gy = mingc.y; gy <= maxgc.y; gy++) {
-            for (int gz = mingc.z; gz <= maxgc.z; gz++) {
-                const GridCoord gc(gx, gy, gz);
-                if (vg[gc]) {
-                    continue;
-                }
+    for (int gy = mingc.y; gy <= maxgc.y; gy++) {
+    for (int gz = mingc.z; gz <= maxgc.z; gz++) {
+        const GridCoord gc(gx, gy, gz);
+        if (vg[gc]) {
+            continue;
+        }
 
-                const WorldCoord wc = vg.gridToWorld(gc);
+        const WorldCoord wc = vg.gridToWorld(gc);
 
-                // TODO: shortcut based off of distance to triangle plane?
+        // TODO: shortcut based off of distance to triangle plane?
 
-                // check if the voxel point is in the plane of the triangle and
-                // within the edges
-                const Eigen::Vector3d voxel_p(wc.x, wc.y, wc.z);
+        // check if the voxel point is in the plane of the triangle and
+        // within the edges
+        const Eigen::Vector3d voxel_p(wc.x, wc.y, wc.z);
 
-                Eigen::Vector3d dx1 = voxel_p - p1;
-                Eigen::Vector3d dx2 = voxel_p - p2;
-                Eigen::Vector3d dx3 = voxel_p - p3;
+        Eigen::Vector3d dx1 = voxel_p - p1;
+        Eigen::Vector3d dx2 = voxel_p - p2;
+        Eigen::Vector3d dx3 = voxel_p - p3;
 
-                if (dx1.squaredNorm() <= rc2 ||
-                    dx2.squaredNorm() <= rc2 ||
-                    dx3.squaredNorm() <= rc2)
-                {
-                    // vertex fills this voxel
-                    vg[gc] = 1;
-                }
-                else if (Distance(p1, p3, rc2, voxel_p) != -1.0 ||
-                         Distance(p2, p3, rc2, voxel_p) != -1.0 ||
-                         Distance(p3, p1, rc2, voxel_p) != -1.0)
-                {
-                    // edge fills this voxel
-                    vg[gc] = 1;
-                }
-                else {
-                    // then check for inside the triangle
-                    if ((
-                            // inside triangle thickness
-                            utils::sign(n.dot(voxel_p) + (d + t)) != utils::sign(n.dot(voxel_p) + (d - t))
-                        ) &&
-                        (
-                            // inside the edge bounding planes
-                            (
-                                (e1.dot(voxel_p) + d1 > 0.0) &&
-                                (e2.dot(voxel_p) + d2 > 0.0) &&
-                                (e3.dot(voxel_p) + d3 > 0.0)
-                            )
-                        ))
-                    {
-                        vg[gc] = 1;
-                    }
-                }
+        if (dx1.squaredNorm() <= rc2 ||
+            dx2.squaredNorm() <= rc2 ||
+            dx3.squaredNorm() <= rc2)
+        {
+            // vertex fills this voxel
+            vg[gc] = 1;
+        }
+        else if (
+                Distance(p1, p3, rc2, voxel_p) != -1.0 ||
+                Distance(p2, p3, rc2, voxel_p) != -1.0 ||
+                Distance(p3, p1, rc2, voxel_p) != -1.0)
+        {
+            // edge fills this voxel
+            vg[gc] = 1;
+        }
+        else {
+            double ddd = n.dot(voxel_p) + (d + t);
+            double ddd1 = n.dot(voxel_p) + (d - t);
+            if (// then check for...
+                // ...inside triangle thickness
+                utils::sign(n.dot(voxel_p) + (d + t)) !=
+                        utils::sign(n.dot(voxel_p) + (d - t)) &&
+                // ...inside the edge bounding planes
+                (e1.dot(voxel_p) + d1 > 0.0) &&
+                (e2.dot(voxel_p) + d2 > 0.0) &&
+                (e3.dot(voxel_p) + d3 > 0.0))
+            {
+                vg[gc] = 1;
             }
         }
+    }
+    }
     }
 }
 

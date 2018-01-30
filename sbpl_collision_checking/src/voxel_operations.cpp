@@ -515,11 +515,17 @@ bool VoxelizeOcTree(
             if (lit.getSize() <= res) {
                 voxels.push_back(Eigen::Vector3d(lit.getX(), lit.getY(), lit.getZ()));
             } else {
-                double ceil_val = ceil(lit.getSize() / res) * res;
-                for (double x = lit.getX() - ceil_val; x < lit.getX() + ceil_val; x += res) {
-                for (double y = lit.getY() - ceil_val; y < lit.getY() + ceil_val; y += res) {
-                for (double z = lit.getZ() - ceil_val; z < lit.getZ() + ceil_val; z += res) {
-                    Eigen::Vector3d pt(x, y, z);
+                int num_cells = 1 << (tree.getTreeDepth() - lit.getDepth()); /* maximum tree depth */
+                double min_x = lit.getCoordinate().x() - 0.5 * lit.getSize();
+                double min_y = lit.getCoordinate().y() - 0.5 * lit.getSize();
+                double min_z = lit.getCoordinate().z() - 0.5 * lit.getSize();
+                for (int x = 0; x < num_cells; ++x) {
+                for (int y = 0; y < num_cells; ++y) {
+                for (int z = 0; z < num_cells; ++z) {
+                    double wx = min_x + x * tree.getResolution() + 0.5 * tree.getResolution();
+                    double wy = min_y + y * tree.getResolution() + 0.5 * tree.getResolution();
+                    double wz = min_z + z * tree.getResolution() + 0.5 * tree.getResolution();
+                    Eigen::Vector3d pt(wx, wy, wz);
                     pt = pose * pt;
                     voxels.push_back(pt);
                 }
@@ -528,6 +534,7 @@ bool VoxelizeOcTree(
             }
         }
     }
+
     return true;
 }
 
