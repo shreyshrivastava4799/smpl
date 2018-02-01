@@ -262,6 +262,24 @@ void ComputeMeshBoundingSpheres(
 }
 
 void ComputeMeshBoundingSpheres(
+    const double* vertex_data,
+    size_t vertex_count,
+    const std::uint32_t* triangle_data,
+    size_t triangle_count,
+    double radius,
+    std::vector<Eigen::Vector3d>& centers)
+{
+    ComputeMeshBoundingSpheresInternal(
+            DoubleArrayVertexArrayIndexer(vertex_data),
+            triangle_data,
+            triangle_count,
+            radius,
+            [&](const Eigen::Vector3d& center, int tidx) {
+                centers.push_back(center);
+            });
+}
+
+void ComputeMeshBoundingSpheres(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<std::uint32_t>& indices,
     double radius,
@@ -289,14 +307,14 @@ void ComputeMeshBoundingSpheres(
     std::vector<std::uint32_t>& triangle_indices)
 {
     ComputeMeshBoundingSpheresInternal(
-        DoubleArrayVertexArrayIndexer(vertex_data),
-        triangle_data,
-        triangle_count,
-        radius,
-        [&](const Eigen::Vector3d& center, int tidx) {
-            centers.push_back(center);
-            triangle_indices.push_back(tidx);
-        });
+            DoubleArrayVertexArrayIndexer(vertex_data),
+            triangle_data,
+            triangle_count,
+            radius,
+            [&](const Eigen::Vector3d& center, int tidx) {
+                centers.push_back(center);
+                triangle_indices.push_back(tidx);
+            });
 }
 
 } // namespace geometry
