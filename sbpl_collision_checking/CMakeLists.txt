@@ -73,6 +73,7 @@ add_library(
     src/collision_model_config.cpp
     src/collision_operations.cpp
     src/collision_space.cpp
+    src/conversions.cpp
     src/robot_collision_model.cpp
     src/robot_motion_collision_model.cpp
     src/robot_collision_state.cpp
