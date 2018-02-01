@@ -48,8 +48,6 @@
 namespace sbpl {
 namespace collision {
 
-class RobotCollisionStateImpl;
-
 class RobotCollisionState
 {
 public:
