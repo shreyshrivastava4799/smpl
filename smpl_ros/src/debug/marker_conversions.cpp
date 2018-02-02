@@ -37,10 +37,10 @@ void ConvertMarkerMsgToMarker(const visualization_msgs::Marker& mm, Marker& m)
         m.shape = Cube{ mm.scale.x, mm.scale.y, mm.scale.z };
         break;
     case visualization_msgs::Marker::SPHERE:
-        m.shape = Ellipse{ mm.scale.x, mm.scale.y, mm.scale.z };
+        m.shape = Ellipse{ 0.5 * mm.scale.x, 0.5 * mm.scale.y, 0.5 * mm.scale.z };
         break;
     case visualization_msgs::Marker::CYLINDER:
-        m.shape = Cylinder{ mm.scale.x, mm.scale.z };
+        m.shape = Cylinder{ 0.5 * mm.scale.x, mm.scale.z };
         break;
     case visualization_msgs::Marker::LINE_STRIP:
         m.shape = LineStrip{ convert_points(mm.points) };
@@ -52,7 +52,7 @@ void ConvertMarkerMsgToMarker(const visualization_msgs::Marker& mm, Marker& m)
         m.shape = CubeList{ convert_points(mm.points), mm.scale.x };
         break;
     case visualization_msgs::Marker::SPHERE_LIST:
-        m.shape = SphereList{ convert_points(mm.points), mm.scale.x };
+        m.shape = SphereList{ convert_points(mm.points), 0.5 * mm.scale.x };
         break;
     case visualization_msgs::Marker::POINTS:
         m.shape = PointList{ convert_points(mm.points) };
@@ -135,9 +135,9 @@ void ConvertMarkerToMarkerMsg(
         break;
     case SHAPE_ELLIPSE:
         mm.type = visualization_msgs::Marker::SPHERE;
-        mm.scale.x = boost::get<Ellipse>(m.shape).axis_x;
-        mm.scale.y = boost::get<Ellipse>(m.shape).axis_y;
-        mm.scale.z = boost::get<Ellipse>(m.shape).axis_z;
+        mm.scale.x = 2.0 * boost::get<Ellipse>(m.shape).axis_x;
+        mm.scale.y = 2.0 * boost::get<Ellipse>(m.shape).axis_y;
+        mm.scale.z = 2.0 * boost::get<Ellipse>(m.shape).axis_z;
         break;
     case SHAPE_CYLINDER:
         mm.scale.x = 2.0 * boost::get<Cylinder>(m.shape).radius;
