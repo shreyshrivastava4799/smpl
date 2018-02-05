@@ -338,12 +338,8 @@ bool ManipLatticeActionSpace::apply(
                 pose.translation()[2]);
     }
 
-    std::vector<Action> act;
-    for (const MotionPrimitive& prim : m_mprims) {
-        act.clear();
-        if (getAction(parent, goal_dist, start_dist, prim, act)) {
-            actions.insert(actions.end(), act.begin(), act.end());
-        }
+    for (auto& prim : m_mprims) {
+        (void)getAction(parent, goal_dist, start_dist, prim, actions);
     }
 
     if (actions.empty()) {
@@ -368,15 +364,15 @@ bool ManipLatticeActionSpace::getAction(
     auto& goal_pose = planningSpace()->goal().pose;
 
     switch (mp.type) {
-    case MotionPrimitive::LONG_DISTANCE:
-    {
-        actions.resize(1);
-        return applyMotionPrimitive(parent, mp, actions[0]);
-    }
+    case MotionPrimitive::LONG_DISTANCE:  // fall-through
     case MotionPrimitive::SHORT_DISTANCE:
     {
-        actions.resize(1);
-        return applyMotionPrimitive(parent, mp, actions[0]);
+        Action action;
+        if (!applyMotionPrimitive(parent, mp, action)) {
+            return false;
+        }
+        actions.push_back(std::move(action));
+        return true;
     }
     case MotionPrimitive::SNAP_TO_RPY:
     {
@@ -405,13 +401,12 @@ bool ManipLatticeActionSpace::getAction(
                     goal_dist,
                     ik_option::UNRESTRICTED,
                     actions);
-        } else {
-            // goal is 7dof; instead of computing  IK, use the goal itself as
-            // the IK solution
-            actions.resize(1);
-            actions[0].resize(1);
-            actions[0][0] = planningSpace()->goal().angles;
         }
+
+        // goal is 7dof; instead of computing IK, use the goal itself as the IK
+        // solution
+        Action action = { planningSpace()->goal().angles };
+        actions.push_back(std::move(action));
 
         return true;
     }
@@ -452,24 +447,23 @@ bool ManipLatticeActionSpace::computeIkAction(
 
     if (m_use_multiple_ik_solutions) {
         //get actions for multiple ik solutions
-        std::vector<std::vector<double>> solutions;
+        std::vector<RobotState> solutions;
         if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
             return false;
         }
-        actions.resize(solutions.size());
-        for (size_t a = 0; a < actions.size(); a++){
-            actions[a].resize(1);
-            actions[a][0] = solutions[a];
+        for (auto& solution : solutions) {
+            Action action = { std::move(solution) };
+            actions.push_back(std::move(action));
         }
     } else {
         //get single action for single ik solution
-        std::vector<double> ik_sol;
+        RobotState ik_sol;
         if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
             return false;
         }
-        actions.resize(1);
-        actions[0].resize(1);
-        actions[0][0] = ik_sol;
+
+        Action action = { std::move(ik_sol) };
+        actions.push_back(std::move(action));
     }
 
     return true;
