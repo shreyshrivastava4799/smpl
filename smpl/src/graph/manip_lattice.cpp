@@ -220,7 +220,6 @@ void ManipLattice::GetSuccs(
     // log expanded state details
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << parent_entry->coord);
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << parent_entry->state);
-    SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
@@ -276,7 +275,6 @@ void ManipLattice::GetSuccs(
         SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
 
@@ -313,7 +311,6 @@ void ManipLattice::GetLazySuccs(
     // log expanded state details
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state_entry->coord);
     SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  angles: " << state_entry->state);
-    SMPL_DEBUG_NAMED(params()->expands_log, "  heur: %d", GetGoalHeuristic(state_id));
 
     const RobotState& source_angles = state_entry->state;
     auto* vis_name = "expansion";
@@ -358,7 +355,6 @@ void ManipLattice::GetLazySuccs(
         SMPL_DEBUG_NAMED(params()->expands_log, "        id: %5i", succ_state_id);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_coord);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_entry->state);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        heur: %2d", GetGoalHeuristic(succ_state_id));
         SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
 
