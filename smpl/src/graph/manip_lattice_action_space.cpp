@@ -481,6 +481,11 @@ bool ManipLatticeActionSpace::mprimActive(
     double goal_dist,
     MotionPrimitive::Type type) const
 {
+    // TODO: this seems a awkward..."short distance" motion primitives should be
+    // the default since "long distance" primitives are usually implemented as
+    // an optimization in regions far from the start or goal, and often we
+    // always need "short distance" motion primitives near the start and goal.
+    // -Andrew
     if (type == MotionPrimitive::LONG_DISTANCE) {
         if (m_use_long_and_short_dist_mprims) {
             return true;
