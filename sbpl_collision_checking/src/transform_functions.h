@@ -221,8 +221,34 @@ Eigen::Affine3d ComputePrismaticJointTransform(
     const Eigen::Vector3d& axis,
     double* jvals)
 {
-    return o * Eigen::Translation3d(Eigen::Vector3d(
-            0.0, 0.0, jvals[0]));
+    return o * Eigen::Translation3d(jvals[0] * axis);
+}
+
+inline
+Eigen::Affine3d ComputePrismaticJointTransformX(
+    const Eigen::Affine3d& o,
+    const Eigen::Vector3d& axis,
+    double* jvals)
+{
+    return o * Eigen::Translation3d(jvals[0], 0.0, 0.0);
+}
+
+inline
+Eigen::Affine3d ComputePrismaticJointTransformY(
+    const Eigen::Affine3d& o,
+    const Eigen::Vector3d& axis,
+    double* jvals)
+{
+    return o * Eigen::Translation3d(0.0, jvals[0], 0.0);
+}
+
+inline
+Eigen::Affine3d ComputePrismaticJointTransformZ(
+    const Eigen::Affine3d& o,
+    const Eigen::Vector3d& axis,
+    double* jvals)
+{
+    return o * Eigen::Translation3d(0.0, 0.0, jvals[0]);
 }
 
 inline

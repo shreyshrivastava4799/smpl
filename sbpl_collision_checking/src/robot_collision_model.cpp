@@ -359,7 +359,17 @@ void RobotCollisionModel::addPrismaticJoint(const urdf::Joint& joint)
     m_jvar_name_to_index[joint.name] = m_jvar_names.size() - 1;
 
     m_joint_types.push_back(PRISMATIC);
-    m_joint_transforms.push_back(ComputePrismaticJointTransform);
+
+    auto& axis = joint.axis;
+    if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
+        m_joint_transforms.push_back(ComputePrismaticJointTransformX);
+    } else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
+        m_joint_transforms.push_back(ComputePrismaticJointTransformY);
+    } else if (axis.x == 0.0 && axis.y == 0.0 && axis.z == 1.0) {
+        m_joint_transforms.push_back(ComputePrismaticJointTransformZ);
+    } else {
+        m_joint_transforms.push_back(ComputePrismaticJointTransform);
+    }
 }
 
 void RobotCollisionModel::addContinuousJoint(const urdf::Joint& joint)
