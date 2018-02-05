@@ -1030,6 +1030,13 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
         return false;
     }
 
+    auto vis_name = "target_config";
+    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(goal.angles, vis_name));
+
+    SMPL_INFO_NAMED(params()->graph_log, "A new goal has been set");
+    SMPL_INFO_STREAM_NAMED(params()->graph_log, "  config: " << goal.angles);
+    SMPL_INFO_STREAM_NAMED(params()->graph_log, "  tolerance: " << goal.angle_tolerances);
+
     startNewSearch();
 
     // notify observers of updated goal
