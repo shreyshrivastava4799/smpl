@@ -313,30 +313,37 @@ void ManipLatticeActionSpace::updateGoal(const GoalConstraint& goal)
     RobotPlanningSpaceObserver::updateGoal(goal);
 }
 
+auto ManipLatticeActionSpace::getStartGoalDistances(const RobotState& state)
+    -> std::pair<double, double>
+{
+    if (!m_fk_iface) {
+        return std::make_pair(0.0, 0.0);
+    }
+
+    auto pose = m_fk_iface->computeFK(state);
+
+    if (planningSpace()->numHeuristics() > 0) {
+        RobotHeuristic* h = planningSpace()->heuristic(0);
+        double start_dist = h->getMetricStartDistance(
+                pose.translation()[0],
+                pose.translation()[1],
+                pose.translation()[2]);
+        double goal_dist = h->getMetricGoalDistance(
+                pose.translation()[0],
+                pose.translation()[1],
+                pose.translation()[2]);
+        return std::make_pair(start_dist, goal_dist);
+    } else {
+        return std::make_pair(0.0, 0.0);
+    }
+}
+
 bool ManipLatticeActionSpace::apply(
     const RobotState& parent,
     std::vector<Action>& actions)
 {
-    if (!m_fk_iface) {
-        return false;
-    }
-
-    auto pose = m_fk_iface->computeFK(parent);
-
-    // get distance to the goal pose
-    double goal_dist = 0.0;
-    double start_dist = 0.0;
-    if (planningSpace()->numHeuristics() > 0) {
-        RobotHeuristic* h = planningSpace()->heuristic(0);
-        goal_dist = h->getMetricGoalDistance(
-                pose.translation()[0],
-                pose.translation()[1],
-                pose.translation()[2]);
-        start_dist = h->getMetricStartDistance(
-                pose.translation()[0],
-                pose.translation()[1],
-                pose.translation()[2]);
-    }
+    double goal_dist, start_dist;
+    std::tie(start_dist, goal_dist) = getStartGoalDistances(parent);
 
     for (auto& prim : m_mprims) {
         (void)getAction(parent, goal_dist, start_dist, prim, actions);

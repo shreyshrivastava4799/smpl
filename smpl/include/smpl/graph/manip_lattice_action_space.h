@@ -141,6 +141,9 @@ protected:
         double start_dist,
         double goal_dist,
         MotionPrimitive::Type type) const;
+
+    auto getStartGoalDistances(const RobotState& state)
+        -> std::pair<double, double>;
 };
 
 } // namespace motion
