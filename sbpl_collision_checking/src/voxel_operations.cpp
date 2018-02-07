@@ -510,6 +510,7 @@ bool VoxelizeOcTree(
     const Eigen::Vector3d& go,
     std::vector<Eigen::Vector3d>& voxels)
 {
+    auto prev_size = voxels.size();
     for (auto lit = tree.begin_leafs(); lit != tree.end_leafs(); ++lit) {
         if (tree.isNodeOccupied(*lit)) {
             if (lit.getSize() <= res) {
@@ -526,12 +527,17 @@ bool VoxelizeOcTree(
                     double wy = min_y + y * tree.getResolution() + 0.5 * tree.getResolution();
                     double wz = min_z + z * tree.getResolution() + 0.5 * tree.getResolution();
                     Eigen::Vector3d pt(wx, wy, wz);
-                    pt = pose * pt;
                     voxels.push_back(pt);
                 }
                 }
                 }
             }
+        }
+    }
+
+    if (!pose.isApprox(Eigen::Affine3d::Identity())) {
+        for (auto i = prev_size; i < voxels.size(); ++i) {
+            voxels[i] = pose * voxels[i];
         }
     }
 
