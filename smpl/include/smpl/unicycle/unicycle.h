@@ -97,7 +97,7 @@ auto MakeUnicycleMotion(
     double eps = std::numeric_limits<double>::epsilon())
     -> UnicycleMotion;
 
-auto MakeUnicycleMotion(
+inline auto MakeUnicycleMotion(
     const Pose2D& start,
     const Pose2D& goal,
     double eps = std::numeric_limits<double>::epsilon())
