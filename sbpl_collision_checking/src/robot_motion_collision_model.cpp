@@ -208,9 +208,9 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
                     sample_motion_sphere_centers.push_back(T_joint_link * mr_center);
                 }
             } else if (rcm->jointType(jidx) == JointType::FLOATING) {
-                ROS_ERROR("TODO: Cannot sample floating joint transform");
+                if (jidx != 0) ROS_ERROR("TODO: Cannot sample floating joint transform");
             } else if (rcm->jointType(jidx) == JointType::PLANAR) {
-                ROS_ERROR("TODO: Cannot sample planar joint transform");
+                if (jidx != 0) ROS_ERROR("TODO: Cannot sample planar joint transform");
             } else if (rcm->jointType(jidx) == JointType::FIXED) {
                 ROS_DEBUG_NAMED(RMCM_LOGGER, "  sample fixed joint with 1 sample");
                 const Eigen::Affine3d T_joint_link(rcm->jointOrigin(jidx));
