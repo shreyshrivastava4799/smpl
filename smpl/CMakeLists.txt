@@ -114,6 +114,7 @@ add_library(
     src/search/adaptive_planner.cpp
     src/search/lazy_arastar.cpp
     src/search/lazy_mhastar.cpp
+    src/search/smhastar.cpp
     src/search/awastar.cpp
     src/unicycle/unicycle.cpp)
 target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
