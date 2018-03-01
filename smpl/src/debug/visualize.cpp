@@ -4,6 +4,8 @@
 #include <mutex>
 #include <unordered_map>
 
+#include <boost/program_options.hpp>
+
 #ifdef SMPL_SV_VISUALIZATION_MSGS
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -100,24 +102,42 @@ void Initialize()
     }
 
     const char *config_path = getenv("SMPL_VISUALIZE_CONFIG_FILE");
-    if (config_path) {
-        std::ifstream f(config_path);
-        if (f.is_open()) {
-            std::string line;
-            while (f.good()) {
-                std::getline(f, line);
+    if (config_path == NULL) {
+        g_initialized = true;
+        return;
+    }
 
-                std::vector<std::string> split;
-                Level level;
-                if (ParseVisualizationConfigLine(line, split, level)) {
-                    std::string name = split.front();
-                    for (size_t i = 1; i < split.size(); ++i) {
-                        name = name + "." + split[i];
-                    }
-                    DebugViz viz;
-                    viz.level = level;
-                    g_visualizations[name] = viz;
-                }
+    namespace po = boost::program_options;
+
+    po::options_description ops;
+
+    bool allow_unregistered = true;
+    auto pops = po::parse_config_file<char>(config_path, ops, allow_unregistered);
+
+    po::variables_map vm;
+    po::store(pops, vm);
+    po::notify(vm);
+
+    for (auto& op : pops.options) {
+        if (op.unregistered) {
+            auto& levelstr = op.value.back();
+            Level level = Level::NumLevels;
+            if (levelstr == "INFO") {
+                level = Level::Info;
+            } else if (levelstr == "DEBUG") {
+                level = Level::Debug;
+            } else if (levelstr == "WARN") {
+                level = Level::Warn;
+            } else if (levelstr == "ERROR") {
+                level = Level::Error;
+            } else if (levelstr == "FATAL") {
+                level = Level::Fatal;
+            }
+
+            if (level != Level::NumLevels) {
+                DebugViz viz;
+                viz.level = level;
+                g_visualizations[op.string_key] = viz;
             }
         }
     }
