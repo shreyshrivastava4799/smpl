@@ -55,6 +55,8 @@ class OccupancyGrid
 {
 public:
 
+    OccupancyGrid();
+
     OccupancyGrid(
         double size_x, double size_y, double size_z,
         double resolution,
