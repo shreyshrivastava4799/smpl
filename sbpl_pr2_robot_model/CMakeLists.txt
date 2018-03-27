@@ -44,6 +44,9 @@ add_library(
 target_link_libraries(sbpl_pr2_robot_model ${catkin_LIBRARIES})
 
 install(
+    DIRECTORY include/sbpl_pr2_robot_model/
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(
     TARGETS sbpl_pr2_robot_model
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

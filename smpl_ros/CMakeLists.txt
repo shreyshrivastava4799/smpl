@@ -60,9 +60,8 @@ add_library(
 target_link_libraries(smpl_ros ${Boost_LIBRARIES} ${catkin_LIBRARIES})
 
 install(
-    DIRECTORY include
-    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-    FILES_MATCHING PATTERN "*.h")
+    DIRECTORY include/smpl/
+    DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/smpl)
 install(
     TARGETS smpl_ros
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
