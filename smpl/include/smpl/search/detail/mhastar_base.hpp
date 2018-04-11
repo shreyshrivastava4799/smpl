@@ -34,6 +34,9 @@
 
 #include "../mhastar_base.h"
 
+// standard includes
+#include <algorithm>
+
 // system includes
 #include <sbpl/utils/key.h>
 
@@ -668,7 +671,7 @@ void MultiHeuristicAStarBase<Derived>::extract_path(std::vector<int>* solution_p
     }
 
     // TODO: special cases for backward search
-    std::reverse(solution_path->begin(), solution_path->end());
+    std::reverse(begin(*solution_path), end(*solution_path));
 }
 
 template <typename Derived>
