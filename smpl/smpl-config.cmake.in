@@ -1,0 +1,14 @@
+# Config file for the smpl package
+# The following variables are defined:
+# smpl_INCLUDE_DIRS
+# smpl_LIBRARIES
+
+# get the path to this (installed) cmake file
+get_filename_component(SMPL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(smpl_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@" ABSOLUTE)
+
+#if (NOT TARGET smpl AND NOT smpl_BINARY_DIR)
+include(${SMPL_CMAKE_DIR}/smpl-targets.cmake)
+#endif()
+
+set(smpl_LIBRARIES smpl)
