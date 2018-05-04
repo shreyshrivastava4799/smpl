@@ -2,6 +2,7 @@
 #define SMPL_CONSOLE_NONSTD_H
 
 #include <ostream>
+#include <utility>
 #include <vector>
 
 namespace std {
@@ -17,6 +18,13 @@ ostream& operator<<(ostream& o, const vector<T, Allocator>& v)
         }
     }
     o << " ]";
+    return o;
+}
+
+template <class T1, class T2>
+ostream& operator<<(ostream& o, const pair<T1, T2>& p)
+{
+    o << '(' << p.first << ", " << p.second << ')';
     return o;
 }
 
