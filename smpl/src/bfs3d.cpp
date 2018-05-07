@@ -112,7 +112,9 @@ BFS_3D::BFS_3D(int width, int height, int length) :
 
 BFS_3D::~BFS_3D()
 {
-    m_search_thread.join();
+    if (m_search_thread.joinable()) {
+        m_search_thread.join();
+    }
 
     if (m_distance_grid) {
         delete[] m_distance_grid;
