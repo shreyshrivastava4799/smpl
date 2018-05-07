@@ -58,11 +58,11 @@ catkin_package(
 
 add_definitions(-DROSCONSOLE_MIN_SEVERITY=ROSCONSOLE_SEVERITY_INFO)
 
+include_directories(include)
+include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
-include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${OCTOMAP_INCLUDE_DIRS})
-include_directories(include)
 
 add_library(
     sbpl_collision_checking
