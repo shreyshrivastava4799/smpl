@@ -161,11 +161,11 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         case GoalType::XYZ_GOAL:
         case GoalType::XYZ_RPY_GOAL:
             double y, p, r;
-            angles::get_euler_zyx(goal().tgt_off_pose.rotation(), y, p, r);
+            angles::get_euler_zyx(goal().pose.rotation(), y, p, r);
             ss << "pose: { " <<
-                    goal().tgt_off_pose.translation().x() << ", " <<
-                    goal().tgt_off_pose.translation().y() << ", " <<
-                    goal().tgt_off_pose.translation().z() << ", " <<
+                    goal().pose.translation().x() << ", " <<
+                    goal().pose.translation().y() << ", " <<
+                    goal().pose.translation().z() << ", " <<
                     y << ", " << p << ", " << r << " }";
             break;
         case GoalType::JOINT_STATE_GOAL:
@@ -448,7 +448,7 @@ const RobotState& ManipLattice::extractState(int state_id)
 bool ManipLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 {
     if (state_id == getGoalStateID()) {
-        pose = goal().tgt_off_pose;
+        pose = goal().pose;
         return true;
     }
 
@@ -585,8 +585,7 @@ auto ManipLattice::computePlanningFrameFK(const RobotState& state) const
     assert(state.size() == robot()->jointVariableCount());
     assert(m_fk_iface);
 
-    auto pose = m_fk_iface->computeFK(state);
-    return getTargetOffsetPose(pose);
+    return m_fk_iface->computeFK(state);
 }
 
 int ManipLattice::cost(
@@ -680,9 +679,9 @@ bool ManipLattice::isGoal(const RobotState& state)
         // get pose of planning link
         auto pose = computePlanningFrameFK(state);
 
-        const double dx = fabs(pose.translation()[0] - goal().tgt_off_pose.translation()[0]);
-        const double dy = fabs(pose.translation()[1] - goal().tgt_off_pose.translation()[1]);
-        const double dz = fabs(pose.translation()[2] - goal().tgt_off_pose.translation()[2]);
+        auto dx = fabs(pose.translation()[0] - goal().pose.translation()[0]);
+        auto dy = fabs(pose.translation()[1] - goal().pose.translation()[1]);
+        auto dz = fabs(pose.translation()[2] - goal().pose.translation()[2]);
         if (dx <= goal().xyz_tolerance[0] &&
             dy <= goal().xyz_tolerance[1] &&
             dz <= goal().xyz_tolerance[2])
@@ -699,12 +698,12 @@ bool ManipLattice::isGoal(const RobotState& state)
                         pose.translation()[1],
                         pose.translation()[2],
                         goal().xyz_tolerance[0],
-                        goal().tgt_off_pose.translation()[0],
-                        goal().tgt_off_pose.translation()[1],
-                        goal().tgt_off_pose.translation()[2],
+                        goal().pose.translation()[0],
+                        goal().pose.translation()[1],
+                        goal().pose.translation()[2],
                         time_to_goal_s.count());
             }
-            Eigen::Quaterniond qg(goal().tgt_off_pose.rotation());
+            Eigen::Quaterniond qg(goal().pose.rotation());
             Eigen::Quaterniond q(pose.rotation());
             if (q.dot(qg) < 0.0) {
                 qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
@@ -721,9 +720,9 @@ bool ManipLattice::isGoal(const RobotState& state)
     {
         // get pose of planning link
         auto pose = computePlanningFrameFK(state);
-        if (fabs(pose.translation()[0] - goal().tgt_off_pose.translation()[0]) <= goal().xyz_tolerance[0] &&
-            fabs(pose.translation()[1] - goal().tgt_off_pose.translation()[1]) <= goal().xyz_tolerance[1] &&
-            fabs(pose.translation()[2] - goal().tgt_off_pose.translation()[2]) <= goal().xyz_tolerance[2])
+        if (fabs(pose.translation()[0] - goal().pose.translation()[0]) <= goal().xyz_tolerance[0] &&
+            fabs(pose.translation()[1] - goal().pose.translation()[1]) <= goal().xyz_tolerance[1] &&
+            fabs(pose.translation()[2] - goal().pose.translation()[2]) <= goal().xyz_tolerance[2])
         {
             return true;
         }
@@ -1003,7 +1002,7 @@ RobotState ManipLattice::getStartConfiguration() const
 bool ManipLattice::setGoalPose(const GoalConstraint& gc)
 {
     auto* vis_name = "goal_pose";
-    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(gc.tgt_off_pose, m_viz_frame_id, vis_name));
+    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(gc.pose, m_viz_frame_id, vis_name));
 
     using namespace std::chrono;
     auto now = clock::now();
@@ -1056,14 +1055,6 @@ void ManipLattice::startNewSearch()
 {
     m_near_goal = false;
     m_t_start = clock::now();
-}
-
-/// \brief Return the 6-dof goal pose for the offset from the tip link.
-auto ManipLattice::getTargetOffsetPose(const Eigen::Affine3d& tip_pose) const
-    -> Eigen::Affine3d
-{
-    return tip_pose * Eigen::Translation3d(
-            goal().xyz_offset[0], goal().xyz_offset[1], goal().xyz_offset[2]);
 }
 
 } // namespace motion

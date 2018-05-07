@@ -171,12 +171,9 @@ struct GoalConstraint
 
     // Relevant for workspace goals
     Eigen::Affine3d pose;               // goal pose of the planning link
-    double xyz_offset[3];               // offset from the planning link
+
     double xyz_tolerance[3];            // (x, y, z) tolerance
     double rpy_tolerance[3];            // (R, P, Y) tolerance
-
-    Eigen::Affine3d tgt_off_pose;       // goal pose offset from planning link
-    int xyz[3];                         // planning frame cell (x, y, z)
 
     GoalConstraintFn check_goal = NULL;
     void* check_goal_user = NULL;

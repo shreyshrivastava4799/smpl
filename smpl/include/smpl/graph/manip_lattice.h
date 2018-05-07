@@ -236,9 +236,6 @@ private:
 
     void startNewSearch();
 
-    auto getTargetOffsetPose(const Eigen::Affine3d& tip_pose) const
-        -> Eigen::Affine3d;
-
     /// \name planning
     ///@{
     ///@}

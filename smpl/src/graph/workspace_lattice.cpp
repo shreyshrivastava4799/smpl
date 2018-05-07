@@ -121,7 +121,7 @@ bool WorkspaceLattice::init(
 bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 {
     if (state_id == getGoalStateID()) {
-        pose = goal().tgt_off_pose;
+        pose = goal().pose;
         return true;
     }
 
@@ -600,7 +600,7 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     }
 
     auto* vis_name = "goal_pose";
-    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal.tgt_off_pose, m_viz_frame_id, vis_name));
+    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal.pose, m_viz_frame_id, vis_name));
 
     SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
 
@@ -678,9 +678,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
         SMPL_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
         return false;
     case GoalType::XYZ_RPY_GOAL: {
-        double dx = std::fabs(state[0] - goal().tgt_off_pose.translation()[0]);
-        double dy = std::fabs(state[1] - goal().tgt_off_pose.translation()[1]);
-        double dz = std::fabs(state[2] - goal().tgt_off_pose.translation()[2]);
+        double dx = std::fabs(state[0] - goal().pose.translation()[0]);
+        double dy = std::fabs(state[1] - goal().pose.translation()[1]);
+        double dz = std::fabs(state[2] - goal().pose.translation()[2]);
         if (dx <= goal().xyz_tolerance[0] &&
             dy <= goal().xyz_tolerance[1] &&
             dz <= goal().xyz_tolerance[2])
@@ -694,7 +694,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
                 SMPL_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
             }
 
-            Eigen::Quaterniond qg(goal().tgt_off_pose.rotation());
+            Eigen::Quaterniond qg(goal().pose.rotation());
             Eigen::Quaterniond q(
                     Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
                     Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
@@ -772,7 +772,7 @@ void WorkspaceLattice::getActions(
                 cont_state[0], cont_state[1], cont_state[2]);
         if (goal_dist < m_ik_amp_thresh) {
             std::vector<double> ik_sol;
-            if (m_ik_iface->computeIK(goal().tgt_off_pose, entry.state, ik_sol)) {
+            if (m_ik_iface->computeIK(goal().pose, entry.state, ik_sol)) {
                 WorkspaceState final_state;
                 stateRobotToWorkspace(ik_sol, final_state);
                 Action action(1);

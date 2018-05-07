@@ -52,6 +52,8 @@ public:
 
     bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
 
+    void setOffset(double x, double y, double z);
+
     double inflationRadius() const { return m_inflation_radius; }
     void setInflationRadius(double radius);
     int costPerCell() const { return m_cost_per_cell; }
@@ -95,6 +97,8 @@ private:
 
     std::unique_ptr<BFS_3D> m_bfs;
     std::unique_ptr<BFS_3D> m_ee_bfs;
+
+    double m_pos_offset[3];
 
     double m_inflation_radius = 0.0;
     int m_cost_per_cell = 1;

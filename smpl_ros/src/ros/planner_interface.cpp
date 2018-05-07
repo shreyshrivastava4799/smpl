@@ -415,6 +415,13 @@ auto MakeMultiFrameBFSHeuristic(
     if (!h->init(space, grid)) {
         return nullptr;
     }
+
+    double offset_x, offset_y, offset_z;
+    params.param("offset_x", offset_x, 0.0);
+    params.param("offset_y", offset_y, 0.0);
+    params.param("offset_z", offset_z, 0.0);
+    h->setOffset(offset_x, offset_y, offset_z);
+
     return std::move(h);
 }
 

@@ -129,7 +129,7 @@ bool AdaptiveWorkspaceLattice::projectToPoint(
 {
     AdaptiveState* state = m_states[state_id];
     if (state_id == m_goal_state_id) {
-        pos = goal().tgt_off_pose.translation();
+        pos = goal().pose.translation();
     } else if (state->hid) {
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         WorkspaceState state;
@@ -156,9 +156,9 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
     if (state_id == m_goal_state_id) {
         SMPL_INFO_NAMED(params()->graph_log, "Skip adding high-dimensional region around goal");
         m_grid->worldToGrid(
-                goal().tgt_off_pose.translation()[0],
-                goal().tgt_off_pose.translation()[1],
-                goal().tgt_off_pose.translation()[2],
+                goal().pose.translation()[0],
+                goal().pose.translation()[1],
+                goal().pose.translation()[2],
                 gp.x(), gp.y(), gp.z());
     } else if (state->hid) {
         SMPL_INFO_NAMED(params()->graph_log, "Grow high-dimensional region around hi state %d", state_id);
@@ -220,9 +220,9 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
         AdaptiveState* state = m_states[state_id];
 
         if (state_id == m_goal_state_id) {
-            px = goal().tgt_off_pose.translation()[0];
-            py = goal().tgt_off_pose.translation()[1];
-            pz = goal().tgt_off_pose.translation()[2];
+            px = goal().pose.translation()[0];
+            py = goal().pose.translation()[1];
+            pz = goal().pose.translation()[2];
         }
         else if (state->hid) {
             AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
@@ -597,7 +597,7 @@ bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
 
     auto* vis_name = "goal_pose";
     SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(
-            goal.tgt_off_pose, m_grid->getReferenceFrame(), vis_name));
+            goal.pose, m_grid->getReferenceFrame(), vis_name));
 
     SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
 
@@ -965,7 +965,7 @@ void AdaptiveWorkspaceLattice::getActions(
                 cont_state[0], cont_state[1], cont_state[2]);
         if (goal_dist < m_ik_amp_thresh) {
             std::vector<double> ik_sol;
-            if (m_ik_iface->computeIK(goal().tgt_off_pose, state.state, ik_sol)) {
+            if (m_ik_iface->computeIK(goal().pose, state.state, ik_sol)) {
                 WorkspaceState final_state;
                 stateRobotToWorkspace(ik_sol, final_state);
                 Action action(1);
@@ -1047,10 +1047,10 @@ bool AdaptiveWorkspaceLattice::checkAction(
 bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
 {
     double y, p, r;
-    angles::get_euler_zyx(goal().tgt_off_pose.rotation(), y, p, r);
-    return std::fabs(state[0] - goal().tgt_off_pose.translation()[0]) <= goal().xyz_tolerance[0] &&
-            std::fabs(state[1] - goal().tgt_off_pose.translation()[1]) <= goal().xyz_tolerance[1] &&
-            std::fabs(state[2] - goal().tgt_off_pose.translation()[2]) <= goal().xyz_tolerance[2] &&
+    angles::get_euler_zyx(goal().pose.rotation(), y, p, r);
+    return std::fabs(state[0] - goal().pose.translation()[0]) <= goal().xyz_tolerance[0] &&
+            std::fabs(state[1] - goal().pose.translation()[1]) <= goal().xyz_tolerance[1] &&
+            std::fabs(state[2] - goal().pose.translation()[2]) <= goal().xyz_tolerance[2] &&
             angles::shortest_angle_dist(state[3], r) <= goal().rpy_tolerance[0] &&
             angles::shortest_angle_dist(state[4], p) <= goal().rpy_tolerance[1] &&
             angles::shortest_angle_dist(state[5], y) <= goal().rpy_tolerance[2];
@@ -1059,7 +1059,7 @@ bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
 bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
 {
     Eigen::Vector3d p(x, y, z);
-    Eigen::Vector3d dp = p - goal().tgt_off_pose.translation();
+    Eigen::Vector3d dp = p - goal().pose.translation();
     const double dx = std::fabs(dp.x());
     const double dy = std::fabs(dp.y());
     const double dz = std::fabs(dp.z());

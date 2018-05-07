@@ -59,6 +59,8 @@ bool MultiFrameBfsHeuristic::init(
         return false;
     }
 
+    m_pos_offset[0] = m_pos_offset[1] = m_pos_offset[2] = 0.0;
+
     m_grid = grid;
 
     m_pp = space->getExtension<PointProjectionExtension>();
@@ -76,6 +78,13 @@ bool MultiFrameBfsHeuristic::init(
     syncGridAndBfs();
 
     return true;
+}
+
+void MultiFrameBfsHeuristic::setOffset(double x, double y, double z)
+{
+    m_pos_offset[0] = x;
+    m_pos_offset[1] = y;
+    m_pos_offset[2] = z;
 }
 
 void MultiFrameBfsHeuristic::setInflationRadius(double radius)
@@ -100,11 +109,15 @@ void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
     SMPL_DEBUG_NAMED(LOG, "Update goal");
 
+    Eigen::Affine3d offset_pose =
+            goal.pose *
+            Eigen::Translation3d(m_pos_offset[0], m_pos_offset[1], m_pos_offset[2]);
+
     int ogx, ogy, ogz;
     grid()->worldToGrid(
-            goal.tgt_off_pose.translation()[0],
-            goal.tgt_off_pose.translation()[1],
-            goal.tgt_off_pose.translation()[2],
+            offset_pose.translation()[0],
+            offset_pose.translation()[1],
+            offset_pose.translation()[2],
             ogx, ogy, ogz);
 
     int plgx, plgy, plgz;
@@ -331,16 +344,16 @@ void MultiFrameBfsHeuristic::syncGridAndBfs()
     const int cell_count = xc * yc * zc;
     int wall_count = 0;
     for (int z = 0; z < zc; ++z) {
-        for (int y = 0; y < yc; ++y) {
-            for (int x = 0; x < xc; ++x) {
-                const double radius = m_inflation_radius;
-                if (grid()->getDistance(x, y, z) <= radius) {
-                    m_bfs->setWall(x, y, z);
-                    m_ee_bfs->setWall(x, y, z);
-                    ++wall_count;
-                }
-            }
+    for (int y = 0; y < yc; ++y) {
+    for (int x = 0; x < xc; ++x) {
+        const double radius = m_inflation_radius;
+        if (grid()->getDistance(x, y, z) <= radius) {
+            m_bfs->setWall(x, y, z);
+            m_ee_bfs->setWall(x, y, z);
+            ++wall_count;
         }
+    }
+    }
     }
 
     SMPL_DEBUG_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
