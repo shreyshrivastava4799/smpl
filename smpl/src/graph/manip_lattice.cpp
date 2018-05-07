@@ -662,6 +662,52 @@ bool ManipLattice::checkAction(const RobotState& state, const Action& action)
     return true;
 }
 
+static
+bool WithinPositionTolerance(
+    const Eigen::Affine3d& A,
+    const Eigen::Affine3d& B,
+    const double tol[3])
+{
+    auto dx = std::fabs(A.translation()[0] - B.translation()[0]);
+    auto dy = std::fabs(A.translation()[1] - B.translation()[1]);
+    auto dz = std::fabs(A.translation()[2] - B.translation()[2]);
+    return dx <= tol[0] && dy <= tol[1] && dz <= tol[2];
+}
+
+static
+bool WithinOrientationTolerance(
+    const Eigen::Affine3d& A,
+    const Eigen::Affine3d& B,
+    const double tol[3])
+{
+    Eigen::Quaterniond qg(B.rotation());
+    Eigen::Quaterniond q(A.rotation());
+    if (q.dot(qg) < 0.0) {
+        qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
+    }
+
+    auto theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
+    return theta < tol[0];
+}
+
+static
+auto WithinTolerance(
+    const Eigen::Affine3d& A,
+    const Eigen::Affine3d& B,
+    const double xyz_tolerance[3],
+    const double rpy_tolerance[3])
+    -> std::pair<bool, bool>
+{
+    if (WithinPositionTolerance(A, B, xyz_tolerance)) {
+        if (WithinOrientationTolerance(A, B, rpy_tolerance)) {
+            return std::make_pair(true, true);
+        } else {
+            return std::make_pair(true, false);
+        }
+    }
+    return std::make_pair(false, false);
+}
+
 bool ManipLattice::isGoal(const RobotState& state)
 {
     switch (goal().type) {
@@ -673,60 +719,53 @@ bool ManipLattice::isGoal(const RobotState& state)
             }
         }
         return true;
-    }   break;
+    }
     case GoalType::XYZ_RPY_GOAL:
     {
         // get pose of planning link
         auto pose = computePlanningFrameFK(state);
 
-        auto dx = fabs(pose.translation()[0] - goal().pose.translation()[0]);
-        auto dy = fabs(pose.translation()[1] - goal().pose.translation()[1]);
-        auto dz = fabs(pose.translation()[2] - goal().pose.translation()[2]);
-        if (dx <= goal().xyz_tolerance[0] &&
-            dy <= goal().xyz_tolerance[1] &&
-            dz <= goal().xyz_tolerance[2])
-        {
-            // log the amount of time required for the search to get close to the goal
-            if (!m_near_goal) {
-                using namespace std::chrono;
-                auto time_to_goal_region = clock::now() - m_t_start;
-                auto time_to_goal_s =
-                        duration_cast<duration<double>>(time_to_goal_region);
-                m_near_goal = true;
-                SMPL_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec.",
-                        pose.translation()[0],
-                        pose.translation()[1],
-                        pose.translation()[2],
-                        goal().xyz_tolerance[0],
-                        goal().pose.translation()[0],
-                        goal().pose.translation()[1],
-                        goal().pose.translation()[2],
-                        time_to_goal_s.count());
-            }
-            Eigen::Quaterniond qg(goal().pose.rotation());
-            Eigen::Quaterniond q(pose.rotation());
-            if (q.dot(qg) < 0.0) {
-                qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
-            }
-
-//            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
-            const double theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
-            if (theta < goal().rpy_tolerance[0]) {
+        auto near = WithinTolerance(
+                pose,
+                goal().pose,
+                goal().xyz_tolerance,
+                goal().rpy_tolerance);
+        if (!m_near_goal && near.first) {
+            using namespace std::chrono;
+            auto time_to_goal_region = clock::now() - m_t_start;
+            auto time_to_goal_s =
+                    duration_cast<duration<double>>(time_to_goal_region);
+            m_near_goal = true;
+            SMPL_INFO_NAMED(params()->expands_log, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec.",
+                    pose.translation()[0],
+                    pose.translation()[1],
+                    pose.translation()[2],
+                    goal().xyz_tolerance[0],
+                    goal().pose.translation()[0],
+                    goal().pose.translation()[1],
+                    goal().pose.translation()[2],
+                    time_to_goal_s.count());
+        }
+        return near.first & near.second;
+    }
+    case GoalType::MULTIPLE_POSE_GOAL:
+    {
+        auto pose = computePlanningFrameFK(state);
+        for (auto& goal_pose : goal().poses) {
+            auto near = WithinTolerance(
+                    pose, goal_pose,
+                    goal().xyz_tolerance, goal().rpy_tolerance);
+            if (near.first & near.second) {
                 return true;
             }
         }
-    }   break;
+        return false;
+    }
     case GoalType::XYZ_GOAL:
     {
-        // get pose of planning link
         auto pose = computePlanningFrameFK(state);
-        if (fabs(pose.translation()[0] - goal().pose.translation()[0]) <= goal().xyz_tolerance[0] &&
-            fabs(pose.translation()[1] - goal().pose.translation()[1]) <= goal().xyz_tolerance[1] &&
-            fabs(pose.translation()[2] - goal().pose.translation()[2]) <= goal().xyz_tolerance[2])
-        {
-            return true;
-        }
-    }   break;
+        return WithinPositionTolerance(pose, goal().pose, goal().xyz_tolerance);
+    }
     case GoalType::USER_GOAL_CONSTRAINT_FN:
     {
         return goal().check_goal(goal().check_goal_user, state);
@@ -734,7 +773,8 @@ bool ManipLattice::isGoal(const RobotState& state)
     default:
     {
         SMPL_ERROR_NAMED(params()->graph_log, "Unknown goal type.");
-    }   break;
+        return false;
+    }
     }
 
     return false;
@@ -795,9 +835,10 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
 {
     switch (goal.type) {
     case GoalType::XYZ_GOAL:
-    case GoalType::XYZ_RPY_GOAL: {
+    case GoalType::XYZ_RPY_GOAL:
         return setGoalPose(goal);
-    }   break;
+    case GoalType::MULTIPLE_POSE_GOAL:
+        return setGoalPoses(goal);
     case GoalType::JOINT_STATE_GOAL:
         return setGoalConfiguration(goal);
     case GoalType::USER_GOAL_CONSTRAINT_FN:
@@ -1019,6 +1060,12 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
     startNewSearch();
 
     // set the (modified) goal
+    return RobotPlanningSpace::setGoal(gc);
+}
+
+bool ManipLattice::setGoalPoses(const GoalConstraint& gc)
+{
+    // TODO: a visualization would be nice
     return RobotPlanningSpace::setGoal(gc);
 }
 

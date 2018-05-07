@@ -231,6 +231,7 @@ private:
     std::string m_viz_frame_id;
 
     bool setGoalPose(const GoalConstraint& goal);
+    bool setGoalPoses(const GoalConstraint& goal);
     bool setGoalConfiguration(const GoalConstraint& goal);
     bool setUserGoal(const GoalConstraint& goal);
 
