@@ -232,6 +232,7 @@ private:
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalConfiguration(const GoalConstraint& goal);
+    bool setUserGoal(const GoalConstraint& goal);
 
     void startNewSearch();
 
