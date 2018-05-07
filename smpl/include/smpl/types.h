@@ -38,6 +38,7 @@
 #include <vector>
 
 #include <Eigen/Dense>
+#include <Eigen/StdVector>
 
 namespace sbpl {
 namespace motion {
@@ -155,6 +156,7 @@ enum GoalType
     XYZ_GOAL,
     XYZ_RPY_GOAL,
     JOINT_STATE_GOAL,
+    MULTIPLE_POSE_GOAL,
     USER_GOAL_CONSTRAINT_FN,
     NUMBER_OF_GOAL_TYPES
 };
@@ -171,6 +173,8 @@ struct GoalConstraint
 
     // Relevant for workspace goals
     Eigen::Affine3d pose;               // goal pose of the planning link
+
+    std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>> poses;
 
     double xyz_tolerance[3];            // (x, y, z) tolerance
     double rpy_tolerance[3];            // (R, P, Y) tolerance
