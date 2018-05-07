@@ -27,9 +27,9 @@ catkin_package()
 
 add_definitions(-DSV_PACKAGE_NAME="smpl_test")
 
+include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
-include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
 
 add_executable(callPlanner src/call_planner.cpp src/collision_space_scene.cpp)
