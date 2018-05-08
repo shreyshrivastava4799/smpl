@@ -156,6 +156,7 @@ set(SMPL_LIBRARY_SOURCES
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/heuristic/zero_heuristic.cpp
     src/search/focal_mhastar.cpp
     src/search/meta_mhastar_dts.cpp
     src/search/mhastarpp.cpp
