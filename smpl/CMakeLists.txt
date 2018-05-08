@@ -265,6 +265,11 @@ endif()
 
 install(
     DIRECTORY include/smpl/
+    EXCLUDE config.h.in
+    DESTINATION ${SMPL_INCLUDE_DESTINATION}
+    COMPONENT dev)
+install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/include/smpl/config.h
     DESTINATION ${SMPL_INCLUDE_DESTINATION}
     COMPONENT dev)
 
