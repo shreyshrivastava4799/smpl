@@ -409,8 +409,10 @@ bool CollisionSpace::isStateToStateValid(
     MotionInterpolation interp(m_rcm.get());
 
     m_rmcm->fillMotionInterpolation(
-            start, finish,
-            m_planning_joint_to_collision_model_indices, res,
+            start,
+            finish,
+            m_planning_joint_to_collision_model_indices,
+            res,
             interp);
 
     const int inc_cc = 5;
@@ -453,8 +455,8 @@ bool CollisionSpace::interpolatePath(
             finish.size() == m_planning_joint_to_collision_model_indices.size());
 
     // check joint limits on the start and finish points
-    if (withinJointPositionLimits(start) ||
-        withinJointPositionLimits(finish))
+    if (!withinJointPositionLimits(start) ||
+        !withinJointPositionLimits(finish))
     {
         ROS_ERROR_NAMED(LOG, "Joint limits violated");
         return false;
@@ -464,11 +466,14 @@ bool CollisionSpace::interpolatePath(
 
     MotionInterpolation interp(m_rcm.get());
     m_rmcm->fillMotionInterpolation(
-            start, finish,
-            m_planning_joint_to_collision_model_indices, res,
+            start,
+            finish,
+            m_planning_joint_to_collision_model_indices,
+            res,
             interp);
     opath.resize(interp.waypointCount());
     for (int i = 0; i < interp.waypointCount(); ++i) {
+        opath[i].resize(m_planning_joint_to_collision_model_indices.size());
         interp.interpolate(i, opath[i], m_planning_joint_to_collision_model_indices);
     }
 
@@ -629,18 +634,17 @@ bool CollisionSpace::withinJointPositionLimits(
     const std::vector<double>& positions) const
 {
     assert(positions.size() == planningVariableCount());
-    bool inside = true;
     for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
         const double pos = positions[vidx];
         if (!(isContinuous(vidx) ||
             !hasLimit(vidx) ||
             (pos >= minLimit(vidx) && pos <= maxLimit(vidx))))
         {
-            inside = false;
-            break;
+            ROS_ERROR_NAMED(LOG, "Joint %zu at position %f outside limits [%f, %f]", vidx, pos, minLimit(vidx), maxLimit(vidx));
+            return false;
         }
     }
-    return inside;
+    return true;
 }
 
 auto BuildCollisionSpace(

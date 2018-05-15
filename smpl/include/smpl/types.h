@@ -155,8 +155,11 @@ enum GoalType
     XYZ_GOAL,
     XYZ_RPY_GOAL,
     JOINT_STATE_GOAL,
+    USER_GOAL_CONSTRAINT_FN,
     NUMBER_OF_GOAL_TYPES
 };
+
+using GoalConstraintFn = bool (*)(void* user, const RobotState& state);
 
 struct GoalConstraint
 {
@@ -174,6 +177,9 @@ struct GoalConstraint
 
     Eigen::Affine3d tgt_off_pose;       // goal pose offset from planning link
     int xyz[3];                         // planning frame cell (x, y, z)
+
+    GoalConstraintFn check_goal = NULL;
+    void* check_goal_user = NULL;
 
     GoalType type;                      // type of goal constraint
 };

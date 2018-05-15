@@ -105,6 +105,7 @@ add_library(
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
     src/heuristic/sparse_egraph_dijkstra_heuristic.cpp
+    src/heuristic/zero_heuristic.cpp
     src/search/focal_mhastar.cpp
     src/search/meta_mhastar_dts.cpp
     src/search/mhastarpp.cpp
@@ -128,16 +129,15 @@ if(SMPL_ROS_BUILD)
     set(SMPL_LIBRARY_DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
     set(SMPL_RUNTIME_DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 else()
-    set(SMPL_INCLUDE_DESTINATION include)
+    set(SMPL_INCLUDE_DESTINATION include/smpl)
     set(SMPL_ARCHIVE_DESTINATION lib)
     set(SMPL_LIBRARY_DESTINATION lib)
     set(SMPL_RUNTIME_DESTINATION bin)
 endif()
 
 install(
-    DIRECTORY include
-    DESTINATION ${SMPL_INCLUDE_DESTINATION}
-    FILES_MATCHING PATTERN "*.h")
+    DIRECTORY include/smpl/
+    DESTINATION ${SMPL_INCLUDE_DESTINATION})
 
 install(
     TARGETS smpl

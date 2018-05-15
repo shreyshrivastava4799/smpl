@@ -43,6 +43,9 @@ add_executable(test_kdl src/test_kdl_robot_model.cpp)
 target_link_libraries(test_kdl ${catkin_LIBRARIES} sbpl_kdl_robot_model)
 
 install(
+    DIRECTORY include/sbpl_kdl_robot_model/
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(
     TARGETS sbpl_kdl_robot_model test_kdl
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

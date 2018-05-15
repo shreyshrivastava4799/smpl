@@ -86,6 +86,9 @@ add_library(
 target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES})
 
 install(
+    DIRECTORY include/sbpl_collision_checking/
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(
     TARGETS sbpl_collision_checking
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

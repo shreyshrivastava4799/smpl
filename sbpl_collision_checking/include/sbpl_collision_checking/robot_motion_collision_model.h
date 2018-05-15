@@ -228,21 +228,28 @@ void MotionInterpolation::setEndpoints(
 {
     m_start = start;
     m_diffs.resize(variables.size());
-    for (size_t vidx = 0; vidx < variables.size(); ++vidx) {
-        int jidx = m_rcm->jointVarJointIndex(variables[vidx]);
+    for (size_t i = 0; i < variables.size(); ++i) {
+        int vidx = variables[i];
+        int jidx = m_rcm->jointVarJointIndex(vidx);
         switch (m_rcm->jointType(jidx)) {
         case JointType::FIXED:
             break;
         case JointType::REVOLUTE:
         case JointType::PRISMATIC:
-            m_diffs[vidx] = finish[vidx] - start[vidx];
+            m_diffs[i] = finish[i] - start[i];
             break;
         case JointType::CONTINUOUS:
-            m_diffs[vidx] = angles::shortest_angle_diff(finish[vidx], start[vidx]);
+            m_diffs[i] = angles::shortest_angle_diff(finish[i], start[i]);
             break;
         case JointType::PLANAR:
+            if (m_rcm->jointVarIsContinuous(vidx)) {
+                m_diffs[i] = angles::shortest_angle_diff(finish[i], start[i]);
+            } else {
+                m_diffs[i] = finish[i] - start[i];
+            }
+            break;
         case JointType::FLOATING:
-            ROS_ERROR_ONCE("TODO: interpolation of multi-dof joints for subsets");
+            ROS_ERROR_ONCE("TODO: interpolation of floating joints for subsets");
             break;
         }
     }
@@ -310,11 +317,11 @@ void MotionInterpolation::interpolate(
         case JointType::REVOLUTE:
         case JointType::CONTINUOUS:
         case JointType::PRISMATIC:
+        case JointType::PLANAR:
             state[v] = m_start[v] + alpha * m_diffs[v];
             break;
-        case JointType::PLANAR:
         case JointType::FLOATING:
-            ROS_ERROR_ONCE("TODO: interpolation of multi-dof joints for subsets");
+            ROS_ERROR_ONCE("TODO: interpolation of floating joints for subsets");
             break;
         }
     }

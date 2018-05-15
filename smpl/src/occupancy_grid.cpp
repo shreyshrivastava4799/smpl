@@ -68,6 +68,13 @@ namespace sbpl {
 /// none is specified, by calling the verbose constructor, an instance of
 /// sbpl::EuclidDistanceMap is constructed.
 
+OccupancyGrid::OccupancyGrid()
+{
+    m_ref_counted = false;
+    m_x_stride = 0;
+    m_y_stride = 0;
+}
+
 /// Construct an Occupancy Grid.
 ///
 /// \param size_x Dimension of the grid along the X axis, in meters

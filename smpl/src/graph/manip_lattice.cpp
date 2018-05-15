@@ -728,6 +728,10 @@ bool ManipLattice::isGoal(const RobotState& state)
             return true;
         }
     }   break;
+    case GoalType::USER_GOAL_CONSTRAINT_FN:
+    {
+        return goal().check_goal(goal().check_goal_user, state);
+    }
     default:
     {
         SMPL_ERROR_NAMED(params()->graph_log, "Unknown goal type.");
@@ -797,6 +801,8 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
     }   break;
     case GoalType::JOINT_STATE_GOAL:
         return setGoalConfiguration(goal);
+    case GoalType::USER_GOAL_CONSTRAINT_FN:
+        return setUserGoal(goal);
     default:
         return false;
     }
@@ -1036,6 +1042,12 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
     startNewSearch();
 
     // notify observers of updated goal
+    return RobotPlanningSpace::setGoal(goal);
+}
+
+bool ManipLattice::setUserGoal(const GoalConstraint& goal)
+{
+    startNewSearch();
     return RobotPlanningSpace::setGoal(goal);
 }
 
