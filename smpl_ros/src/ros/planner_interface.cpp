@@ -60,8 +60,9 @@
 #include <smpl/graph/adaptive_workspace_lattice.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
-#include <smpl/graph/workspace_lattice.h>
 #include <smpl/graph/manip_lattice_egraph.h>
+#include <smpl/graph/workspace_lattice.h>
+#include <smpl/graph/workspace_lattice_egraph.h>
 
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
@@ -160,14 +161,14 @@ auto MakeManipLattice(
             std::string mdof_vname =
                     vname.substr(0, sidx) + "_" + vname.substr(sidx + 1);
             auto dit = disc.find(mdof_vname);
-            if (dit == disc.end()) {
+            if (dit == end(disc)) {
                 ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
                 return nullptr;
             }
             resolutions[vidx] = dit->second;
         } else {
             auto dit = disc.find(vname);
-            if (dit == disc.end()) {
+            if (dit == end(disc)) {
                 ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
                 return nullptr;
             }
@@ -274,9 +275,9 @@ auto MakeManipLatticeEGraph(
     ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
 
     for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
-        const std::string& vname = robot->getPlanningJoints()[vidx];
+        auto& vname = robot->getPlanningJoints()[vidx];
         auto dit = disc.find(vname);
-        if (dit == disc.end()) {
+        if (dit == end(disc)) {
             ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
             return nullptr;
         }
@@ -367,6 +368,52 @@ auto MakeWorkspaceLattice(
     }
 
     space->setVisualizationFrameId(grid->getReferenceFrame());
+
+    return std::move(space);
+}
+
+auto MakeWorkspaceLatticeEGraph(
+    const OccupancyGrid* grid,
+    RobotModel* robot,
+    CollisionChecker* checker,
+    PlanningParams* params)
+    -> std::unique_ptr<RobotPlanningSpace>
+{
+    ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice E-Graph");
+
+    WorkspaceLatticeBase::Params wsp;
+    wsp.res_x = grid->resolution();
+    wsp.res_y = grid->resolution();
+    wsp.res_z = grid->resolution();
+    wsp.R_count = 360;
+    wsp.P_count = 180 + 1; // we'd like to have a discrete pitch value at -pi/2, 0, and pi/2
+    wsp.Y_count = 360;
+
+    auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
+    if (!rmi) {
+        ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
+        return nullptr;
+    }
+//    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
+    // grid->resolution() so that base movements move the end effector by the same amount
+    // this gets screwy with theta in the loop
+    wsp.free_angle_res.resize(rmi->redundantVariableCount(), grid->resolution());
+
+    auto space = make_unique<WorkspaceLatticeEGraph>();
+    if (!space->init(robot, checker, params, wsp)) {
+        ROS_ERROR("Failed to initialize Workspace Lattice");
+        return nullptr;
+    }
+
+    space->setVisualizationFrameId(grid->getReferenceFrame());
+
+    std::string egraph_path;
+    if (params->getParam("egraph_path", egraph_path)) {
+        // warning printed within, allow to fail silently
+        (void)space->loadExperienceGraph(egraph_path);
+    } else {
+        ROS_WARN("No experience graph file parameter");
+    }
 
     return std::move(space);
 }
@@ -819,6 +866,14 @@ PlannerInterface::PlannerInterface(
         return MakeWorkspaceLattice(m_grid, r, c, p);
     };
 
+    m_space_factories["workspace_egraph"] = [this](
+        RobotModel* r,
+        CollisionChecker* c,
+        PlanningParams* p)
+    {
+        return MakeWorkspaceLatticeEGraph(m_grid, r, c, p);
+    };
+
     m_space_factories["adaptive_workspace_lattice"] = [this](
         RobotModel* r,
         CollisionChecker* c,
@@ -998,16 +1053,14 @@ bool PlannerInterface::solve(
         ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "  " << pidx << ": " << point);
     }
 
-    auto& traj = res.trajectory.joint_trajectory;
-    convertJointVariablePathToJointTrajectory(path, traj);
-    traj.header.seq = 0;
-    traj.header.stamp = ros::Time::now();
+    convertJointVariablePathToJointTrajectory(path, res.trajectory);
+    res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
 
     if (!m_params.plan_output_dir.empty()) {
         writePath(res.trajectory_start, res.trajectory);
     }
 
-    profilePath(traj);
+    profilePath(res.trajectory.joint_trajectory);
 //    removeZeroDurationSegments(traj);
 
     res.planning_time = to_seconds(clock::now() - then);
@@ -1065,7 +1118,7 @@ bool ExtractJointStateGoal(
             ROS_ERROR("Failed to find goal constraint for joint '%s'", joint_name.c_str());
             return false;
         }
-        auto jidx = std::distance(model->getPlanningJoints().begin(), jit);
+        auto jidx = std::distance(begin(model->getPlanningJoints()), jit);
         sbpl_angle_goal[jidx] = joint_constraint.position;
         sbpl_angle_tolerance[jidx] = std::min(
                 fabs(joint_constraint.tolerance_above),
@@ -1328,10 +1381,10 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     ROS_INFO_NAMED(PI_LOGGER, "set start configuration");
 
     if (!state.multi_dof_joint_state.joint_names.empty()) {
-        const auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
-        for (const std::string& joint_name : m_robot->getPlanningJoints()) {
-            auto it = std::find(mdof_joint_names.begin(), mdof_joint_names.end(), joint_name);
-            if (it != mdof_joint_names.end()) {
+        auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
+        for (auto& joint_name : m_robot->getPlanningJoints()) {
+            auto it = std::find(begin(mdof_joint_names), end(mdof_joint_names), joint_name);
+            if (it != end(mdof_joint_names)) {
                 ROS_WARN_NAMED(PI_LOGGER, "planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
             }
         }
@@ -1654,7 +1707,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     ROS_INFO_NAMED(PI_LOGGER, " -> Search: %s", search_name.c_str());
 
     auto psait = m_space_factories.find(space_name);
-    if (psait == m_space_factories.end()) {
+    if (psait == end(m_space_factories)) {
         ROS_ERROR("Unrecognized planning space name '%s'", space_name.c_str());
         return false;
     }
@@ -1666,7 +1719,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     }
 
     auto hait = m_heuristic_factories.find(heuristic_name);
-    if (hait == m_heuristic_factories.end()) {
+    if (hait == end(m_heuristic_factories)) {
         ROS_ERROR("Unrecognized heuristic name '%s'", heuristic_name.c_str());
         return false;
     }
@@ -1686,7 +1739,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     }
 
     auto pait = m_planner_factories.find(search_name);
-    if (pait == m_planner_factories.end()) {
+    if (pait == end(m_planner_factories)) {
         ROS_ERROR("Unrecognized search name '%s'", search_name.c_str());
         return false;
     }
@@ -1803,16 +1856,113 @@ void PlannerInterface::postProcessPath(std::vector<RobotState>& path) const
 
 void PlannerInterface::convertJointVariablePathToJointTrajectory(
     const std::vector<RobotState>& path,
-    trajectory_msgs::JointTrajectory& traj) const
+    moveit_msgs::RobotTrajectory& traj) const
 {
-    traj.header.frame_id = m_params.planning_frame;
-    traj.joint_names = m_robot->getPlanningJoints();
-    traj.points.clear();
-    traj.points.reserve(path.size());
-    for (const auto& point : path) {
-        trajectory_msgs::JointTrajectoryPoint traj_pt;
-        traj_pt.positions = point;
-        traj.points.push_back(std::move(traj_pt));
+    ROS_INFO("Convert Variable Path to Robot Trajectory");
+
+    traj.joint_trajectory.header.frame_id = m_params.planning_frame;
+    traj.multi_dof_joint_trajectory.header.frame_id = m_params.planning_frame;
+
+    traj.joint_trajectory.joint_names.clear();
+    traj.joint_trajectory.points.clear();
+    traj.multi_dof_joint_trajectory.joint_names.clear();
+    traj.multi_dof_joint_trajectory.points.clear();
+
+    auto& variable_names = m_robot->getPlanningJoints();
+    for (auto& var_name : variable_names) {
+        auto slash_pos = var_name.find_last_of('/');
+        auto joint_is_mdof = slash_pos != std::string::npos;
+        if (joint_is_mdof) {
+            auto joint_name = var_name.substr(0, slash_pos);
+            auto it = std::find(
+                    begin(traj.multi_dof_joint_trajectory.joint_names),
+                    end(traj.multi_dof_joint_trajectory.joint_names),
+                    joint_name);
+            if (it == end(traj.multi_dof_joint_trajectory.joint_names)) {
+                // avoid duplicates
+                traj.multi_dof_joint_trajectory.joint_names.push_back(joint_name);
+            }
+        } else {
+            traj.joint_trajectory.joint_names.push_back(var_name);
+        }
+    }
+
+    ROS_INFO("  Path includes %zu single-dof joints and %zu multi-dof joints",
+            traj.joint_trajectory.joint_names.size(),
+            traj.multi_dof_joint_trajectory.joint_names.size());
+
+    // empty or number of points in the path
+    if (!traj.joint_trajectory.joint_names.empty()) {
+        traj.joint_trajectory.points.resize(path.size());
+    }
+    // empty or number of points in the path
+    if (!traj.multi_dof_joint_trajectory.joint_names.empty()) {
+        traj.multi_dof_joint_trajectory.points.resize(path.size());
+    }
+
+    for (size_t pidx = 0; pidx < path.size(); ++pidx) {
+        auto& point = path[pidx];
+
+        for (size_t vidx = 0; vidx < point.size(); ++vidx) {
+            auto& var_name = variable_names[vidx];
+
+            auto slash_pos = var_name.find_last_of('/');
+            auto joint_is_mdof = slash_pos != std::string::npos;
+            if (joint_is_mdof) {
+                auto& p = traj.multi_dof_joint_trajectory.points[pidx];
+                p.transforms.resize(traj.multi_dof_joint_trajectory.joint_names.size());
+
+                auto joint_name = var_name.substr(0, slash_pos);
+                auto it = std::find(
+                        begin(traj.multi_dof_joint_trajectory.joint_names),
+                        end(traj.multi_dof_joint_trajectory.joint_names),
+                        joint_name);
+                if (it == end(traj.multi_dof_joint_trajectory.joint_names)) continue;
+
+                auto tidx = std::distance(begin(traj.multi_dof_joint_trajectory.joint_names), it);
+
+                auto local_var_name = var_name.substr(slash_pos + 1);
+
+                if (local_var_name == "x" ||
+                    local_var_name == "trans_x")
+                {
+                    p.transforms[tidx].translation.x = point[vidx];
+                } else if (local_var_name == "y" ||
+                    local_var_name == "trans_y")
+                {
+                    p.transforms[tidx].translation.y = point[vidx];
+                } else if (local_var_name == "trans_z") {
+                    p.transforms[tidx].translation.z = point[vidx];
+                } else if (local_var_name == "theta") {
+                    Eigen::Quaterniond q(Eigen::AngleAxisd(point[vidx], Eigen::Vector3d::UnitZ()));
+                    tf::quaternionEigenToMsg(q, p.transforms[tidx].rotation);
+                } else if (local_var_name == "rot_w") {
+                    p.transforms[tidx].rotation.w = point[vidx];
+                } else if (local_var_name == "rot_x") {
+                    p.transforms[tidx].rotation.x = point[vidx];
+                } else if (local_var_name == "rot_y") {
+                    p.transforms[tidx].rotation.y = point[vidx];
+                } else if (local_var_name == "rot_z") {
+                    p.transforms[tidx].rotation.z = point[vidx];
+                } else {
+                    SMPL_WARN("Unrecognized multi-dof local variable name '%s'", local_var_name.c_str());
+                    continue;
+                }
+            } else {
+                auto& p = traj.joint_trajectory.points[pidx];
+                p.positions.resize(traj.joint_trajectory.joint_names.size());
+
+                auto it = std::find(
+                        begin(traj.joint_trajectory.joint_names),
+                        end(traj.joint_trajectory.joint_names),
+                        var_name);
+                if (it == end(traj.joint_trajectory.joint_names)) continue;
+
+                auto posidx = std::distance(begin(traj.joint_trajectory.joint_names), it);
+
+                p.positions[posidx] = point[vidx];
+            }
+        }
     }
 }
 
@@ -1851,7 +2001,7 @@ bool PlannerInterface::writePath(
 
     // write header
     for (size_t vidx = 0; vidx < m_robot->jointVariableCount(); ++vidx) {
-        const std::string& var_name = m_robot->getPlanningJoints()[vidx];
+        auto& var_name = m_robot->getPlanningJoints()[vidx];
         ofs << var_name; // TODO: sanitize variable name for csv?
         if (vidx != m_robot->jointVariableCount() - 1) {
             ofs << ',';
@@ -1859,7 +2009,7 @@ bool PlannerInterface::writePath(
     }
     ofs << '\n';
 
-    const size_t wp_count = std::max(
+    auto wp_count = std::max(
             traj.joint_trajectory.points.size(),
             traj.multi_dof_joint_trajectory.points.size());
     for (size_t widx = 0; widx < wp_count; ++widx) {
@@ -1867,37 +2017,33 @@ bool PlannerInterface::writePath(
         moveit_msgs::RobotState state = ref;
 
         if (widx < traj.joint_trajectory.points.size()) {
-            const trajectory_msgs::JointTrajectoryPoint& wp =
-                    traj.joint_trajectory.points[widx];
-            const size_t joint_count = traj.joint_trajectory.joint_names.size();
+            auto& wp = traj.joint_trajectory.points[widx];
+            auto joint_count = traj.joint_trajectory.joint_names.size();
             for (size_t jidx = 0; jidx < joint_count; ++jidx) {
-                const std::string& joint_name =
-                        traj.joint_trajectory.joint_names[jidx];
-                double vp = wp.positions[jidx];
+                auto& joint_name = traj.joint_trajectory.joint_names[jidx];
+                auto vp = wp.positions[jidx];
                 auto it = std::find(
-                        state.joint_state.name.begin(),
-                        state.joint_state.name.end(),
+                        begin(state.joint_state.name),
+                        end(state.joint_state.name),
                         joint_name);
-                if (it != state.joint_state.name.end()) {
-                    size_t tvidx = std::distance(state.joint_state.name.begin(), it);
+                if (it != end(state.joint_state.name)) {
+                    auto tvidx = std::distance(begin(state.joint_state.name), it);
                     state.joint_state.position[tvidx] = vp;
                 }
             }
         }
         if (widx < traj.multi_dof_joint_trajectory.points.size()) {
-            const trajectory_msgs::MultiDOFJointTrajectoryPoint& wp =
-                    traj.multi_dof_joint_trajectory.points[widx];
-            const size_t joint_count = traj.multi_dof_joint_trajectory.joint_names.size();
+            auto& wp = traj.multi_dof_joint_trajectory.points[widx];
+            auto joint_count = traj.multi_dof_joint_trajectory.joint_names.size();
             for (size_t jidx = 0; jidx < joint_count; ++jidx) {
-                const std::string& joint_name =
-                        traj.multi_dof_joint_trajectory.joint_names[jidx];
-                const geometry_msgs::Transform& t = wp.transforms[jidx];
+                auto& joint_name = traj.multi_dof_joint_trajectory.joint_names[jidx];
+                auto& t = wp.transforms[jidx];
                 auto it = std::find(
-                        state.multi_dof_joint_state.joint_names.begin(),
-                        state.multi_dof_joint_state.joint_names.end(),
+                        begin(state.multi_dof_joint_state.joint_names),
+                        end(state.multi_dof_joint_state.joint_names),
                         joint_name);
-                if (it != state.multi_dof_joint_state.joint_names.end()) {
-                    size_t tvidx = std::distance(state.multi_dof_joint_state.joint_names.begin(), it);
+                if (it != end(state.multi_dof_joint_state.joint_names)) {
+                    size_t tvidx = std::distance(begin(state.multi_dof_joint_state.joint_names), it);
                     state.multi_dof_joint_state.transforms[tvidx] = t;
                 }
             }
@@ -1905,23 +2051,70 @@ bool PlannerInterface::writePath(
 
         // write the planning variables out to file
         for (size_t vidx = 0; vidx < m_robot->jointVariableCount(); ++vidx) {
-            const std::string& var_name = m_robot->getPlanningJoints()[vidx];
-            const bool var_is_mdof = false; // TODO: multi-dof joints in robot model
-            if (var_is_mdof) {
+            auto& var_name = m_robot->getPlanningJoints()[vidx];
 
+            auto slash_pos = var_name.find_last_of('/');
+            auto joint_is_mdof = slash_pos != std::string::npos;
+            if (joint_is_mdof) {
+                auto joint_name = var_name.substr(0, slash_pos);
+                auto local_var_name = var_name.substr(slash_pos + 1);
+                auto it = std::find(
+                        begin(state.multi_dof_joint_state.joint_names),
+                        end(state.multi_dof_joint_state.joint_names),
+                        joint_name);
+                if (it == end(state.multi_dof_joint_state.joint_names)) continue;
+
+                auto jidx = std::distance(begin(state.multi_dof_joint_state.joint_names), it);
+                auto& transform = state.multi_dof_joint_state.transforms[jidx];
+                double pos;
+                if (local_var_name == "x" ||
+                    local_var_name == "trans_x")
+                {
+                    pos = transform.translation.x;
+                } else if (local_var_name == "y" ||
+                    local_var_name == "trans_y")
+                {
+                    pos = transform.translation.y;
+                } else if (local_var_name == "trans_z") {
+                    pos = transform.translation.z;
+                } else if (local_var_name == "theta") {
+                    // this list just gets larger:
+                    // from sbpl_collision_checking, MoveIt, Bullet, leatherman
+                    double s_squared = 1.0 - transform.rotation.w * transform.rotation.w;
+                    if (s_squared < 10.0 * std::numeric_limits<double>::epsilon()) {
+                        pos = 0.0;
+                    } else {
+                        double s = 1.0 / sqrt(s_squared);
+                        pos = (acos(transform.rotation.w) * 2.0) * transform.rotation.x * s;
+                    }
+                } else if (local_var_name == "rot_w") {
+                    pos = transform.rotation.w;
+                } else if (local_var_name == "rot_x") {
+                    pos = transform.rotation.x;
+                } else if (local_var_name == "rot_y") {
+                    pos = transform.rotation.y;
+                } else if (local_var_name == "rot_z") {
+                    pos = transform.rotation.z;
+                } else {
+                    SMPL_WARN("Unrecognized multi-dof local variable name '%s'", local_var_name.c_str());
+                    continue;
+                }
+
+                ofs << pos;
             } else {
                 auto it = std::find(
-                        state.joint_state.name.begin(),
-                        state.joint_state.name.end(),
+                        begin(state.joint_state.name),
+                        end(state.joint_state.name),
                         var_name);
-                if (it != state.joint_state.name.end()) {
-                    size_t tvidx = std::distance(state.joint_state.name.begin(), it);
-                    double vp = state.joint_state.position[tvidx];
-                    ofs << vp;
-                    if (vidx != m_robot->jointVariableCount() - 1) {
-                        ofs << ',';
-                    }
-                }
+                if (it == end(state.joint_state.name)) continue;
+
+                auto tvidx = std::distance(begin(state.joint_state.name), it);
+                auto vp = state.joint_state.position[tvidx];
+                ofs << vp;
+            }
+
+            if (vidx != m_robot->jointVariableCount() - 1) {
+                ofs << ',';
             }
         }
         ofs << '\n';
