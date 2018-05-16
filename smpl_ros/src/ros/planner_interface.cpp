@@ -350,7 +350,7 @@ auto MakeWorkspaceLattice(
     wsp.res_y = grid->resolution();
     wsp.res_z = grid->resolution();
     wsp.R_count = 360;
-    wsp.P_count = 180 + 1;
+    wsp.P_count = 180 + 1; // we'd like to have a discrete pitch value at -pi/2, 0, and pi/2
     wsp.Y_count = 360;
 
     auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
