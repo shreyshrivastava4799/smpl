@@ -202,6 +202,7 @@ private:
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
 
+    int reserveHashEntry();
     int createState(const WorkspaceCoord& coord);
     WorkspaceLatticeState* getState(int state_id) const;
 

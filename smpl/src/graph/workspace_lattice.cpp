@@ -630,6 +630,19 @@ bool WorkspaceLattice::setGoalPoses(const std::vector<PoseGoal>& goals)
     return false;
 }
 
+int WorkspaceLattice::reserveHashEntry()
+{
+    auto* state = new WorkspaceLatticeState;
+    int state_id = (int)this->m_states.size();
+    m_states.push_back(state);
+
+    int* pinds = new int[NUMOFINDICES_STATEID2IND];
+    std::fill(pinds, pinds + NUMOFINDICES_STATEID2IND, -1);
+    StateID2IndexMapping.push_back(pinds);
+
+    return state_id;
+}
+
 /// \brief Create a state entry for a given coordinate and return its id
 ///
 /// If an entry already exists for the coordinate, the id corresponding to that
