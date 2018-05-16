@@ -220,14 +220,14 @@ bool WorkspaceLattice::extractPath(
     if (ids.size() == 1) {
         const int state_id = ids[0];
         if (state_id == getGoalStateID()) {
-            const WorkspaceLatticeState* entry = getState(m_start_state_id);
+            auto* entry = getState(m_start_state_id);
             if (!entry) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", m_start_state_id);
                 return false;
             }
             path.push_back(entry->state);
         } else {
-            const WorkspaceLatticeState* entry = getState(state_id);
+            auto* entry = getState(state_id);
             if (!entry) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
@@ -244,8 +244,8 @@ bool WorkspaceLattice::extractPath(
     path.push_back(start_entry->state);
 
     for (size_t i = 1; i < ids.size(); ++i) {
-        const int prev_id = ids[i - 1];
-        const int curr_id = ids[i];
+        auto prev_id = ids[i - 1];
+        auto curr_id = ids[i];
 
         if (prev_id == getGoalStateID()) {
             SMPL_ERROR_NAMED(params()->graph_log, "cannot determine goal state successors during path extraction");
@@ -262,9 +262,9 @@ bool WorkspaceLattice::extractPath(
             int best_cost = std::numeric_limits<int>::max();
 
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
-                const Action& action = actions[aidx];
+                auto& action = actions[aidx];
 
-                const WorkspaceState& final_state = action.back();
+                auto& final_state = action.back();
                 if (!isGoal(final_state)) {
                     continue;
                 }
@@ -351,7 +351,7 @@ void WorkspaceLattice::GetSuccs(
 
     // iterate through successors of source state
     for (size_t i = 0; i < actions.size(); ++i) {
-        const Action& action = actions[i];
+        auto& action = actions[i];
 
         SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
         SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
@@ -361,7 +361,7 @@ void WorkspaceLattice::GetSuccs(
             continue;
         }
 
-        const WorkspaceState& final_state = action.back();
+        auto& final_state = action.back();
         WorkspaceCoord succ_coord;
         stateWorkspaceToCoord(final_state, succ_coord);
 
@@ -371,7 +371,7 @@ void WorkspaceLattice::GetSuccs(
         succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
-        const bool is_goal_succ = isGoal(final_state);
+        auto is_goal_succ = isGoal(final_state);
 
         // put successor on successor list with the proper cost
         if (is_goal_succ) {
@@ -380,7 +380,7 @@ void WorkspaceLattice::GetSuccs(
             succs->push_back(succ_id);
         }
 
-        const int edge_cost = 30;
+        auto edge_cost = 30;
         costs->push_back(edge_cost);
 
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
@@ -453,7 +453,7 @@ void WorkspaceLattice::GetLazySuccs(
     SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
     for (size_t i = 0; i < actions.size(); ++i) {
-        const Action& action = actions[i];
+        auto& action = actions[i];
 
         SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
         SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
@@ -463,7 +463,7 @@ void WorkspaceLattice::GetLazySuccs(
             continue;
         }
 
-        const WorkspaceState& final_state = action.back();
+        auto& final_state = action.back();
         WorkspaceCoord succ_coord;
         stateWorkspaceToCoord(final_state, succ_coord);
 
@@ -473,7 +473,7 @@ void WorkspaceLattice::GetLazySuccs(
         succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
-        const bool is_goal_succ = isGoal(final_state);
+        auto is_goal_succ = isGoal(final_state);
 
         // put successor on successor list with the proper cost
         if (is_goal_succ) {
@@ -482,7 +482,7 @@ void WorkspaceLattice::GetLazySuccs(
             succs->push_back(succ_id);
         }
 
-        const int edge_cost = 30;
+        auto edge_cost = 30;
         costs->push_back(edge_cost);
 
         true_costs->push_back(false);
@@ -509,12 +509,12 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
     std::vector<Action> actions;
     getActions(*parent_entry, actions);
 
-    const bool goal_edge = (child_id == m_goal_state_id);
+    auto goal_edge = (child_id == m_goal_state_id);
 
     WorkspaceCoord succ_coord;
     int best_cost = std::numeric_limits<int>::max();
     for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
-        const Action& action = actions[aidx];
+        auto& action = actions[aidx];
 
         stateWorkspaceToCoord(action.back(), succ_coord);
 
@@ -532,7 +532,7 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
             continue;
         }
 
-        const int edge_cost = 30;
+        auto edge_cost = 30;
         if (edge_cost < best_cost) {
             best_cost = edge_cost;
         }
@@ -646,7 +646,7 @@ int WorkspaceLattice::createState(const WorkspaceCoord& coord)
     int new_id = (int)m_states.size();
 
     // create a new entry
-    WorkspaceLatticeState* state_entry = new WorkspaceLatticeState(state);
+    auto* state_entry = new WorkspaceLatticeState(state);
 
     // map id <-> state
     m_states.push_back(state_entry);
@@ -752,7 +752,7 @@ void WorkspaceLattice::getActions(
         action.reserve(prim.action.size());
 
         WorkspaceState final_state = cont_state;
-        for (const RobotState& delta_state : prim.action) {
+        for (auto& delta_state : prim.action) {
             // increment the state
             for (size_t d = 0; d < m_dof_count; ++d) {
                 final_state[d] += delta_state[d];
@@ -795,7 +795,7 @@ bool WorkspaceLattice::checkAction(
 
     // check waypoints for ik solutions and joint limits
     for (size_t widx = 0; widx < action.size(); ++widx) {
-        const WorkspaceState& istate = action[widx];
+        auto& istate = action[widx];
 
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
 
@@ -832,8 +832,8 @@ bool WorkspaceLattice::checkAction(
     }
 
     for (size_t widx = 1; widx < wptraj.size(); ++widx) {
-        const RobotState& prev_istate = wptraj[widx - 1];
-        const RobotState& curr_istate = wptraj[widx];
+        auto& prev_istate = wptraj[widx - 1];
+        auto& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
@@ -863,7 +863,7 @@ bool WorkspaceLattice::checkLazyAction(
 
     // check waypoints for ik solutions and joint limits
     for (size_t widx = 0; widx < action.size(); ++widx) {
-        const WorkspaceState& istate = action[widx];
+        auto& istate = action[widx];
 
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
 

@@ -242,7 +242,7 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     for (auto dit = boost::filesystem::directory_iterator(p);
         dit != boost::filesystem::directory_iterator(); ++dit)
     {
-        const std::string& filepath = dit->path().generic_string();
+        auto& filepath = dit->path().generic_string();
         std::vector<RobotState> egraph_states;
         if (!parseExperienceGraphFile(filepath, egraph_states)) {
             continue;
@@ -254,15 +254,15 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
         SMPL_INFO("Create hash entries for experience graph states");
 
-        const RobotState& pp = egraph_states.front();  // previous robot state
+        auto& pp = egraph_states.front();  // previous robot state
         RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
         stateToCoord(egraph_states.front(), pdp);
 
-        ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
+        auto pid = m_egraph.insert_node(pp);
         m_coord_to_nodes[pdp].push_back(pid);
 
         int entry_id = reserveHashEntry();
-        ManipLatticeState* entry = getHashEntry(entry_id);
+        auto* entry = getHashEntry(entry_id);
         entry->coord = pdp;
         entry->state = pp;
 
@@ -273,17 +273,17 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
         std::vector<RobotState> edge_data;
         for (size_t i = 1; i < egraph_states.size(); ++i) {
-            const RobotState& p = egraph_states[i];
+            auto& p = egraph_states[i];
             RobotCoord dp(robot()->jointVariableCount());
             stateToCoord(p, dp);
             if (dp != pdp) {
                 // found a new discrete state along the path
 
-                ExperienceGraph::node_id id = m_egraph.insert_node(p);
+                auto id = m_egraph.insert_node(p);
                 m_coord_to_nodes[dp].push_back(id);
 
                 int entry_id = reserveHashEntry();
-                ManipLatticeState* entry = getHashEntry(entry_id);
+                auto* entry = getHashEntry(entry_id);
                 entry->coord = dp;
                 entry->state = p;
 

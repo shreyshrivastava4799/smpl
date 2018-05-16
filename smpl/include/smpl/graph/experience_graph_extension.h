@@ -51,15 +51,9 @@ public:
         int state_id,
         std::vector<ExperienceGraph::node_id>& nodes) = 0;
 
-    virtual bool shortcut(
-        int first_id,
-        int second_id,
-        int& cost) = 0;
+    virtual bool shortcut(int first_id, int second_id, int& cost) = 0;
 
-    virtual bool snap(
-        int first_id,
-        int second_id,
-        int& cost) = 0;
+    virtual bool snap(int first_id, int second_id, int& cost) = 0;
 
     virtual const ExperienceGraph* getExperienceGraph() const = 0;
     virtual ExperienceGraph* getExperienceGraph() = 0;
