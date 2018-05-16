@@ -14,7 +14,11 @@ struct WorkspaceLatticeEGraph :
 {
     ExperienceGraph egraph;
 
-    hash_map<WorkspaceCoord, std::vector<ExperienceGraph::node_id>, VectorHash<int>> coord_to_node;
+    using CoordToEGraphNodesMap = hash_map<WorkspaceCoord, std::vector<ExperienceGraph::node_id>, VectorHash<int>>;
+    CoordToEGraphNodesMap coord_to_egraph_nodes;
+
+    std::vector<int> egraph_node_to_state;
+    hash_map<int, ExperienceGraph::node_id> state_to_egraph_node;
 
     bool extractPath(
         const std::vector<int>& ids,

@@ -9,6 +9,8 @@
 // project includes
 #include <smpl/csv_parser.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
+#include <smpl/debug/visualize.h>
 
 namespace sbpl {
 namespace motion {
@@ -17,6 +19,7 @@ bool WorkspaceLatticeEGraph::extractPath(
     const std::vector<int>& ids,
     std::vector<RobotState>& path)
 {
+    SMPL_WARN("Path extraction unimplemented");
     return false;
 }
 
@@ -27,13 +30,16 @@ bool ParseExperienceGraphFile(
 {
     std::ifstream fin(filepath);
     if (!fin.is_open()) {
+        SMPL_WARN("Failed to open file '%s' for writing", filepath.c_str());
         return false;
     }
+
+    SMPL_INFO("Parse experience graph at '%s'", filepath.c_str());
 
     CSVParser parser;
     auto with_header = true;
     if (!parser.parseStream(fin, with_header)) {
-        SMPL_ERROR("Failed to parse experience graph file '%s'", filepath.c_str());
+        SMPL_WARN("Failed to parse experience graph file '%s'", filepath.c_str());
         return false;
     }
 
@@ -44,7 +50,7 @@ bool ParseExperienceGraphFile(
 
     auto jvar_count = robot_model->getPlanningJoints().size();
     if (parser.fieldCount() != jvar_count) {
-        SMPL_ERROR("Parsed experience graph contains insufficient number of joint variables");
+        SMPL_WARN("Parsed experience graph contains insufficient number of joint variables");
         return false;
     }
 
@@ -100,56 +106,136 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
 
         SMPL_INFO("Create hash entries for experience graph states");
 
-        auto& pp = egraph_states.front();
-        WorkspaceCoord pdp(this->dofCount());
-        this->stateRobotToCoord(pp, pdp);
+        auto& prev_pt = egraph_states.front();
+        WorkspaceCoord prev_disc_pt(this->dofCount());
+        this->stateRobotToCoord(prev_pt, prev_disc_pt);
 
-        auto pid = this->egraph.insert_node(pp);
-        this->coord_to_node[pdp].push_back(pid);
+        auto prev_node_id = this->egraph.insert_node(prev_pt);
+        this->coord_to_egraph_nodes[prev_disc_pt].push_back(prev_node_id);
 
-//        auto entry_id = this->reserveHashEntry();
+        auto state_id = this->reserveHashEntry();
+        auto* state = getState(state_id);
+        state->coord = prev_disc_pt;
+        state->state = prev_pt;
+
+        // map egraph node <-> egraph state
+        this->egraph_node_to_state.resize(prev_node_id + 1, -1);
+        this->egraph_node_to_state[prev_node_id] = state_id;
+        this->state_to_egraph_node[state_id] = prev_node_id;
+
+        // Walk through the demonstration and create a unique e-graph state
+        // every time the discrete state changes. Intermediately encountered
+        // states that span between two discrete states become the edges in
+        // the e-graph.
+        std::vector<RobotState> edge_data;
+        for (size_t i = 1; i < egraph_states.size(); ++i) {
+            auto& pt = egraph_states[i];
+
+            WorkspaceCoord disc_pt(this->dofCount());
+            this->stateRobotToCoord(pt, disc_pt);
+
+            if (disc_pt != prev_disc_pt) {
+                auto node_id = this->egraph.insert_node(pt);
+                this->coord_to_egraph_nodes[disc_pt].push_back(node_id);
+
+                auto state_id = this->reserveHashEntry();
+                auto* state = this->getState(state_id);
+                state->coord = disc_pt;
+                state->state = pt;
+
+                this->egraph_node_to_state.resize(node_id + 1, -1);
+                this->egraph_node_to_state[node_id] = state_id;
+                this->state_to_egraph_node[state_id] = node_id;
+                this->egraph.insert_edge(prev_node_id, node_id, edge_data);
+
+                prev_disc_pt = disc_pt;
+                prev_node_id = node_id;
+                edge_data.clear();
+            } else {
+                edge_data.push_back(pt);
+            }
+        }
     }
 
-    return false;
+    SMPL_INFO("Experience garph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
+    return true;
 }
 
 void WorkspaceLatticeEGraph::getExperienceGraphNodes(
     int state_id,
     std::vector<ExperienceGraph::node_id>& nodes)
 {
+    auto it = this->state_to_egraph_node.find(state_id);
+    if (it != end(this->state_to_egraph_node)) {
+        nodes.push_back(it->second);
+    }
 }
 
 bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
 {
-    return false;
+    auto* src_state = this->getState(src_id);
+    auto* dst_state = this->getState(dst_id);
+    assert(src_state != NULL && dst_state != NULL);
+
+    SMPL_INFO_STREAM("Shortcut " << src_state->coord << " -> " << dst_state->state);
+    auto* vis_name = "shortcut";
+    SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(src_state->state, "shortcut_from"));
+    SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(dst_state->state, "shortcut_to"));
+
+    SMPL_INFO("  shortcut %d -> %d!", src_id, dst_id);
+    cost = 1000;
+    return true;
 }
 
-bool WorkspaceLatticeEGraph::snap(
-    int first_id,
-    int second_id,
-    int& cost)
+bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
 {
-    return false;
+    auto* src_state = this->getState(src_id);
+    auto* dst_state = this->getState(dst_id);
+    assert(src_state != NULL && dst_state != NULL);
+
+    SMPL_INFO_STREAM("Snap " << src_state->coord << " -> " << dst_state->state);
+    auto* vis_name = "snap";
+    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(src_state->state, "snap_from"));
+    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(dst_state->state, "snap_to"));
+
+    if (!this->collisionChecker()->isStateToStateValid(
+            src_state->state, dst_state->state))
+    {
+        SMPL_WARN("Failed snap!");
+        return false;
+    }
+
+    SMPL_INFO("  Snap %d -> %d!", src_id, dst_id);
+    cost = 1000;
+    return true;
 }
 
 auto WorkspaceLatticeEGraph::getExperienceGraph() const -> const ExperienceGraph*
 {
-    return NULL;
+    return &this->egraph;
 }
 
 auto WorkspaceLatticeEGraph::getExperienceGraph() -> ExperienceGraph*
 {
-    return NULL;
+    return &this->egraph;
 }
 
 int WorkspaceLatticeEGraph::getStateID(ExperienceGraph::node_id n) const
 {
-    return -1;
+    if (n >= this->egraph_node_to_state.size()) {
+        return -1;
+    } else {
+        return this->egraph_node_to_state[n];
+    }
 }
 
 Extension* WorkspaceLatticeEGraph::getExtension(size_t class_code)
 {
-    return NULL;
+    if (class_code == GetClassCode<ExperienceGraphExtension>()) {
+        return this;
+    } else {
+        return WorkspaceLattice::getExtension(class_code);
+    }
 }
 
 } // namespace motion
