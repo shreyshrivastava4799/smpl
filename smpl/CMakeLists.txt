@@ -96,6 +96,7 @@ add_library(
     src/graph/robot_planning_space.cpp
     src/graph/workspace_lattice.cpp
     src/graph/workspace_lattice_base.cpp
+    src/graph/workspace_lattice_egraph.cpp
     src/heuristic/attractor_heuristic.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
