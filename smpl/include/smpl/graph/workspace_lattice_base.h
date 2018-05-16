@@ -93,6 +93,10 @@ protected:
     std::vector<int> m_val_count;
     int m_dof_count = 0;
     std::vector<std::size_t> m_fangle_indices;
+    std::vector<double> m_fangle_min_limits;
+    std::vector<double> m_fangle_max_limits;
+    std::vector<bool> m_fangle_continuous;
+    std::vector<bool> m_fangle_bounded;
 
     size_t freeAngleCount() const { return m_fangle_indices.size(); }
 
