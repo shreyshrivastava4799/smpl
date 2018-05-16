@@ -56,7 +56,7 @@ namespace motion {
 
 std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s)
 {
-    o << "{ coord: " << s.coord << ", state: " << s.state << ", h: " << s.h << " }";
+    o << "{ coord: " << s.coord << ", state: " << s.state << " }";
     return o;
 }
 

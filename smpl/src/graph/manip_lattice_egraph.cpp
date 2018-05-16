@@ -356,7 +356,7 @@ bool ManipLatticeEgraph::snap(
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(second_entry->state, "snap_to"));
 
     if (!collisionChecker()->isStateToStateValid(
-        first_entry->state, second_entry->state))
+            first_entry->state, second_entry->state))
     {
         SMPL_WARN("Failed snap!");
         return false;

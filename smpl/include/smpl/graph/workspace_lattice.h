@@ -59,7 +59,6 @@ struct WorkspaceLatticeState
 {
     WorkspaceCoord coord;
     RobotState state;
-    int h;
 };
 
 std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s);
