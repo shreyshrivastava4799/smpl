@@ -37,8 +37,10 @@
 #include <unordered_map>
 #include <vector>
 
+// system includes
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
+#include <boost/functional/hash.hpp>
 
 namespace sbpl {
 namespace motion {
@@ -51,6 +53,8 @@ template <
     class Allocator = std::allocator<std::pair<const Key, T>>>
 using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
+// helper struct to compute a hash value for a pointer using the hash value of
+// the object it points to
 template <typename T>
 struct PointerValueHash
 {
@@ -59,11 +63,26 @@ struct PointerValueHash
     result_type operator()(argument_type s) const { return std::hash<T>()(*s); }
 };
 
+// helper struct to test for equality between two pointers by testing for
+// equality between the objects they point to
 template <typename T>
 struct PointerValueEqual
 {
     typedef T* argument_type;
     bool operator()(argument_type a, argument_type b) const { return *a == *b; }
+};
+
+template <class T, class Allocator = std::allocator<T>>
+struct VectorHash
+{
+    using argument_type = std::vector<T, Allocator>;
+    using result_type = std::size_t;
+    auto operator()(const argument_type& s) const -> result_type
+    {
+        auto seed = result_type(0);
+        boost::hash_combine(seed, boost::hash_range(begin(s), end(s)));
+        return seed;
+    }
 };
 
 #if 1
