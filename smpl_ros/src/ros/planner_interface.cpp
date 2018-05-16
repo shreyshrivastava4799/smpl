@@ -397,6 +397,7 @@ auto MakeWorkspaceLatticeEGraph(
 //    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
     // grid->resolution() so that base movements move the end effector by the same amount
     // this gets screwy with theta in the loop
+    // TODO: add parameters for this
     wsp.free_angle_res.resize(rmi->redundantVariableCount(), grid->resolution());
 
     auto space = make_unique<WorkspaceLatticeEGraph>();
