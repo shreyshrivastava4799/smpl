@@ -338,8 +338,8 @@ void WorkspaceLattice::GetSuccs(
     assert(parent_entry);
     assert(parent_entry->coord.size() == m_dof_count);
 
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << parent_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  state: " << parent_entry->state);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  workspace coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "      robot state: " << parent_entry->state);
 
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
@@ -743,7 +743,7 @@ void WorkspaceLattice::getActions(
     WorkspaceState cont_state;
     stateCoordToWorkspace(entry.coord, cont_state);
 
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  create actions for state: " << cont_state);
+    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  create actions for workspace state: " << cont_state);
 
     for (size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
         const auto& prim = m_prims[pidx];
