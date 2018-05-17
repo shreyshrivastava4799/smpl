@@ -63,18 +63,17 @@ bool ManipLatticeEgraph::extractPath(
     // attempt to handle paths of length 1...do any of the sbpl planners still
     // return a single-point path in some cases?
     if (idpath.size() == 1) {
-        const int state_id = idpath[0];
+        auto state_id = idpath[0];
 
         if (state_id == getGoalStateID()) {
-            RobotState angles;
-            const ManipLatticeState* entry = getHashEntry(getStartStateID());
+            auto* entry = getHashEntry(getStartStateID());
             if (!entry) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
                 return false;
             }
             path.push_back(entry->state);
         } else {
-            const ManipLatticeState* entry = getHashEntry(state_id);
+            auto* entry = getHashEntry(state_id);
             if (!entry) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
@@ -96,8 +95,7 @@ bool ManipLatticeEgraph::extractPath(
 
     // grab the first point
     {
-        RobotState angles;
-        const ManipLatticeState* entry = getHashEntry(idpath[0]);
+        auto* entry = getHashEntry(idpath[0]);
         if (!entry) {
             SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", idpath[0]);
             return false;
@@ -107,8 +105,8 @@ bool ManipLatticeEgraph::extractPath(
 
     // grab the rest of the points
     for (size_t i = 1; i < idpath.size(); ++i) {
-        const int prev_id = idpath[i - 1];
-        const int curr_id = idpath[i];
+        auto prev_id = idpath[i - 1];
+        auto curr_id = idpath[i];
         SMPL_DEBUG_NAMED(params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == getGoalStateID()) {

@@ -11,18 +11,97 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/intrusive_heap.h>
 
 namespace sbpl {
 namespace motion {
 
-bool WorkspaceLatticeEGraph::extractPath(
-    const std::vector<int>& ids,
-    std::vector<RobotState>& path)
+static
+bool FindShortestExperienceGraphPath(
+    const ExperienceGraph& egraph,
+    ExperienceGraph::node_id start_node,
+    ExperienceGraph::node_id goal_node,
+    std::vector<ExperienceGraph::node_id>& path)
 {
-    SMPL_WARN("Path extraction unimplemented");
+    struct ExperienceGraphSearchNode : heap_element
+    {
+        int g;
+        bool closed;
+        ExperienceGraphSearchNode* bp;
+        ExperienceGraphSearchNode() :
+            g(std::numeric_limits<int>::max()),
+            closed(false),
+            bp(nullptr)
+        { }
+    };
+
+    struct NodeCompare
+    {
+        bool operator()(
+            const ExperienceGraphSearchNode& a,
+            const ExperienceGraphSearchNode& b)
+        {
+            return a.g < b.g;
+        }
+    };
+
+    typedef intrusive_heap<ExperienceGraphSearchNode, NodeCompare> heap_type;
+
+    std::vector<ExperienceGraphSearchNode> search_nodes(egraph.num_nodes());
+
+    heap_type open;
+
+    search_nodes[start_node].g = 0;
+    open.push(&search_nodes[start_node]);
+    int exp_count = 0;
+    while (!open.empty()) {
+        ++exp_count;
+        ExperienceGraphSearchNode* min = open.min();
+        open.pop();
+        min->closed = true;
+
+        if (min == &search_nodes[goal_node]) {
+            SMPL_ERROR("Found shortest experience graph path");
+            ExperienceGraphSearchNode* ps = nullptr;
+            for (ExperienceGraphSearchNode* s = &search_nodes[goal_node];
+                s; s = s->bp)
+            {
+                if (s != ps) {
+                    path.push_back(std::distance(search_nodes.data(), s));
+                    ps = s;
+                } else {
+                    SMPL_ERROR("Cycle detected!");
+                }
+            }
+            std::reverse(path.begin(), path.end());
+            return true;
+        }
+
+        ExperienceGraph::node_id n = std::distance(search_nodes.data(), min);
+        auto adj = egraph.adjacent_nodes(n);
+        for (auto ait = adj.first; ait != adj.second; ++ait) {
+            ExperienceGraphSearchNode& succ = search_nodes[*ait];
+            if (succ.closed) {
+                continue;
+            }
+            int new_cost = min->g + 1;
+            if (new_cost < succ.g) {
+                succ.g = new_cost;
+                succ.bp = min;
+                if (open.contains(&succ)) {
+                    open.decrease(&succ);
+                } else {
+                    open.push(&succ);
+                }
+            }
+        }
+    }
+
+    SMPL_INFO("Expanded %d nodes looking for shortcut", exp_count);
     return false;
 }
 
+static
 bool ParseExperienceGraphFile(
     const std::string& filepath,
     RobotModel* robot_model,
@@ -72,6 +151,185 @@ bool ParseExperienceGraphFile(
     }
 
     SMPL_INFO("Read %zu states from experience graph file", egraph_states.size());
+    return true;
+}
+
+bool WorkspaceLatticeEGraph::extractPath(
+    const std::vector<int>& ids,
+    std::vector<RobotState>& path)
+{
+    SMPL_DEBUG_STREAM_NAMED(this->params()->graph_log, "State ID Path: " << ids);
+
+    if (ids.empty()) return true;
+
+    // attempt to handle paths of length 1...do any of the sbpl planners still
+    // return a single-point path in some cases?
+    if (ids.size() == 1) {
+        auto state_id = ids[0];
+
+        if (state_id == this->getGoalStateID()) {
+            auto* entry = this->getState(getStartStateID());
+            if (!entry) {
+                SMPL_ERROR_NAMED(this->params()->graph_log, "Failed to get state entry for state %d", this->getStartStateID());
+                return false;
+            }
+            path.push_back(entry->state);
+        } else {
+            auto* entry = this->getState(state_id);
+            if (!entry) {
+                SMPL_ERROR_NAMED(this->params()->graph_log, "Failed to get state entry for state %d", state_id);
+                return false;
+            }
+            path.push_back(entry->state);
+        }
+
+        auto* vis_name = "goal_config";
+        SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(path.back(), vis_name));
+        return true;
+    }
+
+    if (ids[0] == this->getGoalStateID()) {
+        SMPL_ERROR_NAMED(this->params()->graph_log, "Cannot extract a non-trivial path starting from the goal state");
+        return false;
+    }
+
+    std::vector<RobotState> opath;
+
+    // grab the first point
+    {
+        auto* entry = this->getState(ids[0]);
+        if (!entry) {
+            SMPL_ERROR_NAMED(this->params()->graph_log, "Failed to get state entry for state %d", ids[0]);
+            return false;
+        }
+        opath.push_back(entry->state);
+    }
+
+    // grab the rest of the points
+    for (size_t i = 1; i < ids.size(); ++i) {
+        auto prev_id = ids[i - 1];
+        auto curr_id = ids[i];
+        SMPL_DEBUG_NAMED(this->params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
+
+        if (prev_id == this->getGoalStateID()) {
+            SMPL_ERROR_NAMED(this->params()->graph_log, "Cannot determine goal state predecessor state during path extraction");
+            return false;
+        }
+
+        // find the successor state corresponding to the cheapest valid action
+
+        auto* prev_entry = this->getState(prev_id);
+        auto& prev_state = prev_entry->state;
+
+        std::vector<Action> actions;
+        this->getActions(*prev_entry, actions);
+//        SMPL_ERROR_NAMED(this->params()->graph_log, "Failed to get actions while extracting the path");
+
+        SMPL_DEBUG_NAMED(this->params()->graph_log, "Check for transition via normal successors");
+        WorkspaceLatticeState* best_state = NULL;
+        WorkspaceCoord succ_coord(this->robot()->jointVariableCount());
+        auto best_cost = std::numeric_limits<int>::max();
+
+        if (curr_id == this->getGoalStateID()) {
+            SMPL_DEBUG_NAMED(this->params()->graph_log, "Search for transition to goal state");
+        }
+
+        for (auto& action : actions) {
+            // check the validity of this transition
+            if (!this->checkAction(prev_state, action)) continue;
+
+            if (curr_id == this->getGoalStateID()) {
+
+                // skip non-goal states
+                if (!this->isGoal(action.back())) continue;
+
+                this->stateWorkspaceToCoord(action.back(), succ_coord);
+                int succ_state_id = this->createState(succ_coord);
+                auto* succ_entry = this->getState(succ_state_id);
+                assert(succ_entry);
+
+                auto edge_cost = this->computeCost(*prev_entry, *succ_entry);
+
+                SMPL_DEBUG_NAMED(this->params()->graph_log, "Found a goal state at %d with cost %d", succ_state_id, edge_cost);
+                if (edge_cost < best_cost) {
+                    best_cost = edge_cost;
+                    best_state = succ_entry;
+                }
+            } else {
+                this->stateWorkspaceToCoord(action.back(), succ_coord);
+                auto succ_state_id = this->createState(succ_coord);
+                auto* succ_entry = this->getState(succ_state_id);
+                assert(succ_entry);
+                if (succ_state_id != curr_id) continue;
+
+                auto edge_cost = computeCost(*prev_entry, *succ_entry);
+                if (edge_cost < best_cost) {
+                    best_cost = edge_cost;
+                    best_state = succ_entry;
+                }
+            }
+        }
+
+        if (best_state != NULL) {
+            SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "Extract successor state " << best_state->state);
+            opath.push_back(best_state->state);
+            continue;
+        }
+
+        SMPL_DEBUG_NAMED(params()->graph_log, "Check for shortcut successor");
+
+        auto found = false;
+        // check for shortcut transition
+        auto pnit = std::find(begin(this->egraph_node_to_state), end(this->egraph_node_to_state), prev_id);
+        auto cnit = std::find(begin(this->egraph_node_to_state), end(this->egraph_node_to_state), curr_id);
+        if (pnit != end(this->egraph_node_to_state) &&
+            cnit != end(this->egraph_node_to_state))
+        {
+            // position in node array is synonymous with e-graph node id
+            auto prev_node = std::distance(begin(this->egraph_node_to_state), pnit);
+            auto curr_node = std::distance(begin(this->egraph_node_to_state), cnit);
+
+            SMPL_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, prev_node, curr_node);
+
+            std::vector<ExperienceGraph::node_id> node_path;
+            found = FindShortestExperienceGraphPath(this->egraph, prev_node, curr_node, node_path);
+            if (found) {
+                for (ExperienceGraph::node_id n : node_path) {
+                    auto state_id = this->egraph_node_to_state[n];
+                    auto* entry = this->getState(state_id);
+                    assert(entry);
+                    opath.push_back(entry->state);
+                }
+            }
+        }
+
+        if (found) continue;
+
+        // check for snap transition
+        SMPL_DEBUG_NAMED(params()->graph_log, "Check for snap successor");
+        int cost;
+        if (snap(prev_id, curr_id, cost)) {
+            SMPL_INFO("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
+            auto* entry = this->getState(curr_id);
+            assert(entry);
+            opath.push_back(entry->state);
+            continue;
+        }
+
+        SMPL_ERROR_NAMED(params()->graph_log, "Failed to find valid goal successor during path extraction");
+        return false;
+    }
+
+    // we made it!
+    path = std::move(opath);
+
+    SMPL_INFO("Final path:");
+    for (auto& point : path) {
+        SMPL_INFO_STREAM("  " << point);
+    }
+
+    auto* vis_name = "goal_config";
+    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(path.back(), vis_name));
     return true;
 }
 
@@ -183,7 +441,7 @@ bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(dst_state->state, "shortcut_to"));
 
     SMPL_INFO("  shortcut %d -> %d!", src_id, dst_id);
-    cost = 1000;
+    cost = 10;
     return true;
 }
 
@@ -206,7 +464,7 @@ bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
     }
 
     SMPL_INFO("  Snap %d -> %d!", src_id, dst_id);
-    cost = 1000;
+    cost = 10;
     return true;
 }
 
