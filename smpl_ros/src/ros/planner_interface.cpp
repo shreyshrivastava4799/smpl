@@ -536,6 +536,10 @@ auto MakeDijkstraEgraphHeuristic3D(
         return nullptr;
     }
 
+    double egw;
+    params.param("egraph_epsilon", egw, 1.0);
+    h->setWeightEGraph(egw);
+
     return std::move(h);
 };
 
