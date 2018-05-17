@@ -324,7 +324,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     for (size_t x = 1; x < m_dist_grid.xsize() - 1; ++x) {
     for (size_t y = 1; y < m_dist_grid.ysize() - 1; ++y) {
     for (size_t z = 1; z < m_dist_grid.zsize() - 1; ++z) {
-        Cell& c = m_dist_grid(x, y, z);
+        auto& c = m_dist_grid(x, y, z);
         if (c.dist != Wall) {
             c.dist = Unknown;
         }
@@ -339,10 +339,10 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 
     // precompute shortcuts
     assert(m_component_ids.size() == m_eg->getExperienceGraph()->num_nodes());
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    auto* eg = m_eg->getExperienceGraph();
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
-        int comp_id = m_component_ids[*nit];
+        auto comp_id = m_component_ids[*nit];
         if (m_shortcut_nodes[comp_id].empty()) {
             m_shortcut_nodes[comp_id].push_back(*nit);
             continue;
@@ -352,12 +352,12 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
         Eigen::Vector3d p;
         m_pp->projectToPoint(m_eg->getStateID(*nit), p);
 
-        const double dist = (gp - p).squaredNorm();
+        auto dist = (gp - p).squaredNorm();
 
         Eigen::Vector3d lp;
         m_pp->projectToPoint(m_eg->getStateID(m_shortcut_nodes[comp_id].front()), lp);
 
-        const double curr_dist = (gp - lp).squaredNorm();
+        auto curr_dist = (gp - lp).squaredNorm();
 
         if (dist < curr_dist) {
             m_shortcut_nodes[comp_id].clear();
@@ -375,7 +375,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     dgp += Eigen::Vector3i::Ones();
 
     m_open.clear();
-    Cell* c = &m_dist_grid(dgp.x(), dgp.y(), dgp.z());
+    auto* c = &m_dist_grid(dgp.x(), dgp.y(), dgp.z());
     c->dist = 0;
     m_open.push(c);
 
@@ -430,7 +430,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
     // (3) maintain an external adjacency list mapping cells with projections
     // from experience graph states to adjacent cells (method used here)
     SMPL_INFO("Project experience graph into three-dimensional grid");
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    auto* eg = m_eg->getExperienceGraph();
     if (!eg) {
         SMPL_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
         return;
@@ -440,8 +440,8 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
 
     m_projected_nodes.resize(eg->num_nodes());
 
-    size_t proj_node_count = 0;
-    size_t proj_edge_count = 0;
+    int proj_node_count = 0;
+    int proj_edge_count = 0;
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
@@ -472,14 +472,14 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
             SMPL_DEBUG_NAMED(LOG, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
         }
 
-        HeuristicNode& hnode = eit->second;
+        auto& hnode = eit->second;
 
         hnode.up_nodes.push_back(*nit);
 
         auto adj = eg->adjacent_nodes(*nit);
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             // project adjacent experience graph state and discretize
-            int second_id = m_eg->getStateID(*ait);
+            auto second_id = m_eg->getStateID(*ait);
             SMPL_DEBUG_NAMED(LOG, "  Project experience graph edge to state %d", second_id);
             Eigen::Vector3d q;
             m_pp->projectToPoint(second_id, q);
@@ -503,9 +503,9 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         }
     }
 
-    SMPL_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
+    SMPL_INFO("Projected experience graph contains %d nodes and %d edges", proj_node_count, proj_edge_count);
 
-    int comp_count = 0;
+    auto comp_count = 0;
     m_component_ids.assign(eg->num_nodes(), -1);
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         if (m_component_ids[*nit] != -1) {
@@ -515,7 +515,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         std::vector<ExperienceGraph::node_id> frontier;
         frontier.push_back(*nit);
         while (!frontier.empty()) {
-            ExperienceGraph::node_id n = frontier.back();
+            auto n = frontier.back();
             frontier.pop_back();
 
             m_component_ids[n] = comp_count;
@@ -575,17 +575,17 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
 
         // relax experience graph adjacency edges
         auto it = m_heur_nodes.find(Eigen::Vector3i(cx, cy, cz));
-        if (it != m_heur_nodes.end()) {
-            const HeuristicNode& hnode = it->second;
+        if (it != end(m_heur_nodes)) {
+            auto& hnode = it->second;
             SMPL_DEBUG_NAMED(LOG, "  %zu adjacent egraph cells", hnode.edges.size());
-            for (const Eigen::Vector3i& adj : hnode.edges) {
-                const int dx = adj.x() - cx;
-                const int dy = adj.y() - cy;
-                const int dz = adj.z() - cz;
-                Cell* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
+            for (auto& adj : hnode.edges) {
+                auto dx = adj.x() - cx;
+                auto dy = adj.y() - cy;
+                auto dz = adj.z() - cz;
+                auto* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
 
-                const int cost = (int)(1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
-                const int new_cost = curr_cell->dist + cost;
+                auto cost = (int)(1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
+                auto new_cost = curr_cell->dist + cost;
                 if (new_cost < ncell->dist) {
                     ncell->dist = new_cost;
                     if (m_open.contains(ncell)) {
@@ -607,27 +607,27 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
                 continue;
             }
 
-            const int sx = cx + dx;
-            const int sy = cy + dy;
-            const int sz = cz + dz;
+            auto sx = cx + dx;
+            auto sy = cy + dy;
+            auto sz = cz + dz;
 
-            Cell* ncell = &m_dist_grid(sx, sy, sz);
+            auto* ncell = &m_dist_grid(sx, sy, sz);
 
             // bounds and obstacle check
             if (ncell->dist == Wall) {
                 continue;
             }
 
-            const int cost = (int)(m_eg_eps * 1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
-            const int new_cost = curr_cell->dist + cost;
+            auto cost = (int)(m_eg_eps * 1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
+            auto new_cost = curr_cell->dist + cost;
 
             if (new_cost < ncell->dist) {
                 ncell->dist = new_cost;
                 if (m_open.contains(ncell)) {
-                    SMPL_DEBUG_NAMED(LOG, "  Update cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
+                    SMPL_DEBUG_NAMED(LOG, "  Update cell (%d, %d, %d) with normal edge (-> %d)", (int)sx, (int)sy, (int)sz, new_cost);
                     m_open.decrease(ncell);
                 } else {
-                    SMPL_DEBUG_NAMED(LOG, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", sx, sy, sz, new_cost);
+                    SMPL_DEBUG_NAMED(LOG, "  Insert cell (%d, %d, %d) with normal edge (-> %d)", (int)sx, (int)sy, (int)sz, new_cost);
                     m_open.push(ncell);
                 }
             }
@@ -652,17 +652,17 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
 
 void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
 {
-    const int xc = grid()->numCellsX();
-    const int yc = grid()->numCellsY();
-    const int zc = grid()->numCellsZ();
+    auto xc = grid()->numCellsX();
+    auto yc = grid()->numCellsY();
+    auto zc = grid()->numCellsZ();
 
-    const int cell_count = xc * yc * zc;
+    auto cell_count = xc * yc * zc;
 
     int wall_count = 0;
     for (int x = 0; x < grid()->numCellsX(); ++x) {
     for (int y = 0; y < grid()->numCellsY(); ++y) {
     for (int z = 0; z < grid()->numCellsZ(); ++z) {
-        const double radius = m_inflation_radius;
+        auto radius = m_inflation_radius;
         if (grid()->getDistance(x, y, z) <= radius) {
             m_dist_grid(x + 1, y + 1, z + 1).dist = Wall;
             ++wall_count;
