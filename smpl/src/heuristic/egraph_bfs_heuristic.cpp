@@ -42,7 +42,8 @@
 namespace sbpl {
 namespace motion {
 
-static const char* LOG = "heuristic.egraph_bfs";
+static const char* LOG = "heuristic.dijkstra_egraph";
+static const char* SLOG = "heuristic.dijkstra_egraph.shortcuts";
 
 auto DijkstraEgraphHeuristic3D::Vector3iHash::operator()(const argument_type& s) const
     -> result_type
@@ -156,14 +157,19 @@ void DijkstraEgraphHeuristic3D::getShortcutSuccs(
     int state_id,
     std::vector<int>& shortcut_ids)
 {
+    SMPL_INFO_NAMED(SLOG, "Get shortcut successors for state %d", state_id);
+
     std::vector<ExperienceGraph::node_id> egraph_nodes;
     m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
 
-    for (ExperienceGraph::node_id n : egraph_nodes) {
-        const int comp_id = m_component_ids[n];
-        for (ExperienceGraph::node_id nn : m_shortcut_nodes[comp_id]) {
-            int id = m_eg->getStateID(nn);
+    SMPL_INFO_STREAM_NAMED(SLOG, "  e-graph nodes: " << egraph_nodes);
+
+    for (auto node : egraph_nodes) {
+        auto comp_id = m_component_ids[node];
+        for (auto shortcut_node : m_shortcut_nodes[comp_id]) {
+            auto id = m_eg->getStateID(shortcut_node);
             if (id != state_id) {
+                SMPL_INFO_NAMED(SLOG, "  %d", id);
                 shortcut_ids.push_back(id);
             }
         }
