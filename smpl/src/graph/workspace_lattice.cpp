@@ -218,21 +218,21 @@ bool WorkspaceLattice::extractPath(
     }
 
     if (ids.size() == 1) {
-        const int state_id = ids[0];
+        auto state_id = ids[0];
         if (state_id == getGoalStateID()) {
-            auto* entry = getState(m_start_state_id);
-            if (!entry) {
-                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", m_start_state_id);
+            auto* state = getState(m_start_state_id);
+            if (!state) {
+                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state state for state %d", m_start_state_id);
                 return false;
             }
-            path.push_back(entry->state);
+            path.push_back(state->state);
         } else {
-            auto* entry = getState(state_id);
-            if (!entry) {
+            auto* state = getState(state_id);
+            if (!state) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
             }
-            path.push_back(entry->state);
+            path.push_back(state->state);
         }
 
         auto* vis_name = "goal_config";
@@ -240,8 +240,10 @@ bool WorkspaceLattice::extractPath(
         return true;
     }
 
-    WorkspaceLatticeState* start_entry = getState(ids[0]);
-    path.push_back(start_entry->state);
+    {
+        auto* start_entry = getState(ids[0]);
+        path.push_back(start_entry->state);
+    }
 
     for (size_t i = 1; i < ids.size(); ++i) {
         auto prev_id = ids[i - 1];
@@ -254,12 +256,12 @@ bool WorkspaceLattice::extractPath(
 
         if (curr_id == getGoalStateID()) {
             // TODO: variant of get succs that returns unique state ids
-            WorkspaceLatticeState* prev_entry = getState(prev_id);
+            auto* prev_entry = getState(prev_id);
             std::vector<Action> actions;
             getActions(*prev_entry, actions);
 
-            WorkspaceLatticeState* best_goal_entry = nullptr;
-            int best_cost = std::numeric_limits<int>::max();
+            WorkspaceLatticeState* best_goal_entry = NULL;
+            auto best_cost = std::numeric_limits<int>::max();
 
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
                 auto& action = actions[aidx];
@@ -295,7 +297,7 @@ bool WorkspaceLattice::extractPath(
 
             path.push_back(best_goal_entry->state);
         } else {
-            WorkspaceLatticeState* state_entry = getState(curr_id);
+            auto* state_entry = getState(curr_id);
             path.push_back(state_entry->state);
         }
     }
@@ -333,7 +335,7 @@ void WorkspaceLattice::GetSuccs(
         return;
     }
 
-    WorkspaceLatticeState* parent_entry = getState(state_id);
+    auto* parent_entry = getState(state_id);
 
     assert(parent_entry);
     assert(parent_entry->coord.size() == m_dof_count);
@@ -366,8 +368,8 @@ void WorkspaceLattice::GetSuccs(
         stateWorkspaceToCoord(final_state, succ_coord);
 
         // check if hash entry already exists, if not then create one
-        int succ_id = createState(succ_coord);
-        WorkspaceLatticeState* succ_state = getState(succ_id);
+        auto succ_id = createState(succ_coord);
+        auto* succ_state = getState(succ_id);
         succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
@@ -380,7 +382,7 @@ void WorkspaceLattice::GetSuccs(
             succs->push_back(succ_id);
         }
 
-        auto edge_cost = 30;
+        auto edge_cost = computeCost(*parent_entry, *succ_state);
         costs->push_back(edge_cost);
 
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
@@ -482,7 +484,7 @@ void WorkspaceLattice::GetLazySuccs(
             succs->push_back(succ_id);
         }
 
-        auto edge_cost = 30;
+        auto edge_cost = computeCost(*state_entry, *succ_state);
         costs->push_back(edge_cost);
 
         true_costs->push_back(false);
@@ -490,7 +492,7 @@ void WorkspaceLattice::GetLazySuccs(
         SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_state->coord);
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_state->state);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", 30);
+        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
     }
 }
 
@@ -532,7 +534,7 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
             continue;
         }
 
-        auto edge_cost = 30;
+        auto edge_cost = /* TODO: compute cost */ 30;
         if (edge_cost < best_cost) {
             best_cost = edge_cost;
         }
@@ -552,25 +554,38 @@ bool WorkspaceLattice::initMotionPrimitives()
     MotionPrimitive prim;
 
     // create 26-connected position motions
+    auto add_xyz_prim = [&](int dx, int dy, int dz)
+    {
+        std::vector<double> d(m_dof_count, 0.0);
+        d[0] = m_res[0] * dx;
+        d[1] = m_res[1] * dy;
+        d[2] = m_res[2] * dz;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(std::move(d));
+
+        m_prims.push_back(prim);
+    };
+
+#if 0
     for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                if (dx == 0 && dy == 0 && dz == 0) {
-                    continue;
-                }
-
-                std::vector<double> d(m_dof_count, 0.0);
-                d[0] = m_res[0] * dx;
-                d[1] = m_res[1] * dy;
-                d[2] = m_res[2] * dz;
-                prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-                prim.action.clear();
-                prim.action.push_back(std::move(d));
-
-                m_prims.push_back(prim);
-            }
+    for (int dy = -1; dy <= 1; ++dy) {
+    for (int dz = -1; dz <= 1; ++dz) {
+        if (dx == 0 && dy == 0 && dz == 0) {
+            continue;
         }
+        add_xyz_prim(dx, dy, dz);
     }
+    }
+    }
+#endif
+
+    add_xyz_prim(-1, 0, 0);
+    add_xyz_prim(1, 0, 0);
+    add_xyz_prim(0, 1, 0);
+    add_xyz_prim(0, -1, 0);
+    add_xyz_prim(0, 0, 1);
+    add_xyz_prim(0, 0, -1);
 
     // create 2-connected motions for rotation and free angle motions
     for (int a = 3; a < m_dof_count; ++a) {
@@ -578,12 +593,28 @@ bool WorkspaceLattice::initMotionPrimitives()
 
         d[a] = m_res[a] * -1;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+
+        if (a == 8) {
+            d[0] = -m_res[0];
+        }
+        if (a == 9) {
+            d[1] = -m_res[1];
+        }
+
         prim.action.clear();
         prim.action.push_back(d);
         m_prims.push_back(prim);
 
         d[a] = m_res[a] * 1;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+
+        if (a == 8) {
+            d[0] = m_res[0];
+        }
+        if (a == 9) {
+            d[1] = m_res[1];
+        }
+
         prim.action.clear();
         prim.action.push_back(d);
         m_prims.push_back(prim);
@@ -643,7 +674,7 @@ int WorkspaceLattice::reserveHashEntry()
     return state_id;
 }
 
-/// \brief Create a state entry for a given coordinate and return its id
+/// Create a state entry for a given coordinate and return its id
 ///
 /// If an entry already exists for the coordinate, the id corresponding to that
 /// entry is returned; otherwise, a new entry is created and its id returned.
@@ -672,7 +703,7 @@ int WorkspaceLattice::createState(const WorkspaceCoord& coord)
     return new_id;
 }
 
-/// \brief Retrieve a state by its id.
+/// Retrieve a state by its id.
 ///
 /// The id is not checked for validity and the state is assumed to have already
 /// been created, either by GetSuccs during a search or by designating a new
@@ -812,8 +843,12 @@ bool WorkspaceLattice::checkAction(
 
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
 
+        // this uses the state being expanded as the seed state, rather than
+        // the value of the intermediate state.. we want to use the joint angles
+        // from the seed state with the free angles of the intermediate state
+        // in case they are changed
         RobotState irstate;
-        if (!stateWorkspaceToRobot(istate, state, irstate)) {
+        if (!stateWorkspaceToRobot(istate, /*state,*/ irstate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
@@ -862,6 +897,13 @@ bool WorkspaceLattice::checkAction(
         *final_rstate = wptraj.back();
     }
     return true;
+}
+
+int WorkspaceLattice::computeCost(
+    const WorkspaceLatticeState& src,
+    const WorkspaceLatticeState& dst)
+{
+    return 30;
 }
 
 bool WorkspaceLattice::checkLazyAction(

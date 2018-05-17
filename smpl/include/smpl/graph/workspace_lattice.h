@@ -212,6 +212,10 @@ protected:
         const Action& action,
         RobotState* final_rstate = nullptr);
 
+    int computeCost(
+        const WorkspaceLatticeState& src,
+        const WorkspaceLatticeState& dst);
+
     bool checkLazyAction(
         const RobotState& state,
         const Action& action,
