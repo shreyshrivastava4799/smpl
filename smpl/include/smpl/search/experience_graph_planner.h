@@ -32,6 +32,9 @@
 #ifndef SMPL_EGRAPH_PLANNER_H
 #define SMPL_EGRAPH_PLANNER_H
 
+// standard includes
+#include <stdint.h>
+
 // system includes
 #include <sbpl/planners/planner.h>
 
@@ -86,11 +89,11 @@ private:
     struct SearchState : public heap_element
     {
         int state_id;
-        unsigned int g;
-        unsigned int h;
-        unsigned int f;
-        unsigned short iteration_closed;
-        unsigned short call_number;
+        int32_t g;
+        int32_t h;
+        int64_t f;
+        uint16_t iteration_closed;
+        uint16_t call_number;
         SearchState* bp;
     };
 

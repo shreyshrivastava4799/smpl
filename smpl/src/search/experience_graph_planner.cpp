@@ -13,6 +13,8 @@
 namespace sbpl {
 namespace motion {
 
+static const char* LOG = "search.egwastar";
+
 ExperienceGraphPlanner::ExperienceGraphPlanner(
     RobotPlanningSpace* space,
     RobotHeuristic* heur)
@@ -67,7 +69,7 @@ int ExperienceGraphPlanner::replan(
     ++m_call_number;
     m_expand_count = 0;
 
-    SMPL_INFO("Find path to goal");
+    SMPL_INFO_NAMED(LOG, "Find path to goal");
 
     if (!m_start_state || !m_goal_state) {
         SMPL_ERROR("Start or goal state not set");
@@ -79,10 +81,10 @@ int ExperienceGraphPlanner::replan(
     reinitSearchState(m_start_state);
     reinitSearchState(m_goal_state);
 
-    m_goal_state->f = INFINITECOST;
+    m_goal_state->f = std::numeric_limits<int64_t>::max();
 
     m_start_state->g = 0;
-    m_start_state->f = /*m_start_state->g +*/ (unsigned int)(m_eps * m_start_state->h);
+    m_start_state->f = /*m_start_state->g +*/ (int64_t)(m_eps * (double)m_start_state->h);
     m_open.push(m_start_state);
 
     auto start_time = clock::now();
@@ -91,12 +93,12 @@ int ExperienceGraphPlanner::replan(
     std::vector<int> costs;
 
     bool path_found = false;
-    unsigned int& fgoal = m_goal_state->f;
+    auto* fgoal = &m_goal_state->f;
     while (!m_open.empty()) {
         auto now = clock::now();
         double elapsed = std::chrono::duration<double>(now - start_time).count();
         if (elapsed >= allowed_time) {
-            SMPL_INFO("Ran out of time");
+            SMPL_INFO_NAMED(LOG, "Ran out of time");
             break;
         }
 
@@ -104,13 +106,14 @@ int ExperienceGraphPlanner::replan(
         m_open.pop();
         ++m_expand_count;
 
-        SMPL_DEBUG("Expand state %d", min_state->state_id);
+        SMPL_DEBUG_NAMED(LOG, "Expand state %d", min_state->state_id);
 
         min_state->iteration_closed = 1;
 
         // path to goal found
-        if (min_state->f >= fgoal || min_state == m_goal_state) {
-            SMPL_INFO("Found path to goal");
+        bool expanded_goal = (min_state == m_goal_state);
+        if (min_state->f >= (*fgoal) || expanded_goal) {
+            SMPL_INFO_NAMED(LOG, "Found path to goal. min_f = %ld", min_state->f);
             path_found = true;
             break;
         }
@@ -119,11 +122,11 @@ int ExperienceGraphPlanner::replan(
         costs.clear();
         m_space->GetSuccs(min_state->state_id, &succs, &costs);
 
-        SMPL_DEBUG("  %zu successors", succs.size());
+        SMPL_DEBUG_NAMED(LOG, "  %zu successors", succs.size());
 
         for (size_t sidx = 0; sidx < succs.size(); ++sidx) {
-            int succ_state_id = succs[sidx];
-            int cost = costs[sidx];
+            auto succ_state_id = succs[sidx];
+            auto cost = costs[sidx];
 
             SearchState* succ_state = getSearchState(succ_state_id);
             reinitSearchState(succ_state);
@@ -132,11 +135,11 @@ int ExperienceGraphPlanner::replan(
                 continue;
             }
 
-            int new_cost = min_state->g + cost;
-            SMPL_DEBUG("Compare new cost %d vs old cost %d", new_cost, succ_state->g);
+            auto new_cost = min_state->g + (int32_t)cost;
+            SMPL_DEBUG_NAMED(LOG, "Compare new cost %d vs old cost %d", new_cost, succ_state->g);
             if (new_cost < succ_state->g) {
                 succ_state->g = new_cost;
-                succ_state->f = succ_state->g + m_eps * succ_state->h;
+                succ_state->f = succ_state->g + (int64_t)(m_eps * (double)succ_state->h);
                 succ_state->bp = min_state;
                 if (m_open.contains(succ_state)) {
                     m_open.decrease(succ_state);
@@ -167,7 +170,7 @@ int ExperienceGraphPlanner::replan(
                 int new_cost = min_state->g + cost;
                 if (new_cost < snap_state->g) {
                     snap_state->g = new_cost;
-                    snap_state->f = snap_state->g + m_eps * snap_state->h;
+                    snap_state->f = snap_state->g + (int64_t)(m_eps * (double)snap_state->h);
                     snap_state->bp = min_state;
                     if (m_open.contains(snap_state)) {
                         m_open.decrease(snap_state);
@@ -197,7 +200,7 @@ int ExperienceGraphPlanner::replan(
                 int new_cost = min_state->g + cost;
                 if (new_cost < scut_state->g) {
                     scut_state->g = new_cost;
-                    scut_state->f = scut_state->g + m_eps * scut_state->h;
+                    scut_state->f = scut_state->g + (int64_t)(m_eps * (double)scut_state->h);
                     scut_state->bp = min_state;
                     if (m_open.contains(scut_state)) {
                         m_open.decrease(scut_state);
@@ -308,8 +311,7 @@ void ExperienceGraphPlanner::costs_changed(const StateChangeQuery& state_change)
 
 }
 
-ExperienceGraphPlanner::SearchState*
-ExperienceGraphPlanner::getSearchState(int state_id)
+auto ExperienceGraphPlanner::getSearchState(int state_id) -> SearchState*
 {
     if (m_graph_to_search_map.size() <= state_id) {
         m_graph_to_search_map.resize(state_id + 1, -1);
@@ -322,8 +324,7 @@ ExperienceGraphPlanner::getSearchState(int state_id)
     }
 }
 
-ExperienceGraphPlanner::SearchState*
-ExperienceGraphPlanner::createState(int state_id)
+auto ExperienceGraphPlanner::createState(int state_id) -> SearchState*
 {
     assert(state_id < m_graph_to_search_map.size());
 
@@ -340,10 +341,10 @@ ExperienceGraphPlanner::createState(int state_id)
 void ExperienceGraphPlanner::reinitSearchState(SearchState* state)
 {
     if (state->call_number != m_call_number) {
-        SMPL_DEBUG("Reinitialize state %d", state->state_id);
-        state->g = INFINITECOST;
+        SMPL_DEBUG_NAMED(LOG, "Reinitialize state %d", state->state_id);
+        state->g = std::numeric_limits<int32_t>::max();
         state->h = m_heur->GetGoalHeuristic(state->state_id);
-        state->f = INFINITECOST;
+        state->f = std::numeric_limits<int64_t>::max();
         state->iteration_closed = 0;
         state->call_number = m_call_number;
         state->bp = nullptr;
