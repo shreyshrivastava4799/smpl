@@ -279,7 +279,7 @@ bool WorkspaceLattice::extractPath(
                 stateWorkspaceToCoord(final_state, goal_coord);
 
                 int goal_id = createState(goal_coord);
-                WorkspaceLatticeState* goal_state = getState(goal_id);
+                auto* goal_state = getState(goal_id);
 
                 // shouldn't have created a new state, so no need to set the
                 // continuous state counterpart
@@ -801,7 +801,7 @@ void WorkspaceLattice::getActions(
         Action action;
         action.reserve(prim.action.size());
 
-        WorkspaceState final_state = cont_state;
+        auto final_state = cont_state;
         for (auto& delta_state : prim.action) {
             // increment the state
             for (size_t d = 0; d < m_dof_count; ++d) {
@@ -817,9 +817,9 @@ void WorkspaceLattice::getActions(
     }
 
     if (m_ik_amp_enabled && numHeuristics() > 0) {
-        RobotHeuristic* h = heuristic(0);
-        double goal_dist = h->getMetricGoalDistance(
-                cont_state[0], cont_state[1], cont_state[2]);
+        auto* h = heuristic(0);
+        auto goal_dist = h->getMetricGoalDistance(
+                cont_state[EE_PX], cont_state[EE_PY], cont_state[EE_PZ]);
         if (goal_dist < m_ik_amp_thresh) {
             std::vector<double> ik_sol;
             if (m_ik_iface->computeIK(goal().pose, entry.state, ik_sol)) {

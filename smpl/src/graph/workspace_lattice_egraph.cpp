@@ -25,14 +25,9 @@ bool FindShortestExperienceGraphPath(
 {
     struct ExperienceGraphSearchNode : heap_element
     {
-        int g;
-        bool closed;
-        ExperienceGraphSearchNode* bp;
-        ExperienceGraphSearchNode() :
-            g(std::numeric_limits<int>::max()),
-            closed(false),
-            bp(nullptr)
-        { }
+        int                         g = std::numeric_limits<int>::max();
+        bool                        closed = false;
+        ExperienceGraphSearchNode*  bp = NULL;
     };
 
     struct NodeCompare
@@ -61,7 +56,7 @@ bool FindShortestExperienceGraphPath(
         min->closed = true;
 
         if (min == &search_nodes[goal_node]) {
-            SMPL_ERROR("Found shortest experience graph path");
+            SMPL_DEBUG("Found shortest experience graph path");
             ExperienceGraphSearchNode* ps = nullptr;
             for (ExperienceGraphSearchNode* s = &search_nodes[goal_node];
                 s; s = s->bp)
@@ -128,9 +123,12 @@ bool ParseExperienceGraphFile(
     SMPL_INFO("  %zu fields", parser.fieldCount());
 
     auto jvar_count = robot_model->getPlanningJoints().size();
-    if (parser.fieldCount() != jvar_count) {
-        SMPL_WARN("Parsed experience graph contains insufficient number of joint variables");
+    if (parser.fieldCount() < jvar_count) {
+        SMPL_WARN("Parsed experience graph contains insufficient number of joint variables (%zu < %zu)", parser.fieldCount(), jvar_count);
         return false;
+    }
+    if (parser.fieldCount() > jvar_count) {
+        SMPL_WARN("Parsed experience graph contains superflous many joint variables (%zu > %zu)", parser.fieldCount(), jvar_count);
     }
 
     egraph_states.reserve(parser.totalFieldCount());
@@ -369,17 +367,19 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
         this->stateRobotToCoord(prev_pt, prev_disc_pt);
 
         auto prev_node_id = this->egraph.insert_node(prev_pt);
-        this->coord_to_egraph_nodes[prev_disc_pt].push_back(prev_node_id);
+        {
+            this->coord_to_egraph_nodes[prev_disc_pt].push_back(prev_node_id);
 
-        auto state_id = this->reserveHashEntry();
-        auto* state = getState(state_id);
-        state->coord = prev_disc_pt;
-        state->state = prev_pt;
+            auto state_id = this->reserveHashEntry();
+            auto* state = getState(state_id);
+            state->coord = prev_disc_pt;
+            state->state = prev_pt;
 
-        // map egraph node <-> egraph state
-        this->egraph_node_to_state.resize(prev_node_id + 1, -1);
-        this->egraph_node_to_state[prev_node_id] = state_id;
-        this->state_to_egraph_node[state_id] = prev_node_id;
+            // map egraph node <-> egraph state
+            this->egraph_node_to_state.resize(prev_node_id + 1, -1);
+            this->egraph_node_to_state[prev_node_id] = state_id;
+            this->state_to_egraph_node[state_id] = prev_node_id;
+        }
 
         // Walk through the demonstration and create a unique e-graph state
         // every time the discrete state changes. Intermediately encountered
@@ -387,19 +387,19 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
         // the e-graph.
         std::vector<RobotState> edge_data;
         for (size_t i = 1; i < egraph_states.size(); ++i) {
-            auto& pt = egraph_states[i];
+            auto& robot_state = egraph_states[i];
 
             WorkspaceCoord disc_pt(this->dofCount());
-            this->stateRobotToCoord(pt, disc_pt);
+            this->stateRobotToCoord(robot_state, disc_pt);
 
             if (disc_pt != prev_disc_pt) {
-                auto node_id = this->egraph.insert_node(pt);
+                auto node_id = this->egraph.insert_node(robot_state);
                 this->coord_to_egraph_nodes[disc_pt].push_back(node_id);
 
                 auto state_id = this->reserveHashEntry();
                 auto* state = this->getState(state_id);
                 state->coord = disc_pt;
-                state->state = pt;
+                state->state = robot_state;
 
                 this->egraph_node_to_state.resize(node_id + 1, -1);
                 this->egraph_node_to_state[node_id] = state_id;
@@ -410,7 +410,7 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
                 prev_node_id = node_id;
                 edge_data.clear();
             } else {
-                edge_data.push_back(pt);
+                edge_data.push_back(robot_state);
             }
         }
     }
@@ -463,7 +463,7 @@ bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
         return false;
     }
 
-    SMPL_INFO("  Snap %d -> %d!", src_id, dst_id);
+    SMPL_DEBUG("  Snap %d -> %d!", src_id, dst_id);
     cost = 10;
     return true;
 }

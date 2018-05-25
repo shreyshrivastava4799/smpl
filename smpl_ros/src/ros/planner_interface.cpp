@@ -677,7 +677,13 @@ auto MakeLARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
 auto MakeEGWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
-    return make_unique<ExperienceGraphPlanner>(space, heuristic);
+    auto search = make_unique<ExperienceGraphPlanner>(space, heuristic);
+
+    double epsilon;
+    space->params()->param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+
+    return std::move(search);
 }
 
 auto MakePADAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
@@ -1041,7 +1047,7 @@ bool PlannerInterface::solve(
 
     ROS_DEBUG_NAMED(PI_LOGGER, "planner path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
-        const auto& point = path[pidx];
+        auto& point = path[pidx];
         ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "  " << pidx << ": " << point);
     }
 
@@ -1054,7 +1060,7 @@ bool PlannerInterface::solve(
 
     ROS_DEBUG_NAMED(PI_LOGGER, "smoothed path:");
     for (size_t pidx = 0; pidx < path.size(); ++pidx) {
-        const auto& point = path[pidx];
+        auto& point = path[pidx];
         ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "  " << pidx << ": " << point);
     }
 
@@ -1415,7 +1421,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
         return false;
     }
 
-    const int start_id = m_pspace->getStartStateID();
+    auto start_id = m_pspace->getStartStateID();
     if (start_id == -1) {
         ROS_ERROR("No start state has been set");
         return false;
@@ -1739,7 +1745,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
     m_heuristics.clear();
     m_heuristics.insert(std::make_pair(heuristic_name, std::move(heuristic)));
 
-    for (const auto& entry : m_heuristics) {
+    for (auto& entry : m_heuristics) {
         m_pspace->insertHeuristic(entry.second.get());
     }
 

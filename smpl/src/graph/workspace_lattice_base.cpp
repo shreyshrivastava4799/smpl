@@ -315,7 +315,7 @@ void WorkspaceLatticeBase::favCoordToWorkspace(const int* ga, double* wa) const
 
     for (size_t i = 0; i < freeAngleCount(); ++i) {
         if (m_fangle_continuous[i]) {
-            wa[i] = ga[i] * m_res[6 + i];
+            wa[i] = (double)ga[i] * m_res[6 + i];
         } else if (!m_fangle_bounded[i]) {
             wa[i] = (double)ga[i] * m_res[6 + i];
         } else {
