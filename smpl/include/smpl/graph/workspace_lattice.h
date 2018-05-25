@@ -53,8 +53,6 @@
 namespace sbpl {
 namespace motion {
 
-#define BROKEN 1
-
 struct WorkspaceLatticeState
 {
     WorkspaceCoord coord;
@@ -228,24 +226,6 @@ protected:
 
     auto getStateVisualization(const RobotState& state, const std::string& ns)
         -> std::vector<visual::Marker>;
-
-#if !BROKEN
-    std::vector<double> mp_gradient_;
-    std::vector<double> mp_dist_;
-
-    bool getMotionPrimitive(WorkspaceLatticeState* parent, MotionPrimitive& mp);
-    void getAdaptiveMotionPrim(
-        int type,
-        WorkspaceLatticeState* parent,
-        MotionPrimitive& mp);
-    void getVector(
-        int x1, int y1, int z1,
-        int x2, int y2, int z2,
-        int& xout, int& yout, int& zout,
-        int multiplier,
-        bool snap = true);
-    bool getDistanceGradient(int& x, int& y, int& z);
-#endif
 };
 
 } // namespace motion
