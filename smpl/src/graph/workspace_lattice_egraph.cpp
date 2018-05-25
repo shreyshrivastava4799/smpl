@@ -220,7 +220,7 @@ bool WorkspaceLatticeEGraph::extractPath(
         auto& prev_state = prev_entry->state;
 
         std::vector<Action> actions;
-        this->getActions(*prev_entry, actions);
+        this->m_actions.apply(*prev_entry, actions);
 //        SMPL_ERROR_NAMED(this->params()->graph_log, "Failed to get actions while extracting the path");
 
         SMPL_DEBUG_NAMED(this->params()->graph_log, "Check for transition via normal successors");
@@ -415,7 +415,7 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
         }
     }
 
-    SMPL_INFO("Experience garph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
+    SMPL_INFO("Experience graph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
     return true;
 }
 
@@ -435,7 +435,7 @@ bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
     auto* dst_state = this->getState(dst_id);
     assert(src_state != NULL && dst_state != NULL);
 
-    SMPL_INFO_STREAM("Shortcut " << src_state->coord << " -> " << dst_state->state);
+    SMPL_INFO_STREAM("Shortcut " << src_state->coord << " -> " << dst_state->coord);
     auto* vis_name = "shortcut";
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(src_state->state, "shortcut_from"));
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(dst_state->state, "shortcut_to"));
@@ -451,7 +451,7 @@ bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
     auto* dst_state = this->getState(dst_id);
     assert(src_state != NULL && dst_state != NULL);
 
-    SMPL_INFO_STREAM("Snap " << src_state->coord << " -> " << dst_state->state);
+    SMPL_INFO_STREAM("Snap " << src_state->coord << " -> " << dst_state->coord);
     auto* vis_name = "snap";
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(src_state->state, "snap_from"));
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(dst_state->state, "snap_to"));

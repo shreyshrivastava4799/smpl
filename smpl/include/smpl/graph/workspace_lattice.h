@@ -85,6 +85,35 @@ struct hash<sbpl::motion::WorkspaceLatticeState>
 namespace sbpl {
 namespace motion {
 
+using WorkspaceAction = std::vector<WorkspaceState>;
+
+class WorkspaceLattice;
+
+class WorkspaceLatticeActionSpace
+{
+public:
+
+    virtual ~WorkspaceLatticeActionSpace() { }
+
+    virtual void apply(
+        const WorkspaceLatticeState& state,
+        std::vector<WorkspaceAction>& actions) = 0;
+};
+
+class SimpleWorkspaceLatticeActionSpace : public WorkspaceLatticeActionSpace
+{
+public:
+
+    WorkspaceLattice* space = NULL;
+    std::vector<MotionPrimitive> m_prims;
+    bool m_ik_amp_enabled = true;
+    double m_ik_amp_thresh = 0.2;
+
+    void apply(
+        const WorkspaceLatticeState& state,
+        std::vector<WorkspaceAction>& actions) override;
+};
+
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
 class WorkspaceLattice :
@@ -191,13 +220,9 @@ protected:
     clock::time_point m_t_start;
     mutable bool m_near_goal = false; // mutable for assignment in isGoal
 
-    std::vector<MotionPrimitive> m_prims;
-    bool m_ik_amp_enabled = true;
-    double m_ik_amp_thresh = 0.2;
+    SimpleWorkspaceLatticeActionSpace m_actions;
 
     std::string m_viz_frame_id;
-
-    bool initMotionPrimitives();
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalPoses(const std::vector<PoseGoal>& goals);
@@ -206,11 +231,9 @@ protected:
     int createState(const WorkspaceCoord& coord);
     WorkspaceLatticeState* getState(int state_id) const;
 
-    void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
-
     bool checkAction(
         const RobotState& state,
-        const Action& action,
+        const WorkspaceAction& action,
         RobotState* final_rstate = nullptr);
 
     int computeCost(
@@ -219,7 +242,7 @@ protected:
 
     bool checkLazyAction(
         const RobotState& state,
-        const Action& action,
+        const WorkspaceAction& action,
         RobotState* final_rstate = nullptr);
 
     bool isGoal(const WorkspaceState& state) const;

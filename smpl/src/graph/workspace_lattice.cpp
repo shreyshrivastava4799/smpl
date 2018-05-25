@@ -71,6 +71,53 @@ bool all_equal(InputIt first, InputIt last, typename std::iterator_traits<InputI
             [&val](reference a) { return Equal()(a, val); });
 }
 
+void SimpleWorkspaceLatticeActionSpace::apply(
+    const WorkspaceLatticeState& state,
+    std::vector<WorkspaceAction>& actions)
+{
+    actions.reserve(actions.size() + m_prims.size());
+
+    WorkspaceState cont_state;
+    space->stateCoordToWorkspace(state.coord, cont_state);
+
+    SMPL_DEBUG_STREAM_NAMED(space->params()->expands_log, "  create actions for workspace state: " << cont_state);
+
+    for (auto& prim : m_prims) {
+        WorkspaceAction action;
+        action.reserve(prim.action.size());
+
+        auto final_state = cont_state;
+        for (auto& delta_state : prim.action) {
+            // increment the state
+            for (size_t d = 0; d < space->dofCount(); ++d) {
+                final_state[d] += delta_state[d];
+            }
+
+            angles::normalize_euler_zyx(&final_state[3]);
+
+            action.push_back(final_state);
+        }
+
+        actions.push_back(std::move(action));
+    }
+
+    if (m_ik_amp_enabled && space->numHeuristics() > 0) {
+        auto* h = space->heuristic(0);
+        auto goal_dist = h->getMetricGoalDistance(
+                cont_state[FK_PX], cont_state[FK_PY], cont_state[FK_PZ]);
+        if (goal_dist < m_ik_amp_thresh) {
+            std::vector<double> ik_sol;
+            if (space->m_ik_iface->computeIK(space->goal().pose, state.state, ik_sol)) {
+                WorkspaceState final_state;
+                space->stateRobotToWorkspace(ik_sol, final_state);
+                WorkspaceAction action(1);
+                action[0] = final_state;
+                actions.push_back(std::move(action));
+            }
+        }
+    }
+}
+
 WorkspaceLattice::~WorkspaceLattice()
 {
     for (size_t i = 0; i < m_states.size(); i++) {
@@ -92,6 +139,73 @@ const std::string& WorkspaceLattice::visualizationFrameId() const
     return m_viz_frame_id;
 }
 
+static
+bool InitSimpleWorkspacelatticeActions(
+    WorkspaceLattice* space,
+    SimpleWorkspaceLatticeActionSpace* actions)
+{
+    actions->space = space;
+
+    actions->m_prims.clear();
+
+    MotionPrimitive prim;
+
+    auto add_xyz_prim = [&](int dx, int dy, int dz)
+    {
+        std::vector<double> d(space->dofCount(), 0.0);
+        d[FK_PX] = space->m_res[FK_PX] * dx;
+        d[FK_PY] = space->m_res[FK_PY] * dy;
+        d[FK_PZ] = space->m_res[FK_PZ] * dz;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+        prim.action.clear();
+        prim.action.push_back(std::move(d));
+
+        actions->m_prims.push_back(prim);
+    };
+
+#if 0
+    // create 26-connected position motions
+    for (int dx = -1; dx <= 1; ++dx) {
+    for (int dy = -1; dy <= 1; ++dy) {
+    for (int dz = -1; dz <= 1; ++dz) {
+        if (dx == 0 && dy == 0 && dz == 0) {
+            continue;
+        }
+        add_xyz_prim(dx, dy, dz);
+    }
+    }
+    }
+#endif
+
+    add_xyz_prim(-1, 0, 0);
+    add_xyz_prim(1, 0, 0);
+    add_xyz_prim(0, 1, 0);
+    add_xyz_prim(0, -1, 0);
+    add_xyz_prim(0, 0, 1);
+    add_xyz_prim(0, 0, -1);
+
+    // create 2-connected motions for rotation and free angle motions
+    for (int a = 3; a < space->dofCount(); ++a) {
+        std::vector<double> d(space->dofCount(), 0.0);
+
+        d[a] = space->m_res[a] * -1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+
+        prim.action.clear();
+        prim.action.push_back(d);
+        actions->m_prims.push_back(prim);
+
+        d[a] = space->m_res[a] * 1;
+        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
+
+        prim.action.clear();
+        prim.action.push_back(d);
+        actions->m_prims.push_back(prim);
+    }
+
+    return true;
+}
+
 bool WorkspaceLattice::init(
     RobotModel* _robot,
     CollisionChecker* checker,
@@ -111,7 +225,7 @@ bool WorkspaceLattice::init(
 
     SMPL_DEBUG_NAMED(pp->graph_log, "initialize environment");
 
-    if (!initMotionPrimitives()) {
+    if (!InitSimpleWorkspacelatticeActions(this, &this->m_actions)) {
         return false;
     }
 
@@ -130,10 +244,10 @@ bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
     double p[6];
     poseCoordToWorkspace(&state->coord[0], &p[0]);
 
-    pose = Eigen::Translation3d(p[0], p[1], p[2]) *
-            Eigen::AngleAxisd(p[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(p[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(p[3], Eigen::Vector3d::UnitX());
+    pose = Eigen::Translation3d(p[FK_PX], p[FK_PY], p[FK_PZ]) *
+            Eigen::AngleAxisd(p[FK_QZ], Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(p[FK_QY], Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(p[FK_QX], Eigen::Vector3d::UnitX());
     return true;
 }
 
@@ -257,8 +371,8 @@ bool WorkspaceLattice::extractPath(
         if (curr_id == getGoalStateID()) {
             // TODO: variant of get succs that returns unique state ids
             auto* prev_entry = getState(prev_id);
-            std::vector<Action> actions;
-            getActions(*prev_entry, actions);
+            std::vector<WorkspaceAction> actions;
+            m_actions.apply(*prev_entry, actions);
 
             WorkspaceLatticeState* best_goal_entry = NULL;
             auto best_cost = std::numeric_limits<int>::max();
@@ -352,8 +466,8 @@ void WorkspaceLattice::GetSuccs(
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
 
-    std::vector<Action> actions;
-    getActions(*parent_entry, actions);
+    std::vector<WorkspaceAction> actions;
+    m_actions.apply(*parent_entry, actions);
 
     SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
@@ -455,8 +569,8 @@ void WorkspaceLattice::GetLazySuccs(
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(state_entry->state, vis_name));
 
-    std::vector<Action> actions;
-    getActions(*state_entry, actions);
+    std::vector<WorkspaceAction> actions;
+    m_actions.apply(*state_entry, actions);
 
     SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
 
@@ -514,8 +628,8 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
     assert(parent_entry && parent_entry->coord.size() == m_dof_count);
     assert(child_entry && child_entry->coord.size() == m_dof_count);
 
-    std::vector<Action> actions;
-    getActions(*parent_entry, actions);
+    std::vector<WorkspaceAction> actions;
+    m_actions.apply(*parent_entry, actions);
 
     auto goal_edge = (child_id == m_goal_state_id);
 
@@ -551,82 +665,6 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
     } else {
         return -1;
     }
-}
-
-bool WorkspaceLattice::initMotionPrimitives()
-{
-    m_prims.clear();
-
-    MotionPrimitive prim;
-
-    // create 26-connected position motions
-    auto add_xyz_prim = [&](int dx, int dy, int dz)
-    {
-        std::vector<double> d(m_dof_count, 0.0);
-        d[0] = m_res[0] * dx;
-        d[1] = m_res[1] * dy;
-        d[2] = m_res[2] * dz;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-        prim.action.clear();
-        prim.action.push_back(std::move(d));
-
-        m_prims.push_back(prim);
-    };
-
-#if 0
-    for (int dx = -1; dx <= 1; ++dx) {
-    for (int dy = -1; dy <= 1; ++dy) {
-    for (int dz = -1; dz <= 1; ++dz) {
-        if (dx == 0 && dy == 0 && dz == 0) {
-            continue;
-        }
-        add_xyz_prim(dx, dy, dz);
-    }
-    }
-    }
-#endif
-
-    add_xyz_prim(-1, 0, 0);
-    add_xyz_prim(1, 0, 0);
-    add_xyz_prim(0, 1, 0);
-    add_xyz_prim(0, -1, 0);
-    add_xyz_prim(0, 0, 1);
-    add_xyz_prim(0, 0, -1);
-
-    // create 2-connected motions for rotation and free angle motions
-    for (int a = 3; a < m_dof_count; ++a) {
-        std::vector<double> d(m_dof_count, 0.0);
-
-        d[a] = m_res[a] * -1;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-
-        if (a == 8) {
-            d[0] = -m_res[0];
-        }
-        if (a == 9) {
-            d[1] = -m_res[1];
-        }
-
-        prim.action.clear();
-        prim.action.push_back(d);
-        m_prims.push_back(prim);
-
-        d[a] = m_res[a] * 1;
-        prim.type = MotionPrimitive::Type::LONG_DISTANCE;
-
-        if (a == 8) {
-            d[0] = m_res[0];
-        }
-        if (a == 9) {
-            d[1] = m_res[1];
-        }
-
-        prim.action.clear();
-        prim.action.push_back(d);
-        m_prims.push_back(prim);
-    }
-
-    return true;
 }
 
 bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
@@ -728,9 +766,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
         SMPL_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
         return false;
     case GoalType::XYZ_RPY_GOAL: {
-        double dx = std::fabs(state[0] - goal().pose.translation()[0]);
-        double dy = std::fabs(state[1] - goal().pose.translation()[1]);
-        double dz = std::fabs(state[2] - goal().pose.translation()[2]);
+        auto dx = std::fabs(state[FK_PX] - goal().pose.translation()[0]);
+        auto dy = std::fabs(state[FK_PY] - goal().pose.translation()[1]);
+        auto dz = std::fabs(state[FK_PZ] - goal().pose.translation()[2]);
         if (dx <= goal().xyz_tolerance[0] &&
             dy <= goal().xyz_tolerance[1] &&
             dz <= goal().xyz_tolerance[2])
@@ -738,7 +776,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
             // log the amount of time required for the search to get close to the goal
             if (!m_near_goal) {
                 auto now = clock::now();
-                double time_to_goal_region =
+                auto time_to_goal_region =
                         std::chrono::duration<double>(now - m_t_start).count();
                 m_near_goal = true;
                 SMPL_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
@@ -746,9 +784,9 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
 
             Eigen::Quaterniond qg(goal().pose.rotation());
             Eigen::Quaterniond q(
-                    Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX()));
+                    Eigen::AngleAxisd(state[FK_QZ], Eigen::Vector3d::UnitZ()) *
+                    Eigen::AngleAxisd(state[FK_QY], Eigen::Vector3d::UnitY()) *
+                    Eigen::AngleAxisd(state[FK_QX], Eigen::Vector3d::UnitX()));
 
             if (q.dot(qg) < 0.0) {
                 qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
@@ -783,59 +821,9 @@ auto WorkspaceLattice::getStateVisualization(
     return markers;
 }
 
-void WorkspaceLattice::getActions(
-    const WorkspaceLatticeState& entry,
-    std::vector<Action>& actions)
-{
-    actions.clear();
-    actions.reserve(m_prims.size());
-
-    WorkspaceState cont_state;
-    stateCoordToWorkspace(entry.coord, cont_state);
-
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  create actions for workspace state: " << cont_state);
-
-    for (size_t pidx = 0; pidx < m_prims.size(); ++pidx) {
-        const auto& prim = m_prims[pidx];
-
-        Action action;
-        action.reserve(prim.action.size());
-
-        auto final_state = cont_state;
-        for (auto& delta_state : prim.action) {
-            // increment the state
-            for (size_t d = 0; d < m_dof_count; ++d) {
-                final_state[d] += delta_state[d];
-            }
-
-            normalizeEulerAngles(&final_state[3]);
-
-            action.push_back(final_state);
-        }
-
-        actions.push_back(std::move(action));
-    }
-
-    if (m_ik_amp_enabled && numHeuristics() > 0) {
-        auto* h = heuristic(0);
-        auto goal_dist = h->getMetricGoalDistance(
-                cont_state[EE_PX], cont_state[EE_PY], cont_state[EE_PZ]);
-        if (goal_dist < m_ik_amp_thresh) {
-            std::vector<double> ik_sol;
-            if (m_ik_iface->computeIK(goal().pose, entry.state, ik_sol)) {
-                WorkspaceState final_state;
-                stateRobotToWorkspace(ik_sol, final_state);
-                Action action(1);
-                action[0] = final_state;
-                actions.push_back(std::move(action));
-            }
-        }
-    }
-}
-
 bool WorkspaceLattice::checkAction(
     const RobotState& state,
-    const Action& action,
+    const WorkspaceAction& action,
     RobotState* final_rstate)
 {
     std::vector<RobotState> wptraj;
@@ -914,7 +902,7 @@ int WorkspaceLattice::computeCost(
 
 bool WorkspaceLattice::checkLazyAction(
     const RobotState& state,
-    const Action& action,
+    const WorkspaceAction& action,
     RobotState* final_rstate)
 {
     std::vector<RobotState> wptraj;

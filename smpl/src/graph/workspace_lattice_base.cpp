@@ -324,12 +324,5 @@ void WorkspaceLatticeBase::favCoordToWorkspace(const int* ga, double* wa) const
     }
 }
 
-void WorkspaceLatticeBase::normalizeEulerAngles(double *wr) const
-{
-    Eigen::Matrix3d rot;
-    angles::from_euler_zyx(wr[2], wr[1], wr[0], rot);
-    angles::get_euler_zyx(rot, wr[2], wr[1], wr[0]);
-}
-
 } // namespace motion
 } // namespace sbpl

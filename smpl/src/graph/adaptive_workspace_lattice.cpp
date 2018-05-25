@@ -951,7 +951,7 @@ void AdaptiveWorkspaceLattice::getActions(
                 final_state[d] += delta_state[d];
             }
 
-            normalizeEulerAngles(&final_state[3]);
+            angles::normalize_euler_zyx(&final_state[3]);
 
             action.push_back(final_state);
         }

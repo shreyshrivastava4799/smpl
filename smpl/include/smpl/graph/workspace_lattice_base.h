@@ -38,6 +38,17 @@
 namespace sbpl {
 namespace motion {
 
+enum WorkspaceVariable
+{
+    FK_PX,
+    FK_PY,
+    FK_PZ,
+    FK_QX,
+    FK_QY,
+    FK_QZ,
+    WS_FA
+};
+
 /// continuous state ( x, y, z, R, P, Y, j1, ..., jn )
 typedef std::vector<double> WorkspaceState;
 
@@ -123,8 +134,6 @@ protected:
     void poseCoordToWorkspace(const int* gp, double* wp) const;
     void favWorkspaceToCoord(const double* wa, int* ga) const;
     void favCoordToWorkspace(const int* ga, double* wa) const;
-
-    void normalizeEulerAngles(double *wr) const;
 };
 
 } // namespace motion

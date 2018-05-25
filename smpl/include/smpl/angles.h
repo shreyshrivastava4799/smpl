@@ -168,6 +168,22 @@ void from_euler_zyx(T y, T p, T r, Eigen::Quaternion<T>& q)
 }
 
 template <typename T>
+void normalize_euler_zyx(T& y, T& p, T& r)
+{
+    Eigen::Matrix<T, 3, 3> rot;
+    angles::from_euler_zyx(y, p, r, rot);
+    angles::get_euler_zyx(rot, y, p, r);
+}
+
+template <typename T>
+void normalize_euler_zyx(T* angles) // in order r, p, y
+{
+    Eigen::Matrix<T, 3, 3> rot;
+    angles::from_euler_zyx(angles[2], angles[1], angles[0], rot);
+    angles::get_euler_zyx(rot, angles[2], angles[1], angles[0]);
+}
+
+template <typename T>
 auto get_nearest_planar_rotation(const Eigen::Quaternion<T>& q) -> T
 {
     auto s_squared = 1.0 - (q.w() * q.w());
