@@ -140,6 +140,10 @@ int ExperienceGraphPlanner::replan(
             if (new_cost < succ_state->g) {
                 succ_state->g = new_cost;
                 succ_state->f = succ_state->g + (int64_t)(m_eps * (double)succ_state->h);
+                SMPL_DEBUG_NAMED(LOG, "  Update state with f = %d + %ld = %ld",
+                        succ_state->g,
+                        (int64_t)(m_eps * (double)succ_state->h),
+                        succ_state->f);
                 succ_state->bp = min_state;
                 if (m_open.contains(succ_state)) {
                     m_open.decrease(succ_state);
@@ -282,6 +286,8 @@ void ExperienceGraphPlanner::get_search_stats(std::vector<PlannerStats>* s)
 
 void ExperienceGraphPlanner::set_initialsolution_eps(double initialsolution_eps)
 {
+    // TODO: update stuff
+    m_eps = initialsolution_eps;
 }
 
 int ExperienceGraphPlanner::set_goal(int goal_state_id)
