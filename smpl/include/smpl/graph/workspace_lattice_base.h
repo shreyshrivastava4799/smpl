@@ -50,16 +50,10 @@ enum WorkspaceVariable
 };
 
 /// continuous state ( x, y, z, R, P, Y, j1, ..., jn )
-typedef std::vector<double> WorkspaceState;
+using WorkspaceState = std::vector<double>;
 
 /// discrete coordinate ( x, y, z, R, P, Y, j1, ..., jn )
-typedef std::vector<int> WorkspaceCoord;
-
-/// 6-dof pose ( x, y, z, R, P, Y )
-typedef std::vector<double> SixPose;
-
-/// 3-dof position ( x, y, z )
-typedef std::vector<double> Position;
+using WorkspaceCoord = std::vector<int>;
 
 /// Base class for graph representations that represent states via a 1:1 mapping
 /// from joint space states to states in SE(3) alongside an array of redundant

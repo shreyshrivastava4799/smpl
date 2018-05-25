@@ -123,13 +123,6 @@ class WorkspaceLattice :
 {
 public:
 
-    struct PoseGoal
-    {
-        SixPose pose;
-        Position offset;
-        SixPose tolerance;
-    };
-
     ~WorkspaceLattice();
 
     void setVisualizationFrameId(const std::string& frame_id);
@@ -225,7 +218,8 @@ protected:
     std::string m_viz_frame_id;
 
     bool setGoalPose(const GoalConstraint& goal);
-    bool setGoalPoses(const std::vector<PoseGoal>& goals);
+    bool setGoalPoses(const GoalConstraint& goal);
+    bool setGoalJointState(const GoalConstraint& goal);
 
     int reserveHashEntry();
     int createState(const WorkspaceCoord& coord);

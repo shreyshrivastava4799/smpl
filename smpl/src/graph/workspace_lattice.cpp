@@ -700,7 +700,7 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     return RobotPlanningSpace::setGoal(goal);
 }
 
-bool WorkspaceLattice::setGoalPoses(const std::vector<PoseGoal>& goals)
+bool WorkspaceLattice::setGoalPoses(const GoalConstraint& goal)
 {
     return false;
 }
