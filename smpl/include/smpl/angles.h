@@ -71,15 +71,13 @@ double normalize_angle_positive(double angle)
 }
 
 /// \brief Convert an angle specified in radians to degrees.
-inline
-double to_degrees(double rads)
+constexpr double to_degrees(double rads)
 {
     return rads * 180.0 / M_PI;
 }
 
 /// \brief Convert an angle specified in degrees to radians.
-inline
-double to_radians(double degs)
+constexpr double to_radians(double degs)
 {
     return degs * M_PI / 180.0;
 }
