@@ -86,6 +86,28 @@ auto make_unique(Args&&... args) -> std::unique_ptr<T> {
 
 const char* PI_LOGGER = "simple";
 
+// Return true if the variable is part of a multi-dof joint. Optionally store
+// the name of the joint and the local name of the variable.
+static
+bool IsMultiDOFJointVariable(
+    const std::string& name,
+    std::string* joint_name = NULL,
+    std::string* local_name = NULL)
+{
+    auto slash_pos = name.find_last_of('/');
+    if (slash_pos != std::string::npos) {
+        if (joint_name != NULL) {
+            *joint_name = name.substr(0, slash_pos);
+        }
+        if (local_name != NULL) {
+            *local_name = name.substr(slash_pos + 1);
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
 struct ManipLatticeActionSpaceParams
 {
     std::string mprim_filename;
@@ -102,6 +124,7 @@ struct ManipLatticeActionSpaceParams
 
 // Lookup parameters for ManipLatticeActionSpace, setting reasonable defaults
 // for missing parameters. Return false if any required parameter is not found.
+static
 bool GetManipLatticeActionSpaceParams(
     ManipLatticeActionSpaceParams& params,
     const PlanningParams& pp)
@@ -125,6 +148,21 @@ bool GetManipLatticeActionSpaceParams(
     return true;
 }
 
+template <class T>
+static auto ParseMapFromString(const std::string& s)
+    -> std::unordered_map<std::string, T>
+{
+    std::unordered_map<std::string, T> map;
+    std::istringstream ss(s);
+    std::string key;
+    T value;
+    while (ss >> key >> value) {
+        map.insert(std::make_pair(key, value));
+    }
+    return map;
+}
+
+static
 auto MakeManipLattice(
     const OccupancyGrid* grid,
     RobotModel* robot,
@@ -144,22 +182,15 @@ auto MakeManipLattice(
         return nullptr;
     }
 
-    std::unordered_map<std::string, double> disc;
-    std::stringstream ss(disc_string);
-    std::string joint;
-    double jres;
-    while (ss >> joint >> jres) {
-        disc.insert(std::make_pair(joint, jres));
-    }
+    auto disc = ParseMapFromString<double>(disc_string);
     ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
 
     for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
-        const std::string& vname = robot->getPlanningJoints()[vidx];
-        const size_t sidx = vname.find('/');
-        if (sidx != std::string::npos) {
+        auto& vname = robot->getPlanningJoints()[vidx];
+        std::string joint_name, local_name;
+        if (IsMultiDOFJointVariable(vname, &joint_name, &local_name)) {
             // adjust variable name if a variable of a multi-dof joint
-            std::string mdof_vname =
-                    vname.substr(0, sidx) + "_" + vname.substr(sidx + 1);
+            auto mdof_vname = joint_name + "_" + local_name;
             auto dit = disc.find(mdof_vname);
             if (dit == end(disc)) {
                 ROS_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
@@ -247,6 +278,7 @@ auto MakeManipLattice(
     return std::move(space);
 }
 
+static
 auto MakeManipLatticeEGraph(
     const OccupancyGrid* grid,
     RobotModel* robot,
@@ -265,13 +297,7 @@ auto MakeManipLatticeEGraph(
         ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
         return nullptr;
     }
-    std::map<std::string, double> disc;
-    std::stringstream ss(disc_string);
-    std::string joint;
-    double jres;
-    while (ss >> joint >> jres) {
-        disc.insert(std::make_pair(joint, jres));
-    }
+    auto disc = ParseMapFromString<double>(disc_string);
     ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
 
     for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
@@ -337,6 +363,66 @@ auto MakeManipLatticeEGraph(
     return std::move(space);
 }
 
+static
+bool GetWorkspaceLatticeParams(
+    const PlanningParams* params,
+    const RobotModel* robot,
+    const RedundantManipulatorInterface* rmi,
+    WorkspaceLatticeBase::Params* wsp)
+{
+    std::string disc_string;
+    if (!params->getParam("discretization", disc_string)) {
+        ROS_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
+        return false;
+    }
+
+    auto disc = ParseMapFromString<double>(disc_string);
+    ROS_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu variables", disc.size());
+
+    auto extract_disc = [&](const char* name, double* d)
+    {
+        auto it = disc.find(name);
+        if (it == end(disc)) {
+            ROS_ERROR("Missing discretization for variable '%s'", name);
+            return false;
+        }
+
+        *d = it->second;
+        return true;
+    };
+
+    double res_R, res_P, res_Y;
+    if (!extract_disc("fk_pos_x", &wsp->res_x) ||
+        !extract_disc("fk_pos_y", &wsp->res_y) ||
+        !extract_disc("fk_pos_z", &wsp->res_z) ||
+        !extract_disc("fk_rot_r", &res_R) ||
+        !extract_disc("fk_rot_p", &res_P) ||
+        !extract_disc("fk_rot_y", &res_Y))
+    {
+        return false;
+    }
+
+    wsp->R_count = (int)std::round(2.0 * M_PI / res_R);
+    wsp->P_count = (int)std::round(M_PI / res_P) + 1; // TODO: force discrete values at -pi/2, 0, and pi/2
+    wsp->Y_count = (int)std::round(2.0 * M_PI / res_Y);
+
+    wsp->free_angle_res.resize(rmi->redundantVariableCount());
+    for (int i = 0; i < rmi->redundantVariableCount(); ++i) {
+        auto rvi = rmi->redundantVariableIndex(i);
+        auto name = robot->getPlanningJoints()[rvi];
+        std::string joint_name, local_name;
+        if (IsMultiDOFJointVariable(name, &joint_name, &local_name)) {
+            name = joint_name + "_" + local_name;
+        }
+        if (!extract_disc(name.c_str(), &wsp->free_angle_res[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static
 auto MakeWorkspaceLattice(
     const OccupancyGrid* grid,
     RobotModel* robot,
@@ -346,25 +432,21 @@ auto MakeWorkspaceLattice(
 {
     ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
 
-    WorkspaceLatticeBase::Params wsp;
-    wsp.res_x = grid->resolution();
-    wsp.res_y = grid->resolution();
-    wsp.res_z = grid->resolution();
-    wsp.R_count = 360;
-    wsp.P_count = 180 + 1; // we'd like to have a discrete pitch value at -pi/2, 0, and pi/2
-    wsp.Y_count = 360;
-
     auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
     if (!rmi) {
         ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
-        return nullptr;
+        return NULL;
     }
-    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
+
+    WorkspaceLatticeBase::Params wsp;
+    if (!GetWorkspaceLatticeParams(params, robot, rmi, &wsp)) {
+        return NULL;
+    }
 
     auto space = make_unique<WorkspaceLattice>();
     if (!space->init(robot, checker, params, wsp)) {
         ROS_ERROR("Failed to initialize Workspace Lattice");
-        return nullptr;
+        return NULL;
     }
 
     space->setVisualizationFrameId(grid->getReferenceFrame());
@@ -372,6 +454,7 @@ auto MakeWorkspaceLattice(
     return std::move(space);
 }
 
+static
 auto MakeWorkspaceLatticeEGraph(
     const OccupancyGrid* grid,
     RobotModel* robot,
@@ -381,24 +464,16 @@ auto MakeWorkspaceLatticeEGraph(
 {
     ROS_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice E-Graph");
 
-    WorkspaceLatticeBase::Params wsp;
-    wsp.res_x = grid->resolution();
-    wsp.res_y = grid->resolution();
-    wsp.res_z = grid->resolution();
-    wsp.R_count = 360;
-    wsp.P_count = 180 + 1; // we'd like to have a discrete pitch value at -pi/2, 0, and pi/2
-    wsp.Y_count = 360;
-
     auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
     if (!rmi) {
         ROS_WARN("Workspace Lattice requires Redundant Manipulator Interface");
-        return nullptr;
+        return NULL;
     }
-//    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
-    // grid->resolution() so that base movements move the end effector by the same amount
-    // this gets screwy with theta in the loop
-    // TODO: add parameters for this
-    wsp.free_angle_res.resize(rmi->redundantVariableCount(), grid->resolution());
+
+    WorkspaceLatticeBase::Params wsp;
+    if (!GetWorkspaceLatticeParams(params, robot, rmi, &wsp)) {
+        return NULL;
+    }
 
     auto space = make_unique<WorkspaceLatticeEGraph>();
     if (!space->init(robot, checker, params, wsp)) {
@@ -419,6 +494,7 @@ auto MakeWorkspaceLatticeEGraph(
     return std::move(space);
 }
 
+static
 auto MakeAdaptiveWorkspaceLattice(
     const OccupancyGrid* grid,
     RobotModel* robot,
@@ -451,6 +527,7 @@ auto MakeAdaptiveWorkspaceLattice(
     return std::move(space);
 }
 
+static
 auto MakeMultiFrameBFSHeuristic(
     RobotPlanningSpace* space,
     const OccupancyGrid* grid,
@@ -473,6 +550,7 @@ auto MakeMultiFrameBFSHeuristic(
     return std::move(h);
 }
 
+static
 auto MakeBFSHeuristic(
     RobotPlanningSpace* space,
     const OccupancyGrid* grid,
@@ -488,6 +566,7 @@ auto MakeBFSHeuristic(
     return std::move(h);
 };
 
+static
 auto MakeEuclidDistHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& params)
@@ -512,6 +591,7 @@ auto MakeEuclidDistHeuristic(
     return std::move(h);
 };
 
+static
 auto MakeJointDistHeuristic(RobotPlanningSpace* space)
     -> std::unique_ptr<RobotHeuristic>
 {
@@ -522,6 +602,7 @@ auto MakeJointDistHeuristic(RobotPlanningSpace* space)
     return std::move(h);
 };
 
+static
 auto MakeDijkstraEgraphHeuristic3D(
     RobotPlanningSpace* space,
     const OccupancyGrid* grid,
@@ -543,6 +624,7 @@ auto MakeDijkstraEgraphHeuristic3D(
     return std::move(h);
 };
 
+static
 auto MakeJointDistEGraphHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& params)
@@ -563,10 +645,10 @@ auto MakeJointDistEGraphHeuristic(
     return std::move(h);
 };
 
+static
 auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
-    const bool forward_search = true;
     auto search = make_unique<ARAStar>(space, heuristic);
 
     double epsilon;
@@ -610,6 +692,7 @@ auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     return std::move(search);
 }
 
+static
 auto MakeAWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -620,6 +703,7 @@ auto MakeAWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     return std::move(search);
 }
 
+static
 auto MakeMHAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -639,7 +723,6 @@ auto MakeMHAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     std::vector<Heuristic*> heuristics;
     heuristics.push_back(heuristic);
 
-    const bool forward_search = true;
     auto search = make_unique<MHAPlannerAdapter>(
             space, heuristics[0], &heuristics[0], heuristics.size());
 
@@ -660,10 +743,11 @@ auto MakeMHAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     return std::move(search);
 }
 
+static
 auto MakeLARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
-    const bool forward_search = true;
+    auto forward_search = true;
     auto search = make_unique<LazyARAPlanner>(space, forward_search);
     double epsilon;
     space->params()->param("epsilon", epsilon, 1.0);
@@ -674,6 +758,7 @@ auto MakeLARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     return std::move(search);
 }
 
+static
 auto MakeEGWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -686,6 +771,7 @@ auto MakeEGWAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     return std::move(search);
 }
 
+static
 auto MakePADAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -1109,32 +1195,32 @@ bool ExtractJointStateGoal(
 
     if (goal_constraints.joint_constraints.size() < model->jointVariableCount()) {
         ROS_WARN_NAMED(PI_LOGGER, "Insufficient joint constraints specified (%zu < %zu)!", goal_constraints.joint_constraints.size(), model->jointVariableCount());
-        return false;
+//        return false;
     }
     if (goal_constraints.joint_constraints.size() > model->jointVariableCount()) {
         ROS_WARN_NAMED(PI_LOGGER, "Excess joint constraints specified (%zu > %zu)!", goal_constraints.joint_constraints.size(), model->jointVariableCount());
-        return false;
+//        return false;
     }
 
-    auto num_angle_constraints = std::min(
-            goal_constraints.joint_constraints.size(), sbpl_angle_goal.size());
-    for (size_t i = 0; i < num_angle_constraints; i++) {
-        auto& joint_constraint = goal_constraints.joint_constraints[i];
-        auto& joint_name = joint_constraint.joint_name;
-        auto jit = std::find(
-                begin(model->getPlanningJoints()),
-                end(model->getPlanningJoints()),
-                joint_name);
-        if (jit == end(model->getPlanningJoints())) {
-            ROS_ERROR("Failed to find goal constraint for joint '%s'", joint_name.c_str());
-            return false;
+    for (size_t i = 0; i < model->jointVariableCount(); ++i) {
+        auto& variable_name = model->getPlanningJoints()[i];
+
+        auto jit = std::find_if(
+                begin(goal_constraints.joint_constraints),
+                end(goal_constraints.joint_constraints),
+                [&](const moveit_msgs::JointConstraint& constraint) {
+                    return constraint.joint_name == variable_name;
+                });
+        if (jit == end(goal_constraints.joint_constraints)) {
+            ROS_WARN("Assume goal position 1 for joint '%s'", variable_name.c_str());
+            sbpl_angle_goal[i] = 1.0;
+            sbpl_angle_tolerance[i] = 0.1;
+        } else {
+            sbpl_angle_goal[i] = jit->position;
+            sbpl_angle_tolerance[i] = std::min(
+                    std::fabs(jit->tolerance_above), std::fabs(jit->tolerance_below));
+            ROS_INFO_NAMED(PI_LOGGER, "Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, variable_name.c_str(), sbpl_angle_goal[i], sbpl_angle_tolerance[i]);
         }
-        auto jidx = std::distance(begin(model->getPlanningJoints()), jit);
-        sbpl_angle_goal[jidx] = joint_constraint.position;
-        sbpl_angle_tolerance[jidx] = std::min(
-                fabs(joint_constraint.tolerance_above),
-                fabs(joint_constraint.tolerance_below));
-        ROS_INFO_NAMED(PI_LOGGER, "Joint %zu [%s]: goal position: %.3f, goal tolerance: %.3f", i, joint_name.c_str(), sbpl_angle_goal[jidx], sbpl_angle_tolerance[jidx]);
     }
 
     goal.type = GoalType::JOINT_STATE_GOAL;
@@ -1391,6 +1477,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
 {
     ROS_INFO_NAMED(PI_LOGGER, "set start configuration");
 
+    // TODO: Ideally, the RobotModel should specify joints rather than variables
     if (!state.multi_dof_joint_state.joint_names.empty()) {
         auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
         for (auto& joint_name : m_robot->getPlanningJoints()) {
@@ -1410,8 +1497,26 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
             initial_positions,
             missing))
     {
-        ROS_ERROR_STREAM("start state is missing planning joints: " << missing);
-        return false;
+        ROS_WARN_STREAM("start state is missing planning joints: " << missing);
+
+        moveit_msgs::RobotState fixed_state = state;
+        for (auto& variable : missing) {
+            ROS_WARN("  Assume position 0.0 for joint variable '%s'", variable.c_str());
+            fixed_state.joint_state.name.push_back(variable);
+            fixed_state.joint_state.position.push_back(0.0);
+        }
+
+        if (!leatherman::getJointPositions(
+                fixed_state.joint_state,
+                fixed_state.multi_dof_joint_state,
+                m_robot->getPlanningJoints(),
+                initial_positions,
+                missing))
+        {
+            return false;
+        }
+
+//        return false;
     }
 
     ROS_INFO_STREAM_NAMED(PI_LOGGER, "  joint variables: " << initial_positions);
@@ -1555,14 +1660,14 @@ auto PlannerInterface::makePathVisualization(
         return ma;
     }
 
-    double cinc = 1.0 / double(path.size());
+    auto cinc = 1.0f / float(path.size());
     for (size_t i = 0; i < path.size(); ++i) {
         auto markers = m_checker->getCollisionModelVisualization(path[i]);
 
         for (auto& marker : markers) {
-            const float r = 0.1f;
-            const float g = cinc * (float)(path.size() - (i + 1));
-            const float b = cinc * (float)i;
+            auto r = 0.1f;
+            auto g = cinc * (float)(path.size() - (i + 1));
+            auto b = cinc * (float)i;
             marker.color = visual::Color{ r, g, b, 1.0f };
         }
 
@@ -1656,9 +1761,9 @@ bool PlannerInterface::parsePlannerID(
         return false;
     }
 
-    const std::string default_search_name = "arastar";
-    const std::string default_heuristic_name = "bfs";
-    const std::string default_space_name = "manip";
+    auto default_search_name = "arastar";
+    auto default_heuristic_name = "bfs";
+    auto default_space_name = "manip";
 
     if (sm.size() < 2 || sm[1].str().empty()) {
         search_name = default_search_name;
@@ -1781,13 +1886,13 @@ void PlannerInterface::profilePath(trajectory_msgs::JointTrajectory& traj) const
         // waypoint
         double max_time = 0.0;
         for (size_t jidx = 0; jidx < joint_names.size(); ++jidx) {
-            const double from_pos = prev_point.positions[jidx];
-            const double to_pos = curr_point.positions[jidx];
-            const double vel = m_robot->velLimit(jidx);
+            auto from_pos = prev_point.positions[jidx];
+            auto to_pos = curr_point.positions[jidx];
+            auto vel = m_robot->velLimit(jidx);
             if (vel <= 0.0) {
                 continue;
             }
-            double t = 0.0;
+            auto t = 0.0;
             if (m_robot->isContinuous(jidx)) {
                 t = angles::shortest_angle_dist(from_pos, to_pos) / vel;
             } else {
@@ -1838,7 +1943,7 @@ bool PlannerInterface::isPathValid(const std::vector<RobotState>& path) const
 
 void PlannerInterface::postProcessPath(std::vector<RobotState>& path) const
 {
-    const bool check_planned_path = true;
+    auto check_planned_path = true;
     if (check_planned_path && !isPathValid(path)) {
         ROS_ERROR("Planned path is invalid");
     }
@@ -1879,12 +1984,11 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
     traj.multi_dof_joint_trajectory.joint_names.clear();
     traj.multi_dof_joint_trajectory.points.clear();
 
+    // fill joint names header for both single- and multi-dof joint trajectories
     auto& variable_names = m_robot->getPlanningJoints();
     for (auto& var_name : variable_names) {
-        auto slash_pos = var_name.find_last_of('/');
-        auto joint_is_mdof = slash_pos != std::string::npos;
-        if (joint_is_mdof) {
-            auto joint_name = var_name.substr(0, slash_pos);
+        std::string joint_name;
+        if (IsMultiDOFJointVariable(var_name, &joint_name)) {
             auto it = std::find(
                     begin(traj.multi_dof_joint_trajectory.joint_names),
                     end(traj.multi_dof_joint_trajectory.joint_names),
@@ -1917,13 +2021,11 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
         for (size_t vidx = 0; vidx < point.size(); ++vidx) {
             auto& var_name = variable_names[vidx];
 
-            auto slash_pos = var_name.find_last_of('/');
-            auto joint_is_mdof = slash_pos != std::string::npos;
-            if (joint_is_mdof) {
+            std::string joint_name, local_name;
+            if (IsMultiDOFJointVariable(var_name, &joint_name, &local_name)) {
                 auto& p = traj.multi_dof_joint_trajectory.points[pidx];
                 p.transforms.resize(traj.multi_dof_joint_trajectory.joint_names.size());
 
-                auto joint_name = var_name.substr(0, slash_pos);
                 auto it = std::find(
                         begin(traj.multi_dof_joint_trajectory.joint_names),
                         end(traj.multi_dof_joint_trajectory.joint_names),
@@ -1932,31 +2034,29 @@ void PlannerInterface::convertJointVariablePathToJointTrajectory(
 
                 auto tidx = std::distance(begin(traj.multi_dof_joint_trajectory.joint_names), it);
 
-                auto local_var_name = var_name.substr(slash_pos + 1);
-
-                if (local_var_name == "x" ||
-                    local_var_name == "trans_x")
+                if (local_name == "x" ||
+                    local_name == "trans_x")
                 {
                     p.transforms[tidx].translation.x = point[vidx];
-                } else if (local_var_name == "y" ||
-                    local_var_name == "trans_y")
+                } else if (local_name == "y" ||
+                    local_name == "trans_y")
                 {
                     p.transforms[tidx].translation.y = point[vidx];
-                } else if (local_var_name == "trans_z") {
+                } else if (local_name == "trans_z") {
                     p.transforms[tidx].translation.z = point[vidx];
-                } else if (local_var_name == "theta") {
+                } else if (local_name == "theta") {
                     Eigen::Quaterniond q(Eigen::AngleAxisd(point[vidx], Eigen::Vector3d::UnitZ()));
                     tf::quaternionEigenToMsg(q, p.transforms[tidx].rotation);
-                } else if (local_var_name == "rot_w") {
+                } else if (local_name == "rot_w") {
                     p.transforms[tidx].rotation.w = point[vidx];
-                } else if (local_var_name == "rot_x") {
+                } else if (local_name == "rot_x") {
                     p.transforms[tidx].rotation.x = point[vidx];
-                } else if (local_var_name == "rot_y") {
+                } else if (local_name == "rot_y") {
                     p.transforms[tidx].rotation.y = point[vidx];
-                } else if (local_var_name == "rot_z") {
+                } else if (local_name == "rot_z") {
                     p.transforms[tidx].rotation.z = point[vidx];
                 } else {
-                    SMPL_WARN("Unrecognized multi-dof local variable name '%s'", local_var_name.c_str());
+                    SMPL_WARN("Unrecognized multi-dof local variable name '%s'", local_name.c_str());
                     continue;
                 }
             } else {
@@ -2064,11 +2164,8 @@ bool PlannerInterface::writePath(
         for (size_t vidx = 0; vidx < m_robot->jointVariableCount(); ++vidx) {
             auto& var_name = m_robot->getPlanningJoints()[vidx];
 
-            auto slash_pos = var_name.find_last_of('/');
-            auto joint_is_mdof = slash_pos != std::string::npos;
-            if (joint_is_mdof) {
-                auto joint_name = var_name.substr(0, slash_pos);
-                auto local_var_name = var_name.substr(slash_pos + 1);
+            std::string joint_name, local_name;
+            if (IsMultiDOFJointVariable(var_name, &joint_name, &local_name)) {
                 auto it = std::find(
                         begin(state.multi_dof_joint_state.joint_names),
                         end(state.multi_dof_joint_state.joint_names),
@@ -2078,17 +2175,17 @@ bool PlannerInterface::writePath(
                 auto jidx = std::distance(begin(state.multi_dof_joint_state.joint_names), it);
                 auto& transform = state.multi_dof_joint_state.transforms[jidx];
                 double pos;
-                if (local_var_name == "x" ||
-                    local_var_name == "trans_x")
+                if (local_name == "x" ||
+                    local_name == "trans_x")
                 {
                     pos = transform.translation.x;
-                } else if (local_var_name == "y" ||
-                    local_var_name == "trans_y")
+                } else if (local_name == "y" ||
+                    local_name == "trans_y")
                 {
                     pos = transform.translation.y;
-                } else if (local_var_name == "trans_z") {
+                } else if (local_name == "trans_z") {
                     pos = transform.translation.z;
-                } else if (local_var_name == "theta") {
+                } else if (local_name == "theta") {
                     // this list just gets larger:
                     // from sbpl_collision_checking, MoveIt, Bullet, leatherman
                     double s_squared = 1.0 - transform.rotation.w * transform.rotation.w;
@@ -2098,16 +2195,16 @@ bool PlannerInterface::writePath(
                         double s = 1.0 / sqrt(s_squared);
                         pos = (acos(transform.rotation.w) * 2.0) * transform.rotation.x * s;
                     }
-                } else if (local_var_name == "rot_w") {
+                } else if (local_name == "rot_w") {
                     pos = transform.rotation.w;
-                } else if (local_var_name == "rot_x") {
+                } else if (local_name == "rot_x") {
                     pos = transform.rotation.x;
-                } else if (local_var_name == "rot_y") {
+                } else if (local_name == "rot_y") {
                     pos = transform.rotation.y;
-                } else if (local_var_name == "rot_z") {
+                } else if (local_name == "rot_z") {
                     pos = transform.rotation.z;
                 } else {
-                    SMPL_WARN("Unrecognized multi-dof local variable name '%s'", local_var_name.c_str());
+                    SMPL_WARN("Unrecognized multi-dof local variable name '%s'", local_name.c_str());
                     continue;
                 }
 

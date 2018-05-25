@@ -123,7 +123,7 @@ bool ManipLattice::init(
             discretization[vidx] = (int)std::round((2.0 * M_PI) / resolutions[vidx]);
             deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
         } else if (m_bounded[vidx]) {
-            const double span = std::fabs(m_max_limits[vidx] - m_min_limits[vidx]);
+            auto span = std::fabs(m_max_limits[vidx] - m_min_limits[vidx]);
             discretization[vidx] = std::max(1, (int)std::round(span / resolutions[vidx]));
             deltas[vidx] = span / (double)discretization[vidx];
         } else {
