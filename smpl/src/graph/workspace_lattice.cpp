@@ -292,15 +292,18 @@ bool WorkspaceLattice::setStart(const RobotState& state)
 
 bool WorkspaceLattice::setGoal(const GoalConstraint& goal)
 {
-    bool res = false;
-    if (goal.type == GoalType::XYZ_RPY_GOAL) {
+    switch (goal.type) {
+    case GoalType::XYZ_RPY_GOAL:
         return setGoalPose(goal);
-    } else {
-        // TODO: set other goals here
+    case GoalType::JOINT_STATE_GOAL:
+        return setGoalJointState(goal);
+    case GoalType::XYZ_GOAL:
+    case GoalType::MULTIPLE_POSE_GOAL:
+    case GoalType::USER_GOAL_CONSTRAINT_FN:
+    default:
+        SMPL_WARN("Unimplemented goal type %d", (int)goal.type);
         return false;
     }
-
-    return false;
 }
 
 int WorkspaceLattice::getStartStateID() const
@@ -309,7 +312,7 @@ int WorkspaceLattice::getStartStateID() const
         WorkspaceLatticeState* start_state = getState(m_start_state_id);
         WorkspaceState cont_state;
         stateCoordToWorkspace(start_state->coord, cont_state);
-        if (isGoal(cont_state)) {
+        if (isGoal(cont_state, start_state->state)) {
             return m_goal_state_id;
         }
     }
@@ -380,12 +383,13 @@ bool WorkspaceLattice::extractPath(
             for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
                 auto& action = actions[aidx];
 
-                auto& final_state = action.back();
-                if (!isGoal(final_state)) {
+                RobotState final_rstate;
+                if (!checkAction(prev_entry->state, action, &final_rstate)) {
                     continue;
                 }
 
-                if (!checkAction(prev_entry->state, action)) {
+                auto& final_state = action.back();
+                if (!isGoal(final_state, final_rstate)) {
                     continue;
                 }
 
@@ -493,7 +497,7 @@ void WorkspaceLattice::GetSuccs(
         succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
-        auto is_goal_succ = isGoal(final_state);
+        auto is_goal_succ = isGoal(final_state, final_rstate);
 
         // put successor on successor list with the proper cost
         if (is_goal_succ) {
@@ -595,7 +599,7 @@ void WorkspaceLattice::GetLazySuccs(
         succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
-        auto is_goal_succ = isGoal(final_state);
+        auto is_goal_succ = isGoal(final_state, final_rstate);
 
         // put successor on successor list with the proper cost
         if (is_goal_succ) {
@@ -634,24 +638,25 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
     auto goal_edge = (child_id == m_goal_state_id);
 
     WorkspaceCoord succ_coord;
-    int best_cost = std::numeric_limits<int>::max();
+    auto best_cost = std::numeric_limits<int>::max();
     for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
         auto& action = actions[aidx];
+
+        RobotState final_rstate;
+        if (!checkAction(parent_entry->state, action, &final_rstate)) {
+            continue;
+        }
 
         stateWorkspaceToCoord(action.back(), succ_coord);
 
         if (goal_edge) {
-            if (!isGoal(action.back())) {
+            if (!isGoal(action.back(), final_rstate)) {
                 continue;
             }
         } else {
             if (succ_coord != child_entry->coord) {
                 continue;
             }
-        }
-
-        if (!checkAction(parent_entry->state, action, nullptr)) {
-            continue;
         }
 
         auto edge_cost = /* TODO: compute cost */ 30;
@@ -700,9 +705,12 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     return RobotPlanningSpace::setGoal(goal);
 }
 
-bool WorkspaceLattice::setGoalPoses(const GoalConstraint& goal)
+bool WorkspaceLattice::setGoalJointState(const GoalConstraint& goal)
 {
-    return false;
+    m_near_goal = false;
+    m_t_start = clock::now();
+
+    return RobotPlanningSpace::setGoal(goal);
 }
 
 int WorkspaceLattice::reserveHashEntry()
@@ -758,13 +766,19 @@ WorkspaceLatticeState* WorkspaceLattice::getState(int state_id) const
     return m_states[state_id];
 }
 
-bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
+bool WorkspaceLattice::isGoal(
+    const WorkspaceState& state,
+    const RobotState& robot_state) const
 {
     // check position
     switch (goal().type) {
     case GoalType::JOINT_STATE_GOAL:
-        SMPL_WARN_ONCE("WorkspaceLattice joint-space goals not implemented");
-        return false;
+        for (int i = 0; i < goal().angles.size(); i++) {
+            if (fabs(robot_state[i] - goal().angles[i]) > goal().angle_tolerances[i]) {
+                return false;
+            }
+        }
+        return true;
     case GoalType::XYZ_RPY_GOAL: {
         auto dx = std::fabs(state[FK_PX] - goal().pose.translation()[0]);
         auto dy = std::fabs(state[FK_PY] - goal().pose.translation()[1]);

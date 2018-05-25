@@ -218,7 +218,6 @@ protected:
     std::string m_viz_frame_id;
 
     bool setGoalPose(const GoalConstraint& goal);
-    bool setGoalPoses(const GoalConstraint& goal);
     bool setGoalJointState(const GoalConstraint& goal);
 
     int reserveHashEntry();
@@ -239,7 +238,7 @@ protected:
         const WorkspaceAction& action,
         RobotState* final_rstate = nullptr);
 
-    bool isGoal(const WorkspaceState& state) const;
+    bool isGoal(const WorkspaceState& state, const RobotState& robot_state) const;
 
     auto getStateVisualization(const RobotState& state, const std::string& ns)
         -> std::vector<visual::Marker>;

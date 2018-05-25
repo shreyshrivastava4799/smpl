@@ -234,12 +234,13 @@ bool WorkspaceLatticeEGraph::extractPath(
 
         for (auto& action : actions) {
             // check the validity of this transition
-            if (!this->checkAction(prev_state, action)) continue;
+            RobotState final_rstate;
+            if (!this->checkAction(prev_state, action, &final_rstate)) continue;
 
             if (curr_id == this->getGoalStateID()) {
 
                 // skip non-goal states
-                if (!this->isGoal(action.back())) continue;
+                if (!this->isGoal(action.back(), final_rstate)) continue;
 
                 this->stateWorkspaceToCoord(action.back(), succ_coord);
                 int succ_state_id = this->createState(succ_coord);
