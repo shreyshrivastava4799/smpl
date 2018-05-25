@@ -856,7 +856,12 @@ bool WorkspaceLattice::checkAction(
         // from the seed state with the free angles of the intermediate state
         // in case they are changed
         RobotState irstate;
-        if (!stateWorkspaceToRobot(istate, /*state,*/ irstate)) {
+        RobotState seed = state;
+        // copy over seed angles from the intermediate state
+        for (int i = 0; i < this->freeAngleCount(); ++i) {
+            seed[this->m_fangle_indices[i]] = istate[6 + i];
+        }
+        if (!stateWorkspaceToRobot(istate, seed, irstate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
