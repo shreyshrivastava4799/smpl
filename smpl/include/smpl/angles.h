@@ -167,6 +167,20 @@ void from_euler_zyx(T y, T p, T r, Eigen::Quaternion<T>& q)
     q = Eigen::Quaternion<T>(R);
 }
 
+template <typename T>
+auto get_nearest_planar_rotation(const Eigen::Quaternion<T>& q) -> T
+{
+    auto s_squared = 1.0 - (q.w() * q.w());
+    // end the long chain of copypasta here that seems to have originated from
+    // BULLET
+    if (s_squared < 10.0 * std::numeric_limits<T>::epsilon()) {
+        return 0.0;
+    } else {
+        double s = 1.0 / sqrt(s_squared);
+        return (2.0 * acos(q.w())) * (q.z() * s);
+    }
+}
+
 } // namespace angles
 } // namespace sbpl
 
