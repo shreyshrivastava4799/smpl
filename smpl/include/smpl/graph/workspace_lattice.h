@@ -91,7 +91,8 @@ namespace motion {
 ///     pose of one of its links and all redundant joint variables
 class WorkspaceLattice :
     public WorkspaceLatticeBase,
-    public PoseProjectionExtension
+    public PoseProjectionExtension,
+    public ExtractRobotStateExtension
 {
 public:
 
@@ -136,6 +137,8 @@ public:
         const std::vector<int>& ids,
         std::vector<RobotState>& path) override;
     ///@}
+
+    const RobotState& extractState(int state_id) override;
 
     /// \name Required Public Functions from Extension
     ///@{

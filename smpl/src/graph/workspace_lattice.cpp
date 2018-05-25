@@ -305,12 +305,18 @@ bool WorkspaceLattice::extractPath(
     return true;
 }
 
+auto WorkspaceLattice::extractState(int state_id) -> const RobotState&
+{
+    return this->m_states[state_id]->state;
+}
+
 Extension* WorkspaceLattice::getExtension(size_t class_code)
 {
     if (class_code == GetClassCode<WorkspaceLattice>() ||
         class_code == GetClassCode<RobotPlanningSpace>() ||
         class_code == GetClassCode<PoseProjectionExtension>() ||
-        class_code == GetClassCode<PointProjectionExtension>())
+        class_code == GetClassCode<PointProjectionExtension>() ||
+        class_code == GetClassCode<ExtractRobotStateExtension>())
     {
         return this;
     }
@@ -749,7 +755,7 @@ bool WorkspaceLattice::isGoal(const WorkspaceState& state) const
             }
 
 //            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
-            const double theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
+            auto theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
             if (theta < goal().rpy_tolerance[0]) {
                 return true;
             }
