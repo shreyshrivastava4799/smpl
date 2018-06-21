@@ -125,14 +125,14 @@ bool WorkspaceLatticeBase::init(
     }
 
     SMPL_INFO("discretization of workspace lattice:");
-    SMPL_INFO("  x: { res: %0.3f, count: %d }", m_res[0], m_val_count[0]);
-    SMPL_INFO("  y: { res: %0.3f, count: %d }", m_res[1], m_val_count[1]);
-    SMPL_INFO("  z: { res: %0.3f, count: %d }", m_res[2], m_val_count[2]);
-    SMPL_INFO("  R: { res: %0.3f, count: %d }", m_res[3], m_val_count[3]);
-    SMPL_INFO("  P: { res: %0.3f, count: %d }", m_res[4], m_val_count[4]);
-    SMPL_INFO("  Y: { res: %0.3f, count: %d }", m_res[5], m_val_count[5]);
+    SMPL_INFO("  x: { res: %f, count: %d }", m_res[0], m_val_count[0]);
+    SMPL_INFO("  y: { res: %f, count: %d }", m_res[1], m_val_count[1]);
+    SMPL_INFO("  z: { res: %f, count: %d }", m_res[2], m_val_count[2]);
+    SMPL_INFO("  R: { res: %f, count: %d }", m_res[3], m_val_count[3]);
+    SMPL_INFO("  P: { res: %f, count: %d }", m_res[4], m_val_count[4]);
+    SMPL_INFO("  Y: { res: %f, count: %d }", m_res[5], m_val_count[5]);
     for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        SMPL_INFO("  J%d: { res: %0.3f, count: %d }", i, m_res[6 + i], m_val_count[6 + i]);
+        SMPL_INFO("  J%d: { res: %f, count: %d }", i, m_res[6 + i], m_val_count[6 + i]);
     }
 
     return true;
@@ -265,6 +265,7 @@ void WorkspaceLatticeBase::rotWorkspaceToCoord(const double* wr, int* gr) const
 
 void WorkspaceLatticeBase::rotCoordToWorkspace(const int* gr, double* wr) const
 {
+    // TODO: this normalize is probably not necessary
     wr[0] = angles::normalize_angle((double)gr[0] * m_res[3]);
     wr[1] = angles::normalize_angle(-0.5 * M_PI + (double)gr[1] * m_res[4]);
     wr[2] = angles::normalize_angle((double)gr[2] * m_res[5]);
