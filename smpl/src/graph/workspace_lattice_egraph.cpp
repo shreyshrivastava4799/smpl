@@ -293,7 +293,7 @@ bool WorkspaceLatticeEGraph::extractPath(
             std::vector<ExperienceGraph::node_id> node_path;
             found = FindShortestExperienceGraphPath(this->egraph, prev_node, curr_node, node_path);
             if (found) {
-                for (ExperienceGraph::node_id n : node_path) {
+                for (auto n : node_path) {
                     auto state_id = this->egraph_node_to_state[n];
                     auto* entry = this->getState(state_id);
                     assert(entry);

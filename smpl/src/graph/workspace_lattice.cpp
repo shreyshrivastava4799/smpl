@@ -843,18 +843,12 @@ bool WorkspaceLattice::checkAction(
     std::vector<RobotState> wptraj;
     wptraj.reserve(action.size());
 
-    std::uint32_t violation_mask = 0x00000000;
-
     // check waypoints for ik solutions and joint limits
     for (size_t widx = 0; widx < action.size(); ++widx) {
         auto& istate = action[widx];
 
         SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
 
-        // this uses the state being expanded as the seed state, rather than
-        // the value of the intermediate state.. we want to use the joint angles
-        // from the seed state with the free angles of the intermediate state
-        // in case they are changed
         RobotState irstate;
         RobotState seed = state;
         // copy over seed angles from the intermediate state
@@ -863,21 +857,15 @@ bool WorkspaceLattice::checkAction(
         }
         if (!stateWorkspaceToRobot(istate, seed, irstate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
-            violation_mask |= 0x00000001;
-            break;
+            return false;
         }
-
-        wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
-            violation_mask |= 0x00000002;
-            break;
+            return false;
         }
-    }
 
-    if (violation_mask) {
-        return false;
+        wptraj.push_back(std::move(irstate));
     }
 
     // check for collisions between the waypoints
@@ -885,10 +873,6 @@ bool WorkspaceLattice::checkAction(
 
     if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
         SMPL_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
-        violation_mask |= 0x00000004;
-    }
-
-    if (violation_mask) {
         return false;
     }
 
@@ -897,13 +881,8 @@ bool WorkspaceLattice::checkAction(
         auto& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
-            violation_mask |= 0x00000008;
-            break;
+            return false;
         }
-    }
-
-    if (violation_mask) {
-        return false;
     }
 
     if (final_rstate) {
@@ -927,8 +906,6 @@ bool WorkspaceLattice::checkLazyAction(
     std::vector<RobotState> wptraj;
     wptraj.reserve(action.size());
 
-    std::uint32_t violation_mask = 0x00000000;
-
     // check waypoints for ik solutions and joint limits
     for (size_t widx = 0; widx < action.size(); ++widx) {
         auto& istate = action[widx];
@@ -938,21 +915,15 @@ bool WorkspaceLattice::checkLazyAction(
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
-            violation_mask |= 0x00000001;
-            break;
+            return false;
         }
 
         wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
             SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
-            violation_mask |= 0x00000002;
-            break;
+            return false;
         }
-    }
-
-    if (violation_mask) {
-        return false;
     }
 
     // check for collisions between the waypoints

@@ -98,7 +98,7 @@ bool WorkspaceLatticeBase::init(
         if (m_fangle_continuous[i]) {
             m_val_count[6 + i] = (int)std::round((2.0 * M_PI) / _params.free_angle_res[i]);
         } else if (m_fangle_bounded[i]) {
-            const double span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
+            auto span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
             m_val_count[6 + i] = std::max(1, (int)std::round(span / _params.free_angle_res[i]));
         } else {
             m_val_count[6 + i] = std::numeric_limits<int>::max();
@@ -117,7 +117,7 @@ bool WorkspaceLatticeBase::init(
         if (m_fangle_continuous[i]) {
             m_res[6 + i] = (2.0 * M_PI) / (double)m_val_count[6 + i];
         } else if (m_fangle_bounded[i]) {
-            const double span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
+            auto span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
             m_res[6 + i] = span / m_val_count[6 + i];
         } else {
             m_res[6 + i] = _params.free_angle_res[i];
@@ -286,7 +286,7 @@ void WorkspaceLatticeBase::favWorkspaceToCoord(const double* wa, int* ga) const
 {
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
         if (m_fangle_continuous[fai]) {
-            double pos_angle = angles::normalize_angle_positive(wa[fai]);
+            auto pos_angle = angles::normalize_angle_positive(wa[fai]);
 
             ga[fai] = (int)((pos_angle + m_res[6 + fai] * 0.5) / m_res[6 + fai]);
 
@@ -307,17 +307,11 @@ void WorkspaceLatticeBase::favWorkspaceToCoord(const double* wa, int* ga) const
 
 void WorkspaceLatticeBase::favCoordToWorkspace(const int* ga, double* wa) const
 {
-#if 0
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
-        wa[fai] = angles::normalize_angle((double)ga[fai] * m_res[6 + fai]);
-    }
-#endif
-
     for (size_t i = 0; i < freeAngleCount(); ++i) {
         if (m_fangle_continuous[i]) {
             wa[i] = (double)ga[i] * m_res[6 + i];
         } else if (!m_fangle_bounded[i]) {
-            wa[i] = (double)ga[i] * m_res[6 + i];
+            wa[i] = (double)ga[i] * m_res[6 + i];// + 0.5 * m_res[6 + i];
         } else {
             wa[i] = m_fangle_min_limits[i] + ga[i] * m_res[6 + i];
         }
