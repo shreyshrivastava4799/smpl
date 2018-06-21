@@ -12,6 +12,7 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/intrusive_heap.h>
+#include <smpl/graph/workspace_lattice_action_space.h>
 
 namespace sbpl {
 namespace motion {

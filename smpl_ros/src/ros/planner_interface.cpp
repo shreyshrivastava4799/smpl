@@ -62,7 +62,9 @@
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/graph/manip_lattice_egraph.h>
 #include <smpl/graph/workspace_lattice.h>
+#include <smpl/graph/workspace_lattice_action_space.h>
 #include <smpl/graph/workspace_lattice_egraph.h>
+#include <smpl/graph/simple_workspace_lattice_action_space.h>
 
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
@@ -443,12 +445,20 @@ auto MakeWorkspaceLattice(
         return NULL;
     }
 
-    auto space = make_unique<WorkspaceLattice>();
-    if (!space->init(robot, checker, params, wsp)) {
+    struct SimpleWorkspaceLattice : public WorkspaceLattice
+    {
+        SimpleWorkspaceLatticeActionSpace actions;
+    };
+
+    auto space = make_unique<SimpleWorkspaceLattice>();
+    if (!space->init(robot, checker, params, wsp, &space->actions)) {
         ROS_ERROR("Failed to initialize Workspace Lattice");
         return NULL;
     }
 
+    if (!InitSimpleWorkspaceLatticeActions(space.get(), &space->actions)) {
+        return NULL;
+    }
     space->setVisualizationFrameId(grid->getReferenceFrame());
 
     return std::move(space);
@@ -475,12 +485,20 @@ auto MakeWorkspaceLatticeEGraph(
         return NULL;
     }
 
-    auto space = make_unique<WorkspaceLatticeEGraph>();
-    if (!space->init(robot, checker, params, wsp)) {
+    struct SimpleWorkspaceLatticeEGraph : public WorkspaceLatticeEGraph
+    {
+        SimpleWorkspaceLatticeActionSpace actions;
+    };
+
+    auto space = make_unique<SimpleWorkspaceLatticeEGraph>();
+    if (!space->init(robot, checker, params, wsp, &space->actions)) {
         ROS_ERROR("Failed to initialize Workspace Lattice");
         return nullptr;
     }
 
+    if (!InitSimpleWorkspaceLatticeActions(space.get(), &space->actions)) {
+        return NULL;
+    }
     space->setVisualizationFrameId(grid->getReferenceFrame());
 
     std::string egraph_path;
