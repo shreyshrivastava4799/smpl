@@ -73,6 +73,7 @@
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/generic_egraph_heuristic.h>
+#include <smpl/heuristic/object_manip_heuristic.h>
 
 #include <smpl/search/adaptive_planner.h>
 #include <smpl/search/arastar.h>
@@ -687,6 +688,35 @@ auto MakeJointDistEGraphHeuristic(
 };
 
 static
+auto MakeObjectManipHeuristic(
+    RobotPlanningSpace* space,
+    const PlanningParams& params)
+    -> std::unique_ptr<RobotHeuristic>
+{
+    auto h = make_unique<ObjectManipulationHeuristic>();
+    if (!h->init(space)) {
+        return NULL;
+    }
+
+    double heading_thresh;
+    if (params.getParam("heading_thresh", heading_thresh)) {
+        h->heading_thresh = heading_thresh;
+    }
+
+    double theta_db;
+    if (params.getParam("theta_db", theta_db)) {
+        h->theta_db = theta_db;
+    }
+
+    double pos_db;
+    if (params.getParam("pos_db", pos_db)) {
+        h->pos_db = pos_db;
+    }
+
+    return std::move(h);
+}
+
+static
 auto MakeARAStar(RobotPlanningSpace* space, RobotHeuristic* heuristic)
     -> std::unique_ptr<SBPLPlanner>
 {
@@ -1046,6 +1076,11 @@ PlannerInterface::PlannerInterface(
 
     m_heuristic_factories["joint_distance_egraph"] = [this](RobotPlanningSpace* space) {
         return MakeJointDistEGraphHeuristic(space, m_params);
+    };
+
+    m_heuristic_factories["object_manip"] = [this](RobotPlanningSpace* space)
+    {
+        return MakeObjectManipHeuristic(space, m_params);
     };
 
     /////////////////////////////
