@@ -65,6 +65,7 @@
 #include <smpl/graph/workspace_lattice_action_space.h>
 #include <smpl/graph/workspace_lattice_egraph.h>
 #include <smpl/graph/simple_workspace_lattice_action_space.h>
+#include <smpl/graph/roman_workspace_lattice_action_space.h>
 
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
@@ -447,7 +448,11 @@ auto MakeWorkspaceLattice(
 
     struct SimpleWorkspaceLattice : public WorkspaceLattice
     {
+#if ROMAN
+        RomanWorkspaceLatticeActionSpace actions;
+#else
         SimpleWorkspaceLatticeActionSpace actions;
+#endif
     };
 
     auto space = make_unique<SimpleWorkspaceLattice>();
@@ -456,9 +461,16 @@ auto MakeWorkspaceLattice(
         return NULL;
     }
 
+#if ROMAN
+    if (!InitRomanWorkspaceLatticeActions(space.get(), &space->actions)) {
+        return NULL;
+    }
+#else
     if (!InitSimpleWorkspaceLatticeActions(space.get(), &space->actions)) {
         return NULL;
     }
+#endif
+
     space->setVisualizationFrameId(grid->getReferenceFrame());
 
     return std::move(space);
@@ -487,7 +499,11 @@ auto MakeWorkspaceLatticeEGraph(
 
     struct SimpleWorkspaceLatticeEGraph : public WorkspaceLatticeEGraph
     {
+#if ROMAN
+        RomanWorkspaceLatticeActionSpace actions;
+#else
         SimpleWorkspaceLatticeActionSpace actions;
+#endif
     };
 
     auto space = make_unique<SimpleWorkspaceLatticeEGraph>();
@@ -496,9 +512,16 @@ auto MakeWorkspaceLatticeEGraph(
         return nullptr;
     }
 
+#if ROMAN
+    if (!InitRomanWorkspaceLatticeActions(space.get(), &space->actions)) {
+        return NULL;
+    }
+#else
     if (!InitSimpleWorkspaceLatticeActions(space.get(), &space->actions)) {
         return NULL;
     }
+#endif
+
     space->setVisualizationFrameId(grid->getReferenceFrame());
 
     std::string egraph_path;

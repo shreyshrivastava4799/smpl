@@ -98,6 +98,7 @@ add_library(
     src/graph/workspace_lattice_base.cpp
     src/graph/workspace_lattice_egraph.cpp
     src/graph/simple_workspace_lattice_action_space.cpp
+    src/graph/roman_workspace_lattice_action_space.cpp
     src/heuristic/attractor_heuristic.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
@@ -118,6 +119,7 @@ add_library(
     src/search/lazy_mhastar.cpp
     src/search/awastar.cpp
     src/unicycle/unicycle.cpp)
+target_compile_definitions(smpl PRIVATE -DROMAN)
 target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
 if(SMPL_ROS_BUILD)
     target_link_libraries(smpl ${catkin_LIBRARIES})

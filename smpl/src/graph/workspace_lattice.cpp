@@ -658,12 +658,19 @@ bool WorkspaceLattice::isGoal(
     // check position
     switch (goal().type) {
     case GoalType::JOINT_STATE_GOAL:
+#if ROMAN
+        // only check the object position (final free angle), with hardcoded
+        // tolerance
+        return std::fabs(state.back() - goal().angles.back()) < 0.1;
+//        return std::fabs(state[OB_P] - goal().angles[OB_P]) < 0.1;
+#else
         for (int i = 0; i < goal().angles.size(); i++) {
             if (fabs(robot_state[i] - goal().angles[i]) > goal().angle_tolerances[i]) {
                 return false;
             }
         }
         return true;
+#endif
     case GoalType::XYZ_RPY_GOAL: {
         auto dx = std::fabs(state[FK_PX] - goal().pose.translation()[0]);
         auto dy = std::fabs(state[FK_PY] - goal().pose.translation()[1]);
