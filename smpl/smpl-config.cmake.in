@@ -11,4 +11,7 @@ set(smpl_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@" ABSOLUTE)
 include(${SMPL_CMAKE_DIR}/smpl-targets.cmake)
 #endif()
 
-set(smpl_LIBRARIES smpl)
+find_package(sbpl REQUIRED)
+
+set(smpl_LIBRARIES smpl::smpl)
+
