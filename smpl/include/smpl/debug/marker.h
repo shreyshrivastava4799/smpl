@@ -119,6 +119,18 @@ struct Marker
             orientation(T.rotation())
         { }
 
+        Pose(const Eigen::Vector3d& position, const Eigen::Quaterniond& orientation) :
+            position(position), orientation(orientation)
+        { }
+
+        Pose(const Eigen::Vector3d& position) :
+            position(position), orientation(Eigen::Quaterniond::Identity())
+        { }
+
+        Pose(const Eigen::Quaterniond& orientation) :
+            position(Eigen::Vector3d::Zero()), orientation(orientation)
+        { }
+
         Pose& operator=(const Eigen::Affine3d& T) {
             position = T.translation();
             orientation = T.rotation();
