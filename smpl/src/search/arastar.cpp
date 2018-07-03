@@ -468,6 +468,8 @@ bool ARAStar::timedOut(
         } else {
             return elapsed_time >= m_time_params.max_allowed_time;
         }
+    case TimeParameters::USER:
+        return m_time_params.timed_out_fun();
     default:
         SMPL_ERROR_NAMED(SLOG, "Invalid timer type");
         return true;
