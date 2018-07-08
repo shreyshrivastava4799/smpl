@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 project(smpl_urdf_robot_model)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
 find_package(Eigen3 REQUIRED)
@@ -14,11 +14,17 @@ catkin_package(
     INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIR}
     LIBRARIES smpl_urdf_robot_model)
 
-add_library(smpl_urdf_robot_model src/robot_model.cpp src/robot_state.cpp)
+add_library(
+    smpl_urdf_robot_model
+    src/robot_model.cpp
+    src/robot_state.cpp
+    src/robot_state_visualization.cpp)
 target_compile_options(smpl_urdf_robot_model PUBLIC -std=c++11)
 target_include_directories(smpl_urdf_robot_model PUBLIC include)
 target_include_directories(smpl_urdf_robot_model SYSTEM PRIVATE ${urdfdom_headers_INCLUDE_DIRS})
 target_include_directories(smpl_urdf_robot_model SYSTEM PUBLIC ${EIGEN3_INCLUDE_DIR})
+target_include_directories(smpl_urdf_robot_model SYSTEM PUBLIC ${smpl_INCLUDE_DIRS})
+target_link_libraries(smpl_urdf_robot_model PUBLIC ${smpl_LIBRARIES})
 target_link_libraries(smpl_urdf_robot_model PRIVATE ${urdfdom_LIBRARIES})
 
 add_executable(robot_model_test src/robot_model_test.cpp)

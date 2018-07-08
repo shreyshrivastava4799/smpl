@@ -10,83 +10,7 @@
 // project includes
 #include <smpl_urdf_robot_model/robot_model.h>
 #include <smpl_urdf_robot_model/robot_state.h>
-
-namespace smpl {
-
-auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape
-{
-    switch (shape->type) {
-    case ShapeType::Sphere:
-        ROS_WARN("Unimplemented sphere type");
-        return sbpl::visual::Shape{ };
-    case ShapeType::Box:
-        ROS_WARN("Unimplemented box type");
-        return sbpl::visual::Shape{ };
-    case ShapeType::Cylinder:
-        ROS_WARN("Unimplemented cylinder type");
-        return sbpl::visual::Shape{ };
-        break;
-    case ShapeType::Mesh:
-    {
-        auto* tmp = static_cast<const Mesh*>(shape);
-        return sbpl::visual::MeshResource{ tmp->filename, tmp->scale };
-    }
-    }
-}
-
-auto MakeRobotVisualization(const RobotState* state)
-    -> std::vector<sbpl::visual::Marker>
-{
-    ROS_INFO("Make visualization");
-
-    std::vector<sbpl::visual::Marker> markers;
-    auto id = 0;
-    for (auto& link : Links(state->model)) {
-        auto* pose = GetLinkTransform(state, &link);
-        for (auto& visual : link.visual) {
-            sbpl::visual::Marker m;
-
-            m.pose = *GetVisualBodyTransform(state, &visual);
-            m.shape = MakeShapeVisualization(visual.shape);
-            m.color = sbpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f };
-            m.frame_id = "map";
-            m.ns = "test_visual";
-            m.lifetime = 0;
-            m.id = id++;
-            markers.push_back(m);
-        }
-    }
-
-    ROS_INFO("Visualize %zu shapes", markers.size());
-    return markers;
-}
-
-auto MakeCollisionVisualization(const RobotState* state)
-    -> std::vector<sbpl::visual::Marker>
-{
-    ROS_INFO("Make visualization");
-
-    std::vector<sbpl::visual::Marker> markers;
-    auto id = 0;
-    for (auto& link : Links(state->model)) {
-        for (auto& collision : link.collision) {
-            sbpl::visual::Marker m;
-            m.pose = *GetCollisionBodyTransform(state, &collision);
-            m.shape = MakeShapeVisualization(collision.shape);
-            m.color = sbpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f };
-            m.frame_id = "map";
-            m.ns = "test_collision";
-            m.lifetime = 0;
-            m.id = id++;
-            markers.push_back(m);
-        }
-    }
-
-    ROS_INFO("Visualize %zu shapes", markers.size());
-    return markers;
-}
-
-} // namespace smpl
+#include <smpl_urdf_robot_model/robot_state_visualization.h>
 
 int main(int argc, char* argv[])
 {
@@ -95,7 +19,7 @@ int main(int argc, char* argv[])
 
     sbpl::VisualizerROS visualizer;
     sbpl::visual::set_visualizer(&visualizer);
-    ros::Duration(1.0).sleep();
+    ros::Duration(1.0).sleep(); // give the publisher time to set up
 
     auto model = urdf::parseURDFFile(argv[1]);
 
@@ -107,23 +31,6 @@ int main(int argc, char* argv[])
     printf("Name: %s\n", GetName(&robot_model)->c_str());
     printf("Joint Count: %zu\n", GetJointCount(&robot_model));
     printf("Link Count: %zu\n", GetLinkCount(&robot_model));
-
-#if 0
-    std::vector<const smpl::Link*> links;
-    links.push_back(GetRootLink(&robot_model));
-
-    while (!links.empty()) {
-        auto* link = links.back();
-        links.pop_back();
-        printf("Link %s\n", link->name.c_str());
-        printf("  parent joint: %s\n", link->parent ? link->parent->name.c_str() : "(none)");
-        printf("  child joints:\n");
-        for (auto* child = link->children; child != NULL; child = child->sibling) {
-            printf("    %s\n", child->name.c_str());
-            links.push_back(child->child);
-        }
-    }
-#endif
 
     printf("Links:\n");
     for (auto& link : Links(&robot_model)) {
@@ -175,10 +82,11 @@ int main(int argc, char* argv[])
 
     }
 
-    SV_SHOW_INFO(MakeRobotVisualization(&state));
-    SV_SHOW_INFO(MakeCollisionVisualization(&state));
+    auto gray = sbpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f };
+    SV_SHOW_INFO(MakeRobotVisualization(&state, gray, "map", "test_visual"));
+    SV_SHOW_INFO(MakeCollisionVisualization(&state, gray, "map", "test_collision"));
 
-    ros::Duration(1.0).sleep();
+    ros::Duration(1.0).sleep(); // give the publisher time to visualize
 
     return 0;
 }
