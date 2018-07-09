@@ -93,34 +93,45 @@ auto GetJointAccelerations(const RobotState* state, int index) -> const double*;
 // Transforms //
 ////////////////
 
+// Update transforms for all joints, links, collision bodies, and visual bodies.
 void UpdateTransforms(RobotState* state);
 
+// Update transforms for all links.
 void UpdateLinkTransforms(RobotState* state);
+
+// Update the transform of a specific link.
 void UpdateLinkTransform(RobotState* state, const Link* link);
 void UpdateLinkTransform(RobotState* state, int index);
 
+// Update the transforms for all collision bodies.
 void UpdateCollisionBodyTransforms(RobotState* state);
+
+// Update the transform of a specific collision body.
 void UpdateCollisionBodyTransform(RobotState* state, const LinkCollision* collision);
 void UpdateCollisionBodyTransform(RobotState* state, int index);
 
+// Update the transforms for all visual bodies.
 void UpdateVisualBodyTransforms(RobotState* state);
+
+// Update the transform for a specific visual body.
 void UpdateVisualBodyTransform(RobotState* state, const LinkVisual* visual);
 void UpdateVisualBodyTransform(RobotState* state, int index);
 
+// Retrieve transforms.
 auto GetLinkTransform(const RobotState* state, const Link* link) -> const Affine3*;
 auto GetLinkTransform(const RobotState* state, int index) -> const Affine3*;
 auto GetCollisionBodyTransform(const RobotState* state, const LinkCollision* collision) -> const Affine3*;
 auto GetCollisionBodyTransform(const RobotState* state, int index) -> const Affine3*;
 auto GetVisualBodyTransform(const RobotState* state, const LinkVisual* visual) -> const Affine3*;
 auto GetVisualBodyTransform(const RobotState* state, int index) -> const Affine3*;
-
 auto GetJointTransform(const RobotState* state, const Joint* joint) -> const Affine3*;
 auto GetJointTransform(const RobotState* state, int joint) -> const Affine3*;
 
+// Query whether the transform for a given entity is outdated.
 bool IsJointTransformDirty(const RobotState* state, const Joint* joint);
 bool IsLinkTransformDirty(const RobotState* state, const Link* link);
-bool IsCollisionBodyTransformDirty(const RobotState* state, const Link* link, int index);
-bool IsVisualBodyTransformDirty(const RobotState* state, const Link* link, int index);
+bool IsCollisionBodyTransformDirty(const RobotState* state, const LinkCollision* collision);
+bool IsVisualBodyTransformDirty(const RobotState* state, const LinkVisual* visual);
 bool IsDirty(const RobotState* state);
 
 /////////////////////
@@ -130,16 +141,6 @@ bool IsDirty(const RobotState* state);
 bool SatisfiesBounds(const RobotState* state);
 bool SatisfiesBounds(const RobotState* state, const Joint* joint);
 bool SatisfiesBounds(const RobotState* state, const JointVariable* variable);
-
-///////////////////
-// Visualization //
-///////////////////
-
-// TODO: additional options: color, namespace, lifetime, frame
-#if 0
-void MakeRobotVisualization(const RobotState* state);
-void MakeRobotVisualization(const RobotState* state, const Link* link);
-#endif
 
 ////////////////
 // Definition //
@@ -159,11 +160,10 @@ struct RobotState
     Affine3*                joint_transforms = NULL;
     Affine3*                link_collision_transforms = NULL;
     Affine3*                link_visual_transforms = NULL;
-#if 0
-    const Joint*            dirty_joint = NULL;
-#else
-    bool                    dirty = true;
-#endif
+
+    const Joint*            dirty_links_joint = NULL;
+    const Joint*            dirty_collisions_joint = NULL;
+    const Joint*            dirty_visuals_joint = NULL;
 };
 
 } // namespace smpl

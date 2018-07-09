@@ -54,16 +54,20 @@ struct Mesh : Shape
     Mesh() { type = ShapeType::Mesh; }
 };
 
+struct Link;
+
 struct LinkVisual
 {
     Affine3 origin;
     Shape*  shape = NULL;
+    Link* link = NULL;
 };
 
 struct LinkCollision
 {
     Affine3 origin;
     Shape* shape = NULL;
+    Link* link = NULL;
 };
 
 struct Link
@@ -143,6 +147,8 @@ struct RobotModel
     Link* root_link = NULL;
     Joint* root_joint = NULL;
 
+    std::vector<const Joint*> ancestor_map;
+
     // self-references => non-copyable
     RobotModel& operator=(const RobotModel&) = delete;
 
@@ -206,6 +212,8 @@ auto GetRootLink(const RobotModel* model) -> const Link*;
 
 // NOTE: Joint return here implies root joint existence
 auto GetCommonRoot(const RobotModel* model, const Joint* a, const Joint* b) -> const Joint*;
+bool IsAncestor(const RobotModel* model, const Joint* a, const Joint* b);
+auto GetJointOfVariable(const JointVariable* variable) -> const Joint*;
 
 auto GetVariableLimits(const JointVariable* variable) -> const VariableLimits*;
 

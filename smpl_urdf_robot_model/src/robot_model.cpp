@@ -155,13 +155,13 @@ bool InitRobotModel(
             for (auto& visual : e.second->visual_array) {
                 add_shape(visual->geometry.get());
                 LinkVisual c;
-                c.origin = PoseURDFToEigen(e.second->collision->origin);
+                c.origin = PoseURDFToEigen(e.second->visual->origin);
                 robot_model.visuals.push_back(c);
             }
         } else if (e.second->visual) {
             add_shape(e.second->visual->geometry.get());
             LinkVisual c;
-            c.origin = PoseURDFToEigen(e.second->collision->origin);
+            c.origin = PoseURDFToEigen(e.second->visual->origin);
             robot_model.visuals.push_back(c);
         }
     }
@@ -183,6 +183,8 @@ bool InitRobotModel(
     auto* prev_collision = robot_model.collisions.data();
     auto* prev_visual = robot_model.visuals.data();
     for (auto& e : urdf->links_) {
+        auto* link = get_link(&robot_model, e.first);
+
         auto* c = prev_collision;
         auto* v = prev_visual;
         auto next_shape = [&](const urdf::Geometry* geom) -> Shape*
@@ -199,31 +201,34 @@ bool InitRobotModel(
             }
         };
 
-        // ...assign shapes to all collision/visual instances
+        // ...assign shapes and parenting links to all collision/visual instances
 
         if (!e.second->collision_array.empty()) {
             for (auto& collision : e.second->collision_array) {
                 c->shape = next_shape(collision->geometry.get());
                 ++c;
+                c->link = link;
             }
         } else if (e.second->collision) {
             c->shape = next_shape(e.second->collision->geometry.get());
             ++c;
+            c->link = link;
         }
 
         if (!e.second->visual_array.empty()) {
             for (auto& collision : e.second->visual_array) {
                 v->shape = next_shape(collision->geometry.get());
                 ++v;
+                v->link = link;
             }
         } else if (e.second->collision) {
             v->shape = next_shape(e.second->collision->geometry.get());
             ++v;
+            v->link = link;
         }
 
         // ...assign range of collision/visual instances to each link
 
-        auto* link = get_link(&robot_model, e.first);
         link->collision = make_range(prev_collision, c);
         link->visual = make_range(prev_visual, v);
 
@@ -424,8 +429,6 @@ bool InitRobotModel(
     // ...connect joints to variables
     JointVariable* vit = robot_model.variables.data();
     for (auto& joint : robot_model.joints) {
-        printf("gather variables for joint %s\n", joint.name.c_str());
-
         joint.vfirst = vit;
 
         JointVariable* vtmp = NULL;
@@ -445,7 +448,6 @@ bool InitRobotModel(
             break;
         }
 
-        printf("  gathered %td variables\n", vtmp - vit);
         for (auto* v = vit; v != vtmp; ++v) {
             v->joint = &joint;
         }
@@ -465,6 +467,40 @@ bool InitRobotModel(
     robot_model.root_joint = get_joint(&robot_model, wj.name);
     robot_model.root_joint->child = robot_model.root_link;
     robot_model.root_link->parent = robot_model.root_joint;
+
+    auto CommonAncestor = [](RobotModel* model, const Joint* a, const Joint* b)
+    {
+        // pretty inefficient common ancestor computation...walk up the tree
+        // from joint a to the root and run a depth-first search from each
+        // intermediate node to see whether there is a path to b.
+        for (auto* start = a; start != NULL; start = start->parent->parent) {
+            std::vector<const Joint*> q;
+            q.push_back(start);
+            while (!q.empty()) {
+                auto* j = q.back();
+                q.pop_back();
+                if (j == b) {
+                    return start;
+                }
+
+                for (auto* child = j->child->children; child != NULL; child = child->sibling) {
+                    q.push_back(child);
+                }
+            }
+        }
+        return (const Joint*)NULL;
+    };
+
+    // precompute the map from pairs of joints to their
+    robot_model.ancestor_map.resize(robot_model.joints.size() * robot_model.joints.size());
+    for (auto& ji : robot_model.joints) {
+        auto i = &ji - robot_model.joints.data();
+        for (auto& jj : robot_model.joints) {
+            auto j = &jj - robot_model.joints.data();
+            auto* ancestor = CommonAncestor(&robot_model, &ji, &jj);
+            robot_model.ancestor_map[i * robot_model.joints.size() + j] = ancestor;
+        }
+    }
 
     *out = std::move(robot_model);
     return true;
@@ -651,6 +687,27 @@ auto GetRootLink(const RobotModel* model) -> const Link*
 {
     return model->root_link;
 };
+
+auto GetCommonRoot(
+    const RobotModel* model,
+    const Joint* a,
+    const Joint* b)
+    -> const Joint*
+{
+    auto i = GetJointIndex(model, a);
+    auto j = GetJointIndex(model, b);
+    return model->ancestor_map[i * GetJointCount(model) + j];
+}
+
+bool IsAncestor(const RobotModel* model, const Joint* a, const Joint* b)
+{
+    return GetCommonRoot(model, a, b) == a;
+}
+
+auto GetJointOfVariable(const JointVariable* variable) -> const Joint*
+{
+    return variable->joint;
+}
 
 auto GetVariableLimits(const JointVariable* variable) -> const VariableLimits*
 {

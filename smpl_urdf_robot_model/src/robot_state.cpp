@@ -100,6 +100,9 @@ bool Init(
         ++mult;
     }
     robot_state.values.resize(mult * GetVariableCount(model));
+    for (int i = 0; i < GetVariableCount(model); ++i) {
+        robot_state.values[i] = GetDefaultPosition(model, GetVariable(model, i));
+    }
 
     double* data = robot_state.values.data();
     robot_state.positions = data;
@@ -124,6 +127,10 @@ bool Init(
     robot_state.link_collision_transforms = robot_state.joint_transforms + GetJointCount(model);
     robot_state.link_visual_transforms = robot_state.link_collision_transforms + GetCollisionBodyCount(model);
 
+    robot_state.dirty_links_joint = model->root_joint;
+    robot_state.dirty_collisions_joint = model->root_joint;
+    robot_state.dirty_visuals_joint = model->root_joint;
+
     *out = std::move(robot_state);
     return true;
 }
@@ -135,18 +142,21 @@ auto GetRobotModel(const RobotState* state) -> const RobotModel*
 
 void SetToDefaultValues(RobotState* state)
 {
-    for (int i = 0; i < GetVariableCount(state->model); ++i) {
-        state->positions[i] = GetDefaultPosition(
-                state->model, GetVariable(state->model, i));
+    for (auto& v : Variables(state->model)) {
+        auto position = GetDefaultPosition(state->model, &v);
+        SetVariablePosition(state, &v, position);
     }
-    state->dirty = true;
 }
 
+// Avoid setting all per-joint descendant bodies as dirty here => flag the
+// most descendant dirty joint.
+// Remove dependency on link transform for collision bodies and visual bodies.
+// 3 dirty joints...for collision bodies, visual bodies, and links.
 void SetVariablePositions(RobotState* state, const double* positions)
 {
-    std::copy(positions, positions + GetVariableCount(state->model),
-            state->positions);
-    state->dirty = true;
+    for (int i = 0; i < GetVariableCount(state->model); ++i) {
+        SetVariablePosition(state, i, positions[i]);
+    }
 }
 
 void SetVariablePosition(
@@ -158,13 +168,35 @@ void SetVariablePosition(
             state, GetVariableIndex(state->model, variable), position);
 }
 
+// TODO: maybe an overload of this that takes index and variable when both
+// are already looked up
 void SetVariablePosition(
     RobotState* state,
     int index,
     double position)
 {
-    state->positions[index] = position;
-    state->dirty = true;
+    if (state->positions[index] != position) {
+        state->positions[index] = position;
+
+        auto* v = GetVariable(state->model, index);
+        auto* vj = GetJointOfVariable(v);
+
+        if (state->dirty_links_joint == NULL) {
+            state->dirty_links_joint = vj;
+        } else {
+            state->dirty_links_joint = GetCommonRoot(state->model, state->dirty_links_joint, vj);
+        }
+        if (state->dirty_collisions_joint == NULL) {
+            state->dirty_collisions_joint = vj;
+        } else {
+            state->dirty_collisions_joint = GetCommonRoot(state->model, state->dirty_collisions_joint, vj);
+        }
+        if (state->dirty_visuals_joint == NULL) {
+            state->dirty_visuals_joint = vj;
+        } else {
+            state->dirty_visuals_joint = GetCommonRoot(state->model, state->dirty_visuals_joint, vj);
+        }
+    }
 }
 
 auto GetVariablePositions(const RobotState* state) -> const double*
@@ -272,11 +304,9 @@ void SetJointPositions(
     const Joint* joint,
     const double* positions)
 {
-    std::copy(
-            positions,
-            positions + GetVariableCount(joint),
-            state->positions + GetVariableIndex(state->model, GetFirstVariable(joint)));
-    state->dirty = true;
+    for (int i = 0; i < GetVariableCount(joint); ++i) {
+        SetVariablePosition(state, GetFirstVariable(joint) + i, positions[i]);
+    }
 }
 
 void SetJointPositions(RobotState* state, int index, const double* positions)
@@ -377,16 +407,16 @@ auto GetJointAccelerations(const RobotState* state, int index) -> const double*
 
 /////////////////////////// DANGER ZONE ///////////////////////////
 
-void UpdateTransforms(RobotState* state)
+static
+void UpdateLinkTransforms(RobotState* state, std::vector<const Joint*>* q)
 {
-    if (!state->dirty) return;
+    assert(state->dirty_links_joint != NULL);
 
-    std::vector<const Joint*> joints;
-    joints.push_back(GetRootJoint(state->model));
+    q->push_back(state->dirty_links_joint);
 
-    while (!joints.empty()) {
-        auto* joint = joints.back();
-        joints.pop_back();
+    while (!q->empty()) {
+        auto* joint = q->back();
+        q->pop_back();
 
         // update the joint transform
         auto& joint_transform =
@@ -407,75 +437,172 @@ void UpdateTransforms(RobotState* state)
             link_transform = joint->origin * joint_transform;
         }
 
-        // update all child collision and visual transforms
-        for (auto& collision : joint->child->collision) {
+        // recurse on children
+        for (auto* child = joint->child->children; child != NULL; child = child->sibling) {
+            q->push_back(child);
+        }
+    }
+
+    state->dirty_links_joint = NULL;
+}
+
+static
+void UpdateOnlyCollisionBodyTransforms(
+    RobotState* state,
+    std::vector<const Joint*>* q)
+{
+    assert(state->dirty_collisions_joint != NULL);
+    q->push_back(state->dirty_collisions_joint);
+    while (!q->empty()) {
+        auto* joint = q->back();
+        q->pop_back();
+
+        auto* child_link = joint->child;
+
+        auto& link_transform =
+                state->link_transforms[GetLinkIndex(state->model, child_link)];
+        for (auto& collision : child_link->collision) {
             auto& collision_transform =
                     state->link_collision_transforms[
                             GetCollisionBodyIndex(state->model, &collision)];
             collision_transform = link_transform * collision.origin;
         }
+        for (auto* child = child_link->children; child != NULL; child = child->sibling) {
+            q->push_back(child);
+        }
+    }
+    state->dirty_collisions_joint = NULL;
+}
 
-        for (auto& visual : joint->child->visual) {
+static
+void UpdateOnlyVisualBodyTransforms(
+    RobotState* state,
+    std::vector<const Joint*>* q)
+{
+    assert(state->dirty_visuals_joint != NULL);
+    q->push_back(state->dirty_visuals_joint);
+    while (!q->empty()) {
+        auto* joint = q->back();
+        q->pop_back();
+
+        auto* child_link = joint->child;
+
+        auto& link_transform =
+                state->link_transforms[GetLinkIndex(state->model, child_link)];
+        for (auto& visual : child_link->visual) {
             auto& visual_transform =
                     state->link_visual_transforms[
                             GetVisualBodyIndex(state->model, &visual)];
             visual_transform = link_transform * visual.origin;
         }
-
-        // recurse on children
-        for (auto* child = joint->child->children; child != NULL; child = child->sibling) {
-            joints.push_back(child);
+        for (auto* child = child_link->children; child != NULL; child = child->sibling) {
+            q->push_back(child);
         }
     }
+    state->dirty_visuals_joint = NULL;
+}
 
-    state->dirty = false;
+void UpdateTransforms(RobotState* state)
+{
+    std::vector<const Joint*> q;
+    if (state->dirty_links_joint != NULL) {
+        UpdateLinkTransforms(state, &q);
+    }
+    if (state->dirty_collisions_joint != NULL) {
+        UpdateOnlyCollisionBodyTransforms(state, &q);
+    }
+    if (state->dirty_visuals_joint != NULL) {
+        UpdateOnlyVisualBodyTransforms(state, &q);
+    }
 }
 
 void UpdateLinkTransforms(RobotState* state)
 {
-    UpdateTransforms(state);
+    if (state->dirty_links_joint != NULL) {
+        std::vector<const Joint*> q;
+        UpdateLinkTransforms(state, &q);
+    }
 }
 
 void UpdateLinkTransform(RobotState* state, const Link* link)
 {
-    UpdateTransforms(state);
+    if (IsLinkTransformDirty(state, link)) {
+        std::vector<const Joint*> q;
+        UpdateLinkTransforms(state, &q);
+    }
 }
 
 void UpdateLinkTransform(RobotState* state, int index)
 {
-    UpdateTransforms(state);
+    return UpdateLinkTransform(state, GetLink(state->model, index));
 }
 
 void UpdateCollisionBodyTransforms(RobotState* state)
 {
-    UpdateTransforms(state);
+    if (state->dirty_collisions_joint != NULL) {
+        std::vector<const Joint*> q;
+        if (state->dirty_links_joint != NULL) {
+            // supertree or subtree => update
+            if (IsAncestor(state->model, state->dirty_collisions_joint, state->dirty_links_joint) |
+                IsAncestor(state->model, state->dirty_links_joint, state->dirty_collisions_joint))
+            {
+                UpdateLinkTransforms(state, &q);
+            }
+            // ...otherwise, sibling tree
+        }
+        UpdateOnlyCollisionBodyTransforms(state, &q);
+    }
 }
 
 void UpdateCollisionBodyTransform(
     RobotState* state,
     const LinkCollision* collision)
 {
-    UpdateTransforms(state);
+    if (IsCollisionBodyTransformDirty(state, collision)) {
+        std::vector<const Joint*> q;
+        if (IsLinkTransformDirty(state, collision->link)) {
+            UpdateLinkTransforms(state, &q);
+        }
+        UpdateOnlyCollisionBodyTransforms(state, &q);
+    }
 }
 
 void UpdateCollisionBodyTransform(RobotState* state, int index)
 {
-    UpdateTransforms(state);
+    return UpdateCollisionBodyTransform(state, GetCollisionBody(state->model, index));
 }
 
 void UpdateVisualBodyTransforms(RobotState* state)
 {
-    UpdateTransforms(state);
+    if (state->dirty_visuals_joint != NULL) {
+        std::vector<const Joint*> q;
+        if (state->dirty_links_joint != NULL) {
+            // supertree or subtree => update
+            if (IsAncestor(state->model, state->dirty_visuals_joint, state->dirty_links_joint) |
+                IsAncestor(state->model, state->dirty_links_joint, state->dirty_visuals_joint))
+            {
+                UpdateLinkTransforms(state, &q);
+            }
+            // ...otherwise, sibling tree
+        }
+        UpdateOnlyVisualBodyTransforms(state, &q);
+    }
 }
 
 void UpdateVisualBodyTransform(RobotState* state, const LinkVisual* visual)
 {
-    UpdateTransforms(state);
+    if (IsVisualBodyTransformDirty(state, visual)) {
+        std::vector<const Joint*> q;
+        if (IsLinkTransformDirty(state, visual->link)) {
+            UpdateLinkTransforms(state, &q);
+        }
+        UpdateOnlyVisualBodyTransforms(state, &q);
+    }
 }
 
 void UpdateVisualBodyTransform(RobotState* state, int index)
 {
-    UpdateTransforms(state);
+    return UpdateVisualBodyTransform(state, GetVisualBody(state->model, index));
 }
 
 auto GetLinkTransform(const RobotState* state, const Link* link)
@@ -530,27 +657,33 @@ auto GetJointTransform(const RobotState* state, int index) -> const Affine3*
 
 bool IsJointTransformDirty(const RobotState* state, const Joint* joint)
 {
-    return state->dirty;
+    return true;
 }
 
 bool IsLinkTransformDirty(const RobotState* state, const Link* link)
 {
-    return state->dirty;
+    return state->dirty_links_joint != NULL &&
+            IsAncestor(state->model, state->dirty_links_joint, link->parent);
 }
 
-bool IsCollisionBodyTransformDirty(const RobotState* state, const Link* link, int index)
+bool IsCollisionBodyTransformDirty(const RobotState* state, const LinkCollision* collision)
 {
-    return state->dirty;
+    // TODO: review
+    return state->dirty_collisions_joint != NULL &&
+            IsAncestor(state->model, state->dirty_collisions_joint, collision->link->parent);
 }
 
-bool IsVisualBodyTransformDirty(const RobotState* state, const Link* link, int index)
+bool IsVisualBodyTransformDirty(const RobotState* state, const LinkVisual* visual)
 {
-    return state->dirty;
+    return state->dirty_visuals_joint != NULL &&
+            IsAncestor(state->model, state->dirty_visuals_joint, visual->link->parent);
 }
 
 bool IsDirty(const RobotState* state)
 {
-    return state->dirty;
+    return state->dirty_links_joint != NULL |
+            state->dirty_visuals_joint != NULL |
+            state->dirty_collisions_joint != NULL;
 }
 
 bool SatisfiesBounds(const RobotState* state)

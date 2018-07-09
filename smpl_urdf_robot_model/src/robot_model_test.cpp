@@ -60,19 +60,19 @@ int main(int argc, char* argv[])
         printf("    joint: %s\n", variable.joint->name.c_str());
     }
 
-    smpl::RobotState state;
-    Init(&state, &robot_model);
+    smpl::RobotState robot_state;
+    Init(&robot_state, &robot_model);
 
-    SetToDefaultValues(&state);
-    printf("default state:\n");
+    SetToDefaultValues(&robot_state);
+    printf("default robot_state:\n");
     for (auto& variable : Variables(&robot_model)) {
-        printf("%f\n", GetVariablePosition(&state, &variable));
+        printf("%f\n", GetVariablePosition(&robot_state, &variable));
     }
 
     printf("transforms:\n");
-    UpdateLinkTransforms(&state);
+    UpdateTransforms(&robot_state);
     for (int i = 0; i < GetLinkCount(&robot_model); ++i) {
-        auto* trans = GetLinkTransform(&state, i);
+        auto* trans = GetLinkTransform(&robot_state, i);
         printf("  %s: [ [ %f, %f, %f, %f ], [ %f, %f, %f, %f ], [ %f, %f, %f, %f ], [ %f, %f, %f, %f ] ]\n",
                 GetLinkName(&robot_model, i)->c_str(),
                 (*trans)(0, 0), (*trans)(1, 0), (*trans)(2, 0), (*trans)(3, 0),
@@ -83,8 +83,8 @@ int main(int argc, char* argv[])
     }
 
     auto gray = sbpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f };
-    SV_SHOW_INFO(MakeRobotVisualization(&state, gray, "map", "test_visual"));
-    SV_SHOW_INFO(MakeCollisionVisualization(&state, gray, "map", "test_collision"));
+    SV_SHOW_INFO(MakeRobotVisualization(&robot_state, gray, "map", "test_visual"));
+    SV_SHOW_INFO(MakeCollisionVisualization(&robot_state, gray, "map", "test_collision"));
 
     ros::Duration(1.0).sleep(); // give the publisher time to visualize
 
