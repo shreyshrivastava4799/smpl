@@ -19,7 +19,8 @@ add_library(
     src/robot_model.cpp
     src/robot_state.cpp
     src/robot_state_bounds.cpp
-    src/robot_state_visualization.cpp)
+    src/robot_state_visualization.cpp
+    src/urdf_robot_model.cpp)
 target_compile_options(smpl_urdf_robot_model PUBLIC -std=c++11)
 target_include_directories(smpl_urdf_robot_model PUBLIC include)
 target_include_directories(smpl_urdf_robot_model SYSTEM PRIVATE ${urdfdom_headers_INCLUDE_DIRS})

@@ -511,6 +511,16 @@ auto GetName(const RobotModel* model) -> const std::string*
     return &model->name;
 }
 
+auto GetRootJoint(const RobotModel* model) -> const Joint*
+{
+    return model->root_joint;
+}
+
+auto GetRootLink(const RobotModel* model) -> const Link*
+{
+    return model->root_link;
+};
+
 auto GetLinkCount(const RobotModel* model) -> size_t
 {
     return model->links.size();
@@ -534,6 +544,121 @@ auto GetCollisionBodyCount(const RobotModel* model) -> size_t
 auto GetVisualBodyCount(const RobotModel* model) -> size_t
 {
     return model->visuals.size();
+}
+
+auto GetLink(const RobotModel* model, int index) -> const Link*
+{
+    return &model->links[index];
+}
+
+auto GetJoint(const RobotModel* model, int index) -> const Joint*
+{
+    return &model->joints[index];
+}
+
+auto GetVariable(const RobotModel* model, int index) -> const JointVariable*
+{
+    return &model->variables[index];
+}
+
+auto GetCollisionBody(const RobotModel* model, int index) -> const LinkCollision*
+{
+    return &model->collisions[index];
+}
+
+auto GetVisualBody(const RobotModel* model, int index) -> const LinkVisual*
+{
+    return &model->visuals[index];
+}
+
+auto Links(const RobotModel* model) -> range<const Link*>
+{
+    return make_range(
+            model->links.data(),
+            model->links.data() + model->links.size());
+}
+
+auto Joints(const RobotModel* model) -> range<const Joint*>
+{
+    return make_range(
+            model->joints.data(),
+            model->joints.data() + model->joints.size());
+}
+
+auto Variables(const RobotModel* model) -> range<const JointVariable*>
+{
+    return make_range(
+            model->variables.data(),
+            model->variables.data() + model->variables.size());
+}
+
+auto CollisionBodies(const RobotModel* model) -> range<const LinkCollision*>
+{
+    return make_range(
+            model->collisions.data(),
+            model->collisions.data() + model->collisions.size());
+}
+
+auto VisualBodies(const RobotModel* model) -> range<const LinkVisual*>
+{
+    return make_range(
+            model->visuals.data(),
+            model->visuals.data() + model->visuals.size());
+}
+
+auto GetLinkIndex(const RobotModel* model, const Link* link) -> size_t
+{
+    return (size_t)(link - model->links.data());
+}
+
+auto GetJointIndex(const RobotModel* model, const Joint* joint) -> size_t
+{
+    return (size_t)(joint - model->joints.data());
+}
+
+auto GetVariableIndex(const RobotModel* model, const JointVariable* variable) -> size_t
+{
+    return (size_t)(variable - model->variables.data());
+}
+
+auto GetCollisionBodyIndex(const RobotModel* model, const LinkCollision* collision) -> size_t
+{
+    return (size_t)(collision - model->collisions.data());
+}
+
+auto GetVisualBodyIndex(const RobotModel* model, const LinkVisual* visual) -> size_t
+{
+    return (size_t)(visual - model->visuals.data());
+}
+
+auto GetName(const Link* link) -> const std::string*
+{
+    return &link->name;
+}
+
+auto GetName(const Joint* joint) -> const std::string*
+{
+    return &joint->name;
+}
+
+auto GetName(const JointVariable* variable) -> const std::string*
+{
+    return &variable->name;
+}
+
+auto GetLinkName(const RobotModel* model, int index) -> const std::string*
+{
+    return GetName(&model->links[index]);
+}
+
+auto GetJointName(const RobotModel* model, int index) -> const std::string*
+{
+    return GetName(&model->joints[index]);
+}
+
+auto GetVariableName(const RobotModel* model, int index) -> const std::string*
+{
+    return GetName(&model->variables[index]);
 }
 
 auto GetLink(const RobotModel* model, const std::string* name) -> const Link*
@@ -567,105 +692,18 @@ auto GetVariable(const RobotModel* model, const std::string* name)
     return NULL;
 }
 
-auto GetLink(const RobotModel* model, int index) -> const Link*
+auto VisualBodies(const Link* link) -> range<const LinkVisual*>
 {
-    return &model->links[index];
+    // TODO: implicit conversion to const iterators
+    return make_range<const LinkVisual*>(
+            link->visual.p.first, link->visual.p.second);
 }
 
-auto GetJoint(const RobotModel* model, int index) -> const Joint*
+auto CollisionBodies(const Link* link) -> range<const LinkCollision*>
 {
-    return &model->joints[index];
-}
-
-auto GetVariable(const RobotModel* model, int index) -> const JointVariable*
-{
-    return &model->variables[index];
-}
-
-auto GetCollisionBody(const RobotModel* model, int index) -> const LinkCollision*
-{
-    return &model->collisions[index];
-}
-
-auto GetVisualBody(const RobotModel* model, int index) -> const LinkVisual*
-{
-    return &model->visuals[index];
-}
-
-auto GetLinkIndex(const RobotModel* model, const Link* link) -> size_t
-{
-    return (size_t)(link - model->links.data());
-}
-
-auto GetJointIndex(const RobotModel* model, const Joint* joint) -> size_t
-{
-    return (size_t)(joint - model->joints.data());
-}
-
-auto GetVariableIndex(const RobotModel* model, const JointVariable* variable) -> size_t
-{
-    return (size_t)(variable - model->variables.data());
-}
-
-auto GetCollisionBodyIndex(const RobotModel* model, const LinkCollision* collision) -> size_t
-{
-    return (size_t)(collision - model->collisions.data());
-}
-
-auto GetVisualBodyIndex(const RobotModel* model, const LinkVisual* visual) -> size_t
-{
-    return (size_t)(visual - model->visuals.data());
-}
-
-auto Links(const RobotModel* model) -> range<const Link*>
-{
-    return make_range(
-            model->links.data(),
-            model->links.data() + model->links.size());
-}
-
-auto Joints(const RobotModel* model) -> range<const Joint*>
-{
-    return make_range(
-            model->joints.data(),
-            model->joints.data() + model->joints.size());
-}
-
-auto Variables(const RobotModel* model) -> range<const JointVariable*>
-{
-    return make_range(
-            model->variables.data(),
-            model->variables.data() + model->variables.size());
-}
-
-auto GetName(const Link* link) -> const std::string*
-{
-    return &link->name;
-}
-
-auto GetName(const Joint* joint) -> const std::string*
-{
-    return &joint->name;
-}
-
-auto GetName(const JointVariable* variable) -> const std::string*
-{
-    return &variable->name;
-}
-
-auto GetLinkName(const RobotModel* model, int index) -> const std::string*
-{
-    return GetName(&model->links[index]);
-}
-
-auto GetJointName(const RobotModel* model, int index) -> const std::string*
-{
-    return GetName(&model->joints[index]);
-}
-
-auto GetVariableName(const RobotModel* model, int index) -> const std::string*
-{
-    return GetName(&model->variables[index]);
+    // TODO: see note above
+    return make_range<const LinkCollision*>(
+            link->collision.p.first, link->collision.p.second);
 }
 
 auto GetVariableCount(const Joint* joint) -> size_t
@@ -678,15 +716,10 @@ auto GetFirstVariable(const Joint* joint) -> const JointVariable*
     return joint->vfirst;
 }
 
-auto GetRootJoint(const RobotModel* model) -> const Joint*
+auto Variables(const Joint* joint) -> range<const JointVariable*>
 {
-    return model->root_joint;
+    return make_range<const JointVariable*>(joint->vfirst, joint->vlast);
 }
-
-auto GetRootLink(const RobotModel* model) -> const Link*
-{
-    return model->root_link;
-};
 
 auto GetCommonRoot(
     const RobotModel* model,

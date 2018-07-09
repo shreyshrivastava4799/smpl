@@ -468,7 +468,7 @@ void UpdateOnlyCollisionBodyTransforms(
 
         auto& link_transform =
                 state->link_transforms[GetLinkIndex(state->model, child_link)];
-        for (auto& collision : child_link->collision) {
+        for (auto& collision : CollisionBodies(child_link)) {
             auto& collision_transform =
                     state->link_collision_transforms[
                             GetCollisionBodyIndex(state->model, &collision)];
@@ -496,7 +496,7 @@ void UpdateOnlyVisualBodyTransforms(
 
         auto& link_transform =
                 state->link_transforms[GetLinkIndex(state->model, child_link)];
-        for (auto& visual : child_link->visual) {
+        for (auto& visual : VisualBodies(child_link)) {
             auto& visual_transform =
                     state->link_visual_transforms[
                             GetVisualBodyIndex(state->model, &visual)];

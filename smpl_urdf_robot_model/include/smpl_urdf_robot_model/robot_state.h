@@ -156,6 +156,9 @@ struct RobotState
     const Joint*            dirty_links_joint = NULL;
     const Joint*            dirty_collisions_joint = NULL;
     const Joint*            dirty_visuals_joint = NULL;
+
+    RobotState& operator=(const RobotState&) = delete;
+    RobotState& operator=(RobotState&&) = default;
 };
 
 } // namespace smpl

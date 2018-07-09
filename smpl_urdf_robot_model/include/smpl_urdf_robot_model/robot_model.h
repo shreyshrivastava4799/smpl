@@ -30,15 +30,18 @@ bool InitRobotModel(
 
 auto GetName(const RobotModel* model) -> const std::string*;
 
+auto GetRootJoint(const RobotModel* model) -> const Joint*;
+auto GetRootLink(const RobotModel* model) -> const Link*;
+
+///////////////
+// Iteration //
+///////////////
+
 auto GetLinkCount(const RobotModel* model) -> size_t;
 auto GetJointCount(const RobotModel* model) -> size_t;
 auto GetVariableCount(const RobotModel* model) -> size_t;
 auto GetCollisionBodyCount(const RobotModel* model) -> size_t;
 auto GetVisualBodyCount(const RobotModel* model) -> size_t;
-
-auto GetLink(const RobotModel* model, const std::string* name) -> const Link*;
-auto GetJoint(const RobotModel* model, const std::string* name) -> const Joint*;
-auto GetVariable(const RobotModel* model, const std::string* name) -> const JointVariable*;
 
 auto GetLink(const RobotModel* model, int index) -> const Link*;
 auto GetJoint(const RobotModel* model, int index) -> const Joint*;
@@ -46,15 +49,21 @@ auto GetVariable(const RobotModel* model, int index) -> const JointVariable*;
 auto GetCollisionBody(const RobotModel* model, int index) -> const LinkCollision*;
 auto GetVisualBody(const RobotModel* model, int index) -> const LinkVisual*;
 
+auto Links(const RobotModel* model) -> range<const Link*>;
+auto Joints(const RobotModel* model) -> range<const Joint*>;
+auto Variables(const RobotModel* model) -> range<const JointVariable*>;
+auto CollisionBodies(const RobotModel* model) -> range<const LinkCollision*>;
+auto VisualBodies(const RobotModel* model) -> range<const LinkVisual*>;
+
 auto GetLinkIndex(const RobotModel* model, const Link* link) -> size_t;
 auto GetJointIndex(const RobotModel* model, const Joint* joint) -> size_t;
 auto GetVariableIndex(const RobotModel* model, const JointVariable* variable) -> size_t;
 auto GetCollisionBodyIndex(const RobotModel* model, const LinkCollision* collision) -> size_t;
 auto GetVisualBodyIndex(const RobotModel* model, const LinkVisual* visual) -> size_t;
 
-auto Links(const RobotModel* model) -> range<const Link*>;
-auto Joints(const RobotModel* model) -> range<const Joint*>;
-auto Variables(const RobotModel* model) -> range<const JointVariable*>;
+///////////
+// Names //
+///////////
 
 auto GetName(const Link* link) -> const std::string*;
 auto GetName(const Joint* joint) -> const std::string*;
@@ -64,20 +73,39 @@ auto GetLinkName(const RobotModel* model, int index) -> const std::string*;
 auto GetJointName(const RobotModel* model, int index) -> const std::string*;
 auto GetVariableName(const RobotModel* model, int index) -> const std::string*;
 
+auto GetLink(const RobotModel* model, const std::string* name) -> const Link*;
+auto GetJoint(const RobotModel* model, const std::string* name) -> const Joint*;
+auto GetVariable(const RobotModel* model, const std::string* name) -> const JointVariable*;
+
+/////////////////////
+// Link Properties //
+/////////////////////
+
+auto VisualBodies(const Link* link) -> range<const LinkVisual*>;
+auto CollisionBodies(const Link* link) -> range<const LinkCollision*>;
+
+//////////////////////
+// Joint Properties //
+//////////////////////
+
 auto GetVariableCount(const Joint* joint) -> size_t;
 auto GetFirstVariable(const Joint* joint) -> const JointVariable*;
+auto Variables(const Joint* joint) -> range<const JointVariable*>;
 
-auto GetRootJoint(const RobotModel* model) -> const Joint*;
-auto GetRootLink(const RobotModel* model) -> const Link*;
-
-// NOTE: Joint return here implies root joint existence
 auto GetCommonRoot(const RobotModel* model, const Joint* a, const Joint* b) -> const Joint*;
 bool IsAncestor(const RobotModel* model, const Joint* a, const Joint* b);
+
+/////////////////////////
+// Variable Properties //
+/////////////////////////
+
 auto GetJointOfVariable(const JointVariable* variable) -> const Joint*;
-
 auto GetVariableLimits(const JointVariable* variable) -> const VariableLimits*;
-
 auto GetDefaultPosition(const RobotModel* model, const JointVariable* variable) -> double;
+
+/////////////////
+// Definitions //
+/////////////////
 
 enum struct ShapeType
 {
