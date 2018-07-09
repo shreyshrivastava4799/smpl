@@ -1,6 +1,10 @@
 #ifndef SMPL_URDF_ROBOT_MODEL_ROBOT_STATE_H
 #define SMPL_URDF_ROBOT_MODEL_ROBOT_STATE_H
 
+// standard includes
+#include <vector>
+
+// project includes
 #include <smpl_urdf_robot_model/types.h>
 
 namespace smpl {
@@ -133,18 +137,6 @@ bool IsLinkTransformDirty(const RobotState* state, const Link* link);
 bool IsCollisionBodyTransformDirty(const RobotState* state, const LinkCollision* collision);
 bool IsVisualBodyTransformDirty(const RobotState* state, const LinkVisual* visual);
 bool IsDirty(const RobotState* state);
-
-/////////////////////
-// Bounds checking //
-/////////////////////
-
-bool SatisfiesBounds(const RobotState* state);
-bool SatisfiesBounds(const RobotState* state, const Joint* joint);
-bool SatisfiesBounds(const RobotState* state, const JointVariable* variable);
-
-////////////////
-// Definition //
-////////////////
 
 struct RobotState
 {

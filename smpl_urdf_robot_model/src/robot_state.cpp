@@ -1,5 +1,12 @@
 #include <smpl_urdf_robot_model/robot_state.h>
 
+// standard includes
+#include <assert.h>
+#include <math.h>
+#include <algorithm>
+#include <limits>
+#include <utility>
+
 // project includes
 #include <smpl_urdf_robot_model/robot_model.h>
 
@@ -684,21 +691,6 @@ bool IsDirty(const RobotState* state)
     return state->dirty_links_joint != NULL |
             state->dirty_visuals_joint != NULL |
             state->dirty_collisions_joint != NULL;
-}
-
-bool SatisfiesBounds(const RobotState* state)
-{
-    return false;
-}
-
-bool SatisfiesBounds(const RobotState* state, const Joint* joint)
-{
-    return false;
-}
-
-bool SatisfiesBounds(const RobotState* state, const JointVariable* variable)
-{
-    return false;
 }
 
 } // namespace smpl

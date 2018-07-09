@@ -14,7 +14,70 @@ class ModelInterface;
 
 namespace smpl {
 
+struct RobotModel;
+struct JointSpec;
+struct Link;
 struct Joint;
+struct JointVariable;
+struct LinkCollision;
+struct LinkVisual;
+struct VariableLimits;
+
+bool InitRobotModel(
+    RobotModel* robot_model,
+    const urdf::ModelInterface* urdf,
+    const JointSpec* world_joint = NULL);
+
+auto GetName(const RobotModel* model) -> const std::string*;
+
+auto GetLinkCount(const RobotModel* model) -> size_t;
+auto GetJointCount(const RobotModel* model) -> size_t;
+auto GetVariableCount(const RobotModel* model) -> size_t;
+auto GetCollisionBodyCount(const RobotModel* model) -> size_t;
+auto GetVisualBodyCount(const RobotModel* model) -> size_t;
+
+auto GetLink(const RobotModel* model, const std::string* name) -> const Link*;
+auto GetJoint(const RobotModel* model, const std::string* name) -> const Joint*;
+auto GetVariable(const RobotModel* model, const std::string* name) -> const JointVariable*;
+
+auto GetLink(const RobotModel* model, int index) -> const Link*;
+auto GetJoint(const RobotModel* model, int index) -> const Joint*;
+auto GetVariable(const RobotModel* model, int index) -> const JointVariable*;
+auto GetCollisionBody(const RobotModel* model, int index) -> const LinkCollision*;
+auto GetVisualBody(const RobotModel* model, int index) -> const LinkVisual*;
+
+auto GetLinkIndex(const RobotModel* model, const Link* link) -> size_t;
+auto GetJointIndex(const RobotModel* model, const Joint* joint) -> size_t;
+auto GetVariableIndex(const RobotModel* model, const JointVariable* variable) -> size_t;
+auto GetCollisionBodyIndex(const RobotModel* model, const LinkCollision* collision) -> size_t;
+auto GetVisualBodyIndex(const RobotModel* model, const LinkVisual* visual) -> size_t;
+
+auto Links(const RobotModel* model) -> range<const Link*>;
+auto Joints(const RobotModel* model) -> range<const Joint*>;
+auto Variables(const RobotModel* model) -> range<const JointVariable*>;
+
+auto GetName(const Link* link) -> const std::string*;
+auto GetName(const Joint* joint) -> const std::string*;
+auto GetName(const JointVariable* variable) -> const std::string*;
+
+auto GetLinkName(const RobotModel* model, int index) -> const std::string*;
+auto GetJointName(const RobotModel* model, int index) -> const std::string*;
+auto GetVariableName(const RobotModel* model, int index) -> const std::string*;
+
+auto GetVariableCount(const Joint* joint) -> size_t;
+auto GetFirstVariable(const Joint* joint) -> const JointVariable*;
+
+auto GetRootJoint(const RobotModel* model) -> const Joint*;
+auto GetRootLink(const RobotModel* model) -> const Link*;
+
+// NOTE: Joint return here implies root joint existence
+auto GetCommonRoot(const RobotModel* model, const Joint* a, const Joint* b) -> const Joint*;
+bool IsAncestor(const RobotModel* model, const Joint* a, const Joint* b);
+auto GetJointOfVariable(const JointVariable* variable) -> const Joint*;
+
+auto GetVariableLimits(const JointVariable* variable) -> const VariableLimits*;
+
+auto GetDefaultPosition(const RobotModel* model, const JointVariable* variable) -> double;
 
 enum struct ShapeType
 {
@@ -43,38 +106,37 @@ struct Box : Shape
 
 struct Cylinder : Shape
 {
-    double height, radius;
+    double height;
+    double radius;
     Cylinder() { type = ShapeType::Cylinder; }
 };
 
 struct Mesh : Shape
 {
     std::string filename;
-    Vector3 scale;
+    Vector3     scale;
     Mesh() { type = ShapeType::Mesh; }
 };
-
-struct Link;
 
 struct LinkVisual
 {
     Affine3 origin;
     Shape*  shape = NULL;
-    Link* link = NULL;
+    Link*   link = NULL;
 };
 
 struct LinkCollision
 {
     Affine3 origin;
-    Shape* shape = NULL;
-    Link* link = NULL;
+    Shape*  shape = NULL;
+    Link*   link = NULL;
 };
 
 struct Link
 {
     std::string name;
-    Joint* parent = NULL;
-    Joint* children = NULL;
+    Joint*      parent = NULL;
+    Joint*      children = NULL;
 
     range<LinkVisual*>    visual;
     range<LinkCollision*> collision;
@@ -97,8 +159,6 @@ enum struct JointType
     Planar,     // 3 DOF planar motion
     Floating,   // 6 DOF rigid body motion
 };
-
-struct JointVariable;
 
 struct Joint
 {
@@ -162,62 +222,6 @@ struct JointSpec
     std::string name;
     JointType type;
 };
-
-bool InitRobotModel(
-    RobotModel* robot_model,
-    const urdf::ModelInterface* urdf,
-    const JointSpec* world_joint = NULL);
-
-auto GetName(const RobotModel* model) -> const std::string*;
-
-auto GetLinkCount(const RobotModel* model) -> size_t;
-auto GetJointCount(const RobotModel* model) -> size_t;
-auto GetVariableCount(const RobotModel* model) -> size_t;
-auto GetCollisionBodyCount(const RobotModel* model) -> size_t;
-auto GetVisualBodyCount(const RobotModel* model) -> size_t;
-
-auto GetLink(const RobotModel* model, const std::string* name) -> const Link*;
-auto GetJoint(const RobotModel* model, const std::string* name) -> const Joint*;
-auto GetVariable(const RobotModel* model, const std::string* name) -> const JointVariable*;
-
-auto GetLink(const RobotModel* model, int index) -> const Link*;
-auto GetJoint(const RobotModel* model, int index) -> const Joint*;
-auto GetVariable(const RobotModel* model, int index) -> const JointVariable*;
-auto GetCollisionBody(const RobotModel* model, int index) -> const LinkCollision*;
-auto GetVisualBody(const RobotModel* model, int index) -> const LinkVisual*;
-
-auto GetLinkIndex(const RobotModel* model, const Link* link) -> size_t;
-auto GetJointIndex(const RobotModel* model, const Joint* joint) -> size_t;
-auto GetVariableIndex(const RobotModel* model, const JointVariable* variable) -> size_t;
-auto GetCollisionBodyIndex(const RobotModel* model, const LinkCollision* collision) -> size_t;
-auto GetVisualBodyIndex(const RobotModel* model, const LinkVisual* visual) -> size_t;
-
-auto Links(const RobotModel* model) -> range<const Link*>;
-auto Joints(const RobotModel* model) -> range<const Joint*>;
-auto Variables(const RobotModel* model) -> range<const JointVariable*>;
-
-auto GetName(const Link* link) -> const std::string*;
-auto GetName(const Joint* joint) -> const std::string*;
-auto GetName(const JointVariable* variable) -> const std::string*;
-
-auto GetLinkName(const RobotModel* model, int index) -> const std::string*;
-auto GetJointName(const RobotModel* model, int index) -> const std::string*;
-auto GetVariableName(const RobotModel* model, int index) -> const std::string*;
-
-auto GetVariableCount(const Joint* joint) -> size_t;
-auto GetFirstVariable(const Joint* joint) -> const JointVariable*;
-
-auto GetRootJoint(const RobotModel* model) -> const Joint*;
-auto GetRootLink(const RobotModel* model) -> const Link*;
-
-// NOTE: Joint return here implies root joint existence
-auto GetCommonRoot(const RobotModel* model, const Joint* a, const Joint* b) -> const Joint*;
-bool IsAncestor(const RobotModel* model, const Joint* a, const Joint* b);
-auto GetJointOfVariable(const JointVariable* variable) -> const Joint*;
-
-auto GetVariableLimits(const JointVariable* variable) -> const VariableLimits*;
-
-auto GetDefaultPosition(const RobotModel* model, const JointVariable* variable) -> double;
 
 } // namespace smpl
 

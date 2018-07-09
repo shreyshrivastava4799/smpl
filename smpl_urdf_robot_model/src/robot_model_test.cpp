@@ -8,9 +8,7 @@
 #include <urdf_parser/urdf_parser.h>
 
 // project includes
-#include <smpl_urdf_robot_model/robot_model.h>
-#include <smpl_urdf_robot_model/robot_state.h>
-#include <smpl_urdf_robot_model/robot_state_visualization.h>
+#include <smpl_urdf_robot_model/smpl_urdf_robot_model.h>
 
 int main(int argc, char* argv[])
 {
