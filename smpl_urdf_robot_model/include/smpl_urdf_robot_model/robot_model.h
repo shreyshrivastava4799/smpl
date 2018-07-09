@@ -238,8 +238,10 @@ struct RobotModel
     std::vector<const Joint*> ancestor_map;
 
     // self-references => non-copyable
+    RobotModel() = default;
+    RobotModel(const RobotModel&) = delete;
+    RobotModel(RobotModel&&) = default;
     RobotModel& operator=(const RobotModel&) = delete;
-
     RobotModel& operator=(RobotModel&&) = default;
 };
 

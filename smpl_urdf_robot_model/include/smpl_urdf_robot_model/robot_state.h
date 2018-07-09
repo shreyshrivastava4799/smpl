@@ -157,6 +157,10 @@ struct RobotState
     const Joint*            dirty_collisions_joint = NULL;
     const Joint*            dirty_visuals_joint = NULL;
 
+    // self-references => non-copyable
+    RobotState() = default;
+    RobotState(const RobotState&) = delete;
+    RobotState(RobotState&&) = default;
     RobotState& operator=(const RobotState&) = delete;
     RobotState& operator=(RobotState&&) = default;
 };
