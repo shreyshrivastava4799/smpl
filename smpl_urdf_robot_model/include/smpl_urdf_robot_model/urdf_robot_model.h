@@ -9,6 +9,7 @@
 #include <smpl_urdf_robot_model/robot_state.h>
 
 namespace smpl {
+namespace urdf {
 
 struct URDFRobotModel :
     public virtual sbpl::motion::RobotModel,
@@ -24,15 +25,11 @@ struct URDFRobotModel :
         bool bounded;
     };
 
-    const ::smpl::RobotModel* robot_model = NULL;
+    const ::smpl::urdf::RobotModel* robot_model = NULL;
     RobotState robot_state;
     std::vector<VariableProperties> vprops;
     std::vector<int> planning_to_state_variable;
     const Link* planning_link = NULL;
-
-#if 0
-    const Link* kinematics_frame = NULL;
-#endif
 
     auto computeFK(const sbpl::motion::RobotState& state) -> Eigen::Affine3d override;
 
@@ -61,6 +58,9 @@ bool Init(
 bool SetPlanningLink(URDFRobotModel* urdf_model, const std::string* link_name);
 bool SetPlanningLink(URDFRobotModel* urdf_model, const Link* link);
 
+void SetReferenceState(URDFRobotModel* urdf_model, const double* positions);
+
+} // namespace urdf
 } // namespace smpl
 
 #endif

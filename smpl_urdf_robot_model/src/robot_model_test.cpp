@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 
     auto model = urdf::parseURDFFile(argv[1]);
 
-    smpl::RobotModel robot_model;
+    smpl::urdf::RobotModel robot_model;
     if (!InitRobotModel(&robot_model, model.get())) {
         return 1;
     }
@@ -58,7 +58,7 @@ int main(int argc, char* argv[])
         printf("    joint: %s\n", variable.joint->name.c_str());
     }
 
-    smpl::RobotState robot_state;
+    smpl::urdf::RobotState robot_state;
     Init(&robot_state, &robot_model);
 
     SetToDefaultValues(&robot_state);

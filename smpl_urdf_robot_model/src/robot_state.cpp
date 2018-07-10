@@ -11,9 +11,10 @@
 #include <smpl_urdf_robot_model/robot_model.h>
 
 namespace smpl {
+namespace urdf {
 
 static
-Affine3 ComputeJointTransform(const Joint* joint, double* variables)
+Affine3 ComputeJointTransform(const Joint* joint, const double* variables)
 {
     switch (joint->type) {
     case JointType::Fixed:
@@ -24,7 +25,7 @@ Affine3 ComputeJointTransform(const Joint* joint, double* variables)
         return Affine3(Translation3(variables[0] * joint->axis));
     case JointType::Planar:
         return Translation3(variables[0], variables[1], 0.0) *
-                AngleAxis(variables[1], Vector3::UnitZ());
+                AngleAxis(variables[2], Vector3::UnitZ());
     case JointType::Floating:
         return Translation3(variables[0], variables[1], variables[2]) *
                 Quaternion(variables[6], variables[3], variables[4], variables[5]);
@@ -425,6 +426,8 @@ void UpdateLinkTransforms(RobotState* state, std::vector<const Joint*>* q)
         auto* joint = q->back();
         q->pop_back();
 
+        auto* child_link = joint->child;
+
         // update the joint transform
         auto& joint_transform =
                 state->joint_transforms[GetJointIndex(state->model, joint)];
@@ -433,7 +436,7 @@ void UpdateLinkTransforms(RobotState* state, std::vector<const Joint*>* q)
 
         // update the child link transform
         auto& link_transform =
-                state->link_transforms[GetLinkIndex(state->model, joint->child)];
+                state->link_transforms[GetLinkIndex(state->model, child_link)];
         if (joint->parent != NULL) {
             // parent_link * origin * joint transform
             auto& parent_transform =
@@ -445,7 +448,7 @@ void UpdateLinkTransforms(RobotState* state, std::vector<const Joint*>* q)
         }
 
         // recurse on children
-        for (auto* child = joint->child->children; child != NULL; child = child->sibling) {
+        for (auto* child = child_link->children; child != NULL; child = child->sibling) {
             q->push_back(child);
         }
     }
@@ -693,5 +696,6 @@ bool IsDirty(const RobotState* state)
             state->dirty_collisions_joint != NULL;
 }
 
+} // namespace urdf
 } // namespace smpl
 

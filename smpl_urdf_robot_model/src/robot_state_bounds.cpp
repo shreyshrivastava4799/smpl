@@ -5,6 +5,7 @@
 #include <smpl_urdf_robot_model/robot_state.h>
 
 namespace smpl {
+namespace urdf {
 
 bool SatisfiesBounds(const RobotState* state)
 {
@@ -41,5 +42,6 @@ bool SatisfiesBounds(const RobotState* state, const JointVariable* variable)
             state->positions[index] <= bounds->max_position;
 }
 
+} // namespace urdf
 } // namespace smpl
 

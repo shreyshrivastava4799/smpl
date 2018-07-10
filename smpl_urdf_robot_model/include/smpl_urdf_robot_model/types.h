@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 
 namespace smpl {
+namespace urdf {
 
 using Affine3 = Eigen::Affine3d;
 using Vector3 = Eigen::Vector3d;
@@ -12,6 +13,7 @@ using Quaternion = Eigen::Quaterniond;
 using AngleAxis = Eigen::AngleAxisd;
 using Translation3 = Eigen::Translation3d;
 
+} // namespace urdf
 } // namespace smpl
 
 #endif

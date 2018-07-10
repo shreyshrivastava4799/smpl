@@ -8,6 +8,7 @@
 #include <smpl_urdf_robot_model/types.h>
 
 namespace smpl {
+namespace urdf {
 
 struct RobotModel;
 struct Joint;
@@ -165,6 +166,7 @@ struct RobotState
     RobotState& operator=(RobotState&&) = default;
 };
 
+} // namespace urdf
 } // namespace smpl
 
 #endif

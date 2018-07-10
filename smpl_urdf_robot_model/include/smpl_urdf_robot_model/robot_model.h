@@ -13,6 +13,7 @@ class ModelInterface;
 #include <smpl_urdf_robot_model/types.h>
 
 namespace smpl {
+namespace urdf {
 
 struct RobotModel;
 struct JointSpec;
@@ -25,7 +26,7 @@ struct VariableLimits;
 
 bool InitRobotModel(
     RobotModel* robot_model,
-    const urdf::ModelInterface* urdf,
+    const ::urdf::ModelInterface* urdf,
     const JointSpec* world_joint = NULL);
 
 auto GetName(const RobotModel* model) -> const std::string*;
@@ -253,6 +254,7 @@ struct JointSpec
     JointType type;
 };
 
+} // namespace urdf
 } // namespace smpl
 
 #endif

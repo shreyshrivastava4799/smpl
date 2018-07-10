@@ -8,6 +8,7 @@
 #include <smpl/debug/marker.h>
 
 namespace smpl {
+namespace urdf {
 
 struct RobotState;
 
@@ -27,6 +28,7 @@ auto MakeCollisionVisualization(
     int32_t* id = NULL)
     -> std::vector<sbpl::visual::Marker>;
 
+} // namespace urdf
 } // namespace smpl
 
 #endif

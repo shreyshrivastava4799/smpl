@@ -1,9 +1,16 @@
 #include <smpl_urdf_robot_model/urdf_robot_model.h>
 
+// project includes
+#include <smpl_urdf_robot_model/robot_state_bounds.h>
+
+#include <smpl_urdf_robot_model/robot_state_visualization.h>
+#include <smpl/debug/visualize.h>
+
 namespace smpl {
+namespace urdf {
 
 bool Init(
-    URDFRobotModel* out,
+    URDFRobotModel* model,
     const RobotModel* robot_model,
     const std::vector<std::string>* planning_joint_names)
 {
@@ -12,9 +19,13 @@ bool Init(
 
     for (auto& joint_name : *planning_joint_names) {
         auto* joint = GetJoint(robot_model, &joint_name);
-        if (joint == NULL) return false;
+        if (joint == NULL) {
+            return false;
+        }
         for (auto& variable : Variables(joint)) {
             planning_variables.push_back(*GetName(&variable));
+
+            // cache variable limits
             auto* limits = GetVariableLimits(&variable);
             URDFRobotModel::VariableProperties props;
             props.bounded = limits->has_position_limits;
@@ -27,23 +38,30 @@ bool Init(
                 props.continuous = false;
             }
 
-
             props.min_position = limits->min_position;
             props.max_position = limits->max_position;
             props.vel_limit = limits->max_velocity;
             props.acc_limit = limits->max_effort; // TODO: hmm...
-            urdf_model.vprops.push_back(props);
+            model->vprops.push_back(props);
 
+            // initialize mapping from planning group variable to state variable
             auto index = GetVariableIndex(robot_model, &variable);
-            urdf_model.planning_to_state_variable.push_back(index);
+            model->planning_to_state_variable.push_back(index);
         }
     }
 
-    urdf_model.setPlanningJoints(planning_variables);
-    urdf_model.robot_model = robot_model;
-    if (!Init(&urdf_model.robot_state, robot_model)) return false;
+    printf("robot model = %p\n", robot_model);
+    printf("vprops = %zu\n", model->vprops.size());
+    printf("planning_to_state_variable = %zu\n", model->planning_to_state_variable.size());
 
-    *out = std::move(urdf_model);
+    model->setPlanningJoints(planning_variables);
+    model->robot_model = robot_model;
+
+    printf("initialize robot state\n");
+    if (!Init(&model->robot_state, robot_model)) {
+        return false;
+    }
+
     return true;
 }
 
@@ -55,11 +73,25 @@ bool SetPlanningLink(URDFRobotModel* urdf_model, const std::string* link_name)
     return true;
 }
 
+bool SetPlanningLink(URDFRobotModel* urdf_model, const Link* link)
+{
+    urdf_model->planning_link = link;
+    return true;
+}
+
+void SetReferenceState(URDFRobotModel* model, const double* positions)
+{
+    SetVariablePositions(&model->robot_state, positions);
+}
+
 static
 void UpdateState(URDFRobotModel* model, const sbpl::motion::RobotState* state)
 {
     for (auto i = 0; i < model->jointVariableCount(); ++i) {
-        SetVariablePosition(&model->robot_state, model->planning_to_state_variable[i], (*state)[i]);
+        SetVariablePosition(
+                &model->robot_state,
+                model->planning_to_state_variable[i],
+                (*state)[i]);
     }
 }
 
@@ -105,7 +137,13 @@ bool URDFRobotModel::checkJointLimits(
     const sbpl::motion::RobotState& state,
     bool verbose)
 {
-    return false;
+    for (auto i = 0; i < this->jointVariableCount(); ++i) {
+        auto* var = GetVariable(this->robot_model, this->planning_to_state_variable[i]);
+        if (!SatisfiesBounds(&this->robot_state, var)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 auto URDFRobotModel::getExtension(size_t class_code) -> sbpl::motion::Extension*
@@ -115,5 +153,6 @@ auto URDFRobotModel::getExtension(size_t class_code) -> sbpl::motion::Extension*
     return NULL;
 }
 
+} // namespace urdf
 } // namespace smpl
 

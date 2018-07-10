@@ -3,16 +3,17 @@
 #include <urdf_model/model.h>
 
 namespace smpl {
+namespace urdf {
 
 static
-auto PoseURDFToEigen(const urdf::Pose& p) -> Affine3
+auto PoseURDFToEigen(const ::urdf::Pose& p) -> Affine3
 {
     return Translation3(p.position.x, p.position.y, p.position.z) *
             Quaternion(p.rotation.w, p.rotation.x, p.rotation.y, p.rotation.z);
 }
 
 static
-auto VectorURDFToEigen(const urdf::Vector3& v) -> Vector3
+auto VectorURDFToEigen(const ::urdf::Vector3& v) -> Vector3
 {
     return Vector3(v.x, v.y, v.z);
 }
@@ -76,7 +77,7 @@ void AddFloatingJointVariables(
 
 bool InitRobotModel(
     RobotModel* out,
-    const urdf::ModelInterface* urdf,
+    const ::urdf::ModelInterface* urdf,
     const JointSpec* world_joint)
 {
     RobotModel robot_model;
@@ -97,37 +98,37 @@ bool InitRobotModel(
         robot_model.links.push_back(std::move(link));
 
         // ...gather shapes in the meantime
-        auto add_shape = [&](const urdf::Geometry* geom)
+        auto add_shape = [&](const ::urdf::Geometry* geom)
         {
             switch (geom->type) {
-            case urdf::Geometry::SPHERE:
+            case ::urdf::Geometry::SPHERE:
             {
-                auto* s = static_cast<const urdf::Sphere*>(geom);
+                auto* s = static_cast<const ::urdf::Sphere*>(geom);
                 Sphere sphere;
                 sphere.radius = s->radius;
                 robot_model.spheres.push_back(sphere);
                 break;
             }
-            case urdf::Geometry::BOX:
+            case ::urdf::Geometry::BOX:
             {
-                auto* b = static_cast<const urdf::Box*>(geom);
+                auto* b = static_cast<const ::urdf::Box*>(geom);
                 Box box;
                 box.size = VectorURDFToEigen(b->dim);
                 robot_model.boxes.push_back(box);
                 break;
             }
-            case urdf::Geometry::CYLINDER:
+            case ::urdf::Geometry::CYLINDER:
             {
-                auto* c = static_cast<const urdf::Cylinder*>(geom);
+                auto* c = static_cast<const ::urdf::Cylinder*>(geom);
                 Cylinder cylinder;
                 cylinder.height = c->length;
                 cylinder.radius = c->radius;
                 robot_model.cylinders.push_back(cylinder);
                 break;
             }
-            case urdf::Geometry::MESH:
+            case ::urdf::Geometry::MESH:
             {
-                auto* m = static_cast<const urdf::Mesh*>(geom);
+                auto* m = static_cast<const ::urdf::Mesh*>(geom);
                 Mesh mesh;
                 mesh.filename = m->filename;
                 mesh.scale = Vector3(m->scale.x, m->scale.y, m->scale.z);
@@ -187,16 +188,16 @@ bool InitRobotModel(
 
         auto* c = prev_collision;
         auto* v = prev_visual;
-        auto next_shape = [&](const urdf::Geometry* geom) -> Shape*
+        auto next_shape = [&](const ::urdf::Geometry* geom) -> Shape*
         {
             switch (geom->type) {
-            case urdf::Geometry::SPHERE:
+            case ::urdf::Geometry::SPHERE:
                 return &robot_model.spheres[sphere_index++];
-            case urdf::Geometry::BOX:
+            case ::urdf::Geometry::BOX:
                 return &robot_model.boxes[box_index++];
-            case urdf::Geometry::CYLINDER:
+            case ::urdf::Geometry::CYLINDER:
                 return &robot_model.cylinders[cylinder_index++];
-            case urdf::Geometry::MESH:
+            case ::urdf::Geometry::MESH:
                 return &robot_model.meshes[mesh_index++];
             }
         };
@@ -255,7 +256,7 @@ bool InitRobotModel(
     }
     robot_model.joints.push_back(wj);
 
-    // ...for the joints in the urdf
+    // ...for the joints in the ::urdf
     for (auto& e : urdf->joints_) {
         Joint joint;
 
@@ -264,23 +265,23 @@ bool InitRobotModel(
         joint.axis = VectorURDFToEigen(e.second->axis);
 
         switch (e.second->type) {
-        case urdf::Joint::UNKNOWN:
+        case ::urdf::Joint::UNKNOWN:
             fprintf(stderr, "Unknown joint type\n");
             return false;
-        case urdf::Joint::FIXED:
+        case ::urdf::Joint::FIXED:
             joint.type = JointType::Fixed;
             break;
-        case urdf::Joint::CONTINUOUS:
-        case urdf::Joint::REVOLUTE:
+        case ::urdf::Joint::CONTINUOUS:
+        case ::urdf::Joint::REVOLUTE:
             joint.type = JointType::Revolute;
             break;
-        case urdf::Joint::PRISMATIC:
+        case ::urdf::Joint::PRISMATIC:
             joint.type = JointType::Prismatic;
             break;
-        case urdf::Joint::PLANAR:
+        case ::urdf::Joint::PLANAR:
             joint.type = JointType::Planar;
             break;
-        case urdf::Joint::FLOATING:
+        case ::urdf::Joint::FLOATING:
             joint.type = JointType::Floating;
             break;
         default:
@@ -310,15 +311,15 @@ bool InitRobotModel(
         return false;
     }
 
-    // ...for the joints in the urdf
+    // ...for the joints in the ::urdf
     for (auto& e : urdf->joints_) {
         switch (e.second->type) {
-        case urdf::Joint::UNKNOWN:
+        case ::urdf::Joint::UNKNOWN:
             return false;
-        case urdf::Joint::FIXED:
+        case ::urdf::Joint::FIXED:
             break;
-        case urdf::Joint::REVOLUTE:
-        case urdf::Joint::PRISMATIC:
+        case ::urdf::Joint::REVOLUTE:
+        case ::urdf::Joint::PRISMATIC:
         {
             JointVariable v;
             v.name = e.first;
@@ -338,7 +339,7 @@ bool InitRobotModel(
             robot_model.variables.push_back(std::move(v));
             break;
         }
-        case urdf::Joint::CONTINUOUS:
+        case ::urdf::Joint::CONTINUOUS:
         {
             JointVariable v;
             v.name = e.first;
@@ -355,12 +356,12 @@ bool InitRobotModel(
             robot_model.variables.push_back(std::move(v));
             break;
         }
-        case urdf::Joint::PLANAR:
+        case ::urdf::Joint::PLANAR:
         {
             AddPlanarJointVariables(&e.first, &robot_model.variables);
             break;
         }
-        case urdf::Joint::FLOATING:
+        case ::urdf::Joint::FLOATING:
         {
             AddFloatingJointVariables(&e.first, &robot_model.variables);
             break;
@@ -774,5 +775,6 @@ auto GetDefaultPosition(const RobotModel* model, const JointVariable* variable)
     }
 }
 
+} // namespace urdf
 } // namespace smpl
 

@@ -8,6 +8,7 @@
 #include <smpl_urdf_robot_model/robot_state.h>
 
 namespace smpl {
+namespace urdf {
 
 static
 auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape
@@ -98,5 +99,6 @@ auto MakeCollisionVisualization(
     return markers;
 }
 
+} // namespace urdf
 } // namesace smpl
 
