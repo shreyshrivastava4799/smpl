@@ -2,11 +2,10 @@
 
 // project includes
 #include <smpl_urdf_robot_model/robot_state_bounds.h>
+#include <smpl_urdf_robot_model/robot_model.h>
 
-#include <smpl_urdf_robot_model/robot_state_visualization.h>
-#include <smpl/debug/visualize.h>
-
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 bool Init(
@@ -50,14 +49,9 @@ bool Init(
         }
     }
 
-    printf("robot model = %p\n", robot_model);
-    printf("vprops = %zu\n", model->vprops.size());
-    printf("planning_to_state_variable = %zu\n", model->planning_to_state_variable.size());
-
     model->setPlanningJoints(planning_variables);
     model->robot_model = robot_model;
 
-    printf("initialize robot state\n");
     if (!Init(&model->robot_state, robot_model)) {
         return false;
     }
@@ -154,5 +148,6 @@ auto URDFRobotModel::getExtension(size_t class_code) -> sbpl::motion::Extension*
 }
 
 } // namespace urdf
-} // namespace smpl
+} // namespace motion
+} // namespace sbpl
 

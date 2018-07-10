@@ -4,7 +4,8 @@
 #include <smpl_urdf_robot_model/robot_model.h>
 #include <smpl_urdf_robot_model/robot_state.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 bool SatisfiesBounds(const RobotState* state)
@@ -43,5 +44,6 @@ bool SatisfiesBounds(const RobotState* state, const JointVariable* variable)
 }
 
 } // namespace urdf
-} // namespace smpl
+} // namespace motion
+} // namespace sbpl
 

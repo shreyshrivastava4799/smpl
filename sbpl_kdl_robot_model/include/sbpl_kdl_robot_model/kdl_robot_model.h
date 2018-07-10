@@ -52,7 +52,7 @@ namespace sbpl {
 namespace motion {
 
 class KDLRobotModel :
-    public virtual smpl::urdf::URDFRobotModel,
+    public virtual urdf::URDFRobotModel,
     public virtual InverseKinematicsInterface,
     public virtual RedundantManipulatorInterface
 {
@@ -108,11 +108,11 @@ public:
 
 public:
 
-    urdf::Model m_urdf;
+    ::urdf::Model m_urdf;
 
-    smpl::urdf::RobotModel m_robot_model;
+    urdf::RobotModel m_robot_model;
 
-    const smpl::urdf::Link* m_kinematics_link = NULL;
+    const urdf::Link* m_kinematics_link = NULL;
 
     std::string m_base_link;
     std::string m_tip_link;

@@ -56,6 +56,8 @@
 #include "collision_space_scene.h"
 #include "pr2_allowed_collision_pairs.h"
 
+namespace smpl = sbpl::motion;
+
 void FillGoalConstraint(
     const std::vector<double>& pose,
     std::string frame_id,

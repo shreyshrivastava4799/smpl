@@ -5,11 +5,13 @@
 #include <smpl/robot_model.h>
 
 // project includes
-#include <smpl_urdf_robot_model/robot_model.h>
 #include <smpl_urdf_robot_model/robot_state.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
+
+struct RobotModel;
 
 struct URDFRobotModel :
     public virtual sbpl::motion::RobotModel,
@@ -25,7 +27,7 @@ struct URDFRobotModel :
         bool bounded;
     };
 
-    const ::smpl::urdf::RobotModel* robot_model = NULL;
+    const ::sbpl::motion::urdf::RobotModel* robot_model = NULL;
     RobotState robot_state;
     std::vector<VariableProperties> vprops;
     std::vector<int> planning_to_state_variable;
@@ -61,7 +63,8 @@ bool SetPlanningLink(URDFRobotModel* urdf_model, const Link* link);
 void SetReferenceState(URDFRobotModel* urdf_model, const double* positions);
 
 } // namespace urdf
-} // namespace smpl
+} // namespace motion
+} // namespace sbpl
 
 #endif
 

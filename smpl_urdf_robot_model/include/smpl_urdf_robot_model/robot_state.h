@@ -7,7 +7,8 @@
 // project includes
 #include <smpl_urdf_robot_model/types.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 struct RobotModel;
@@ -167,7 +168,8 @@ struct RobotState
 };
 
 } // namespace urdf
-} // namespace smpl
+} // namespace motion
+} // namespace sbpl
 
 #endif
 

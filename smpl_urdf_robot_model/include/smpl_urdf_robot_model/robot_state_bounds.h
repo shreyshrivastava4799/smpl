@@ -1,7 +1,8 @@
 #ifndef SMPL_URDF_ROBOT_MODEL_ROBOT_STATE_BOUNDS_H
 #define SMPL_URDF_ROBOT_MODEL_ROBOT_STATE_BOUNDS_H
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 struct RobotState;
@@ -13,7 +14,8 @@ bool SatisfiesBounds(const RobotState* state, const Joint* joint);
 bool SatisfiesBounds(const RobotState* state, const JointVariable* variable);
 
 } // namespace urdf
-} // namespace smpl
+} // namespace motion
+} // namespace sbpl
 
 #endif
 

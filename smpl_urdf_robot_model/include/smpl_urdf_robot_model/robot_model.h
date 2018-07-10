@@ -12,7 +12,8 @@ class ModelInterface;
 #include <smpl_urdf_robot_model/array_range.h>
 #include <smpl_urdf_robot_model/types.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 struct RobotModel;
@@ -255,6 +256,7 @@ struct JointSpec
 };
 
 } // namespace urdf
+} // namespace motion
 } // namespace smpl
 
 #endif

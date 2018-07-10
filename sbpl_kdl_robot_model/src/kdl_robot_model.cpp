@@ -91,12 +91,12 @@ bool Init(
     }
 
     ROS_INFO("Initialize Robot Model");
-    smpl::urdf::JointSpec world_joint;
+    urdf::JointSpec world_joint;
     world_joint.name = "map";
     world_joint.origin = Eigen::Affine3d::Identity(); // IMPORTANT
     world_joint.axis = Eigen::Vector3d::Zero();
-    world_joint.type = smpl::urdf::JointType::Floating;
-    if (!smpl::urdf::InitRobotModel(
+    world_joint.type = urdf::JointType::Floating;
+    if (!urdf::InitRobotModel(
             &model->m_robot_model, &model->m_urdf, &world_joint))
     {
         ROS_ERROR("Failed to initialize Robot Model");
@@ -138,7 +138,7 @@ bool Init(
     }
 
     ROS_INFO("Initialize URDF Robot Model with planning joints = %s", to_string(planning_joints).c_str());
-    if (!smpl::urdf::Init(model, &model->m_robot_model, &planning_joints)) {
+    if (!urdf::Init(model, &model->m_robot_model, &planning_joints)) {
         ROS_ERROR("Failed to initialize URDF Robot Model");
         return false;
     }

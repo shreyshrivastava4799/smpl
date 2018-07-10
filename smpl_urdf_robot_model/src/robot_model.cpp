@@ -2,7 +2,8 @@
 
 #include <urdf_model/model.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 static
@@ -776,5 +777,6 @@ auto GetDefaultPosition(const RobotModel* model, const JointVariable* variable)
 }
 
 } // namespace urdf
+} // namespace motion
 } // namespace smpl
 

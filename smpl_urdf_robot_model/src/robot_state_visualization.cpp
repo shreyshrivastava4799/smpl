@@ -7,7 +7,8 @@
 #include <smpl_urdf_robot_model/robot_model.h>
 #include <smpl_urdf_robot_model/robot_state.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 static
@@ -100,5 +101,6 @@ auto MakeCollisionVisualization(
 }
 
 } // namespace urdf
-} // namesace smpl
+} // namespace motion
+} // namesace sbpl
 

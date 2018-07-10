@@ -10,6 +10,8 @@
 // project includes
 #include <smpl_urdf_robot_model/smpl_urdf_robot_model.h>
 
+namespace smpl = sbpl::motion;
+
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "robot_model_test");

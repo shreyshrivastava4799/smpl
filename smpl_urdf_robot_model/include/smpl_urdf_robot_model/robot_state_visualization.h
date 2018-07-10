@@ -7,7 +7,8 @@
 // system includes
 #include <smpl/debug/marker.h>
 
-namespace smpl {
+namespace sbpl {
+namespace motion {
 namespace urdf {
 
 struct RobotState;
@@ -29,6 +30,7 @@ auto MakeCollisionVisualization(
     -> std::vector<sbpl::visual::Marker>;
 
 } // namespace urdf
-} // namespace smpl
+} // namespace motion
+} // namespace sbpl
 
 #endif
