@@ -12,4 +12,6 @@
     <build_depend>liburdfdom-headers-dev</build_depend>
 
     <depend>liburdfdom-dev</depend>
+    <depend>smpl</depend>
+    <depend>smpl_ros</depend>
 </package>
