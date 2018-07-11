@@ -1,5 +1,5 @@
 <package format="2">
-    <name>smpl_ompl</name>
+    <name>smpl_ompl_interface</name>
     <description>The smpl_ompl package</description>
     <version>0.0.0</version>
     <author email="andrew.dornbush@gmail.com">Andrew Dornbush</author>

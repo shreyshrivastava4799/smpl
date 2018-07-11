@@ -1,35 +1,38 @@
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
+#include <smpl_ompl_interface/ompl_interface.h>
 
+// system includes
+#include <boost/make_shared.hpp>
+#include <boost/shared_ptr.hpp>
 #include <ompl/base/Planner.h>
-#include <ompl/base/spaces/SE3StateSpace.h>
-#include <ompl/base/spaces/SE2StateSpace.h>
-#include <ompl/geometric/SimpleSetup.h>
+#include <ompl/base/goals/GoalLazySamples.h>
+#include <ompl/base/goals/GoalRegion.h>
+#include <ompl/base/goals/GoalSampleableRegion.h>
+#include <ompl/base/goals/GoalState.h>
+#include <ompl/base/goals/GoalStates.h>
 #include <ompl/base/spaces/DiscreteStateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/spaces/SE2StateSpace.h>
+#include <ompl/base/spaces/SE3StateSpace.h>
 #include <ompl/base/spaces/SO2StateSpace.h>
 #include <ompl/base/spaces/SO3StateSpace.h>
 #include <ompl/base/spaces/TimeStateSpace.h>
-
-#include <ompl/base/goals/GoalLazySamples.h>
-#include <ompl/base/goals/GoalState.h>
-#include <ompl/base/goals/GoalRegion.h>
-#include <ompl/base/goals/GoalStates.h>
-#include <ompl/base/goals/GoalSampleableRegion.h>
-
+#include <ompl/geometric/SimpleSetup.h>
 #include <smpl/angles.h>
 #include <smpl/collision_checker.h>
-#include <smpl/robot_model.h>
+#include <smpl/console/console.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
-#include <smpl/search/arastar.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
-#include <smpl/console/console.h>
+#include <smpl/robot_model.h>
+#include <smpl/search/arastar.h>
 
-// :/ - would like to eventually rename sbpl::motion to smpl and scope this appropriately
-namespace smpl {
+namespace smpl = sbpl::motion;
+
+namespace sbpl {
+namespace motion {
+namespace detail {
 
 // stolen defer from scdl
 template <class Callable>
@@ -52,14 +55,41 @@ CallOnDestruct<Callable> MakeCallOnDestruct(Callable c) {
 
 // create an obscurely named CallOnDestruct with an anonymous lambda that
 // executes the given statement sequence
-#define DEFER(fun) auto MAKE_LINE_IDENT(tmp_call_on_destruct_) = ::smpl::MakeCallOnDestruct([&](){ fun; })
+#define DEFER(fun) auto MAKE_LINE_IDENT(tmp_call_on_destruct_) = ::smpl::detail::MakeCallOnDestruct([&](){ fun; })
 
 template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T> {
+auto make_unique(Args&&... args) -> std::unique_ptr<T>
+{
     return std::unique_ptr<T>(new T(args...));
 }
 
-struct RobotModel : public sbpl::motion::RobotModel
+static
+auto MakeStateSMPL(
+    const ompl::base::StateSpace* space,
+    const ompl::base::State* state)
+    -> smpl::RobotState
+{
+    smpl::RobotState s;
+    space->copyToReals(s, state);
+    return s;
+};
+
+static
+auto MakeStateOMPL(
+    const ompl::base::StateSpace* space,
+    const smpl::RobotState& state)
+    -> ompl::base::State*
+{
+    auto* s = space->allocState();
+    space->copyFromReals(s, state);
+    return s;
+}
+
+///////////////////////////////
+// RobotModel Implementation //
+///////////////////////////////
+
+struct RobotModel : public smpl::RobotModel
 {
     struct VariableProperties
     {
@@ -85,32 +115,123 @@ struct RobotModel : public sbpl::motion::RobotModel
     bool isContinuous(int vidx) const override;
     double velLimit(int vidx) const override;
     double accLimit(int vidx) const override;
-    bool checkJointLimits(const sbpl::motion::RobotState& state, bool verbose = false) override;
-    auto getExtension(size_t class_code) -> sbpl::motion::Extension* override;
+    bool checkJointLimits(const smpl::RobotState& state, bool verbose = false) override;
+    auto getExtension(size_t class_code) -> smpl::Extension* override;
 };
 
-struct CollisionChecker : public sbpl::motion::CollisionChecker
+double RobotModel::minPosLimit(int vidx) const
+{
+    return variables[vidx].min_position;
+}
+
+double RobotModel::maxPosLimit(int vidx) const
+{
+    return variables[vidx].max_position;
+}
+
+bool RobotModel::hasPosLimit(int vidx) const
+{
+    return (variables[vidx].flags & VariableProperties::BOUNDED) != 0;
+}
+
+bool RobotModel::isContinuous(int vidx) const
+{
+    return (variables[vidx].flags & VariableProperties::CONTINUOUS) != 0;
+}
+
+double RobotModel::velLimit(int vidx) const
+{
+    return variables[vidx].max_velocity;
+}
+
+double RobotModel::accLimit(int vidx) const
+{
+    return variables[vidx].max_acceleration;
+}
+
+bool RobotModel::checkJointLimits(const smpl::RobotState& state, bool verbose)
+{
+    // TODO: extract these from SpaceInformation
+    return true;
+}
+
+auto RobotModel::getExtension(size_t class_code) -> smpl::Extension*
+{
+    if (class_code == smpl::GetClassCode<smpl::RobotModel>()) {
+        return this;
+    }
+    return NULL;
+}
+
+/////////////////////////////////////
+// CollisionChecker Implementation //
+/////////////////////////////////////
+
+struct CollisionChecker : public smpl::CollisionChecker
 {
     ompl::base::StateSpace* space;
     ompl::base::StateValidityChecker* checker;
     ompl::base::MotionValidator* validator;
 
     bool isStateValid(
-        const sbpl::motion::RobotState& state,
+        const smpl::RobotState& state,
         bool verbose = false) override;
 
     bool isStateToStateValid(
-        const sbpl::motion::RobotState& start,
-        const sbpl::motion::RobotState& finish,
+        const smpl::RobotState& start,
+        const smpl::RobotState& finish,
         bool verbose = false) override;
 
     bool interpolatePath(
-        const sbpl::motion::RobotState& start,
-        const sbpl::motion::RobotState& finish,
-        std::vector<sbpl::motion::RobotState>& path) override;
+        const smpl::RobotState& start,
+        const smpl::RobotState& finish,
+        std::vector<smpl::RobotState>& path) override;
 
-    auto getExtension(size_t class_code) -> sbpl::motion::Extension* override;
+    auto getExtension(size_t class_code) -> smpl::Extension* override;
 };
+
+bool CollisionChecker::isStateValid(
+    const smpl::RobotState& state,
+    bool verbose)
+{
+    auto* s = MakeStateOMPL(this->space, state);
+    DEFER(this->space->freeState(s));
+    return this->checker->isValid(s);
+}
+
+bool CollisionChecker::isStateToStateValid(
+    const smpl::RobotState& start,
+    const smpl::RobotState& finish,
+    bool verbose)
+{
+    auto* s = MakeStateOMPL(this->space, start);
+    auto* f = MakeStateOMPL(this->space, finish);
+    DEFER(this->space->freeState(s));
+    DEFER(this->space->freeState(f));
+    return this->validator->checkMotion(s, f);
+}
+
+bool CollisionChecker::interpolatePath(
+    const smpl::RobotState& start,
+    const smpl::RobotState& finish,
+    std::vector<smpl::RobotState>& path)
+{
+    // TODO: only used practically for shortcutting...we'll let ompl handle
+    // path simplification and not think too hard about that here
+    path.push_back(start);
+    path.push_back(finish);
+    return true;
+}
+
+auto CollisionChecker::getExtension(size_t class_code)
+    -> smpl::Extension*
+{
+    if (class_code == smpl::GetClassCode<smpl::CollisionChecker>()) {
+        return this;
+    }
+    return NULL;
+}
+
 
 enum struct ConcreteSpaceType
 {
@@ -118,26 +239,27 @@ enum struct ConcreteSpaceType
     MORSE_STATE_SPACE_TYPE,
 };
 
-struct Planner : public ompl::base::Planner
+
+struct PlannerImpl : public ompl::base::Planner
 {
     // world model interface
     RobotModel model;
     CollisionChecker checker;
 
     // params
-    sbpl::motion::PlanningParams params;
+    smpl::PlanningParams params;
 
     // graph
-    sbpl::motion::ManipLattice space;
-    sbpl::motion::ManipLatticeActionSpace actions;
+    smpl::ManipLattice space;
+    smpl::ManipLatticeActionSpace actions;
 
     // heuristic
-    sbpl::motion::JointDistHeuristic heuristic;
+    smpl::JointDistHeuristic heuristic;
 
     // search
     sbpl::ARAStar search;
 
-    Planner(const ompl::base::SpaceInformationPtr& si);
+    PlannerImpl(const ompl::base::SpaceInformationPtr& si);
 
     void setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef) override;
 
@@ -229,127 +351,7 @@ bool MakeVariableProperties(
     return true;
 }
 
-static
-auto MakeStateSMPL(
-    const ompl::base::StateSpace* space,
-    const ompl::base::State* state)
-    -> sbpl::motion::RobotState
-{
-    sbpl::motion::RobotState s;
-    space->copyToReals(s, state);
-    return s;
-};
-
-static
-auto MakeStateOMPL(
-    const ompl::base::StateSpace* space,
-    const sbpl::motion::RobotState& state)
-    -> ompl::base::State*
-{
-    auto* s = space->allocState();
-    space->copyFromReals(s, state);
-    return s;
-}
-
-///////////////////////////////
-// RobotModel Implementation //
-///////////////////////////////
-
-double RobotModel::minPosLimit(int vidx) const
-{
-    return variables[vidx].min_position;
-}
-
-double RobotModel::maxPosLimit(int vidx) const
-{
-    return variables[vidx].max_position;
-}
-
-bool RobotModel::hasPosLimit(int vidx) const
-{
-    return (variables[vidx].flags & VariableProperties::BOUNDED) != 0;
-}
-
-bool RobotModel::isContinuous(int vidx) const
-{
-    return (variables[vidx].flags & VariableProperties::CONTINUOUS) != 0;
-}
-
-double RobotModel::velLimit(int vidx) const
-{
-    return variables[vidx].max_velocity;
-}
-
-double RobotModel::accLimit(int vidx) const
-{
-    return variables[vidx].max_acceleration;
-}
-
-bool RobotModel::checkJointLimits(const sbpl::motion::RobotState& state, bool verbose)
-{
-    // TODO: extract these from SpaceInformation
-    return true;
-}
-
-auto RobotModel::getExtension(size_t class_code) -> sbpl::motion::Extension*
-{
-    if (class_code == sbpl::motion::GetClassCode<sbpl::motion::RobotModel>()) {
-        return this;
-    }
-    return NULL;
-}
-
-/////////////////////////////////////
-// CollisionChecker Implementation //
-/////////////////////////////////////
-
-bool CollisionChecker::isStateValid(
-    const sbpl::motion::RobotState& state,
-    bool verbose)
-{
-    auto* s = MakeStateOMPL(this->space, state);
-    DEFER(this->space->freeState(s));
-    return this->checker->isValid(s);
-}
-
-bool CollisionChecker::isStateToStateValid(
-    const sbpl::motion::RobotState& start,
-    const sbpl::motion::RobotState& finish,
-    bool verbose)
-{
-    auto* s = MakeStateOMPL(this->space, start);
-    auto* f = MakeStateOMPL(this->space, finish);
-    DEFER(this->space->freeState(s));
-    DEFER(this->space->freeState(f));
-    return this->validator->checkMotion(s, f);
-}
-
-bool CollisionChecker::interpolatePath(
-    const sbpl::motion::RobotState& start,
-    const sbpl::motion::RobotState& finish,
-    std::vector<sbpl::motion::RobotState>& path)
-{
-    // TODO: only used practically for shortcutting...we'll let ompl handle
-    // path simplification and not think too hard about that here
-    path.push_back(start);
-    path.push_back(finish);
-    return true;
-}
-
-auto CollisionChecker::getExtension(size_t class_code)
-    -> sbpl::motion::Extension*
-{
-    if (class_code == sbpl::motion::GetClassCode<sbpl::motion::CollisionChecker>()) {
-        return this;
-    }
-    return NULL;
-}
-
-////////////////////////////
-// Planner Implementation //
-////////////////////////////
-
-Planner::Planner(const ompl::base::SpaceInformationPtr& si) :
+PlannerImpl::PlannerImpl(const ompl::base::SpaceInformationPtr& si) :
     ompl::base::Planner(si, "smpl"),
     search(&space, &heuristic)
 {
@@ -464,17 +466,17 @@ Planner::Planner(const ompl::base::SpaceInformationPtr& si) :
     SMPL_INFO("Action Set:");
     for (auto ait = this->actions.begin(); ait != this->actions.end(); ++ait) {
         SMPL_INFO("  type: %s", to_cstring(ait->type));
-        if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_RPY) {
-            SMPL_INFO("    enabled: %s", this->actions.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", this->actions.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY));
-        } else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) {
-            SMPL_INFO("    enabled: %s", this->actions.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", this->actions.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ));
-        } else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) {
-            SMPL_INFO("    enabled: %s", this->actions.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", this->actions.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY));
-        } else if (ait->type == sbpl::motion::MotionPrimitive::LONG_DISTANCE ||
-            ait->type == sbpl::motion::MotionPrimitive::SHORT_DISTANCE)
+        if (ait->type == smpl::MotionPrimitive::SNAP_TO_RPY) {
+            SMPL_INFO("    enabled: %s", this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY));
+        } else if (ait->type == smpl::MotionPrimitive::SNAP_TO_XYZ) {
+            SMPL_INFO("    enabled: %s", this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ));
+        } else if (ait->type == smpl::MotionPrimitive::SNAP_TO_XYZ_RPY) {
+            SMPL_INFO("    enabled: %s", this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY));
+        } else if (ait->type == smpl::MotionPrimitive::LONG_DISTANCE ||
+            ait->type == smpl::MotionPrimitive::SHORT_DISTANCE)
         {
             SMPL_INFO_STREAM("    action: " << ait->action);
         }
@@ -521,15 +523,15 @@ Planner::Planner(const ompl::base::SpaceInformationPtr& si) :
     }
 }
 
-bool IsAnyGoal(void* user, const sbpl::motion::RobotState& state)
+bool IsAnyGoal(void* user, const smpl::RobotState& state)
 {
-    auto* planner = static_cast<Planner*>(user);
+    auto* planner = static_cast<PlannerImpl*>(user);
     auto* space = planner->getSpaceInformation()->getStateSpace().get();
     return planner->getProblemDefinition()->getGoal()->isSatisfied(
             MakeStateOMPL(space, state));
 }
 
-auto Planner::solve(const ompl::base::PlannerTerminationCondition& ptc)
+auto PlannerImpl::solve(const ompl::base::PlannerTerminationCondition& ptc)
     -> ompl::base::PlannerStatus
 {
     SMPL_INFO("Planner::solve");
@@ -566,7 +568,7 @@ auto Planner::solve(const ompl::base::PlannerTerminationCondition& ptc)
     ////////////////////////
 
     {
-        sbpl::motion::GoalConstraint goal_condition;
+        smpl::GoalConstraint goal_condition;
 
         // Inheritance hierarchy for goal types:
         // GoalAny
@@ -585,7 +587,7 @@ auto Planner::solve(const ompl::base::PlannerTerminationCondition& ptc)
         case ompl::base::GoalType::GOAL_LAZY_SAMPLES:
         {
             auto* goal = static_cast<ompl::base::Goal*>(abstract_goal.get());
-            goal_condition.type = sbpl::motion::GoalType::USER_GOAL_CONSTRAINT_FN;
+            goal_condition.type = smpl::GoalType::USER_GOAL_CONSTRAINT_FN;
             goal_condition.check_goal = IsAnyGoal;
             goal_condition.check_goal_user = this;
             break;
@@ -595,7 +597,7 @@ auto Planner::solve(const ompl::base::PlannerTerminationCondition& ptc)
             auto* goal = static_cast<ompl::base::GoalState*>(abstract_goal.get());
             auto goal_state = MakeStateSMPL(ss, goal->getState());
             SMPL_INFO_STREAM("goal state = " << goal_state);
-            goal_condition.type = sbpl::motion::GoalType::JOINT_STATE_GOAL;
+            goal_condition.type = smpl::GoalType::JOINT_STATE_GOAL;
             goal_condition.angles = goal_state;
             // UGH
             goal_condition.angle_tolerances.resize(
@@ -669,7 +671,7 @@ auto Planner::solve(const ompl::base::PlannerTerminationCondition& ptc)
     // Convert discrete state path to continuous state path //
     //////////////////////////////////////////////////////////
 
-    std::vector<sbpl::motion::RobotState> path;
+    std::vector<smpl::RobotState> path;
     if (!space.extractPath(solution, path)) {
         return ompl::base::PlannerStatus::CRASH;
     }
@@ -684,13 +686,13 @@ auto Planner::solve(const ompl::base::PlannerTerminationCondition& ptc)
     return ompl::base::PlannerStatus(ompl::base::PlannerStatus::EXACT_SOLUTION);
 }
 
-void Planner::setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef)
+void PlannerImpl::setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef)
 {
     SMPL_INFO("Planner::setProblemDefinition");
     ompl::base::Planner::setProblemDefinition(pdef);
 }
 
-void Planner::clear()
+void PlannerImpl::clear()
 {
     SMPL_INFO("TODO: Planner::clear");
     ompl::base::Planner::clear();
@@ -699,84 +701,71 @@ void Planner::clear()
     // be called again
 }
 
-void Planner::setup()
+void PlannerImpl::setup()
 {
     SMPL_INFO("Planner::setup");
     ompl::base::Planner::setup();
 }
 
-void Planner::checkValidity()
+void PlannerImpl::checkValidity()
 {
     SMPL_INFO("Planner::checkValidity");
     ompl::base::Planner::checkValidity(); // lol, throws exceptions
 }
 
-void Planner::getPlannerData(ompl::base::PlannerData& data) const
+void PlannerImpl::getPlannerData(ompl::base::PlannerData& data) const
 {
     SMPL_INFO("TODO: Planner::getPlannerData");
     ompl::base::Planner::getPlannerData(data);
 }
 
+} // namespace detail
+
+////////////////////////////////
+// OMPLPlanner Implementation //
+////////////////////////////////
+
+OMPLPlanner::OMPLPlanner(const ompl::base::SpaceInformationPtr& si) :
+    Planner(si, "smpl_planner"),
+    m_impl(detail::make_unique<smpl::detail::PlannerImpl>(si))
+{
+}
+
+OMPLPlanner::~OMPLPlanner()
+{
+}
+
+void OMPLPlanner::setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef)
+{
+    return m_impl->setProblemDefinition(pdef);
+}
+
+auto OMPLPlanner::solve(const ompl::base::PlannerTerminationCondition& ptc)
+    -> ompl::base::PlannerStatus
+{
+    return m_impl->solve(ptc);
+}
+
+void OMPLPlanner::clear()
+{
+    return m_impl->clear();
+}
+
+void OMPLPlanner::checkValidity()
+{
+    return m_impl->checkValidity();
+}
+
+void OMPLPlanner::setup()
+{
+    return m_impl->setup();
+}
+
+void OMPLPlanner::getPlannerData(ompl::base::PlannerData& data) const
+{
+    return m_impl->getPlannerData(data);
+}
+
+} // namespace motion
 } // namespace smpl
 
-using StateSpaceType = ompl::base::SE2StateSpace;
-bool isStateValid(const ompl::base::State* state)
-{
-    auto* s = state->as<StateSpaceType::StateType>();
-    auto dx = s->getX();
-    auto dy = s->getY();
-    return (dx * dx + dy * dy > 0.5 * 0.5);
-}
-
-namespace spns = boost;
-
-int main(int argc, char* argv[])
-{
-    auto space = spns::make_shared<StateSpaceType>();
-
-    ompl::base::RealVectorBounds bounds(2);
-    bounds.setLow(-1);
-    bounds.setHigh(1);
-
-    space->setBounds(bounds);
-
-    ompl::geometric::SimpleSetup ss(space);
-    ss.setStateValidityChecker(
-            [](const ompl::base::State* state) {
-                return isStateValid(state);
-            });
-
-    ompl::base::ScopedState<StateSpaceType> start(space);
-    ompl::base::ScopedState<StateSpaceType> goal(space);
-
-    int count = 0;
-    do {
-        start.random();
-        goal.random();
-
-        SMPL_INFO_STREAM("start = " << start.reals());
-        SMPL_INFO("  r = %f", sqrt(start->getX() * start->getX() + start->getY() * start->getY()));
-
-        SMPL_INFO_STREAM("goal = " << goal.reals());
-        SMPL_INFO("  r = %f", sqrt(goal->getX() * goal->getX() + goal->getY() * goal->getY()));
-        ++count;
-    } while (!isStateValid(start.get()) || !isStateValid(goal.get()));
-    SMPL_INFO("Sampled %d start/goal pairs", count);
-
-    ss.setStartAndGoalStates(start, goal);
-
-    auto planner = spns::make_shared<smpl::Planner>(ss.getSpaceInformation());
-    planner->ompl::base::Planner::params().setParam("epsilon", "100.0");
-
-    ss.setPlanner(planner);
-
-    auto solved = ss.solve(5.0);
-
-    if (solved) {
-        std::cout << "Found solution:" << std::endl;
-        ss.simplifySolution();
-        ss.getSolutionPath().print(std::cout);
-    }
-
-    return 0;
-}
