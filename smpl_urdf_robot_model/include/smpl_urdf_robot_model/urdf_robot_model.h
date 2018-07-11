@@ -28,12 +28,16 @@ struct URDFRobotModel :
     };
 
     const ::sbpl::motion::urdf::RobotModel* robot_model = NULL;
+
+    // persistent robot state to cache unchanging transforms
     RobotState robot_state;
+
     std::vector<VariableProperties> vprops;
     std::vector<int> planning_to_state_variable;
     const Link* planning_link = NULL;
 
-    auto computeFK(const sbpl::motion::RobotState& state) -> Eigen::Affine3d override;
+    auto computeFK(const sbpl::motion::RobotState& state)
+        -> Eigen::Affine3d override;
 
     double minPosLimit(int jidx) const override;
     double maxPosLimit(int jidx) const override;
