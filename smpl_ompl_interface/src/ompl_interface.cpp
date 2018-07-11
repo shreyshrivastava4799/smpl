@@ -1,8 +1,6 @@
 #include <smpl_ompl_interface/ompl_interface.h>
 
 // system includes
-#include <boost/make_shared.hpp>
-#include <boost/shared_ptr.hpp>
 #include <ompl/base/Planner.h>
 #include <ompl/base/goals/GoalLazySamples.h>
 #include <ompl/base/goals/GoalRegion.h>
@@ -240,7 +238,7 @@ enum struct ConcreteSpaceType
 };
 
 
-struct PlannerImpl : public ompl::base::Planner
+struct PlannerImpl
 {
     // world model interface
     RobotModel model;
@@ -259,20 +257,20 @@ struct PlannerImpl : public ompl::base::Planner
     // search
     sbpl::ARAStar search;
 
-    PlannerImpl(const ompl::base::SpaceInformationPtr& si);
+    PlannerImpl(OMPLPlanner* planner, ompl::base::SpaceInformation* si);
 
-    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef) override;
+    void setProblemDefinition(OMPLPlanner* planner, const ompl::base::ProblemDefinitionPtr& pdef);
 
-    auto solve(const ompl::base::PlannerTerminationCondition& ptc)
-        -> ompl::base::PlannerStatus override;
+    auto solve(OMPLPlanner* planner, const ompl::base::PlannerTerminationCondition& ptc)
+        -> ompl::base::PlannerStatus;
 
-    void clear() override;
+    void clear(OMPLPlanner* planner);
 
-    void checkValidity() override;
+    void checkValidity(OMPLPlanner* planner);
 
-    void setup() override;
+    void setup(OMPLPlanner* planner);
 
-    void getPlannerData(ompl::base::PlannerData& data) const override;
+    void getPlannerData(const OMPLPlanner* planner, ompl::base::PlannerData& data) const;
 };
 
 static
@@ -351,21 +349,20 @@ bool MakeVariableProperties(
     return true;
 }
 
-PlannerImpl::PlannerImpl(const ompl::base::SpaceInformationPtr& si) :
-    ompl::base::Planner(si, "smpl"),
+PlannerImpl::PlannerImpl(OMPLPlanner* planner, ompl::base::SpaceInformation* si) :
     search(&space, &heuristic)
 {
     SMPL_INFO("Construct Planner");
 
-    specs_.approximateSolutions = false;
-    specs_.canReportIntermediateSolutions = true; //false;
-    specs_.directed = true;
-    specs_.multithreaded = false;
-    specs_.optimizingPaths = true;
-    specs_.provingSolutionNonExistence = true;
+    planner->specs_.approximateSolutions = false;
+    planner->specs_.canReportIntermediateSolutions = true; //false;
+    planner->specs_.directed = true;
+    planner->specs_.multithreaded = false;
+    planner->specs_.optimizingPaths = true;
+    planner->specs_.provingSolutionNonExistence = true;
 
     // hmm...
-    specs_.recognizedGoal = ompl::base::GoalType::GOAL_ANY;
+    planner->specs_.recognizedGoal = ompl::base::GoalType::GOAL_ANY;
 
     ////////////////////////////////
     // Log state space properties //
@@ -408,7 +405,7 @@ PlannerImpl::PlannerImpl(const ompl::base::SpaceInformationPtr& si) :
     // Initialize RobotModel //
     ///////////////////////////
 
-    this->model.si = si.get();
+    this->model.si = si;
 
     {
         std::vector<std::string> names;
@@ -428,9 +425,9 @@ PlannerImpl::PlannerImpl(const ompl::base::SpaceInformationPtr& si) :
     // Initialize Collision Checker Interface //
     ////////////////////////////////////////////
 
-    this->checker.space = this->getSpaceInformation()->getStateSpace().get();
-    this->checker.checker = this->getSpaceInformation()->getStateValidityChecker().get();
-    this->checker.validator = this->getSpaceInformation()->getMotionValidator().get();
+    this->checker.space = planner->getSpaceInformation()->getStateSpace().get();
+    this->checker.checker = planner->getSpaceInformation()->getStateValidityChecker().get();
+    this->checker.validator = planner->getSpaceInformation()->getMotionValidator().get();
 
     //////////////////////////////
     // Initialize Manip Lattice //
@@ -510,7 +507,7 @@ PlannerImpl::PlannerImpl(const ompl::base::SpaceInformationPtr& si) :
             return this->search.get_initial_eps();
         };
 
-        this->ompl::base::Planner::params().declareParam<double>("epsilon", setter, getter);
+        planner->params().declareParam<double>("epsilon", setter, getter);
 
 //            this->ompl::base::Planner::params().getParam();
 //            this->ompl::base::Planner::params().remove("epsilon");
@@ -525,20 +522,22 @@ PlannerImpl::PlannerImpl(const ompl::base::SpaceInformationPtr& si) :
 
 bool IsAnyGoal(void* user, const smpl::RobotState& state)
 {
-    auto* planner = static_cast<PlannerImpl*>(user);
+    auto* planner = static_cast<OMPLPlanner*>(user);
     auto* space = planner->getSpaceInformation()->getStateSpace().get();
     return planner->getProblemDefinition()->getGoal()->isSatisfied(
             MakeStateOMPL(space, state));
 }
 
-auto PlannerImpl::solve(const ompl::base::PlannerTerminationCondition& ptc)
+auto PlannerImpl::solve(
+    OMPLPlanner* planner,
+    const ompl::base::PlannerTerminationCondition& ptc)
     -> ompl::base::PlannerStatus
 {
     SMPL_INFO("Planner::solve");
 
-    auto* si = this->getSpaceInformation().get();
+    auto* si = planner->getSpaceInformation().get();
     auto* ss = si->getStateSpace().get();
-    auto* pdef = this->getProblemDefinition().get();
+    auto* pdef = planner->getProblemDefinition().get();
 
     if (pdef->getSpaceInformation().get() != si) {
         SMPL_ERROR("wtf");
@@ -589,7 +588,7 @@ auto PlannerImpl::solve(const ompl::base::PlannerTerminationCondition& ptc)
             auto* goal = static_cast<ompl::base::Goal*>(abstract_goal.get());
             goal_condition.type = smpl::GoalType::USER_GOAL_CONSTRAINT_FN;
             goal_condition.check_goal = IsAnyGoal;
-            goal_condition.check_goal_user = this;
+            goal_condition.check_goal_user = planner;
             break;
         }
         case ompl::base::GoalType::GOAL_STATE:
@@ -676,47 +675,51 @@ auto PlannerImpl::solve(const ompl::base::PlannerTerminationCondition& ptc)
         return ompl::base::PlannerStatus::CRASH;
     }
 
-    auto ompl_path = boost::make_shared<ompl::geometric::PathGeometric>(
-            this->getSpaceInformation());
+    auto ompl_path = ompl::base::PathPtr(
+            new ompl::geometric::PathGeometric(planner->getSpaceInformation()));
 
     // TODO: convert path
 //    ompl_path->append();
-    this->getProblemDefinition()->addSolutionPath(ompl_path);
+    planner->getProblemDefinition()->addSolutionPath(ompl_path);
 
     return ompl::base::PlannerStatus(ompl::base::PlannerStatus::EXACT_SOLUTION);
 }
 
-void PlannerImpl::setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef)
+void PlannerImpl::setProblemDefinition(
+    OMPLPlanner* planner,
+    const ompl::base::ProblemDefinitionPtr& pdef)
 {
     SMPL_INFO("Planner::setProblemDefinition");
-    ompl::base::Planner::setProblemDefinition(pdef);
+    planner->ompl::base::Planner::setProblemDefinition(pdef);
 }
 
-void PlannerImpl::clear()
+void PlannerImpl::clear(OMPLPlanner* planner)
 {
     SMPL_INFO("TODO: Planner::clear");
-    ompl::base::Planner::clear();
+    planner->ompl::base::Planner::clear();
 
     // NOTE: can set this->setup_ to false to communicate that setup should
     // be called again
 }
 
-void PlannerImpl::setup()
+void PlannerImpl::setup(OMPLPlanner* planner)
 {
     SMPL_INFO("Planner::setup");
-    ompl::base::Planner::setup();
+    planner->ompl::base::Planner::setup();
 }
 
-void PlannerImpl::checkValidity()
+void PlannerImpl::checkValidity(OMPLPlanner* planner)
 {
     SMPL_INFO("Planner::checkValidity");
-    ompl::base::Planner::checkValidity(); // lol, throws exceptions
+    planner->ompl::base::Planner::checkValidity(); // lol, throws exceptions
 }
 
-void PlannerImpl::getPlannerData(ompl::base::PlannerData& data) const
+void PlannerImpl::getPlannerData(
+    const OMPLPlanner* planner,
+    ompl::base::PlannerData& data) const
 {
     SMPL_INFO("TODO: Planner::getPlannerData");
-    ompl::base::Planner::getPlannerData(data);
+    planner->ompl::base::Planner::getPlannerData(data);
 }
 
 } // namespace detail
@@ -727,7 +730,7 @@ void PlannerImpl::getPlannerData(ompl::base::PlannerData& data) const
 
 OMPLPlanner::OMPLPlanner(const ompl::base::SpaceInformationPtr& si) :
     Planner(si, "smpl_planner"),
-    m_impl(detail::make_unique<smpl::detail::PlannerImpl>(si))
+    m_impl(detail::make_unique<smpl::detail::PlannerImpl>(this, si.get()))
 {
 }
 
@@ -737,33 +740,33 @@ OMPLPlanner::~OMPLPlanner()
 
 void OMPLPlanner::setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef)
 {
-    return m_impl->setProblemDefinition(pdef);
+    return m_impl->setProblemDefinition(this, pdef);
 }
 
 auto OMPLPlanner::solve(const ompl::base::PlannerTerminationCondition& ptc)
     -> ompl::base::PlannerStatus
 {
-    return m_impl->solve(ptc);
+    return m_impl->solve(this, ptc);
 }
 
 void OMPLPlanner::clear()
 {
-    return m_impl->clear();
+    return m_impl->clear(this);
 }
 
 void OMPLPlanner::checkValidity()
 {
-    return m_impl->checkValidity();
+    return m_impl->checkValidity(this);
 }
 
 void OMPLPlanner::setup()
 {
-    return m_impl->setup();
+    return m_impl->setup(this);
 }
 
 void OMPLPlanner::getPlannerData(ompl::base::PlannerData& data) const
 {
-    return m_impl->getPlannerData(data);
+    return m_impl->getPlannerData(this, data);
 }
 
 } // namespace motion

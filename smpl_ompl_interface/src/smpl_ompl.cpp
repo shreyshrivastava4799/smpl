@@ -21,7 +21,12 @@ bool isStateValid(const ompl::base::State* state)
     return (dx * dx + dy * dy > 0.5 * 0.5);
 }
 
+#ifdef ROS_INDIGO
 namespace spns = boost;
+#else
+namespace spns = std;
+#endif
+
 namespace smpl = sbpl::motion;
 
 int main(int argc, char* argv[])

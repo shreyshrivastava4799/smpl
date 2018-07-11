@@ -33,7 +33,10 @@ struct OMPLPlanner : public ompl::base::Planner
     void setup() override;
 
     void getPlannerData(ompl::base::PlannerData& data) const override;
+
+    friend struct detail::PlannerImpl;
 };
+
 
 } // namespace motion
 } // namespace smpl
