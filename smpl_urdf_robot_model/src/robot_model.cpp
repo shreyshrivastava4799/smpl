@@ -663,6 +663,36 @@ auto GetVariableName(const RobotModel* model, int index) -> const std::string*
     return GetName(&model->variables[index]);
 }
 
+auto GetLink(const RobotModel* model, const char* name) -> const Link*
+{
+    for (auto& link : model->links) {
+        if (link.name == name) {
+            return &link;
+        }
+    }
+    return NULL;
+}
+
+auto GetJoint(const RobotModel* model, const char* name) -> const Joint*
+{
+    for (auto& joint : model->joints) {
+        if (joint.name == name) {
+            return &joint;
+        }
+    }
+    return NULL;
+}
+
+auto GetVariable(const RobotModel* model, const char* name) -> const JointVariable*
+{
+    for (auto& variable : model->variables) {
+        if (variable.name == name) {
+            return &variable;
+        }
+    }
+    return NULL;
+}
+
 auto GetLink(const RobotModel* model, const std::string* name) -> const Link*
 {
     for (auto& link : model->links) {

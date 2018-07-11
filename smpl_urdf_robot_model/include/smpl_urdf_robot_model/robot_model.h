@@ -75,6 +75,9 @@ auto GetLinkName(const RobotModel* model, int index) -> const std::string*;
 auto GetJointName(const RobotModel* model, int index) -> const std::string*;
 auto GetVariableName(const RobotModel* model, int index) -> const std::string*;
 
+auto GetLink(const RobotModel* model, const char* name) -> const Link*;
+auto GetJoint(const RobotModel* model, const char* name) -> const Joint*;
+auto GetVariable(const RobotModel* model, const char* name) -> const JointVariable*;
 auto GetLink(const RobotModel* model, const std::string* name) -> const Link*;
 auto GetJoint(const RobotModel* model, const std::string* name) -> const Joint*;
 auto GetVariable(const RobotModel* model, const std::string* name) -> const JointVariable*;

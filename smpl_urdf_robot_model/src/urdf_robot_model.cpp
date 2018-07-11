@@ -59,12 +59,16 @@ bool Init(
     return true;
 }
 
-bool SetPlanningLink(URDFRobotModel* urdf_model, const std::string* link_name)
+bool SetPlanningLink(URDFRobotModel* urdf_model, const char* link_name)
 {
     auto* link = GetLink(urdf_model->robot_model, link_name);
     if (link == NULL) return false;
-    urdf_model->planning_link = link;
-    return true;
+    return SetPlanningLink(urdf_model, link);
+}
+
+bool SetPlanningLink(URDFRobotModel* urdf_model, const std::string* link_name)
+{
+    return SetPlanningLink(urdf_model, link_name->c_str());
 }
 
 bool SetPlanningLink(URDFRobotModel* urdf_model, const Link* link)

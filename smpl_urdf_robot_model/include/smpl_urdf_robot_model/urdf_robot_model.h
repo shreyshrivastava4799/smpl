@@ -57,6 +57,7 @@ bool Init(
     const RobotModel* robot_model,
     const std::vector<const Joint*>* planning_joints);
 
+bool SetPlanningLink(URDFRobotModel* urdf_model, const char* link_name);
 bool SetPlanningLink(URDFRobotModel* urdf_model, const std::string* link_name);
 bool SetPlanningLink(URDFRobotModel* urdf_model, const Link* link);
 
