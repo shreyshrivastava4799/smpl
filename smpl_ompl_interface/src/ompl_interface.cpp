@@ -536,7 +536,7 @@ auto PlannerImpl::solve(
     SMPL_INFO("Planner::solve");
 
     auto* si = planner->getSpaceInformation().get();
-    auto* ss = si->getStateSpace().get();
+    auto* ompl_space = si->getStateSpace().get();
     auto* pdef = planner->getProblemDefinition().get();
 
     if (pdef->getSpaceInformation().get() != si) {
@@ -554,7 +554,7 @@ auto PlannerImpl::solve(
         }
 
         auto* start = pdef->getStartState(0);
-        auto start_state = MakeStateSMPL(ss, start);
+        auto start_state = MakeStateSMPL(ompl_space, start);
         SMPL_INFO_STREAM("start state = " << start_state);
         if (!this->space.setStart(start_state)) {
             SMPL_WARN("Failed to set start state");
@@ -594,7 +594,7 @@ auto PlannerImpl::solve(
         case ompl::base::GoalType::GOAL_STATE:
         {
             auto* goal = static_cast<ompl::base::GoalState*>(abstract_goal.get());
-            auto goal_state = MakeStateSMPL(ss, goal->getState());
+            auto goal_state = MakeStateSMPL(ompl_space, goal->getState());
             SMPL_INFO_STREAM("goal state = " << goal_state);
             goal_condition.type = smpl::GoalType::JOINT_STATE_GOAL;
             goal_condition.angles = goal_state;
@@ -675,13 +675,15 @@ auto PlannerImpl::solve(
         return ompl::base::PlannerStatus::CRASH;
     }
 
-    auto ompl_path = ompl::base::PathPtr(
-            new ompl::geometric::PathGeometric(planner->getSpaceInformation()));
+    auto* p_path = new ompl::geometric::PathGeometric(planner->getSpaceInformation());
 
-    // TODO: convert path
-//    ompl_path->append();
+    for (auto& p : path) {
+        auto* ompl_state = MakeStateOMPL(ompl_space, p);
+        p_path->append(ompl_state);
+    }
+
+    auto ompl_path = ompl::base::PathPtr(p_path);
     planner->getProblemDefinition()->addSolutionPath(ompl_path);
-
     return ompl::base::PlannerStatus(ompl::base::PlannerStatus::EXACT_SOLUTION);
 }
 

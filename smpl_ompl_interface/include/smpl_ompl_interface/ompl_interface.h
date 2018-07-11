@@ -37,7 +37,6 @@ struct OMPLPlanner : public ompl::base::Planner
     friend struct detail::PlannerImpl;
 };
 
-
 } // namespace motion
 } // namespace smpl
 
