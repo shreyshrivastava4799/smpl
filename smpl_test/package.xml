@@ -18,4 +18,5 @@
     <depend>sbpl_collision_checking</depend>
     <depend>sbpl_kdl_robot_model</depend>
     <depend>visualization_msgs</depend>
+    <depend>smpl_ompl_interface</depend>
 </package>

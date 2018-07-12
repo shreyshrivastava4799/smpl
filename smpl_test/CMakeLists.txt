@@ -19,9 +19,11 @@ find_package(catkin
         smpl
         sbpl_collision_checking
         sbpl_kdl_robot_model
+        smpl_ompl_interface
         visualization_msgs)
 
 find_package(orocos_kdl REQUIRED)
+find_package(OMPL REQUIRED)
 
 catkin_package()
 
@@ -34,6 +36,10 @@ include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
 
 add_executable(callPlanner src/call_planner.cpp src/collision_space_scene.cpp)
 target_link_libraries(callPlanner ${catkin_LIBRARIES})
+
+add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
+target_include_directories(call_ompl_planner SYSTEM PRIVATE ${OMPL_INCLUDE_DIRS})
+target_link_libraries(call_ompl_planner ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
 
 add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)
 target_link_libraries(occupancy_grid_test ${catkin_LIBRARIES})
