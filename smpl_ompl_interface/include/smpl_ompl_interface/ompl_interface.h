@@ -8,6 +8,9 @@
 #include <ompl/base/Planner.h>
 
 namespace sbpl {
+
+class OccupancyGrid;
+
 namespace motion {
 
 namespace detail {
@@ -18,8 +21,10 @@ struct OMPLPlanner : public ompl::base::Planner
 {
     std::unique_ptr<detail::PlannerImpl> m_impl;
 
-    OMPLPlanner(const ompl::base::SpaceInformationPtr& si);
+    OMPLPlanner(const ompl::base::SpaceInformationPtr& si, OccupancyGrid* grid = NULL);
     ~OMPLPlanner();
+
+    void setOccupancyGrid(OccupancyGrid* grid);
 
     void setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef) override;
 

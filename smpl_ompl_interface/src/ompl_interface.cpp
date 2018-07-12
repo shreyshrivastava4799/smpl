@@ -248,6 +248,7 @@ struct PlannerImpl
     smpl::PlanningParams params;
 
     // graph
+    std::string mprim_filename;
     smpl::ManipLattice space;
     smpl::ManipLatticeActionSpace actions;
 
@@ -257,7 +258,9 @@ struct PlannerImpl
     // search
     sbpl::ARAStar search;
 
-    PlannerImpl(OMPLPlanner* planner, ompl::base::SpaceInformation* si);
+    OccupancyGrid* grid = NULL;
+
+    PlannerImpl(OMPLPlanner* planner, ompl::base::SpaceInformation* si, OccupancyGrid* grid);
 
     void setProblemDefinition(OMPLPlanner* planner, const ompl::base::ProblemDefinitionPtr& pdef);
 
@@ -349,10 +352,16 @@ bool MakeVariableProperties(
     return true;
 }
 
-PlannerImpl::PlannerImpl(OMPLPlanner* planner, ompl::base::SpaceInformation* si) :
+PlannerImpl::PlannerImpl(
+    OMPLPlanner* planner,
+    ompl::base::SpaceInformation* si,
+    OccupancyGrid* grid)
+:
     search(&space, &heuristic)
 {
     SMPL_INFO("Construct Planner");
+
+    this->grid = grid;
 
     planner->specs_.approximateSolutions = false;
     planner->specs_.canReportIntermediateSolutions = true; //false;
@@ -497,26 +506,107 @@ PlannerImpl::PlannerImpl(OMPLPlanner* planner, ompl::base::SpaceInformation* si)
     // Declare Parameters //
     ////////////////////////
 
+    // declare state space discretization parameters...
+    for (auto i = 0; i < this->model.getPlanningJoints().size(); ++i) {
+        auto& vname = this->model.getPlanningJoints()[i];
+        auto set = [this](double discretization) { /* TODO */ };
+        auto get = [this, i]() { return this->space.resolutions()[i]; };
+        planner->params().declareParam<double>("discretization_" + vname, set, get);
+    }
+
+    // declare action space parameters...
     {
-        auto setter = [&](double val) {
-            SMPL_INFO("Set epsilon to %f", val);
-            this->search.set_initialsolution_eps(val);
+        auto set = [&](const std::string& val) {
+            if (this->actions.load(val)) {
+                this->mprim_filename = val;
+            }
         };
+        auto get = [&]() { return mprim_filename; };
+        planner->params().declareParam<std::string>("mprim_filename", set, get);
+    }
 
-        auto getter = [&]() {
-            return this->search.get_initial_eps();
-        };
+    {
+        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ, val); };
+        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ); };
+        planner->params().declareParam<double>("use_xyz_snap_mprim", set, get);
+    }
 
-        planner->params().declareParam<double>("epsilon", setter, getter);
+    {
+        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY, val); };
+        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY); };
+        planner->params().declareParam<double>("use_rpy_snap_mprim", set, get);
+    }
 
-//            this->ompl::base::Planner::params().getParam();
-//            this->ompl::base::Planner::params().remove("epsilon");
+    {
+        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY, val); };
+        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY); };
+        planner->params().declareParam<double>("use_xyzrpy_snap_mprim", set, get);
+    }
+
+    {
+        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SHORT_DISTANCE, val); };
+        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SHORT_DISTANCE); };
+        planner->params().declareParam<double>("use_short_dist_mprims", set, get);
+    }
+
+    {
+        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ, val); };
+        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ); };
+        planner->params().declareParam<double>("xyz_snap_dist_thresh", set, get);
+    }
+
+    {
+        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY, val); };
+        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY); };
+        planner->params().declareParam<double>("rpy_snap_dist_thresh", set, get);
+    }
+
+    {
+        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY, val); };
+        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY); };
+        planner->params().declareParam<double>("rpy_snap_dist_thresh", set, get);
+    }
+
+    {
+        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY, val); };
+        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY); };
+        planner->params().declareParam<double>("xyzrpy_snap_dist_thresh", set, get);
+    }
+
+    {
+        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SHORT_DISTANCE, val); };
+        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SHORT_DISTANCE); };
+        planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
+    }
+
+    {
+        auto set = [&](bool val) { this->actions.useMultipleIkSolutions(val); };
+        auto get = [&]() { return this->actions.useMultipleIkSolutions(); };
+        planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
+    }
+
+    // declare search parameters...
+
+    {
+        auto set = [&](double val) { this->search.set_initialsolution_eps(val); };
+        auto get = [&]() { return this->search.get_initial_eps(); };
+        planner->params().declareParam<double>("epsilon", set, get);
 
         // TODO: other parameters here
         // ...search timing parameters
         // ...search optimization parameters
-        // ...distance-dependent action space
-        // ...state space resolutions here?
+    }
+
+    {
+        auto set = [&](bool val) { this->search.set_search_mode(val); };
+        auto get = [&]() { return false; /* TODO */ };
+        planner->params().declareParam<bool>("search_mode", set, get);
+    }
+
+    {
+        auto set = [&](bool val) { this->search.allowPartialSolutions(val); };
+        auto get = [&]() { return this->search.allowPartialSolutions(); };
+        planner->params().declareParam<bool>("allow_partial_solutions", set, get);
     }
 }
 
@@ -724,20 +814,33 @@ void PlannerImpl::getPlannerData(
     planner->ompl::base::Planner::getPlannerData(data);
 }
 
+void SetOccupancyGrid(PlannerImpl* planner, OccupancyGrid* grid)
+{
+    planner->grid = grid;
+}
+
 } // namespace detail
 
 ////////////////////////////////
 // OMPLPlanner Implementation //
 ////////////////////////////////
 
-OMPLPlanner::OMPLPlanner(const ompl::base::SpaceInformationPtr& si) :
+OMPLPlanner::OMPLPlanner(
+    const ompl::base::SpaceInformationPtr& si,
+    OccupancyGrid* grid)
+:
     Planner(si, "smpl_planner"),
-    m_impl(detail::make_unique<smpl::detail::PlannerImpl>(this, si.get()))
+    m_impl(detail::make_unique<smpl::detail::PlannerImpl>(this, si.get(), grid))
 {
 }
 
 OMPLPlanner::~OMPLPlanner()
 {
+}
+
+void OMPLPlanner::setOccupancyGrid(OccupancyGrid* grid)
+{
+    SetOccupancyGrid(this->m_impl.get(), grid);
 }
 
 void OMPLPlanner::setProblemDefinition(const ompl::base::ProblemDefinitionPtr& pdef)
