@@ -66,11 +66,7 @@ std::string to_string(ShortcutType type)
 }
 
 PlanningParams::PlanningParams() :
-    planning_frame(),
-
     cost_per_cell(DefaultCostPerCell),
-
-    planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
     shortcut_path(DefaultShortcutPath),
     interpolate_path(DefaultInterpolatePath),

@@ -33,10 +33,12 @@
 #ifndef SMPL_PLANNING_PARAMS_H
 #define SMPL_PLANNING_PARAMS_H
 
+// standard includes
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 
+// system includes
 #include <boost/variant.hpp>
 
 namespace sbpl {
@@ -67,9 +69,6 @@ public:
 
     static const int DefaultCostPerCell = 100;
 
-    // heuristic parameters
-    static constexpr double DefaultPlanningLinkSphereRadius = 0.08;
-
     // post processing parameters
     static const bool DefaultShortcutPath = false;
     static const bool DefaultInterpolatePath = false;
@@ -88,15 +87,9 @@ public:
 
     PlanningParams();
 
-    /// \name Environment
-    ///@{
-    std::string planning_frame;
-    ///@}
-
     /// \name Heuristic
     ///@{
     int cost_per_cell;             ///< uniform cost of cells in heuristic
-    double planning_link_sphere_radius;
     ///@}
 
     /// \name Post-Processing

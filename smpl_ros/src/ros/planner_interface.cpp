@@ -578,7 +578,9 @@ auto MakeMultiFrameBFSHeuristic(
 {
     auto h = make_unique<MultiFrameBfsHeuristic>();
     h->setCostPerCell(params.cost_per_cell);
-    h->setInflationRadius(params.planning_link_sphere_radius);
+    double inflation_radius;
+    params.param("bfs_inflation_radius", inflation_radius, 0.0);
+    h->setInflationRadius(inflation_radius);
     if (!h->init(space, grid)) {
         return nullptr;
     }
@@ -601,7 +603,9 @@ auto MakeBFSHeuristic(
 {
     auto h = make_unique<BfsHeuristic>();
     h->setCostPerCell(params.cost_per_cell);
-    h->setInflationRadius(params.planning_link_sphere_radius);
+    double inflation_radius;
+    params.param("bfs_inflation_radius", inflation_radius, 0.0);
+    h->setInflationRadius(inflation_radius);
     if (!h->init(space, grid)) {
         return nullptr;
     }
@@ -654,7 +658,9 @@ auto MakeDijkstraEgraphHeuristic3D(
     auto h = make_unique<DijkstraEgraphHeuristic3D>();
 
 //    h->setCostPerCell(params.cost_per_cell);
-    h->setInflationRadius(params.planning_link_sphere_radius);
+    double inflation_radius;
+    params.param("bfs_inflation_radius", inflation_radius, 0.0);
+    h->setInflationRadius(inflation_radius);
     if (!h->init(space, grid)) {
         return nullptr;
     }
@@ -1103,10 +1109,6 @@ bool PlannerInterface::init(const PlanningParams& params)
 {
     ROS_INFO_NAMED(PI_LOGGER, "initialize arm planner interface");
 
-    ROS_INFO_NAMED(PI_LOGGER, "  Planning Frame: %s", params.planning_frame.c_str());
-
-    ROS_INFO_NAMED(PI_LOGGER, "  Planning Link Sphere Radius: %0.3f", params.planning_link_sphere_radius);
-
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
     ROS_INFO_NAMED(PI_LOGGER, "  Interpolate Path: %s", params.interpolate_path ? "true" : "false");
@@ -1120,8 +1122,6 @@ bool PlannerInterface::init(const PlanningParams& params)
     }
 
     m_params = params;
-
-    m_grid->setReferenceFrame(m_params.planning_frame);
 
     m_initialized = true;
 
@@ -1226,7 +1226,11 @@ bool PlannerInterface::solve(
         ROS_DEBUG_STREAM_NAMED(PI_LOGGER, "  " << pidx << ": " << point);
     }
 
-    convertJointVariablePathToJointTrajectory(path, res.trajectory);
+    convertJointVariablePathToJointTrajectory(
+            path,
+            req.start_state.joint_state.header.frame_id,
+            req.start_state.multi_dof_joint_state.header.frame_id,
+            res.trajectory);
     res.trajectory.joint_trajectory.header.stamp = ros::Time::now();
 
     if (!m_params.plan_output_dir.empty()) {
@@ -1243,10 +1247,6 @@ bool PlannerInterface::solve(
 bool PlannerInterface::checkParams(
     const PlanningParams& params) const
 {
-    if (params.planning_frame.empty()) {
-        return false;
-    }
-
     // TODO: check for existence of planning joints in robot model
 
     if (params.cost_per_cell < 0) {
@@ -1493,7 +1493,6 @@ bool PlannerInterface::setGoal(const GoalConstraints& v_goal_constraints)
         }
 
         ROS_INFO_NAMED(PI_LOGGER, "New Goal");
-        ROS_INFO_NAMED(PI_LOGGER, "    frame: %s", m_params.planning_frame.c_str());
         double yaw, pitch, roll;
         angles::get_euler_zyx(goal.pose.rotation(), yaw, pitch, roll);
         ROS_INFO_NAMED(PI_LOGGER, "    pose: (x: %0.3f, y: %0.3f, z: %0.3f, Y: %0.3f, P: %0.3f, R: %0.3f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2], yaw, pitch, roll);
@@ -1514,7 +1513,6 @@ bool PlannerInterface::setGoal(const GoalConstraints& v_goal_constraints)
         if (!ExtractPosesGoal(v_goal_constraints, goal)) {
             return false;
         }
-        ROS_INFO_NAMED(PI_LOGGER, "  frame: %s", m_params.planning_frame.c_str());
         for (auto& pose : goal.poses) {
             double yaw, pitch, roll;
             angles::get_euler_zyx(pose.rotation(), yaw, pitch, roll);
@@ -2048,12 +2046,14 @@ void PlannerInterface::postProcessPath(std::vector<RobotState>& path) const
 
 void PlannerInterface::convertJointVariablePathToJointTrajectory(
     const std::vector<RobotState>& path,
+    const std::string& joint_state_frame,
+    const std::string& multi_dof_joint_state_frame,
     moveit_msgs::RobotTrajectory& traj) const
 {
     ROS_INFO("Convert Variable Path to Robot Trajectory");
 
-    traj.joint_trajectory.header.frame_id = m_params.planning_frame;
-    traj.multi_dof_joint_trajectory.header.frame_id = m_params.planning_frame;
+    traj.joint_trajectory.header.frame_id = joint_state_frame;
+    traj.multi_dof_joint_trajectory.header.frame_id = multi_dof_joint_state_frame;
 
     traj.joint_trajectory.joint_names.clear();
     traj.joint_trajectory.points.clear();

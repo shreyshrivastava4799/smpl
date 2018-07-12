@@ -603,9 +603,6 @@ int main(int argc, char* argv[])
     smpl::PlannerInterface planner(rm.get(), &cc, &grid);
 
     smpl::PlanningParams params;
-    params.planning_frame = planning_frame;
-
-    params.planning_link_sphere_radius = 0.02;
 
     params.addParam("discretization", planning_config.discretization);
     params.addParam("mprim_filename", planning_config.mprim_filename);
@@ -617,6 +614,7 @@ int main(int argc, char* argv[])
     params.addParam("rpy_snap_dist_thresh", planning_config.rpy_snap_dist_thresh);
     params.addParam("xyzrpy_snap_dist_thresh", planning_config.xyzrpy_snap_dist_thresh);
     params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
+    params.addParam("bfs_inflation_radius", 0.02);
     params.addParam("repair_time", 5.0);
 
     params.addParam("epsilon", 100.0);

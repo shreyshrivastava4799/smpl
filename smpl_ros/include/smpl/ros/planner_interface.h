@@ -201,6 +201,8 @@ protected:
     void postProcessPath(std::vector<RobotState>& path) const;
     void convertJointVariablePathToJointTrajectory(
         const std::vector<RobotState>& path,
+        const std::string& joint_state_frame,
+        const std::string& multi_dof_joint_state_frame,
         moveit_msgs::RobotTrajectory& traj) const;
     void profilePath(trajectory_msgs::JointTrajectory& traj) const;
     void removeZeroDurationSegments(trajectory_msgs::JointTrajectory& traj) const;
