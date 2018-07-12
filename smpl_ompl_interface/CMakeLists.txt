@@ -15,6 +15,7 @@ catkin_package(
 
 add_library(smpl_ompl_interface src/ompl_interface.cpp)
 target_compile_options(smpl_ompl_interface PUBLIC -std=c++11)
+target_compile_definitions(smpl_ompl_interface PRIVATE -DSMPL_CONSOLE_ROS)
 target_include_directories(smpl_ompl_interface PUBLIC include)
 target_include_directories(smpl_ompl_interface SYSTEM PRIVATE ${smpl_INCLUDE_DIRS})
 target_include_directories(smpl_ompl_interface SYSTEM PUBLIC ${OMPL_INCLUDE_DIRS})
