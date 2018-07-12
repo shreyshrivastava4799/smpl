@@ -3,35 +3,31 @@
 
 // standard includes
 #include <stdlib.h>
+#include <iosfwd>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
 
 // system includes
 #include <eigen_conversions/eigen_msg.h>
+#include <kdl_conversions/kdl_msg.h>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
-#include <moveit_msgs/GetMotionPlan.h>
-#include <moveit_msgs/PlanningScene.h>
-#include <ros/ros.h>
-#include <kdl_conversions/kdl_msg.h>
-#include <smpl/ros/planner_interface.h>
-#include <smpl/distance_map/euclid_distance_map.h>
-#include <sbpl_collision_checking/collision_space.h>
-#include <sbpl_kdl_robot_model/kdl_robot_model.h>
-#include <visualization_msgs/MarkerArray.h>
-#include <smpl/angles.h>
-#include <smpl/debug/visualizer_ros.h>
-
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
-#include <ompl/base/spaces/SO2StateSpace.h>
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/spaces/SE3StateSpace.h>
+#include <ompl/base/spaces/SO2StateSpace.h>
 #include <ompl/geometric/SimpleSetup.h>
-
+#include <ros/ros.h>
+#include <sbpl_collision_checking/collision_space.h>
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
+#include <smpl/angles.h>
+#include <smpl/debug/visualizer_ros.h>
+#include <smpl/distance_map/euclid_distance_map.h>
+#include <smpl/planning_params.h>
 #include <smpl_ompl_interface/ompl_interface.h>
-
 #include <urdf_parser/urdf_parser.h>
 
 #include "collision_space_scene.h"
@@ -39,144 +35,41 @@
 
 namespace smpl = sbpl::motion;
 
-void FillGoalConstraint(
-    const std::vector<double>& pose,
-    std::string frame_id,
-    moveit_msgs::Constraints& goals)
-{
-    if (pose.size() < 6) {
-        return;
-    }
-
-    goals.position_constraints.resize(1);
-    goals.orientation_constraints.resize(1);
-    goals.position_constraints[0].header.frame_id = frame_id;
-
-    goals.position_constraints[0].constraint_region.primitives.resize(1);
-    goals.position_constraints[0].constraint_region.primitive_poses.resize(1);
-    goals.position_constraints[0].constraint_region.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-    goals.position_constraints[0].constraint_region.primitive_poses[0].position.x = pose[0];
-    goals.position_constraints[0].constraint_region.primitive_poses[0].position.y = pose[1];
-    goals.position_constraints[0].constraint_region.primitive_poses[0].position.z = pose[2];
-
-//    goals.position_constraints[0].position.x = pose[0];
-//    goals.position_constraints[0].position.y = pose[1];
-//    goals.position_constraints[0].position.z = pose[2];
-
-    Eigen::Quaterniond q;
-    sbpl::angles::from_euler_zyx(pose[5], pose[4], pose[3], q);
-    tf::quaternionEigenToMsg(q, goals.orientation_constraints[0].orientation);
-
-    geometry_msgs::Pose p;
-    p.position = goals.position_constraints[0].constraint_region.primitive_poses[0].position;
-    p.orientation = goals.orientation_constraints[0].orientation;
-    leatherman::printPoseMsg(p, "Goal");
-
-    /// set tolerances
-    goals.position_constraints[0].constraint_region.primitives[0].dimensions.resize(3, 0.015);
-    goals.orientation_constraints[0].absolute_x_axis_tolerance = 0.05;
-    goals.orientation_constraints[0].absolute_y_axis_tolerance = 0.05;
-    goals.orientation_constraints[0].absolute_z_axis_tolerance = 0.05;
-
-    ROS_INFO("Done packing the goal constraints message.");
-}
-
-auto GetCollisionCube(
-    const geometry_msgs::Pose& pose,
-    std::vector<double>& dims,
-    const std::string& frame_id,
-    const std::string& id)
-    -> moveit_msgs::CollisionObject
-{
-    moveit_msgs::CollisionObject object;
-    object.id = id;
-    object.operation = moveit_msgs::CollisionObject::ADD;
-    object.header.frame_id = frame_id;
-    object.header.stamp = ros::Time::now();
-
-    shape_msgs::SolidPrimitive box_object;
-    box_object.type = shape_msgs::SolidPrimitive::BOX;
-    box_object.dimensions.resize(3);
-    box_object.dimensions[0] = dims[0];
-    box_object.dimensions[1] = dims[1];
-    box_object.dimensions[2] = dims[2];
-
-    object.primitives.push_back(box_object);
-    object.primitive_poses.push_back(pose);
-    return object;
-}
-
-auto GetCollisionCubes(
-    std::vector<std::vector<double>>& objects,
-    std::vector<std::string>& object_ids,
-    const std::string& frame_id)
-    -> std::vector<moveit_msgs::CollisionObject>
-{
-    std::vector<moveit_msgs::CollisionObject> objs;
-    std::vector<double> dims(3,0);
-    geometry_msgs::Pose pose;
-    pose.orientation.x = 0;
-    pose.orientation.y = 0;
-    pose.orientation.z = 0;
-    pose.orientation.w = 1;
-
-    if (object_ids.size() != objects.size()) {
-        ROS_INFO("object id list is not same length as object list. exiting.");
-        return objs;
-    }
-
-    for (size_t i = 0; i < objects.size(); i++) {
-        pose.position.x = objects[i][0];
-        pose.position.y = objects[i][1];
-        pose.position.z = objects[i][2];
-        dims[0] = objects[i][3];
-        dims[1] = objects[i][4];
-        dims[2] = objects[i][5];
-
-        objs.push_back(GetCollisionCube(pose, dims, frame_id, object_ids.at(i)));
-    }
-    return objs;
-}
-
+// Parse environment config file
 auto GetCollisionObjects(
     const std::string& filename,
     const std::string& frame_id)
     -> std::vector<moveit_msgs::CollisionObject>
 {
     char sTemp[1024];
-    int num_obs = 0;
-    std::vector<std::string> object_ids;
-    std::vector<std::vector<double> > objects;
-    std::vector<moveit_msgs::CollisionObject> objs;
 
     FILE* fCfg = fopen(filename.c_str(), "r");
 
     if (fCfg == NULL) {
-        ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
-        return objs;
+        ROS_ERROR("Unable to open objects file");
+        return { };
     }
 
     // get number of objects
     if (fscanf(fCfg,"%s",sTemp) < 1) {
-        printf("Parsed string has length < 1.\n");
+        ROS_ERROR("Parsed string has length < 1");
+        return { };
     }
 
-    num_obs = atoi(sTemp);
+    int num_obs = atoi(sTemp);
 
-    ROS_INFO("%i objects in file",num_obs);
-
-    //get {x y z dimx dimy dimz} for each object
+    // get {x y z dimx dimy dimz} for each object
+    std::vector<std::string> object_ids;
+    std::vector<std::vector<double>> objects;
     objects.resize(num_obs);
-    object_ids.clear();
-    for (int i=0; i < num_obs; ++i) {
+    for (int i = 0; i < num_obs; ++i) {
         if (fscanf(fCfg,"%s",sTemp) < 1) {
             printf("Parsed string has length < 1.\n");
         }
         object_ids.push_back(sTemp);
 
         objects[i].resize(6);
-        for (int j=0; j < 6; ++j)
-        {
+        for (int j = 0; j < 6; ++j) {
             if (fscanf(fCfg,"%s",sTemp) < 1) {
                 printf("Parsed string has length < 1.\n");
             }
@@ -186,7 +79,46 @@ auto GetCollisionObjects(
         }
     }
 
-    return GetCollisionCubes(objects, object_ids, frame_id);
+    std::vector<double> dims(3, 0.0);
+    geometry_msgs::Pose pose;
+    pose.orientation.x = 0.0;
+    pose.orientation.y = 0.0;
+    pose.orientation.z = 0.0;
+    pose.orientation.w = 1.0;
+
+    if (object_ids.size() != objects.size()) {
+        ROS_ERROR("object id list is not same length as object list");
+        return { };
+    }
+
+    std::vector<moveit_msgs::CollisionObject> objs;
+
+    for (size_t i = 0; i < objects.size(); i++) {
+        pose.position.x = objects[i][0];
+        pose.position.y = objects[i][1];
+        pose.position.z = objects[i][2];
+        dims[0] = objects[i][3];
+        dims[1] = objects[i][4];
+        dims[2] = objects[i][5];
+
+        moveit_msgs::CollisionObject object;
+        object.id = object_ids.at(i);
+        object.operation = moveit_msgs::CollisionObject::ADD;
+        object.header.frame_id = frame_id;
+        object.header.stamp = ros::Time::now();
+
+        shape_msgs::SolidPrimitive box_object;
+        box_object.type = shape_msgs::SolidPrimitive::BOX;
+        box_object.dimensions.resize(3);
+        box_object.dimensions[0] = dims[0];
+        box_object.dimensions[1] = dims[1];
+        box_object.dimensions[2] = dims[2];
+
+        object.primitives.push_back(box_object);
+        object.primitive_poses.push_back(pose);
+        objs.push_back(object);
+    }
+    return objs;
 }
 
 bool ReadInitialConfiguration(
@@ -204,15 +136,12 @@ bool ReadInitialConfiguration(
         }
 
         if (xlist.size() > 0) {
-            std::cout << xlist << std::endl;
             for (int i = 0; i < xlist.size(); ++i) {
                 state.joint_state.name.push_back(std::string(xlist[i]["name"]));
 
                 if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
                     state.joint_state.position.push_back(double(xlist[i]["position"]));
-                }
-                else {
-                    ROS_DEBUG("Doubles in the yaml file have to contain decimal points. (Convert '0' to '0.0')");
+                } else {
                     if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeInt) {
                         int pos = xlist[i]["position"];
                         state.joint_state.position.push_back(double(pos));
@@ -220,8 +149,7 @@ bool ReadInitialConfiguration(
                 }
             }
         }
-    }
-    else {
+    } else {
         ROS_WARN("initial_configuration/joint_state is not on the param server.");
     }
 
@@ -260,10 +188,11 @@ bool ReadInitialConfiguration(
         }
     }
 
-    ROS_INFO("Read initial state containing %zu joints and %zu multi-dof joints", state.joint_state.name.size(), state.multi_dof_joint_state.joint_names.size());
+    ROS_DEBUG("Read initial state containing %zu joints and %zu multi-dof joints", state.joint_state.name.size(), state.multi_dof_joint_state.joint_names.size());
     return true;
 }
 
+// Defines the planning group
 struct RobotModelConfig
 {
     std::string group_name;
@@ -273,6 +202,7 @@ struct RobotModelConfig
     std::string chain_tip_link;
 };
 
+// Read planning group configuration from the param server
 bool ReadRobotModelConfig(const ros::NodeHandle &nh, RobotModelConfig &config)
 {
     if (!nh.getParam("group_name", config.group_name)) {
@@ -307,6 +237,7 @@ bool ReadRobotModelConfig(const ros::NodeHandle &nh, RobotModelConfig &config)
     return true;
 }
 
+// Defines planner parameters
 struct PlannerConfig
 {
     std::string discretization;
@@ -321,6 +252,7 @@ struct PlannerConfig
     double short_dist_mprims_thresh;
 };
 
+// Read planner parameters from the param server
 bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
 {
     if (!nh.getParam("discretization", config.discretization)) {
@@ -379,14 +311,13 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
 auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
     -> std::unique_ptr<smpl::KDLRobotModel>
 {
-    std::unique_ptr<smpl::KDLRobotModel> rm;
-
     if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
         ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
-        return rm;
+        return NULL;
     }
 
-    ROS_INFO("Construct Generic KDL Robot Model");
+    std::unique_ptr<smpl::KDLRobotModel> rm;
+
     rm.reset(new sbpl::motion::KDLRobotModel);
 
     if (!rm->init(
@@ -396,26 +327,15 @@ auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
             config.chain_tip_link))
     {
         ROS_ERROR("Failed to initialize robot model.");
-        rm.reset();
-        return std::move(rm);
+        return NULL;
     }
 
     if (!rm->setPlanningLink(config.planning_link)) {
         ROS_ERROR("Failed to set planning link to '%s'", config.planning_link.c_str());
-        rm.reset();
-        return std::move(rm);
+        return NULL;
     }
 
     return std::move(rm);
-}
-
-void initAllowedCollisionsPR2(sbpl::collision::CollisionSpace &cspace)
-{
-    sbpl::collision::AllowedCollisionMatrix acm;
-    for (auto& pair : PR2AllowedCollisionPairs) {
-        acm.setEntry(pair.first, pair.second, true);
-    }
-    cspace.setAllowedCollisionMatrix(acm);
 }
 
 auto ConstructStateSpace(
@@ -480,12 +400,97 @@ auto ConstructStateSpace(
     return space;
 }
 
+struct ProjectionEvaluatorFK : public ompl::base::ProjectionEvaluator
+{
+    smpl::KDLRobotModel* model = NULL;
+    const ompl::base::StateSpace* state_space = NULL;
+
+    using Base = ompl::base::ProjectionEvaluator;
+
+    ProjectionEvaluatorFK(const ompl::base::StateSpace* space);
+    ProjectionEvaluatorFK(const ompl::base::StateSpacePtr& space);
+
+    auto getDimension() const -> unsigned int override;
+    void project(
+            const ompl::base::State* state,
+            ompl::base::EuclideanProjection& projection) const override;
+    void setCellSizes(const std::vector<double>& cell_sizes) override;
+    void defaultCellSizes() override;
+    void setup() override;
+    void printSettings(std::ostream& out = std::cout) const override;
+    void printProjection(
+            const ompl::base::EuclideanProjection& projection,
+            std::ostream& out = std::cout) const override;
+};
+
+ProjectionEvaluatorFK::ProjectionEvaluatorFK(
+    const ompl::base::StateSpace* space)
+:
+    Base(space)
+{
+    state_space = space;
+}
+
+ProjectionEvaluatorFK::ProjectionEvaluatorFK(
+    const ompl::base::StateSpacePtr& space)
+:
+    Base(space)
+{
+    state_space = space.get();
+}
+
+auto ProjectionEvaluatorFK::getDimension() const -> unsigned int
+{
+    return 6;
+}
+
+void ProjectionEvaluatorFK::project(
+        const ompl::base::State* state,
+        ompl::base::EuclideanProjection& projection) const
+{
+    auto values = smpl::MakeStateSMPL(this->state_space, state);
+    auto pose = model->computeFK(values);
+    projection.resize(getDimension(), 0.0);
+    projection[0] = pose.translation().x();
+    projection[1] = pose.translation().y();
+    projection[2] = pose.translation().z();
+    sbpl::angles::get_euler_zyx(
+            pose.rotation(), projection[3], projection[4], projection[5]);
+}
+
+void ProjectionEvaluatorFK::setCellSizes(const std::vector<double>& cell_sizes)
+{
+    this->Base::setCellSizes(cell_sizes);
+}
+
+void ProjectionEvaluatorFK::defaultCellSizes()
+{
+    this->Base::defaultCellSizes();
+}
+
+void ProjectionEvaluatorFK::setup()
+{
+    this->Base::setup();
+}
+
+void ProjectionEvaluatorFK::printSettings(std::ostream& out) const
+{
+    this->Base::printSettings(out);
+}
+
+void ProjectionEvaluatorFK::printProjection(
+    const ompl::base::EuclideanProjection& projection, std::ostream& out) const
+{
+    this->Base::printProjection(projection, out);
+}
+
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "smpl_ompl_test");
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
 
+    ROS_INFO("Initialize visualizer");
     sbpl::VisualizerROS visualizer(nh, 100);
     sbpl::viz::set_visualizer(&visualizer);
 
@@ -496,7 +501,10 @@ int main(int argc, char* argv[])
     // Robot Model //
     /////////////////
 
-    const char *robot_description_key = "robot_description";
+    ROS_INFO("Load common parameters");
+
+    // robot_description required to initialize collision checker and state space...
+    auto robot_description_key = "robot_description";
     std::string robot_description_param;
     if (!nh.searchParam(robot_description_key, robot_description_param)) {
         ROS_ERROR("Failed to find 'robot_description' key on the param server");
@@ -509,66 +517,56 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // planning group required to initialize collision checker and state space...
     RobotModelConfig robot_config;
     if (!ReadRobotModelConfig(ros::NodeHandle("~robot_model"), robot_config)) {
         ROS_ERROR("Failed to read robot model config from param server");
         return 1;
     }
 
-    auto rm = SetupRobotModel(robot_description, robot_config);
-    if (!rm) {
-        ROS_ERROR("Failed to set up Robot Model");
-        return 1;
-    }
-
-    auto urdf = urdf::parseURDF(robot_description);
-    if (!urdf) {
-        ROS_ERROR("Failed to parse URDF");
-        return 1;
-    }
-    auto state_space = ConstructStateSpace(*urdf, robot_config.planning_joints);
-
-    ////////////////////
-    // Occupancy Grid //
-    ////////////////////
-
-    const double df_size_x = 3.0;
-    const double df_size_y = 3.0;
-    const double df_size_z = 3.0;
-    const double df_res = 0.02;
-    const double df_origin_x = -0.75;
-    const double df_origin_y = -1.5;
-    const double df_origin_z = 0.0;
-    const double max_distance = 1.8;
-
-    typedef sbpl::EuclidDistanceMap DistanceMapType;
-
-    ROS_INFO("Create distance map");
-    auto df = std::make_shared<DistanceMapType>(
-            df_origin_x, df_origin_y, df_origin_z,
-            df_size_x, df_size_y, df_size_z,
-            df_res,
-            max_distance);
-
-    ROS_INFO("Create grid");
-    const bool ref_counted = false;
-    sbpl::OccupancyGrid grid(df, ref_counted);
-
     // everyone needs to know the name of the planning frame for reasons...
+    // ...frame_id for the occupancy grid (for visualization)
+    // ...frame_id for collision objects (must be the same as the grid, other than that, useless)
     std::string planning_frame;
     if (!ph.getParam("planning_frame", planning_frame)) {
         ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
         return 1;
     }
 
-    ROS_INFO("Planning Frame: %s", planning_frame.c_str());
+    ////////////////////
+    // Occupancy Grid //
+    ////////////////////
+
+    ROS_INFO("Initialize Occupancy Grid");
+
+    auto df_size_x = 3.0;
+    auto df_size_y = 3.0;
+    auto df_size_z = 2.0;
+    auto df_res = 0.02;
+    auto df_origin_x = -0.75;
+    auto df_origin_y = -1.5;
+    auto df_origin_z = 0.0;
+    auto max_distance = 1.8;
+
+    using DistanceMapType = sbpl::EuclidDistanceMap;
+
+    auto df = std::make_shared<DistanceMapType>(
+            df_origin_x, df_origin_y, df_origin_z,
+            df_size_x, df_size_y, df_size_z,
+            df_res,
+            max_distance);
+
+    auto ref_counted = false;
+    sbpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
     SV_SHOW_INFO(grid.getBoundingBoxVisualization());
 
-    ///////////////////////
-    // Collision Checker //
-    ///////////////////////
+    //////////////////////////////////
+    // Initialize Collision Checker //
+    //////////////////////////////////
+
+    ROS_INFO("Initialize collision checker");
 
     // This whole manage storage for all the scene objects and must outlive
     // its associated CollisionSpace instance.
@@ -593,19 +591,25 @@ int main(int argc, char* argv[])
     }
 
     if (cc.robotCollisionModel()->name() == "pr2") {
-        initAllowedCollisionsPR2(cc);
+        sbpl::collision::AllowedCollisionMatrix acm;
+        for (auto& pair : PR2AllowedCollisionPairs) {
+            acm.setEntry(pair.first, pair.second, true);
+        }
+        cc.setAllowedCollisionMatrix(acm);
     }
 
     /////////////////
-    // Scene Setup //
+    // Setup Scene //
     /////////////////
+
+    ROS_INFO("Initialize scene");
 
     scene.SetCollisionSpace(&cc);
 
     std::string object_filename;
     ph.param<std::string>("object_filename", object_filename, "");
 
-    // read in collision objects from file and add to the scene
+    // Read in collision objects from file and add to the scene...
     if (!object_filename.empty()) {
         auto objects = GetCollisionObjects(object_filename, planning_frame);
         for (auto& object : objects) {
@@ -613,7 +617,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    // read in start state from file and update the scene
+    // Read in start state from file and update the scene...
+    // Start state is also required by the planner...
     moveit_msgs::RobotState start_state;
     if (!ReadInitialConfiguration(ph, start_state)) {
         ROS_ERROR("Failed to get initial configuration.");
@@ -627,6 +632,45 @@ int main(int argc, char* argv[])
     cc.setWorldToModelTransform(Eigen::Affine3d::Identity());
 
     SV_SHOW_INFO(grid.getDistanceFieldVisualization(0.2));
+    SV_SHOW_INFO(cc.getCollisionRobotVisualization());
+    SV_SHOW_INFO(cc.getCollisionWorldVisualization());
+    SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
+
+    ///////////////////
+    // Planner Setup //
+    ///////////////////
+
+    ROS_INFO("Initialize the planner");
+
+    // construct state space from the urdf + planning group...
+    auto urdf = urdf::parseURDF(robot_description);
+    if (!urdf) {
+        ROS_ERROR("Failed to parse URDF");
+        return 1;
+    }
+
+    auto state_space = ConstructStateSpace(*urdf, robot_config.planning_joints);
+
+    ompl::geometric::SimpleSetup ss(state_space);
+
+    // use CollisionSpace as the collision checker...
+    ss.setStateValidityChecker([&](const ompl::base::State* state)
+    {
+        std::vector<double> values;
+        state_space->copyToReals(values, state);
+        return cc.isStateValid(values);
+    });
+
+    // TODO: set up a projection evaluator to provide forward kinematics?
+    auto rm = SetupRobotModel(robot_description, robot_config);
+    if (!rm) {
+        ROS_ERROR("Failed to set up Robot Model");
+        return 1;
+    }
+
+    auto fk_projection = std::make_shared<ProjectionEvaluatorFK>(state_space);
+    fk_projection->model = rm.get();
+    state_space->registerProjection("fk", fk_projection);
 
     // The KDL Robot Model must be given the transform from the planning frame
     // to the kinematics frame, which is assumed to not be a function of the
@@ -640,82 +684,104 @@ int main(int argc, char* argv[])
     tf::transformMsgToKDL(transform, f);
     rm->setKinematicsToPlanningTransform(f, "what?");
 
-    SV_SHOW_INFO(cc.getCollisionRobotVisualization());
-    SV_SHOW_INFO(cc.getCollisionWorldVisualization());
-    SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
+    // finally construct/initialize the planner...
+    auto planner = std::make_shared<smpl::OMPLPlanner>(
+            ss.getSpaceInformation(), "arastar.bfs.manip", &grid);
+    ss.setPlanner(planner);
 
-    ///////////////////
-    // Planner Setup //
-    ///////////////////
-
+    // read params from the parameter server...
     PlannerConfig planning_config;
     if (!ReadPlannerConfig(ros::NodeHandle("~planning"), planning_config)) {
         ROS_ERROR("Failed to read planner config");
         return 1;
     }
 
-    ompl::geometric::SimpleSetup ss(state_space);
-    ss.setStateValidityChecker([&](const ompl::base::State* state)
-    {
-        std::vector<double> values;
-        state_space->copyToReals(values, state);
-        return cc.isStateValid(values);
-    });
-
-    auto planner = std::make_shared<smpl::OMPLPlanner>(ss.getSpaceInformation(), &grid);
-
-    smpl::PlanningParams params;
-    params.planning_frame = planning_frame;
+    // set all planner params
+    // TODO: handle discretization parameters
     planner->params().setParam("mprim_filename", planning_config.mprim_filename);
-    planner->params().setParam("use_xyz_snap_mprim", planning_config.use_xyz_snap_mprim ? "true" : "false");
-    planner->params().setParam("use_rpy_snap_mprim", planning_config.use_rpy_snap_mprim ? "true" : "false");
-    planner->params().setParam("use_xyzrpy_snap_mprim", planning_config.use_xyzrpy_snap_mprim ? "true" : "false");
-    planner->params().setParam("use_short_dist_mprims", planning_config.use_short_dist_mprims ? "true" : "false");
+    planner->params().setParam("use_xyz_snap_mprim", planning_config.use_xyz_snap_mprim ? "1" : "0");
+    planner->params().setParam("use_rpy_snap_mprim", planning_config.use_rpy_snap_mprim ? "1" : "0");
+    planner->params().setParam("use_xyzrpy_snap_mprim", planning_config.use_xyzrpy_snap_mprim ? "1" : "0");
+    planner->params().setParam("use_short_dist_mprims", planning_config.use_short_dist_mprims ? "1" : "0");
     planner->params().setParam("xyz_snap_dist_thresh", std::to_string(planning_config.xyz_snap_dist_thresh));
     planner->params().setParam("rpy_snap_dist_thresh", std::to_string(planning_config.rpy_snap_dist_thresh));
     planner->params().setParam("xyzrpy_snap_dist_thresh", std::to_string(planning_config.xyzrpy_snap_dist_thresh));
     planner->params().setParam("short_dist_mprims_thresh", std::to_string(planning_config.short_dist_mprims_thresh));
     planner->params().setParam("epsilon", "100.0");
+    planner->params().setParam("search_mode", "0");
+    planner->params().setParam("allow_partial_solutions", "0");
+    planner->params().setParam("target_epsilon", "1.0");
+    planner->params().setParam("delta_epsilon", "1.0");
+    planner->params().setParam("improve_solution", "0");
+    planner->params().setParam("bound_expansions", "1");
+    planner->params().setParam("repair_time", "1.0");
+    planner->params().setParam("bfs_inflation_radius", "0.04");
+    planner->params().setParam("bfs_cost_per_cell", "100");
 
-    params.planning_link_sphere_radius = 0.02;
-
-    params.addParam("discretization", planning_config.discretization);
-    params.addParam("repair_time", 5.0);
+    planner->setStateVisualizer(
+            [&](const std::vector<double>& state)
+                -> std::vector<sbpl::visual::Marker>
+            {
+                return cc.getCollisionModelVisualization(state);
+            });
 
     //////////////
     // Planning //
     //////////////
 
-    std::vector<double> goal(6, 0);
-    ph.param("goal/x", goal[0], 0.0);
-    ph.param("goal/y", goal[1], 0.0);
-    ph.param("goal/z", goal[2], 0.0);
-    ph.param("goal/roll", goal[3], 0.0);
-    ph.param("goal/pitch", goal[4], 0.0);
-    ph.param("goal/yaw", goal[5], 0.0);
+    ROS_INFO("Setup the query");
 
-    moveit_msgs::MotionPlanRequest req;
-    moveit_msgs::MotionPlanResponse res;
+    // set the start state...
+    auto found_valid_start = false;
+    auto max_tries = 100;
+    for (int i = 0; i < max_tries; ++i) {
+        ompl::base::ScopedState<ompl::base::CompoundStateSpace> start(state_space);
+        start.random();
+        if (ss.getSpaceInformation()->SpaceInformation::isValid(start.get())) {
+            ss.setStartState(start);
+            found_valid_start = true;
+            break;
+        }
+    }
+    if (!found_valid_start) {
+        ROS_WARN("Failed to find valid start state after %d tries", max_tries);
+    }
 
-    req.allowed_planning_time = 60.0;
-    req.goal_constraints.resize(1);
-    FillGoalConstraint(goal, planning_frame, req.goal_constraints[0]);
-    req.group_name = robot_config.group_name;
-    req.max_acceleration_scaling_factor = 1.0;
-    req.max_velocity_scaling_factor = 1.0;
-    req.num_planning_attempts = 1;
-//    req.path_constraints;
-    req.planner_id = "arastar.bfs.manip";
-    req.start_state = start_state;
-//    req.trajectory_constraints;
-//    req.workspace_parameters;
+    // set the goal state...
+    Eigen::Affine3d goal_pose;
+    {
+        std::vector<double> goal(6, 0);
+        ph.param("goal/x", goal[0], 0.0);
+        ph.param("goal/y", goal[1], 0.0);
+        ph.param("goal/z", goal[2], 0.0);
+        ph.param("goal/yaw", goal[3], 0.0);
+        ph.param("goal/pitch", goal[4], 0.0);
+        ph.param("goal/roll", goal[5], 0.0);
+        goal_pose =
+                Eigen::Translation3d(goal[0], goal[1], goal[2]) *
+                Eigen::AngleAxisd(goal[3], Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(goal[4], Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(goal[5], Eigen::Vector3d::UnitX());
+    }
+
+    auto goal_condition = std::make_shared<smpl::PoseGoal>(
+            ss.getSpaceInformation(), goal_pose);
+//    goal_condition->position_tolerance = Eigen::Vector3d(0.015, 0.015, 0.015);
+    goal_condition->position_tolerance = Eigen::Vector3d(0.02, 0.02, 0.02);
+    goal_condition->orientation_tolerance = Eigen::Vector3d(
+            sbpl::angles::to_radians(5.0),
+            sbpl::angles::to_radians(5.0),
+            sbpl::angles::to_radians(5.0));
+    ss.setGoal(goal_condition);
 
     // plan
     ROS_INFO("Calling solve...");
-    auto solved = ss.solve(60.0);
+    double allowed_planning_time;
+    ph.param("allowed_planning_time", allowed_planning_time, 10.0);
+    auto solved = ss.solve(allowed_planning_time);
     if (!solved) {
-        ROS_ERROR("Failed to plan.");
-        return 1;
+        ROS_INFO("Failed to plan.");
+        return 0;
     }
 
     ///////////////////////////////////
@@ -724,19 +790,33 @@ int main(int argc, char* argv[])
 
     // TODO: print statistics
 
+    std::cout << "Found solution of length " << ss.getSolutionPath().getStateCount() << "\n";
+//    ss.getSolutionPath().print(std::cout);
+
+//    ss.getSolutionPath().interpolate(50);
+    ss.getSolutionPath().interpolate(1000);
+    std::cout << "Interpolated (raw) solution has " << ss.getSolutionPath().getStateCount() << " waypoints\n";
+    ss.simplifySolution();
+    std::cout << "Simplified solution has " << ss.getSolutionPath().getStateCount() << " waypoints\n";
+    ss.getSolutionPath().interpolate(1000);
+    std::cout << "Interpolated (simplified) solution has " << ss.getSolutionPath().getStateCount() << " waypoints\n";
+
     ROS_INFO("Animate path");
 
     size_t pidx = 0;
     while (ros::ok()) {
-        auto& point = res.trajectory.joint_trajectory.points[pidx];
-        auto markers = cc.getCollisionRobotVisualization(point.positions);
+        auto* state = ss.getSolutionPath().getState(pidx);
+        auto point = smpl::MakeStateSMPL(state_space.get(), state);
+        auto markers = cc.getCollisionRobotVisualization(point);
         for (auto& m : markers.markers) {
             m.ns = "path_animation";
         }
         SV_SHOW_INFO(markers);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+//        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         pidx++;
-        pidx %= res.trajectory.joint_trajectory.points.size();
+        pidx %= ss.getSolutionPath().getStateCount();
+        if (pidx == 0) break;
     }
 
     return 0;
