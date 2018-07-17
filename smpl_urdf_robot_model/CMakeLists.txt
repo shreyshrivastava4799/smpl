@@ -40,3 +40,11 @@ target_link_libraries(robot_model_test ${smpl_LIBRARIES})
 target_link_libraries(robot_model_test ${smpl_ros_LIBRARIES})
 target_link_libraries(robot_model_test ${roscpp_LIBRARIES})
 
+install(
+    DIRECTORY include/smpl_urdf_robot_model/
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(
+    TARGETS smpl_urdf_robot_model
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
