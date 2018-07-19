@@ -407,40 +407,36 @@ auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
     return std::move(rm);
 }
 
-void initAllowedCollisionsPR2(sbpl::collision::CollisionSpace &cspace)
-{
-    sbpl::collision::AllowedCollisionMatrix acm;
-    for (auto& pair : PR2AllowedCollisionPairs) {
-        acm.setEntry(pair.first, pair.second, true);
-    }
-    cspace.setAllowedCollisionMatrix(acm);
-}
-
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "smpl_test");
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
 
+    ROS_INFO("Initialize visualizer");
     sbpl::VisualizerROS visualizer(nh, 100);
     sbpl::viz::set_visualizer(&visualizer);
 
-    // let publishers set up
+    // Let publishers set up
     ros::Duration(1.0).sleep();
 
     /////////////////
     // Robot Model //
     /////////////////
 
-    const char *robot_description_key = "robot_description";
+    ROS_INFO("Load common parameters");
+
+    // Robot description required to initialize collision checker and robot
+    // model...
+    auto robot_description_key = "robot_description";
     std::string robot_description_param;
     if (!nh.searchParam(robot_description_key, robot_description_param)) {
         ROS_ERROR("Failed to find 'robot_description' key on the param server");
         return 1;
     }
 
-    std::string urdf;
-    if (!nh.getParam(robot_description_param, urdf)) {
+    std::string robot_description;
+    if (!nh.getParam(robot_description_param, robot_description)) {
         ROS_ERROR("Failed to retrieve param 'robot_description' from the param server");
         return 1;
     }
@@ -451,9 +447,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto rm = SetupRobotModel(urdf, robot_config);
-    if (!rm) {
-        ROS_ERROR("Failed to set up Robot Model");
+    // Everyone needs to know the name of the planning frame for reasons...
+    // ...frame_id for the occupancy grid (for visualization)
+    // ...frame_id for collision objects (must be the same as the grid, other than that, useless)
+    std::string planning_frame;
+    if (!ph.getParam("planning_frame", planning_frame)) {
+        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
         return 1;
     }
 
@@ -461,45 +460,36 @@ int main(int argc, char* argv[])
     // Occupancy Grid //
     ////////////////////
 
-    const double df_size_x = 3.0;
-    const double df_size_y = 3.0;
-    const double df_size_z = 3.0;
-    const double df_res = 0.02;
-    const double df_origin_x = -0.75;
-    const double df_origin_y = -1.5;
-    const double df_origin_z = 0.0;
-    const double max_distance = 1.8;
+    ROS_INFO("Initialize Occupancy Grid");
 
-//    typedef sbpl::EdgeEuclidDistanceMap DistanceMapType;
-    typedef sbpl::EuclidDistanceMap DistanceMapType;
-//    typedef sbpl::PropagationDistanceField DistanceMapType;
+    auto df_size_x = 3.0;
+    auto df_size_y = 3.0;
+    auto df_size_z = 3.0;
+    auto df_res = 0.02;
+    auto df_origin_x = -0.75;
+    auto df_origin_y = -1.5;
+    auto df_origin_z = 0.0;
+    auto max_distance = 1.8;
 
-    ROS_INFO("Create distance map");
+    using DistanceMapType = sbpl::EuclidDistanceMap;
+
     auto df = std::make_shared<DistanceMapType>(
             df_origin_x, df_origin_y, df_origin_z,
             df_size_x, df_size_y, df_size_z,
             df_res,
             max_distance);
 
-    ROS_INFO("Create grid");
     auto ref_counted = false;
     sbpl::OccupancyGrid grid(df, ref_counted);
-
-    // everyone needs to know the name of the planning frame for reasons...
-    std::string planning_frame;
-    if (!ph.getParam("planning_frame", planning_frame)) {
-        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
-        return 1;
-    }
-
-    ROS_INFO("Planning Frame: %s", planning_frame.c_str());
 
     grid.setReferenceFrame(planning_frame);
     SV_SHOW_INFO(grid.getBoundingBoxVisualization());
 
-    ///////////////////////
-    // Collision Checker //
-    ///////////////////////
+    //////////////////////////////////
+    // Initialize Collision Checker //
+    //////////////////////////////////
+
+    ROS_INFO("Initialize collision checker");
 
     // This whole manage storage for all the scene objects and must outlive
     // its associated CollisionSpace instance.
@@ -512,25 +502,37 @@ int main(int argc, char* argv[])
     }
 
     sbpl::collision::CollisionSpace cc;
-    if (!cc.init(&grid, urdf, cc_conf, robot_config.group_name, robot_config.planning_joints)) {
+    if (!cc.init(
+            &grid,
+            robot_description,
+            cc_conf,
+            robot_config.group_name,
+            robot_config.planning_joints))
+    {
         ROS_ERROR("Failed to initialize Collision Space");
         return 1;
     }
 
     if (cc.robotCollisionModel()->name() == "pr2") {
-        initAllowedCollisionsPR2(cc);
+        sbpl::collision::AllowedCollisionMatrix acm;
+        for (auto& pair : PR2AllowedCollisionPairs) {
+            acm.setEntry(pair.first, pair.second, true);
+        }
+        cc.setAllowedCollisionMatrix(acm);
     }
 
     /////////////////
-    // Scene Setup //
+    // Setup Scene //
     /////////////////
+
+    ROS_INFO("Initialize scene");
 
     scene.SetCollisionSpace(&cc);
 
     std::string object_filename;
     ph.param<std::string>("object_filename", object_filename, "");
 
-    // read in collision objects from file and add to the scene
+    // Read in collision objects from file and add to the scene...
     if (!object_filename.empty()) {
         auto objects = GetCollisionObjects(object_filename, planning_frame);
         for (auto& object : objects) {
@@ -538,14 +540,21 @@ int main(int argc, char* argv[])
         }
     }
 
-    // read in start state from file and update the scene
+    auto rm = SetupRobotModel(robot_description, robot_config);
+    if (!rm) {
+        ROS_ERROR("Failed to set up Robot Model");
+        return 1;
+    }
+
+    // Read in start state from file and update the scene...
+    // Start state is also required by the planner...
     moveit_msgs::RobotState start_state;
     if (!ReadInitialConfiguration(ph, start_state)) {
         ROS_ERROR("Failed to get initial configuration.");
         return 1;
     }
 
-    ROS_INFO("Set reference state in the robot planning model");
+    // Set reference state in the robot planning model...
     smpl::urdf::RobotState reference_state;
     Init(&reference_state, &rm->m_robot_model);
     for (auto i = 0; i < start_state.joint_state.name.size(); ++i) {
@@ -559,7 +568,7 @@ int main(int argc, char* argv[])
     }
     SetReferenceState(rm.get(), GetVariablePositions(&reference_state));
 
-    ROS_INFO("Set reference state in the collision model");
+    // Set reference state in the collision model...
     if (!scene.SetRobotState(start_state)) {
         ROS_ERROR("Failed to set start state on Collision Space Scene");
         return 1;
@@ -597,10 +606,16 @@ int main(int argc, char* argv[])
     params.addParam("rpy_snap_dist_thresh", planning_config.rpy_snap_dist_thresh);
     params.addParam("xyzrpy_snap_dist_thresh", planning_config.xyzrpy_snap_dist_thresh);
     params.addParam("short_dist_mprims_thresh", planning_config.short_dist_mprims_thresh);
-    params.addParam("bfs_inflation_radius", 0.02);
-    params.addParam("repair_time", 5.0);
-
     params.addParam("epsilon", 100.0);
+    params.addParam("search_mode", false);
+    params.addParam("allow_partial_solutions", false);
+    params.addParam("target_epsilon", 1.0);
+    params.addParam("delta_epsilon", 1.0);
+    params.addParam("improve_solution", false);
+    params.addParam("bound_expansions", true);
+    params.addParam("repair_time", 1.0);
+    params.addParam("bfs_inflation_radius", 0.02);
+    params.addParam("bfs_cost_per_cell", 100);
 
     if (!planner.init(params)) {
         ROS_ERROR("Failed to initialize Planner Interface");
@@ -622,7 +637,7 @@ int main(int argc, char* argv[])
     moveit_msgs::MotionPlanRequest req;
     moveit_msgs::MotionPlanResponse res;
 
-    req.allowed_planning_time = 10.0;
+    ph.param("allowed_planning_time", req.allowed_planning_time, 10.0);
     req.goal_constraints.resize(1);
     FillGoalConstraint(goal, planning_frame, req.goal_constraints[0]);
     req.group_name = robot_config.group_name;
@@ -648,10 +663,10 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    std::map<std::string, double> planning_stats = planner.getPlannerStats();
+    auto planning_stats = planner.getPlannerStats();
 
     ROS_INFO("Planning statistics");
-    for (const auto& entry : planning_stats) {
+    for (auto& entry : planning_stats) {
         ROS_INFO("    %s: %0.3f", entry.first.c_str(), entry.second);
     }
 

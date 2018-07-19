@@ -493,7 +493,7 @@ int main(int argc, char* argv[])
     sbpl::VisualizerROS visualizer(nh, 100);
     sbpl::viz::set_visualizer(&visualizer);
 
-    // let publishers set up
+    // Let publishers set up
     ros::Duration(1.0).sleep();
 
     /////////////////
@@ -502,7 +502,8 @@ int main(int argc, char* argv[])
 
     ROS_INFO("Load common parameters");
 
-    // robot_description required to initialize collision checker and state space...
+    // Robot_description required to initialize collision checker, state space,
+    // and forward kinematics...
     auto robot_description_key = "robot_description";
     std::string robot_description_param;
     if (!nh.searchParam(robot_description_key, robot_description_param)) {
@@ -516,14 +517,15 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // planning group required to initialize collision checker and state space...
+    // Planning group required to initialize collision checker and state
+    // space...
     RobotModelConfig robot_config;
     if (!ReadRobotModelConfig(ros::NodeHandle("~robot_model"), robot_config)) {
         ROS_ERROR("Failed to read robot model config from param server");
         return 1;
     }
 
-    // everyone needs to know the name of the planning frame for reasons...
+    // Everyone needs to know the name of the planning frame for reasons...
     // ...frame_id for the occupancy grid (for visualization)
     // ...frame_id for collision objects (must be the same as the grid, other than that, useless)
     std::string planning_frame;
@@ -616,6 +618,12 @@ int main(int argc, char* argv[])
         }
     }
 
+    auto rm = SetupRobotModel(robot_description, robot_config);
+    if (!rm) {
+        ROS_ERROR("Failed to set up Robot Model");
+        return 1;
+    }
+
     // Read in start state from file and update the scene...
     // Start state is also required by the planner...
     moveit_msgs::RobotState start_state;
@@ -623,6 +631,22 @@ int main(int argc, char* argv[])
         ROS_ERROR("Failed to get initial configuration.");
         return 1;
     }
+
+    // Set reference state in the robot planning model...
+    smpl::urdf::RobotState reference_state;
+    Init(&reference_state, &rm->m_robot_model);
+    for (auto i = 0; i < start_state.joint_state.name.size(); ++i) {
+        auto* var = GetVariable(&rm->m_robot_model, &start_state.joint_state.name[i]);
+        if (var == NULL) {
+            ROS_WARN("Failed to do the thing");
+            continue;
+        }
+        ROS_INFO("Set joint %s to %f", start_state.joint_state.name[i].c_str(), start_state.joint_state.position[i]);
+        SetVariablePosition(&reference_state, var, start_state.joint_state.position[i]);
+    }
+
+    // Set reference state in the collision model...
+    SetReferenceState(rm.get(), GetVariablePositions(&reference_state));
     if (!scene.SetRobotState(start_state)) {
         ROS_ERROR("Failed to set start state on Collision Space Scene");
         return 1;
@@ -631,6 +655,7 @@ int main(int argc, char* argv[])
     cc.setWorldToModelTransform(Eigen::Affine3d::Identity());
 
     SV_SHOW_INFO(grid.getDistanceFieldVisualization(0.2));
+
     SV_SHOW_INFO(cc.getCollisionRobotVisualization());
     SV_SHOW_INFO(cc.getCollisionWorldVisualization());
     SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
@@ -641,7 +666,7 @@ int main(int argc, char* argv[])
 
     ROS_INFO("Initialize the planner");
 
-    // construct state space from the urdf + planning group...
+    // Construct state space from the urdf + planning group...
     auto urdf = urdf::parseURDF(robot_description);
     if (!urdf) {
         ROS_ERROR("Failed to parse URDF");
@@ -652,7 +677,7 @@ int main(int argc, char* argv[])
 
     ompl::geometric::SimpleSetup ss(state_space);
 
-    // use CollisionSpace as the collision checker...
+    // Use CollisionSpace as the collision checker...
     ss.setStateValidityChecker([&](const ompl::base::State* state)
     {
         std::vector<double> values;
@@ -660,31 +685,25 @@ int main(int argc, char* argv[])
         return cc.isStateValid(values);
     });
 
-    // TODO: set up a projection evaluator to provide forward kinematics?
-    auto rm = SetupRobotModel(robot_description, robot_config);
-    if (!rm) {
-        ROS_ERROR("Failed to set up Robot Model");
-        return 1;
-    }
-
+    // Set up a projection evaluator to provide forward kinematics...
     auto* fk_projection = new ProjectionEvaluatorFK(state_space);
     fk_projection->model = rm.get();
     state_space->registerProjection(
             "fk", ompl::base::ProjectionEvaluatorPtr(fk_projection));
 
-    // finally construct/initialize the planner...
+    // Finally construct/initialize the planner...
 
     auto* planner = new smpl::OMPLPlanner(
             ss.getSpaceInformation(), "arastar.bfs.manip", &grid);
 
-    // read params from the parameter server...
+    // Read params from the parameter server...
     PlannerConfig planning_config;
     if (!ReadPlannerConfig(ros::NodeHandle("~planning"), planning_config)) {
         ROS_ERROR("Failed to read planner config");
         return 1;
     }
 
-    // set all planner params
+    // Set all planner params
     // TODO: handle discretization parameters
     planner->params().setParam("mprim_filename", planning_config.mprim_filename);
     planner->params().setParam("use_xyz_snap_mprim", planning_config.use_xyz_snap_mprim ? "1" : "0");
@@ -721,7 +740,7 @@ int main(int argc, char* argv[])
 
     ROS_INFO("Setup the query");
 
-    // set the start state...
+    // Set the start state...
     auto found_valid_start = false;
     auto max_tries = 100;
     for (int i = 0; i < max_tries; ++i) {
@@ -737,7 +756,7 @@ int main(int argc, char* argv[])
         ROS_WARN("Failed to find valid start state after %d tries", max_tries);
     }
 
-    // set the goal state...
+    // Set the goal state...
     Eigen::Affine3d goal_pose;
     {
         std::vector<double> goal(6, 0);
