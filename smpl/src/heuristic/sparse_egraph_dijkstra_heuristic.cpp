@@ -297,7 +297,7 @@ double SparseEGraphDijkstra3DHeuristic::getMetricStartDistance(
 double SparseEGraphDijkstra3DHeuristic::getMetricGoalDistance(
     double x, double y, double z)
 {
-    Eigen::Vector3d gp(planningSpace()->goal().tgt_off_pose.translation());
+    Eigen::Vector3d gp(planningSpace()->goal().pose.translation());
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
 
@@ -336,7 +336,7 @@ void SparseEGraphDijkstra3DHeuristic::updateGoal(const GoalConstraint& goal)
 
     projectExperienceGraph();
 
-    Eigen::Vector3d gp(goal.tgt_off_pose.translation());
+    Eigen::Vector3d gp(goal.pose.translation());
 
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
