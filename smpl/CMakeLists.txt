@@ -108,6 +108,7 @@ add_library(
     src/heuristic/object_manip_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/heuristic/sparse_egraph_dijkstra_heuristic.cpp
     src/heuristic/zero_heuristic.cpp
     src/search/focal_mhastar.cpp
     src/search/meta_mhastar_dts.cpp
@@ -118,6 +119,7 @@ add_library(
     src/search/adaptive_planner.cpp
     src/search/lazy_arastar.cpp
     src/search/lazy_mhastar.cpp
+    src/search/smhastar.cpp
     src/search/awastar.cpp
     src/unicycle/unicycle.cpp)
 target_compile_definitions(smpl PRIVATE -DROMAN)
