@@ -318,19 +318,14 @@ auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
 
     std::unique_ptr<smpl::KDLRobotModel> rm;
 
-    rm.reset(new sbpl::motion::KDLRobotModel);
+    rm.reset(new smpl::KDLRobotModel);
 
-    if (!rm->init(
-            urdf,
-            config.planning_joints,
-            config.kinematics_frame,
-            config.chain_tip_link))
-    {
+    if (!rm->init(urdf, config.kinematics_frame, config.chain_tip_link)) {
         ROS_ERROR("Failed to initialize robot model.");
         return NULL;
     }
 
-    if (!rm->setPlanningLink(config.planning_link)) {
+    if (!smpl::urdf::SetPlanningLink(rm.get(), &config.planning_link)) {
         ROS_ERROR("Failed to set planning link to '%s'", config.planning_link.c_str());
         return NULL;
     }
@@ -341,9 +336,9 @@ auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
 auto ConstructStateSpace(
     const urdf::ModelInterface& urdf,
     const std::vector<std::string>& planning_joints)
-    -> std::shared_ptr<ompl::base::StateSpace>
+    -> ompl::base::StateSpacePtr
 {
-    auto space = std::make_shared<ompl::base::CompoundStateSpace>();
+    auto* concrete_space = new ompl::base::CompoundStateSpace;
 
     for (auto& joint_name : planning_joints) {
         auto joint = urdf.getJoint(joint_name);
@@ -355,7 +350,7 @@ auto ConstructStateSpace(
         case urdf::Joint::PRISMATIC:
         case urdf::Joint::REVOLUTE:
         {
-            auto subspace = std::make_shared<ompl::base::RealVectorStateSpace>(1);
+            auto* subspace = new ompl::base::RealVectorStateSpace(1);
             if (joint->safety) {
                 subspace->setBounds(joint->safety->soft_lower_limit, joint->safety->soft_upper_limit);
             } else if (joint->limits) {
@@ -363,33 +358,36 @@ auto ConstructStateSpace(
             } else {
                 subspace->setBounds(-1.0, 1.0);
             }
-            space->addSubspace(subspace, 1.0);
+
+            ompl::base::StateSpacePtr subspace_ptr(subspace);
+            concrete_space->addSubspace(subspace_ptr, 1.0);
             break;
         }
         case urdf::Joint::CONTINUOUS:
         {
-            auto subspace = std::make_shared<ompl::base::SO2StateSpace>();
-            space->addSubspace(subspace, 1.0);
+            concrete_space->addSubspace(
+                    ompl::base::StateSpacePtr(new ompl::base::SO2StateSpace),
+                    1.0);
             break;
         }
         case urdf::Joint::PLANAR:
         {
-            auto subspace = std::make_shared<ompl::base::SE2StateSpace>();
+            auto* subspace = new ompl::base::SE2StateSpace;
             ompl::base::RealVectorBounds bounds(2);
             bounds.setLow(-1.0);
             bounds.setHigh(1.0);
             subspace->setBounds(bounds);
-            space->addSubspace(subspace, 1.0);
+            concrete_space->addSubspace(ompl::base::StateSpacePtr(subspace), 1.0);
             break;
         }
         case urdf::Joint::FLOATING:
         {
-            auto subspace = std::make_shared<ompl::base::SE3StateSpace>();
+            auto* subspace = new ompl::base::SE3StateSpace();
             ompl::base::RealVectorBounds bounds(3);
             bounds.setLow(-1.0);
             bounds.setHigh(1.0);
             subspace->setBounds(bounds);
-            space->addSubspace(subspace, 1.0);
+            concrete_space->addSubspace(ompl::base::StateSpacePtr(subspace), 1.0);
             break;
         }
         default:
@@ -397,7 +395,8 @@ auto ConstructStateSpace(
             break;
         }
     }
-    return space;
+
+    return ompl::base::StateSpacePtr(concrete_space);
 }
 
 struct ProjectionEvaluatorFK : public ompl::base::ProjectionEvaluator
@@ -668,26 +667,15 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto fk_projection = std::make_shared<ProjectionEvaluatorFK>(state_space);
+    auto* fk_projection = new ProjectionEvaluatorFK(state_space);
     fk_projection->model = rm.get();
-    state_space->registerProjection("fk", fk_projection);
-
-    // The KDL Robot Model must be given the transform from the planning frame
-    // to the kinematics frame, which is assumed to not be a function of the
-    // planning joint variables.
-    geometry_msgs::Transform transform;
-    transform.translation.x = -0.05;
-    transform.translation.y = 0.0;
-    transform.translation.z = 0.959;
-    transform.rotation.w = 1.0;
-    KDL::Frame f;
-    tf::transformMsgToKDL(transform, f);
-    rm->setKinematicsToPlanningTransform(f, "what?");
+    state_space->registerProjection(
+            "fk", ompl::base::ProjectionEvaluatorPtr(fk_projection));
 
     // finally construct/initialize the planner...
-    auto planner = std::make_shared<smpl::OMPLPlanner>(
+
+    auto* planner = new smpl::OMPLPlanner(
             ss.getSpaceInformation(), "arastar.bfs.manip", &grid);
-    ss.setPlanner(planner);
 
     // read params from the parameter server...
     PlannerConfig planning_config;
@@ -724,6 +712,8 @@ int main(int argc, char* argv[])
             {
                 return cc.getCollisionModelVisualization(state);
             });
+
+    ss.setPlanner(ompl::base::PlannerPtr(planner));
 
     //////////////
     // Planning //
@@ -764,7 +754,7 @@ int main(int argc, char* argv[])
                 Eigen::AngleAxisd(goal[5], Eigen::Vector3d::UnitX());
     }
 
-    auto goal_condition = std::make_shared<smpl::PoseGoal>(
+    auto* goal_condition = new smpl::PoseGoal(
             ss.getSpaceInformation(), goal_pose);
 //    goal_condition->position_tolerance = Eigen::Vector3d(0.015, 0.015, 0.015);
     goal_condition->position_tolerance = Eigen::Vector3d(0.02, 0.02, 0.02);
@@ -772,7 +762,7 @@ int main(int argc, char* argv[])
             sbpl::angles::to_radians(5.0),
             sbpl::angles::to_radians(5.0),
             sbpl::angles::to_radians(5.0));
-    ss.setGoal(goal_condition);
+    ss.setGoal(ompl::base::GoalPtr(goal_condition));
 
     // plan
     ROS_INFO("Calling solve...");

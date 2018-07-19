@@ -25,10 +25,6 @@ target_link_libraries(smpl_ompl_interface PUBLIC ${OMPL_LIBRARIES})
 target_link_libraries(smpl_ompl_interface PRIVATE ${Boost_LIBRARIES})
 
 add_executable(smpl_ompl_test src/smpl_ompl.cpp)
-if($ENV{ROS_DISTRO} EQUAL "indigo")
-    target_compile_definitions(smpl_ompl_interface PRIVATE -DROS_INDIGO)
-endif()
-
 target_compile_options(smpl_ompl_test PRIVATE -std=c++11)
 target_include_directories(smpl_ompl_test SYSTEM PRIVATE ${OMPL_INCLUDE_DIRS})
 target_include_directories(smpl_ompl_test SYSTEM PRIVATE ${Boost_INCLUDE_DIRS})

@@ -21,23 +21,19 @@ bool isStateValid(const ompl::base::State* state)
     return (dx * dx + dy * dy > 0.5 * 0.5);
 }
 
-#ifdef ROS_INDIGO
-namespace spns = boost;
-#else
-namespace spns = std;
-#endif
-
 namespace smpl = sbpl::motion;
 
 int main(int argc, char* argv[])
 {
-    auto space = spns::make_shared<StateSpaceType>();
+    auto* concrete_space = new StateSpaceType;
 
     ompl::base::RealVectorBounds bounds(2);
     bounds.setLow(-1);
     bounds.setHigh(1);
 
-    space->setBounds(bounds);
+    concrete_space->setBounds(bounds);
+
+    ompl::base::StateSpacePtr space(concrete_space);
 
     ompl::geometric::SimpleSetup ss(space);
     ss.setStateValidityChecker(
@@ -64,7 +60,7 @@ int main(int argc, char* argv[])
 
     ss.setStartAndGoalStates(start, goal);
 
-    auto planner = spns::make_shared<smpl::OMPLPlanner>(ss.getSpaceInformation());
+    ompl::base::PlannerPtr planner(new smpl::OMPLPlanner(ss.getSpaceInformation()));
     planner->params().setParam("epsilon", "100.0");
 
     ss.setPlanner(planner);
