@@ -66,7 +66,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/smpl)
 
 add_library(
     smpl
-    src/bfs3d.cpp
     src/csv_parser.cpp
     src/collision_checker.cpp
     src/console/ansi.cpp
@@ -75,6 +74,7 @@ add_library(
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
+    src/bfs3d/bfs3d.cpp
     src/debug/colors.cpp
     src/debug/marker_utils.cpp
     src/debug/visualize.cpp
