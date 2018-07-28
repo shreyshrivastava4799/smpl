@@ -36,7 +36,7 @@
 #include <smpl/console/console.h>
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
-#include <smpl/grid.h>
+#include <smpl/grid/grid.h>
 #include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
