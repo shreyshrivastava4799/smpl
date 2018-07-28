@@ -41,7 +41,7 @@ MHAStarPP::MHAStarPP(
     Heuristic** heurs,
     int hcount)
 :
-    MultiHeuristicAStarBase(environment, hanchor, heurs, hcount),
+    MHAStarBase(environment, hanchor, heurs, hcount),
     m_max_fval_closed_anc(0)
 {
 }

@@ -44,22 +44,22 @@
 
 // project includes
 #include <smpl/heap/intrusive_heap.h>
-#include <smpl/search/focal_mhastar.h>
+#include <smpl/search/fmhastar.h>
 #include <smpl/time.h>
 
 namespace sbpl {
 
-class MetaMultiHeuristicAstarDTS : public SBPLPlanner
+class MetaMHAstarDTS : public SBPLPlanner
 {
 public:
 
-    MetaMultiHeuristicAstarDTS(
+    MetaMHAstarDTS(
         DiscreteSpaceInformation* environment,
         Heuristic* hanchor,
         Heuristic** heurs,
         int hcount);
 
-    ~MetaMultiHeuristicAstarDTS();
+    ~MetaMHAstarDTS();
 
     /// \name Required Functions from SBPLPlanner
     ///@{

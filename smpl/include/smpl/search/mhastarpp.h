@@ -36,7 +36,7 @@
 
 namespace sbpl {
 
-class MHAStarPP : public MultiHeuristicAStarBase<MHAStarPP>
+class MHAStarPP : public MHAStarBase<MHAStarPP>
 {
 public:
 
@@ -46,7 +46,7 @@ public:
         Heuristic** heurs,
         int hcount);
 
-    friend class MultiHeuristicAStarBase<MHAStarPP>;
+    friend class MHAStarBase<MHAStarPP>;
 
 private:
 

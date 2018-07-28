@@ -47,7 +47,7 @@
 
 namespace sbpl {
 
-MetaMultiHeuristicAstarDTS::MetaMultiHeuristicAstarDTS(
+MetaMHAstarDTS::MetaMHAstarDTS(
     DiscreteSpaceInformation* environment,
     Heuristic* hanchor,
     Heuristic** heurs,
@@ -90,14 +90,14 @@ MetaMultiHeuristicAstarDTS::MetaMultiHeuristicAstarDTS(
     m_betas.resize(hcount);
 }
 
-MetaMultiHeuristicAstarDTS::~MetaMultiHeuristicAstarDTS()
+MetaMHAstarDTS::~MetaMHAstarDTS()
 {
     clear();
 
     delete[] m_open;
 }
 
-int MetaMultiHeuristicAstarDTS::set_start(int start_state_id)
+int MetaMHAstarDTS::set_start(int start_state_id)
 {
     SMPL_INFO("Set start to %d", start_state_id);
     m_start_state = get_state(start_state_id);
@@ -108,7 +108,7 @@ int MetaMultiHeuristicAstarDTS::set_start(int start_state_id)
     }
 }
 
-int MetaMultiHeuristicAstarDTS::set_goal(int goal_state_id)
+int MetaMHAstarDTS::set_goal(int goal_state_id)
 {
     SMPL_INFO("Set goal to %d", goal_state_id);
     m_goal_state = get_state(goal_state_id);
@@ -119,7 +119,7 @@ int MetaMultiHeuristicAstarDTS::set_goal(int goal_state_id)
     }
 }
 
-int MetaMultiHeuristicAstarDTS::replan(
+int MetaMHAstarDTS::replan(
     double allocated_time_sec,
     std::vector<int>* solution)
 {
@@ -127,7 +127,7 @@ int MetaMultiHeuristicAstarDTS::replan(
     return replan(allocated_time_sec, solution, &solcost);
 }
 
-int MetaMultiHeuristicAstarDTS::replan(
+int MetaMHAstarDTS::replan(
     double allocated_time_sec,
     std::vector<int>* solution,
     int* solcost)
@@ -137,7 +137,7 @@ int MetaMultiHeuristicAstarDTS::replan(
     return replan(solution, params, solcost);
 }
 
-int MetaMultiHeuristicAstarDTS::replan(
+int MetaMHAstarDTS::replan(
     std::vector<int>* solution,
     ReplanParams params)
 {
@@ -145,7 +145,7 @@ int MetaMultiHeuristicAstarDTS::replan(
     return replan(solution, params, &solcost);
 }
 
-int MetaMultiHeuristicAstarDTS::replan(
+int MetaMHAstarDTS::replan(
     std::vector<int>* solution,
     ReplanParams params,
     int* solcost)
@@ -264,110 +264,110 @@ int MetaMultiHeuristicAstarDTS::replan(
     return 0;
 }
 
-int MetaMultiHeuristicAstarDTS::force_planning_from_scratch()
+int MetaMHAstarDTS::force_planning_from_scratch()
 {
     return 0;
 }
 
-int MetaMultiHeuristicAstarDTS::force_planning_from_scratch_and_free_memory()
+int MetaMHAstarDTS::force_planning_from_scratch_and_free_memory()
 {
     return 0;
 }
 
-void MetaMultiHeuristicAstarDTS::costs_changed(StateChangeQuery const & stateChange)
+void MetaMHAstarDTS::costs_changed(StateChangeQuery const & stateChange)
 {
 }
 
-int MetaMultiHeuristicAstarDTS::set_search_mode(bool bSearchUntilFirstSolution)
+int MetaMHAstarDTS::set_search_mode(bool bSearchUntilFirstSolution)
 {
     return m_params.return_first_solution = bSearchUntilFirstSolution;
 }
 
-void MetaMultiHeuristicAstarDTS::set_initialsolution_eps(double eps)
+void MetaMHAstarDTS::set_initialsolution_eps(double eps)
 {
     m_params.initial_eps = eps;
 }
 
-double MetaMultiHeuristicAstarDTS::get_initial_eps()
+double MetaMHAstarDTS::get_initial_eps()
 {
     return m_params.initial_eps;
 }
 
-double MetaMultiHeuristicAstarDTS::get_solution_eps() const
+double MetaMHAstarDTS::get_solution_eps() const
 {
     return m_eps_satisfied;
 }
 
-double MetaMultiHeuristicAstarDTS::get_final_epsilon()
+double MetaMHAstarDTS::get_final_epsilon()
 {
     return m_eps_satisfied;
 }
 
-double MetaMultiHeuristicAstarDTS::get_final_eps_planning_time()
+double MetaMHAstarDTS::get_final_eps_planning_time()
 {
     return m_elapsed;
 }
 
-double MetaMultiHeuristicAstarDTS::get_initial_eps_planning_time()
+double MetaMHAstarDTS::get_initial_eps_planning_time()
 {
     return m_elapsed;
 }
 
-int MetaMultiHeuristicAstarDTS::get_n_expands() const
+int MetaMHAstarDTS::get_n_expands() const
 {
     return m_num_expansions;
 }
 
-int MetaMultiHeuristicAstarDTS::get_n_expands_init_solution()
+int MetaMHAstarDTS::get_n_expands_init_solution()
 {
     return m_num_expansions;
 }
 
-void MetaMultiHeuristicAstarDTS::get_search_stats(std::vector<PlannerStats>* s)
+void MetaMHAstarDTS::get_search_stats(std::vector<PlannerStats>* s)
 {
 }
 
-void MetaMultiHeuristicAstarDTS::set_final_eps(double eps)
+void MetaMHAstarDTS::set_final_eps(double eps)
 {
     m_params.final_eps = eps;
 }
 
-void MetaMultiHeuristicAstarDTS::set_dec_eps(double eps)
+void MetaMHAstarDTS::set_dec_eps(double eps)
 {
     m_params.dec_eps = eps;
 }
 
-void MetaMultiHeuristicAstarDTS::set_max_expansions(int expansion_count)
+void MetaMHAstarDTS::set_max_expansions(int expansion_count)
 {
     m_max_expansions = expansion_count;
 }
 
-void MetaMultiHeuristicAstarDTS::set_max_time(double max_time)
+void MetaMHAstarDTS::set_max_time(double max_time)
 {
     m_params.max_time = max_time;
 }
 
-double MetaMultiHeuristicAstarDTS::get_final_eps() const
+double MetaMHAstarDTS::get_final_eps() const
 {
     return m_params.final_eps;
 }
 
-double MetaMultiHeuristicAstarDTS::get_dec_eps() const
+double MetaMHAstarDTS::get_dec_eps() const
 {
     return m_params.dec_eps;
 }
 
-int MetaMultiHeuristicAstarDTS::get_max_expansions() const
+int MetaMHAstarDTS::get_max_expansions() const
 {
     return m_max_expansions;
 }
 
-double MetaMultiHeuristicAstarDTS::get_max_time() const
+double MetaMHAstarDTS::get_max_time() const
 {
     return m_params.max_time;
 }
 
-bool MetaMultiHeuristicAstarDTS::check_params(const ReplanParams& params)
+bool MetaMHAstarDTS::check_params(const ReplanParams& params)
 {
     if (params.initial_eps < 1.0) {
         SBPL_ERROR("Initial Epsilon must be greater than or equal to 1");
@@ -395,7 +395,7 @@ bool MetaMultiHeuristicAstarDTS::check_params(const ReplanParams& params)
     return true;
 }
 
-bool MetaMultiHeuristicAstarDTS::time_limit_reached() const
+bool MetaMHAstarDTS::time_limit_reached() const
 {
     if (m_params.return_first_solution) {
         return false;
@@ -408,7 +408,7 @@ bool MetaMultiHeuristicAstarDTS::time_limit_reached() const
     }
 }
 
-MHASearchState* MetaMultiHeuristicAstarDTS::get_state(int state_id)
+MHASearchState* MetaMHAstarDTS::get_state(int state_id)
 {
     if (m_graph_to_search_state.size() < state_id + 1) {
         m_graph_to_search_state.resize(state_id + 1, -1);
@@ -441,7 +441,7 @@ MHASearchState* MetaMultiHeuristicAstarDTS::get_state(int state_id)
     }
 }
 
-void MetaMultiHeuristicAstarDTS::clear()
+void MetaMHAstarDTS::clear()
 {
     clear_open_lists();
 
@@ -461,7 +461,7 @@ void MetaMultiHeuristicAstarDTS::clear()
     m_goal_state = nullptr;
 }
 
-void MetaMultiHeuristicAstarDTS::init_state(
+void MetaMHAstarDTS::init_state(
     MHASearchState* state,
     int state_id)
 {
@@ -485,7 +485,7 @@ void MetaMultiHeuristicAstarDTS::init_state(
 // Reinitialize the state for a new search. Maintains the state id. Resets the
 // cost-to-go to infinity. Removes the state from both closed lists. Recomputes
 // all heuristics for the state. Does NOT remove from the OPEN or PSET lists.
-void MetaMultiHeuristicAstarDTS::reinit_state(MHASearchState* state)
+void MetaMHAstarDTS::reinit_state(MHASearchState* state)
 {
     if (state->call_number != m_call_number) {
         state->call_number = m_call_number;
@@ -509,19 +509,19 @@ void MetaMultiHeuristicAstarDTS::reinit_state(MHASearchState* state)
     }
 }
 
-void MetaMultiHeuristicAstarDTS::reinit_search()
+void MetaMHAstarDTS::reinit_search()
 {
     clear_open_lists();
 }
 
-void MetaMultiHeuristicAstarDTS::clear_open_lists()
+void MetaMHAstarDTS::clear_open_lists()
 {
     for (int i = 0; i < num_heuristics(); ++i) {
         m_open[i].clear();
     }
 }
 
-int MetaMultiHeuristicAstarDTS::compute_key(MHASearchState* state, int hidx)
+int MetaMHAstarDTS::compute_key(MHASearchState* state, int hidx)
 {
     if (hidx == 0) {
         return state->g + state->od[hidx].h;
@@ -530,7 +530,7 @@ int MetaMultiHeuristicAstarDTS::compute_key(MHASearchState* state, int hidx)
     }
 }
 
-int MetaMultiHeuristicAstarDTS::choose_search()
+int MetaMHAstarDTS::choose_search()
 {
     std::vector<double> r(m_hcount);
     for (int hidx = 0; hidx < m_hcount; ++hidx) {
@@ -541,7 +541,7 @@ int MetaMultiHeuristicAstarDTS::choose_search()
     return std::distance(r.begin(), std::max_element(r.begin(), r.end())) + 1;
 }
 
-void MetaMultiHeuristicAstarDTS::update_meta_method(int hidx)
+void MetaMHAstarDTS::update_meta_method(int hidx)
 {
     SMPL_INFO("Update Meta Method:");
     SMPL_INFO_STREAM("  pre-alphas: " << m_alphas);
@@ -567,7 +567,7 @@ void MetaMultiHeuristicAstarDTS::update_meta_method(int hidx)
     }
 }
 
-void MetaMultiHeuristicAstarDTS::expand(MHASearchState* state, int hidx)
+void MetaMHAstarDTS::expand(MHASearchState* state, int hidx)
 {
     SMPL_INFO("Expanding state %d in search %d", state->state_id, hidx);
 
@@ -615,13 +615,13 @@ void MetaMultiHeuristicAstarDTS::expand(MHASearchState* state, int hidx)
     }
 }
 
-MHASearchState* MetaMultiHeuristicAstarDTS::state_from_open_state(
+MHASearchState* MetaMHAstarDTS::state_from_open_state(
     MHASearchState::HeapData* open_state)
 {
     return open_state->me;
 }
 
-int MetaMultiHeuristicAstarDTS::compute_heuristic(int state_id, int hidx)
+int MetaMHAstarDTS::compute_heuristic(int state_id, int hidx)
 {
     if (hidx == 0) {
         return m_hanchor->GetGoalHeuristic(state_id);
@@ -630,12 +630,12 @@ int MetaMultiHeuristicAstarDTS::compute_heuristic(int state_id, int hidx)
     }
 }
 
-int MetaMultiHeuristicAstarDTS::get_minf(rank_pq& pq) const
+int MetaMHAstarDTS::get_minf(rank_pq& pq) const
 {
     return pq.min()->f;
 }
 
-void MetaMultiHeuristicAstarDTS::insert_or_update(MHASearchState* state, int hidx)
+void MetaMHAstarDTS::insert_or_update(MHASearchState* state, int hidx)
 {
     if (m_open[hidx].contains(&state->od[hidx])) {
         m_open[hidx].update(&state->od[hidx]);
@@ -644,7 +644,7 @@ void MetaMultiHeuristicAstarDTS::insert_or_update(MHASearchState* state, int hid
     }
 }
 
-MHASearchState* MetaMultiHeuristicAstarDTS::select_state(int hidx)
+MHASearchState* MetaMHAstarDTS::select_state(int hidx)
 {
     MHASearchState* state = state_from_open_state(m_open[hidx].min());
     MHASearchState::HeapData* min_open = m_open[0].min();
@@ -661,7 +661,7 @@ MHASearchState* MetaMultiHeuristicAstarDTS::select_state(int hidx)
     return nullptr;
 }
 
-void MetaMultiHeuristicAstarDTS::extract_path(std::vector<int>* solution_path, int* solcost)
+void MetaMHAstarDTS::extract_path(std::vector<int>* solution_path, int* solcost)
 {
     SMPL_INFO("Extracting path");
     solution_path->clear();
@@ -678,17 +678,17 @@ void MetaMultiHeuristicAstarDTS::extract_path(std::vector<int>* solution_path, i
     std::reverse(solution_path->begin(), solution_path->end());
 }
 
-bool MetaMultiHeuristicAstarDTS::closed_in_anc_search(MHASearchState* state) const
+bool MetaMHAstarDTS::closed_in_anc_search(MHASearchState* state) const
 {
     return state->closed_in_anc;
 }
 
-bool MetaMultiHeuristicAstarDTS::closed_in_add_search(MHASearchState* state) const
+bool MetaMHAstarDTS::closed_in_add_search(MHASearchState* state) const
 {
     return state->closed_in_add;
 }
 
-bool MetaMultiHeuristicAstarDTS::closed_in_any_search(MHASearchState* state) const
+bool MetaMHAstarDTS::closed_in_any_search(MHASearchState* state) const
 {
     return state->closed_in_anc || state->closed_in_add;
 }

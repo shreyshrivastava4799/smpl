@@ -44,7 +44,7 @@
 namespace sbpl {
 
 template <typename Derived>
-MultiHeuristicAStarBase<Derived>::MultiHeuristicAStarBase(
+MHAStarBase<Derived>::MHAStarBase(
     DiscreteSpaceInformation* environment,
     Heuristic* hanchor,
     Heuristic** heurs,
@@ -82,7 +82,7 @@ MultiHeuristicAStarBase<Derived>::MultiHeuristicAStarBase(
 }
 
 template <typename Derived>
-MultiHeuristicAStarBase<Derived>::~MultiHeuristicAStarBase()
+MHAStarBase<Derived>::~MHAStarBase()
 {
     clear();
 
@@ -90,7 +90,7 @@ MultiHeuristicAStarBase<Derived>::~MultiHeuristicAStarBase()
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::set_start(int start_state_id)
+int MHAStarBase<Derived>::set_start(int start_state_id)
 {
     SMPL_INFO("Set start to %d", start_state_id);
     m_start_state = get_state(start_state_id);
@@ -102,7 +102,7 @@ int MultiHeuristicAStarBase<Derived>::set_start(int start_state_id)
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::set_goal(int goal_state_id)
+int MHAStarBase<Derived>::set_goal(int goal_state_id)
 {
     SMPL_INFO("Set goal to %d", goal_state_id);
     m_goal_state = get_state(goal_state_id);
@@ -114,7 +114,7 @@ int MultiHeuristicAStarBase<Derived>::set_goal(int goal_state_id)
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::replan(
+int MHAStarBase<Derived>::replan(
     double allocated_time_sec,
     std::vector<int>* solution)
 {
@@ -123,7 +123,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::replan(
+int MHAStarBase<Derived>::replan(
     double allocated_time_sec,
     std::vector<int>* solution,
     int* solcost)
@@ -134,7 +134,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::replan(
+int MHAStarBase<Derived>::replan(
     std::vector<int>* solution,
     ReplanParams params)
 {
@@ -143,7 +143,7 @@ int MultiHeuristicAStarBase<Derived>::replan(
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::replan(
+int MHAStarBase<Derived>::replan(
     std::vector<int>* solution,
     ReplanParams params,
     int* solcost)
@@ -256,131 +256,131 @@ int MultiHeuristicAStarBase<Derived>::replan(
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::force_planning_from_scratch()
+int MHAStarBase<Derived>::force_planning_from_scratch()
 {
     return 0;
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::force_planning_from_scratch_and_free_memory()
+int MHAStarBase<Derived>::force_planning_from_scratch_and_free_memory()
 {
     return 0;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::costs_changed(StateChangeQuery const & stateChange)
+void MHAStarBase<Derived>::costs_changed(StateChangeQuery const & stateChange)
 {
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::set_search_mode(bool bSearchUntilFirstSolution)
+int MHAStarBase<Derived>::set_search_mode(bool bSearchUntilFirstSolution)
 {
     return m_params.return_first_solution = bSearchUntilFirstSolution;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::set_initialsolution_eps(double eps)
+void MHAStarBase<Derived>::set_initialsolution_eps(double eps)
 {
     m_params.initial_eps = eps;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_initial_eps()
+double MHAStarBase<Derived>::get_initial_eps()
 {
     return m_params.initial_eps;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_solution_eps() const
+double MHAStarBase<Derived>::get_solution_eps() const
 {
     return m_eps_satisfied;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_final_epsilon()
+double MHAStarBase<Derived>::get_final_epsilon()
 {
     return m_eps_satisfied;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_final_eps_planning_time()
+double MHAStarBase<Derived>::get_final_eps_planning_time()
 {
     return m_elapsed;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_initial_eps_planning_time()
+double MHAStarBase<Derived>::get_initial_eps_planning_time()
 {
     return m_elapsed;
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::get_n_expands() const
+int MHAStarBase<Derived>::get_n_expands() const
 {
     return m_num_expansions;
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::get_n_expands_init_solution()
+int MHAStarBase<Derived>::get_n_expands_init_solution()
 {
     return m_num_expansions;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::get_search_stats(std::vector<PlannerStats>* s)
+void MHAStarBase<Derived>::get_search_stats(std::vector<PlannerStats>* s)
 {
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::set_final_eps(double eps)
+void MHAStarBase<Derived>::set_final_eps(double eps)
 {
     m_params.final_eps = eps;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::set_dec_eps(double eps)
+void MHAStarBase<Derived>::set_dec_eps(double eps)
 {
     m_params.dec_eps = eps;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::set_max_expansions(int expansion_count)
+void MHAStarBase<Derived>::set_max_expansions(int expansion_count)
 {
     m_max_expansions = expansion_count;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::set_max_time(double max_time)
+void MHAStarBase<Derived>::set_max_time(double max_time)
 {
     m_params.max_time = max_time;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_final_eps() const
+double MHAStarBase<Derived>::get_final_eps() const
 {
     return m_params.final_eps;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_dec_eps() const
+double MHAStarBase<Derived>::get_dec_eps() const
 {
     return m_params.dec_eps;
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::get_max_expansions() const
+int MHAStarBase<Derived>::get_max_expansions() const
 {
     return m_max_expansions;
 }
 
 template <typename Derived>
-double MultiHeuristicAStarBase<Derived>::get_max_time() const
+double MHAStarBase<Derived>::get_max_time() const
 {
     return m_params.max_time;
 }
 
 template <typename Derived>
-bool MultiHeuristicAStarBase<Derived>::check_params(const ReplanParams& params)
+bool MHAStarBase<Derived>::check_params(const ReplanParams& params)
 {
     if (params.initial_eps < 1.0) {
         SBPL_ERROR("Initial Epsilon must be greater than or equal to 1");
@@ -409,7 +409,7 @@ bool MultiHeuristicAStarBase<Derived>::check_params(const ReplanParams& params)
 }
 
 template <typename Derived>
-bool MultiHeuristicAStarBase<Derived>::time_limit_reached() const
+bool MHAStarBase<Derived>::time_limit_reached() const
 {
     if (m_params.return_first_solution) {
         return false;
@@ -423,7 +423,7 @@ bool MultiHeuristicAStarBase<Derived>::time_limit_reached() const
 }
 
 template <typename Derived>
-MHASearchState* MultiHeuristicAStarBase<Derived>::get_state(int state_id)
+MHASearchState* MHAStarBase<Derived>::get_state(int state_id)
 {
     if (m_graph_to_search_state.size() < state_id + 1) {
         m_graph_to_search_state.resize(state_id + 1, -1);
@@ -457,7 +457,7 @@ MHASearchState* MultiHeuristicAStarBase<Derived>::get_state(int state_id)
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::clear()
+void MHAStarBase<Derived>::clear()
 {
     clear_open_lists();
 
@@ -478,7 +478,7 @@ void MultiHeuristicAStarBase<Derived>::clear()
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::init_state(
+void MHAStarBase<Derived>::init_state(
     MHASearchState* state,
     int state_id)
 {
@@ -503,7 +503,7 @@ void MultiHeuristicAStarBase<Derived>::init_state(
 // cost-to-go to infinity. Removes the state from both closed lists. Recomputes
 // all heuristics for the state. Does NOT remove from the OPEN or PSET lists.
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::reinit_state(MHASearchState* state)
+void MHAStarBase<Derived>::reinit_state(MHASearchState* state)
 {
     if (state->call_number != m_call_number) {
         state->call_number = m_call_number;
@@ -528,13 +528,13 @@ void MultiHeuristicAStarBase<Derived>::reinit_state(MHASearchState* state)
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::reinit_search()
+void MHAStarBase<Derived>::reinit_search()
 {
     clear_open_lists();
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::clear_open_lists()
+void MHAStarBase<Derived>::clear_open_lists()
 {
     for (int i = 0; i < num_heuristics(); ++i) {
         m_open[i].clear();
@@ -542,7 +542,7 @@ void MultiHeuristicAStarBase<Derived>::clear_open_lists()
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::compute_key(MHASearchState* state, int hidx)
+int MHAStarBase<Derived>::compute_key(MHASearchState* state, int hidx)
 {
     if (hidx == 0) {
         return static_cast<Derived*>(this)->priority(state);
@@ -552,7 +552,7 @@ int MultiHeuristicAStarBase<Derived>::compute_key(MHASearchState* state, int hid
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::expand(MHASearchState* state, int hidx)
+void MHAStarBase<Derived>::expand(MHASearchState* state, int hidx)
 {
     SMPL_INFO("Expanding state %d in search %d", state->state_id, hidx);
 
@@ -601,14 +601,14 @@ void MultiHeuristicAStarBase<Derived>::expand(MHASearchState* state, int hidx)
 }
 
 template <typename Derived>
-MHASearchState* MultiHeuristicAStarBase<Derived>::state_from_open_state(
+MHASearchState* MHAStarBase<Derived>::state_from_open_state(
     MHASearchState::HeapData* open_state)
 {
     return open_state->me;
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::compute_heuristic(int state_id, int hidx)
+int MHAStarBase<Derived>::compute_heuristic(int state_id, int hidx)
 {
     if (hidx == 0) {
         return m_hanchor->GetGoalHeuristic(state_id);
@@ -618,13 +618,13 @@ int MultiHeuristicAStarBase<Derived>::compute_heuristic(int state_id, int hidx)
 }
 
 template <typename Derived>
-int MultiHeuristicAStarBase<Derived>::get_minf(rank_pq& pq) const
+int MHAStarBase<Derived>::get_minf(rank_pq& pq) const
 {
     return pq.min()->f;
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::insert_or_update(MHASearchState* state, int hidx)
+void MHAStarBase<Derived>::insert_or_update(MHASearchState* state, int hidx)
 {
     if (m_open[hidx].contains(&state->od[hidx])) {
         m_open[hidx].update(&state->od[hidx]);
@@ -634,7 +634,7 @@ void MultiHeuristicAStarBase<Derived>::insert_or_update(MHASearchState* state, i
 }
 
 template <typename Derived>
-MHASearchState* MultiHeuristicAStarBase<Derived>::select_state(int hidx)
+MHASearchState* MHAStarBase<Derived>::select_state(int hidx)
 {
     MHASearchState* state = state_from_open_state(m_open[hidx].min());
     MHASearchState::HeapData* min_open = m_open[0].min();
@@ -654,7 +654,7 @@ MHASearchState* MultiHeuristicAStarBase<Derived>::select_state(int hidx)
 }
 
 template <typename Derived>
-void MultiHeuristicAStarBase<Derived>::extract_path(std::vector<int>* solution_path, int* solcost)
+void MHAStarBase<Derived>::extract_path(std::vector<int>* solution_path, int* solcost)
 {
     SMPL_INFO("Extracting path");
     solution_path->clear();
@@ -672,19 +672,19 @@ void MultiHeuristicAStarBase<Derived>::extract_path(std::vector<int>* solution_p
 }
 
 template <typename Derived>
-bool MultiHeuristicAStarBase<Derived>::closed_in_anc_search(MHASearchState* state) const
+bool MHAStarBase<Derived>::closed_in_anc_search(MHASearchState* state) const
 {
     return state->closed_in_anc;
 }
 
 template <typename Derived>
-bool MultiHeuristicAStarBase<Derived>::closed_in_add_search(MHASearchState* state) const
+bool MHAStarBase<Derived>::closed_in_add_search(MHASearchState* state) const
 {
     return state->closed_in_add;
 }
 
 template <typename Derived>
-bool MultiHeuristicAStarBase<Derived>::closed_in_any_search(MHASearchState* state) const
+bool MHAStarBase<Derived>::closed_in_any_search(MHASearchState* state) const
 {
     return state->closed_in_anc || state->closed_in_add;
 }
