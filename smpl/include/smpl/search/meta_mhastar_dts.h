@@ -43,9 +43,9 @@
 #include <sbpl/planners/planner.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
-#include <smpl/time.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/search/focal_mhastar.h>
+#include <smpl/time.h>
 
 namespace sbpl {
 

@@ -1,9 +1,9 @@
 #include <smpl/heuristic/object_manip_heuristic.h>
 
-#include <smpl/graph/experience_graph_extension.h>
-#include <smpl/console/console.h>
-#include <smpl/intrusive_heap.h>
 #include <smpl/angles.h>
+#include <smpl/console/console.h>
+#include <smpl/graph/experience_graph_extension.h>
+#include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
 namespace motion {

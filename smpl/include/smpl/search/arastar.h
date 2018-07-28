@@ -42,7 +42,7 @@
 #include <sbpl/planners/planner.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/time.h>
 
 namespace sbpl {

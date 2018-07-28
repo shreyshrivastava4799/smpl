@@ -43,7 +43,7 @@
 #include <sbpl/heuristics/heuristic.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
 
