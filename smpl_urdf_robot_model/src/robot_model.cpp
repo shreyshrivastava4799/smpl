@@ -157,7 +157,7 @@ bool InitRobotModel(
             for (auto& visual : e.second->visual_array) {
                 add_shape(visual->geometry.get());
                 LinkVisual c;
-                c.origin = PoseURDFToEigen(e.second->visual->origin);
+                c.origin = PoseURDFToEigen(visual->origin);
                 robot_model.visuals.push_back(c);
             }
         } else if (e.second->visual) {
