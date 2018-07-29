@@ -50,7 +50,7 @@
 #define LOG(fmt, ...)
 #endif
 
-struct open_element : sbpl::heap_element
+struct open_element : smpl::heap_element
 {
     int priority;
 
@@ -66,7 +66,7 @@ struct open_element_compare
     }
 };
 
-typedef sbpl::intrusive_heap<open_element, open_element_compare> heap_type;
+typedef smpl::intrusive_heap<open_element, open_element_compare> heap_type;
 
 template <typename Iterator>
 class pointer_iterator :
@@ -440,7 +440,7 @@ BOOST_AUTO_TEST_CASE(ContainsTest)
 
 BOOST_AUTO_TEST_CASE(MakeTest)
 {
-    struct state : sbpl::heap_element
+    struct state : smpl::heap_element
     {
         int g;
         int h;
@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(MakeTest)
         }
     };
 
-    typedef sbpl::intrusive_heap<state, state_compare> state_heap;
+    typedef smpl::intrusive_heap<state, state_compare> state_heap;
 
     std::vector<state> elements;
     elements.push_back(state(8, 2));    // 10

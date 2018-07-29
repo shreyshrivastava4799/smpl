@@ -3,7 +3,7 @@
 
 #include <smpl/debug/marker.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 Color MakeColorHSV(float h, float s = 1.0f, float v = 1.0f, float a = 1.0f);
@@ -15,6 +15,6 @@ void hsv_to_rgb(double* r, double* g, double* b, double h, double s, double v);
 void rgb_to_hsv(double* h, double* s, double* v, double r, double g, double b);
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl
 
 #endif

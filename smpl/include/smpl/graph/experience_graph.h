@@ -39,8 +39,7 @@
 // system includes
 #include <smpl/types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 // undirected
 class ExperienceGraph
@@ -477,7 +476,6 @@ bool ExperienceGraph::edge_iterator::operator!=(edge_iterator it) const
     return m_id != it.m_id;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

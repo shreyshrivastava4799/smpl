@@ -45,7 +45,7 @@
 // project includes
 #include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
+namespace smpl {
 
 struct MHASearchState
 {
@@ -256,7 +256,7 @@ private:
     { }
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/mhastar_base.hpp"
 

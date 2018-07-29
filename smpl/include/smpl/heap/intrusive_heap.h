@@ -35,7 +35,7 @@
 #include <cstdlib>
 #include <vector>
 
-namespace sbpl {
+namespace smpl {
 
 template <class T, class Compare>
 class intrusive_heap;
@@ -153,7 +153,7 @@ private:
 template <class T, class Compare>
 void swap(intrusive_heap<T, Compare>& lhs, intrusive_heap<T, Compare>& rhs);
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/intrusive_heap.hpp"
 

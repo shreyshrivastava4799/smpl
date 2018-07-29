@@ -38,8 +38,7 @@
 // project includes
 #include <smpl/extension.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class AdaptiveGraphExtension : public virtual Extension
 {
@@ -52,7 +51,6 @@ public:
     virtual bool setTrackMode(const std::vector<int>& states) = 0;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

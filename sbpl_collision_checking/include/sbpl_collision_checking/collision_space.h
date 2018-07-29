@@ -54,10 +54,10 @@
 #include <sbpl_collision_checking/world_collision_model.h>
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
-class CollisionSpace : public motion::CollisionChecker
+class CollisionSpace : public CollisionChecker
 {
 public:
 
@@ -189,29 +189,29 @@ public:
 
     /// \name Required Functions from Extension
     ///@{
-    motion::Extension* getExtension(size_t class_code) override;
+    Extension* getExtension(size_t class_code) override;
     ///@}
 
     /// \name Required Functions from CollisionChecker
     ///@{
     bool isStateValid(
-        const motion::RobotState& state,
+        const RobotState& state,
         bool verbose = false) override;
 
     bool isStateToStateValid(
-        const motion::RobotState& start,
-        const motion::RobotState& finish,
+        const RobotState& start,
+        const RobotState& finish,
         bool verbose = false) override;
 
     bool interpolatePath(
-        const motion::RobotState& start,
-        const motion::RobotState& finish,
-        std::vector<motion::RobotState>& path) override;
+        const RobotState& start,
+        const RobotState& finish,
+        std::vector<RobotState>& path) override;
     ///@}
 
     /// \name Reimplemented Functions from CollisionChecker
     ///@{
-    auto getCollisionModelVisualization(const motion::RobotState& vals)
+    auto getCollisionModelVisualization(const RobotState& vals)
         -> std::vector<visual::Marker> override;
     ///@}
 
@@ -318,6 +318,6 @@ double CollisionSpace::maxLimit(int vidx) const
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

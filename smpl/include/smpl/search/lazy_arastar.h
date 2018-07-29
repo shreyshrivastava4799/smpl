@@ -37,14 +37,14 @@
 
 #include <smpl/search/lazy_search_interface.h>
 
-namespace sbpl {
+namespace smpl {
 
 struct LazyARAStar;
 
 bool Init(
     LazyARAStar& search,
     ILazySuccFun* succ_fun,
-    motion::RobotHeuristic* heuristic);
+    RobotHeuristic* heuristic);
 
 int Replan(
     LazyARAStar& search,
@@ -89,7 +89,7 @@ struct LazyARAStar
     };
 
     ILazySuccFun*           succ_fun_ = nullptr;
-    motion::RobotHeuristic* heuristic_ = nullptr;
+    RobotHeuristic* heuristic_ = nullptr;
 
     std::vector<State*>     states_;
     State*                  start_state_ = nullptr;
@@ -108,4 +108,4 @@ struct LazyARAStar
     LazyARAStar() : open_(StateCompare{this}) { }
 };
 
-} // namespace sbpl
+} // namespace smpl

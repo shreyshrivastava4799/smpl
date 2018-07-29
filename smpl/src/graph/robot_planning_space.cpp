@@ -35,8 +35,7 @@
 #include <smpl/console/console.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 RobotPlanningSpace::~RobotPlanningSpace()
 {
@@ -187,5 +186,4 @@ int RobotPlanningSpace::GetTrueCost(int parent_id, int child_id)
     return costs[std::distance(succs.begin(), sit)];
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

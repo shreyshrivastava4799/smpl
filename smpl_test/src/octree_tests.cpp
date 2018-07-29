@@ -79,7 +79,7 @@ struct TrackedInt
 
 BOOST_AUTO_TEST_CASE(DefaultConstructorTest)
 {
-    sbpl::OcTree<TrackedInt> tree;
+    smpl::OcTree<TrackedInt> tree;
 
     BOOST_CHECK(tree.root() != nullptr);
     BOOST_CHECK_EQUAL(tree.depth(), 0);
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(ValueConstructorTestCase)
 {
     // 8 will be implicitly converted to a TrackedInt and the constructor will
     // be fed an rvalue reference to the temporary TrackedInt.
-    sbpl::OcTree<TrackedInt> tree(8);
+    smpl::OcTree<TrackedInt> tree(8);
 
     BOOST_CHECK(tree.root() != nullptr);
     BOOST_CHECK_EQUAL(tree.depth(), 0);
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(ExpandNodeTest)
     // a node (possibly with constructor arguments), and creating children while
     // also copying the parent's value into them
 
-    sbpl::OcTree<TrackedInt> tree(8);
+    smpl::OcTree<TrackedInt> tree(8);
     tree.expand_node(tree.root());
     BOOST_CHECK(tree.root()->children != nullptr);
 
@@ -140,10 +140,10 @@ BOOST_AUTO_TEST_CASE(ExpandNodeTest)
 
 BOOST_AUTO_TEST_CASE(CopyConstructorTest)
 {
-    sbpl::OcTree<TrackedInt> tree(8);
+    smpl::OcTree<TrackedInt> tree(8);
     tree.expand_node(tree.root());
 
-    sbpl::OcTree<TrackedInt> copy(tree);
+    smpl::OcTree<TrackedInt> copy(tree);
 
     BOOST_CHECK(copy.root() != nullptr);
     BOOST_CHECK_EQUAL(copy.root()->value, 8);
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(CopyConstructorTest)
 
 BOOST_AUTO_TEST_CASE(MoveConstructorTest)
 {
-    sbpl::OcTree<int> tree(8);
+    smpl::OcTree<int> tree(8);
     tree.expand_node(tree.root());
 
     auto* orig_children = tree.root()->children;
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE(MoveConstructorTest)
     // NOTE: root node's value and children are moved, but the root node itself
     // is not moved (can't test for identity)
 
-    sbpl::OcTree<int> m(std::move(tree));
+    smpl::OcTree<int> m(std::move(tree));
     BOOST_CHECK(m.root() != nullptr);
     BOOST_CHECK_EQUAL(m.root()->value, 8);
     BOOST_CHECK(m.root()->children != nullptr);
@@ -189,10 +189,10 @@ BOOST_AUTO_TEST_CASE(MoveConstructorTest)
 
 BOOST_AUTO_TEST_CASE(CopyAssignmentTest)
 {
-    sbpl::OcTree<TrackedInt> tree1(10);
+    smpl::OcTree<TrackedInt> tree1(10);
     tree1.expand_node(tree1.root());
 
-    sbpl::OcTree<TrackedInt> tree2(8);
+    smpl::OcTree<TrackedInt> tree2(8);
     tree2.expand_node(tree2.root());
     tree2.expand_node(tree2.root()->child(0));
 
@@ -212,7 +212,7 @@ BOOST_AUTO_TEST_CASE(CopyAssignmentTest)
 
 BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
 {
-    sbpl::OcTree<int> tree1(10);
+    smpl::OcTree<int> tree1(10);
     tree1.expand_node(tree1.root());
 
     auto* orig_children = tree1.root()->children;
@@ -220,7 +220,7 @@ BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
     auto orig_node_count = tree1.num_nodes();
     auto orig_leaf_count = tree1.num_leaves();
 
-    sbpl::OcTree<int> tree2(8);
+    smpl::OcTree<int> tree2(8);
 
     tree2 = std::move(tree1);
     BOOST_CHECK(tree2.root() != nullptr);
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
 
 BOOST_AUTO_TEST_CASE(ClearTest)
 {
-    sbpl::OcTree<int> tree(10);
+    smpl::OcTree<int> tree(10);
 
     tree.expand_node(tree.root());
     tree.expand_node(tree.root()->child(0));
@@ -252,7 +252,7 @@ BOOST_AUTO_TEST_CASE(ClearTest)
 
 BOOST_AUTO_TEST_CASE(StringTreeTest)
 {
-    sbpl::OcTree<std::string> tree("cafef00d");
+    smpl::OcTree<std::string> tree("cafef00d");
 }
 
 BOOST_AUTO_TEST_CASE(SizeTest)
@@ -260,9 +260,9 @@ BOOST_AUTO_TEST_CASE(SizeTest)
     // ensure that empty base class optimization is being employed to remove
     // empty allocator
     BOOST_CHECK_EQUAL(
-            sizeof(sbpl::detail::OcTreeBase<int, std::allocator<int>>),
-            sizeof(sbpl::detail::OcTreeNode<int>));
+            sizeof(smpl::detail::OcTreeBase<int, std::allocator<int>>),
+            sizeof(smpl::detail::OcTreeNode<int>));
 
     BOOST_CHECK_EQUAL(
-            sizeof(sbpl::OcTree<int>), sizeof(sbpl::detail::OcTreeNode<int>));
+            sizeof(smpl::OcTree<int>), sizeof(smpl::detail::OcTreeNode<int>));
 }

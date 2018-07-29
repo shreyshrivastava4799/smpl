@@ -52,7 +52,7 @@
 #include "transform_functions.h"
 #include <sbpl_collision_checking/voxel_operations.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 bool RobotCollisionState::setJointVarPosition(int vidx, double position)
@@ -418,4 +418,4 @@ bool RobotCollisionState::checkCollisionStateReferences() const
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

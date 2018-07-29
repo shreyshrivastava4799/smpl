@@ -48,8 +48,7 @@
 #include <smpl/types.h>
 #include <smpl/graph/robot_planning_space_observer.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 SBPL_CLASS_FORWARD(RobotHeuristic);
 SBPL_CLASS_FORWARD(RobotPlanningSpace);
@@ -220,7 +219,6 @@ const RobotHeuristic* RobotPlanningSpace::heuristic(size_t i) const
     return m_heuristics[i];
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

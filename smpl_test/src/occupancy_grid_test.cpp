@@ -41,8 +41,8 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "occupancy_grid_test");
     ros::NodeHandle nh;
 
-    sbpl::VisualizerROS visualizer;
-    sbpl::visual::set_visualizer(&visualizer);
+    smpl::VisualizerROS visualizer;
+    smpl::visual::set_visualizer(&visualizer);
 
     const double size_x = 2.0, size_y = 2.0, size_z = 2.0;
     const double res = 0.02;
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
     const double max_distance = 0.2;
     bool ref_counted = true;
 
-    sbpl::OccupancyGrid grid(
+    smpl::OccupancyGrid grid(
             size_x, size_y, size_z,
             res,
             origin_x, origin_y, origin_z,
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
     std::vector<Eigen::Vector3d> voxels;
     cube_pos = Eigen::Vector3d(-0.333, 0.0, 0.5);
     cube_pose = Eigen::Translation3d(cube_pos);
-    sbpl::geometry::VoxelizeBox(
+    smpl::geometry::VoxelizeBox(
             cube_size, cube_size, cube_size,
             cube_pose,
             res,
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 
     cube_pos = Eigen::Vector3d(0.333, 0.0, 0.5);
     cube_pose = Eigen::Translation3d(cube_pos);
-    sbpl::geometry::VoxelizeBox(
+    smpl::geometry::VoxelizeBox(
             cube_size, cube_size, cube_size,
             cube_pose,
             res,

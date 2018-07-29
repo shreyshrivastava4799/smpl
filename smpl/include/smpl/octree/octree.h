@@ -41,7 +41,7 @@
 
 #include "detail/octree_base.h"
 
-namespace sbpl {
+namespace smpl {
 
 /// A tree data structure storing elements that have either 8 children, if the
 /// node is internal, or no children, if the node is a leaf node. This class
@@ -174,7 +174,7 @@ protected:
     void accept(Callable c, node_type* n);
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/octree.hpp"
 

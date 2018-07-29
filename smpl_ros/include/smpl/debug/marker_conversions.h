@@ -11,7 +11,7 @@
 // project includes
 #include <smpl/debug/marker.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 void ConvertMarkerMsgToMarker(
@@ -26,9 +26,9 @@ auto ConvertMarkersToMarkerArray(const std::vector<Marker>& markers)
     -> visualization_msgs::MarkerArray;
 
 auto ConvertMarkerArrayToMarkers(const visualization_msgs::MarkerArray& ma)
-    -> std::vector<sbpl::visual::Marker>;
+    -> std::vector<smpl::visual::Marker>;
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl
 
 #endif

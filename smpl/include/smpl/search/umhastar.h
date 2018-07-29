@@ -35,7 +35,7 @@
 // project includes
 #include <smpl/search/mhastar_base.h>
 
-namespace sbpl {
+namespace smpl {
 
 class UMHAStar : public MHAStarBase<UMHAStar>
 {
@@ -61,6 +61,6 @@ private:
     bool satisfies_p_criterion(MHASearchState* state) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

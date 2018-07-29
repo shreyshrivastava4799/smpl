@@ -32,8 +32,7 @@
 
 #include <smpl/collision_checker.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 CollisionChecker::CollisionChecker()
 {
@@ -49,5 +48,4 @@ auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
     return { };
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

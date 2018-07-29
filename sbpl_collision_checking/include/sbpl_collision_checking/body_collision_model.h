@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 class BodyCollisionModel
@@ -184,4 +184,4 @@ void BodyCollisionModel::insertGroupModels(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

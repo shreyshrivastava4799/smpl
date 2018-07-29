@@ -41,8 +41,7 @@
 #include <leatherman/utils.h>
 #include <smpl/angles.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool UBR1KDLRobotModel::init(
     const std::string& robot_description,
@@ -78,7 +77,7 @@ static void NormalizeAngles(KDLRobotModel* model, KDL::JntArray* q)
 {
     for (auto i = 0; i < model->jointVariableCount(); ++i) {
         if (model->vprops[i].continuous) {
-            (*q)(i) = sbpl::angles::normalize_angle((*q)(i));
+            (*q)(i) = smpl::angles::normalize_angle((*q)(i));
         }
     }
 }
@@ -142,5 +141,4 @@ bool UBR1KDLRobotModel::computeIK(
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

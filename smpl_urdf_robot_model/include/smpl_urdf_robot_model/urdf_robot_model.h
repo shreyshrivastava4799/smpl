@@ -7,15 +7,14 @@
 // project includes
 #include <smpl_urdf_robot_model/robot_state.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace urdf {
 
 struct RobotModel;
 
 struct URDFRobotModel :
-    public virtual sbpl::motion::RobotModel,
-    public virtual sbpl::motion::ForwardKinematicsInterface
+    public virtual smpl::RobotModel,
+    public virtual smpl::ForwardKinematicsInterface
 {
     struct VariableProperties
     {
@@ -27,7 +26,7 @@ struct URDFRobotModel :
         bool bounded;
     };
 
-    const ::sbpl::motion::urdf::RobotModel* robot_model = NULL;
+    const ::smpl::urdf::RobotModel* robot_model = NULL;
 
     // persistent robot state to cache unchanging transforms
     RobotState robot_state;
@@ -36,7 +35,7 @@ struct URDFRobotModel :
     std::vector<int> planning_to_state_variable;
     const Link* planning_link = NULL;
 
-    auto computeFK(const sbpl::motion::RobotState& state)
+    auto computeFK(const smpl::RobotState& state)
         -> Eigen::Affine3d override;
 
     double minPosLimit(int jidx) const override;
@@ -46,10 +45,10 @@ struct URDFRobotModel :
     double velLimit(int jidx) const override;
     double accLimit(int jidx) const override;
     bool checkJointLimits(
-        const sbpl::motion::RobotState& state,
+        const smpl::RobotState& state,
         bool verbose = false) override;
 
-    auto getExtension(size_t class_code) -> sbpl::motion::Extension* override;
+    auto getExtension(size_t class_code) -> smpl::Extension* override;
 };
 
 bool Init(
@@ -68,8 +67,7 @@ bool SetPlanningLink(URDFRobotModel* urdf_model, const Link* link);
 void SetReferenceState(URDFRobotModel* urdf_model, const double* positions);
 
 } // namespace urdf
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

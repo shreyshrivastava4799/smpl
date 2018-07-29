@@ -31,7 +31,7 @@
 
 #include <cmath>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 /// \brief Create a mesh representation of box
@@ -507,4 +507,4 @@ void CreateBoxMesh(
 }
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl

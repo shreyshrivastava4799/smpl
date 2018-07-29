@@ -31,7 +31,7 @@
 
 #include <smpl/search/umhastar.h>
 
-namespace sbpl {
+namespace smpl {
 
 UMHAStar::UMHAStar(
     DiscreteSpaceInformation* environment,
@@ -72,4 +72,4 @@ bool UMHAStar::satisfies_p_criterion(
     return true;
 }
 
-} // namespace sbpl
+} // namespace smpl

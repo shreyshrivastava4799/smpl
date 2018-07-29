@@ -11,7 +11,7 @@
 
 #include <sbpl_collision_checking/shapes.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 /// moveit_msgs::CollisionObject -> collision_detection::World::Object
@@ -63,6 +63,6 @@ void FreeManagedCollisionObject(CollisionObject& co);
 void FreeManagedCollisionObjectShallow(CollisionObject& co);
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

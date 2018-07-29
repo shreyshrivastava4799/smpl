@@ -8,8 +8,7 @@
 // project includes
 #include <smpl/types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 enum WorkspaceVariable
 {
@@ -44,15 +43,14 @@ bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)
     return a.coord == b.coord;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 namespace std {
 
 template <>
-struct hash<sbpl::motion::WorkspaceLatticeState>
+struct hash<smpl::WorkspaceLatticeState>
 {
-    typedef sbpl::motion::WorkspaceLatticeState argument_type;
+    typedef smpl::WorkspaceLatticeState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };

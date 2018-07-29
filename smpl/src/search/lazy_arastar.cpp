@@ -2,7 +2,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
+namespace smpl {
 
 using State = LazyARAStar::State;
 using CandidatePred = LazyARAStar::CandidatePred;
@@ -213,7 +213,7 @@ static void Clear(LazyARAStar& search) {
 bool Init(
     LazyARAStar& search,
     ILazySuccFun* succ_fun,
-    motion::RobotHeuristic* heuristic)
+    RobotHeuristic* heuristic)
 {
     if (!succ_fun || !heuristic) {
         return false;
@@ -283,4 +283,4 @@ bool LazyARAStar::StateCompare::operator()(
     return ComputeFVal(*search_, s1) < ComputeFVal(*search_, s2);
 }
 
-} // namespace sbpl
+} // namespace smpl

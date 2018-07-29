@@ -34,8 +34,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 BFS_3D::BFS_3D(int width, int height, int length) :
     m_search_thread(),
@@ -597,5 +596,4 @@ void BFS_3D::search(
 
 #undef EXPAND_NEIGHBOR_FRONTIER
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

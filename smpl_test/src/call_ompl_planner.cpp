@@ -33,8 +33,6 @@
 #include "collision_space_scene.h"
 #include "pr2_allowed_collision_pairs.h"
 
-namespace smpl = sbpl::motion;
-
 // Parse environment config file
 auto GetCollisionObjects(
     const std::string& filename,
@@ -166,7 +164,7 @@ bool ReadInitialConfiguration(
                     multi_dof_joint_state.joint_names[i] = std::string(xlist[i]["joint_name"]);
 
                     Eigen::Quaterniond q;
-                    sbpl::angles::from_euler_zyx(
+                    smpl::angles::from_euler_zyx(
                             (double)xlist[i]["yaw"], (double)xlist[i]["pitch"], (double)xlist[i]["roll"], q);
 
                     geometry_msgs::Quaternion orientation;
@@ -453,7 +451,7 @@ void ProjectionEvaluatorFK::project(
     projection[0] = pose.translation().x();
     projection[1] = pose.translation().y();
     projection[2] = pose.translation().z();
-    sbpl::angles::get_euler_zyx(
+    smpl::angles::get_euler_zyx(
             pose.rotation(), projection[3], projection[4], projection[5]);
 }
 
@@ -490,8 +488,8 @@ int main(int argc, char* argv[])
     ros::NodeHandle ph("~");
 
     ROS_INFO("Initialize visualizer");
-    sbpl::VisualizerROS visualizer(nh, 100);
-    sbpl::viz::set_visualizer(&visualizer);
+    smpl::VisualizerROS visualizer(nh, 100);
+    smpl::viz::set_visualizer(&visualizer);
 
     // Let publishers set up
     ros::Duration(1.0).sleep();
@@ -549,7 +547,7 @@ int main(int argc, char* argv[])
     auto df_origin_z = 0.0;
     auto max_distance = 1.8;
 
-    using DistanceMapType = sbpl::EuclidDistanceMap;
+    using DistanceMapType = smpl::EuclidDistanceMap;
 
     auto df = std::make_shared<DistanceMapType>(
             df_origin_x, df_origin_y, df_origin_z,
@@ -558,7 +556,7 @@ int main(int argc, char* argv[])
             max_distance);
 
     auto ref_counted = false;
-    sbpl::OccupancyGrid grid(df, ref_counted);
+    smpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
     SV_SHOW_INFO(grid.getBoundingBoxVisualization());
@@ -573,13 +571,13 @@ int main(int argc, char* argv[])
     // its associated CollisionSpace instance.
     CollisionSpaceScene scene;
 
-    sbpl::collision::CollisionModelConfig cc_conf;
-    if (!sbpl::collision::CollisionModelConfig::Load(ph, cc_conf)) {
+    smpl::collision::CollisionModelConfig cc_conf;
+    if (!smpl::collision::CollisionModelConfig::Load(ph, cc_conf)) {
         ROS_ERROR("Failed to load Collision Model Config");
         return 1;
     }
 
-    sbpl::collision::CollisionSpace cc;
+    smpl::collision::CollisionSpace cc;
     if (!cc.init(
             &grid,
             robot_description,
@@ -592,7 +590,7 @@ int main(int argc, char* argv[])
     }
 
     if (cc.robotCollisionModel()->name() == "pr2") {
-        sbpl::collision::AllowedCollisionMatrix acm;
+        smpl::collision::AllowedCollisionMatrix acm;
         for (auto& pair : PR2AllowedCollisionPairs) {
             acm.setEntry(pair.first, pair.second, true);
         }
@@ -727,7 +725,7 @@ int main(int argc, char* argv[])
 
     planner->setStateVisualizer(
             [&](const std::vector<double>& state)
-                -> std::vector<sbpl::visual::Marker>
+                -> std::vector<smpl::visual::Marker>
             {
                 return cc.getCollisionModelVisualization(state);
             });
@@ -778,9 +776,9 @@ int main(int argc, char* argv[])
 //    goal_condition->position_tolerance = Eigen::Vector3d(0.015, 0.015, 0.015);
     goal_condition->position_tolerance = Eigen::Vector3d(0.02, 0.02, 0.02);
     goal_condition->orientation_tolerance = Eigen::Vector3d(
-            sbpl::angles::to_radians(5.0),
-            sbpl::angles::to_radians(5.0),
-            sbpl::angles::to_radians(5.0));
+            smpl::angles::to_radians(5.0),
+            smpl::angles::to_radians(5.0),
+            smpl::angles::to_radians(5.0));
     ss.setGoal(ompl::base::GoalPtr(goal_condition));
 
     // plan

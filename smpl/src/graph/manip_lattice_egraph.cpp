@@ -40,8 +40,7 @@
 #include <smpl/graph/manip_lattice_action_space.h>
 #include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) const ->
     result_type
@@ -606,5 +605,4 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //    aspace->useLongAndShortPrims(use_long_and_short_mprims);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

@@ -33,7 +33,7 @@
 
 #include "collision_operations.h"
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 /// \brief Gather all sphere indices for a given group
@@ -71,4 +71,4 @@ std::vector<SphereIndex> GatherSphereIndices(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

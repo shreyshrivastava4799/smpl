@@ -21,8 +21,6 @@ bool isStateValid(const ompl::base::State* state)
     return (dx * dx + dy * dy > 0.5 * 0.5);
 }
 
-namespace smpl = sbpl::motion;
-
 int main(int argc, char* argv[])
 {
     auto* concrete_space = new StateSpaceType;

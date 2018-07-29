@@ -37,7 +37,7 @@
 // system includes
 #include <Eigen/Dense>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 void ComputeBoxBoundingSpheres(
@@ -86,6 +86,6 @@ void ComputeMeshBoundingSpheres(
     std::vector<std::uint32_t>& triangle_indices);
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #endif

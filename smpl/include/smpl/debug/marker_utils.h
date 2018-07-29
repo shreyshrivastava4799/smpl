@@ -3,7 +3,7 @@
 
 #include <smpl/debug/marker.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 auto MakeEmptyMarker() -> Marker;
@@ -72,6 +72,6 @@ auto MakeCubesMarker(
     int id = 0) -> Marker;
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl
 
 #endif

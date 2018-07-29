@@ -2,7 +2,7 @@
 
 #include <smpl/debug/colors.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 auto MakeEmptyMarker() -> Marker {
@@ -185,4 +185,4 @@ auto MakeCubesMarker(
 }
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl

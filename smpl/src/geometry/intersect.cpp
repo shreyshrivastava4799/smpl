@@ -36,7 +36,7 @@
 // project includes
 #include <smpl/geometry/triangle.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 static bool PointOnTriangle(
@@ -348,4 +348,4 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
 }
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl

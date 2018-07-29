@@ -33,8 +33,8 @@
 
 // system includes
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

@@ -59,7 +59,7 @@
 #include <ros/time.h>
 #endif
 
-namespace sbpl {
+namespace smpl {
 
 // define chrono interface to ros clocks
 #if SMPL_CLOCK_IS_ROS
@@ -135,6 +135,6 @@ inline clock::duration to_duration(double seconds)
             std::chrono::duration<double>(seconds));
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

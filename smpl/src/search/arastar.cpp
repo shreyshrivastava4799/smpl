@@ -40,7 +40,7 @@
 #include <smpl/time.h>
 #include <smpl/console/console.h>
 
-namespace sbpl {
+namespace smpl {
 
 static const char* SLOG = "search";
 static const char* SELOG = "search.expansions";
@@ -628,4 +628,4 @@ void ARAStar::extractPath(
     cost = to_state->g;
 }
 
-} // namespace sbpl
+} // namespace smpl

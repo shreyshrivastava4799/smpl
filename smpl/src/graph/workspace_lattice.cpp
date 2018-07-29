@@ -44,7 +44,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/graph/workspace_lattice_action_space.h>
 
-auto std::hash<sbpl::motion::WorkspaceLatticeState>::operator()(
+auto std::hash<smpl::WorkspaceLatticeState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -52,8 +52,7 @@ auto std::hash<sbpl::motion::WorkspaceLatticeState>::operator()(
     return seed;
 }
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s)
 {
@@ -827,5 +826,4 @@ bool WorkspaceLattice::checkLazyAction(
     return true;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

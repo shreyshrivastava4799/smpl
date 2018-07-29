@@ -5,8 +5,7 @@
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/workspace_lattice_action_space.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 struct WorkspaceLattice;
 
@@ -28,8 +27,7 @@ bool InitSimpleWorkspaceLatticeActions(
     WorkspaceLattice* space,
     SimpleWorkspaceLatticeActionSpace* actions);
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 
 #endif

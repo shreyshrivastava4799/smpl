@@ -33,8 +33,7 @@
 #include <smpl/console/console.h>
 #include <smpl/heuristic/generic_egraph_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.generic_egraph";
 
@@ -291,5 +290,4 @@ int GenericEgraphHeuristic::GetFromToHeuristic(int from_id, int to_id)
     return 0;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

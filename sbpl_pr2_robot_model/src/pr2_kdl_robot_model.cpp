@@ -39,8 +39,7 @@
 #include <smpl/angles.h>
 #include <eigen_conversions/eigen_kdl.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool PR2KDLRobotModel::init(
     const std::string& robot_description,
@@ -93,7 +92,7 @@ static void NormalizeAngles(KDLRobotModel* model, KDL::JntArray* q)
 {
     for (auto i = 0; i < model->jointVariableCount(); ++i) {
         if (model->vprops[i].continuous) {
-            (*q)(i) = sbpl::angles::normalize_angle((*q)(i));
+            (*q)(i) = smpl::angles::normalize_angle((*q)(i));
         }
     }
 }
@@ -203,5 +202,4 @@ bool PR2KDLRobotModel::computeFastIK(
     return true;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

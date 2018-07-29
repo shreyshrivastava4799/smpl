@@ -44,8 +44,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/search/arastar.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class AdaptivePlanner : public SBPLPlanner
 {
@@ -117,7 +116,6 @@ private:
     double m_eps_track;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -35,7 +35,7 @@
 // project includes
 #include <sbpl_collision_checking/base_collision_states.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 std::ostream& operator<<(std::ostream& o, const CollisionSphereState& css)
@@ -148,4 +148,4 @@ std::ostream& operator<<(std::ostream& o, const CollisionGroupState& cgs)
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

@@ -33,8 +33,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool RobotHeuristic::init(RobotPlanningSpace* space)
 {
@@ -60,5 +59,4 @@ bool RobotHeuristic::setGoal(const GoalConstraint& goal)
     return true;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

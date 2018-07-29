@@ -8,8 +8,7 @@
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool InitSimpleWorkspaceLatticeActions(
     WorkspaceLattice* space,
@@ -124,6 +123,5 @@ void SimpleWorkspaceLatticeActionSpace::apply(
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 

@@ -7,8 +7,7 @@
 // project includes
 #include <smpl/graph/workspace_lattice_types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 struct WorkspaceLatticeActionSpace
 {
@@ -19,8 +18,7 @@ struct WorkspaceLatticeActionSpace
         std::vector<WorkspaceAction>& actions) = 0;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

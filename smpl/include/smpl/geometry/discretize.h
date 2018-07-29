@@ -32,7 +32,7 @@
 
 #include <cmath>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 /// \brief Discretizes a continuous space into uniform cells such that one cell
@@ -113,6 +113,6 @@ private:
 };
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #endif

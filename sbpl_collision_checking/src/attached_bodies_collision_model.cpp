@@ -34,7 +34,7 @@
 #include <sbpl_collision_checking/debug.h>
 #include <sbpl_collision_checking/voxel_operations.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* ABM_LOGGER = "attached_bodies_model";
@@ -358,4 +358,4 @@ int AttachedBodiesCollisionModel::generateAttachedBodyIndex()
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

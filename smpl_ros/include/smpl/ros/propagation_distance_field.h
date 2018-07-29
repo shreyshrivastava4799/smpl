@@ -38,7 +38,7 @@
 // project includes
 #include <smpl/distance_map/distance_map_interface.h>
 
-namespace sbpl {
+namespace smpl {
 
 class PropagationDistanceField : public DistanceMapInterface
 {
@@ -105,6 +105,6 @@ private:
         const std::vector<Eigen::Vector3d>& v) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

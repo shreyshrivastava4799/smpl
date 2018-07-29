@@ -9,7 +9,7 @@
 #include <iterator>
 #include <vector>
 
-namespace sbpl {
+namespace smpl {
 namespace stats {
 
 template <typename InputIt, typename CostFunction>
@@ -76,6 +76,6 @@ auto dynamic_time_warping(
 }
 
 } // namespace stats
-} // namespace sbpl
+} // namespace smpl
 
 #endif

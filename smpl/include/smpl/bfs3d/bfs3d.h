@@ -39,8 +39,7 @@
 #include <tuple>
 #include <iostream>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class BFS_3D
 {
@@ -243,7 +242,6 @@ inline int BFS_3D::neighbor(int node, int neighbor) const
     return node + m_neighbor_offsets[neighbor];
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

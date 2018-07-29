@@ -63,8 +63,7 @@
 
 SBPL_CLASS_FORWARD(SBPLPlanner);
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 using PlanningSpaceFactory = std::function<
         std::unique_ptr<RobotPlanningSpace>(
@@ -212,7 +211,6 @@ protected:
         const moveit_msgs::RobotTrajectory& traj) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

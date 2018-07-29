@@ -40,7 +40,7 @@
 #include <smpl/time.h>
 #include <smpl/console/console.h>
 
-namespace sbpl {
+namespace smpl {
 
 static const char* SLOG = "search";
 static const char* SELOG = "search.expansions";
@@ -117,7 +117,7 @@ int AWAStar::replan(
 
     int best_sol = INFINITECOST;
 
-    auto start_time = sbpl::clock::now();
+    auto start_time = smpl::clock::now();
 
     std::vector<int> succs;
     std::vector<int> costs;
@@ -130,7 +130,7 @@ int AWAStar::replan(
             m_min_sus = INFINITECOST;
 
             while (!m_open.empty()) {
-                auto now = sbpl::clock::now();
+                auto now = smpl::clock::now();
                 auto elapsed = now - start_time;
                 if (elapsed > allowed_time) {
                     // ugh!
@@ -419,4 +419,4 @@ void AWAStar::extractPath(
     cost = to_state->g;
 }
 
-} // namespace sbpl
+} // namespace smpl

@@ -35,8 +35,7 @@
 #include <sbpl_pr2_robot_model/sbpl_math.h>
 #include <sbpl_pr2_robot_model/orientation_solver.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 // Both these pitch limits are on the upper side (i.e. if forearm is aligned
 // along x-axis with forearm_roll_link_roll = 0, then the end effector cannot
@@ -430,5 +429,4 @@ void RPYSolver::orientationSolver(
     output[3] = wrist_roll;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

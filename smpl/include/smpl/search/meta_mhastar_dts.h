@@ -47,7 +47,7 @@
 #include <smpl/search/fmhastar.h>
 #include <smpl/time.h>
 
-namespace sbpl {
+namespace smpl {
 
 class MetaMHAstarDTS : public SBPLPlanner
 {
@@ -203,6 +203,6 @@ private:
     bool closed_in_any_search(MHASearchState* state) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

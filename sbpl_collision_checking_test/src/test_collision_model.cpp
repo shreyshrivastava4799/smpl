@@ -61,8 +61,8 @@ int main(int argc, char* argv[])
 
     ROS_WARN("Loading Configuration");
 
-    sbpl::collision::CollisionModelConfig config;
-    if (!sbpl::collision::CollisionModelConfig::Load(ph, config)) {
+    smpl::collision::CollisionModelConfig config;
+    if (!smpl::collision::CollisionModelConfig::Load(ph, config)) {
         ROS_ERROR("Failed to load Collision Model Config");
         return 1;
     }
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
     //////////////////////////////////////
 
     ROS_WARN("Initialize Robot Collision Model");
-    auto model = sbpl::collision::RobotCollisionModel::Load(*urdf, config);
+    auto model = smpl::collision::RobotCollisionModel::Load(*urdf, config);
     if (!model) {
         ROS_ERROR("Failed to initialize Robot Collision Model");
         return 1;
@@ -120,7 +120,7 @@ int main(int argc, char* argv[])
     //////////////////////////////////////////////
 
     ROS_WARN("Create Robot Collision State");
-    sbpl::collision::RobotCollisionState state(model.get());
+    smpl::collision::RobotCollisionState state(model.get());
 
     // convenience lambda for publishing visualization of the current state
     visualization_msgs::MarkerArray prev_ma;
@@ -194,14 +194,14 @@ int main(int argc, char* argv[])
     // create a dependent Attached Bodies Collision Model //
     ////////////////////////////////////////////////////////
 
-    sbpl::collision::AttachedBodiesCollisionModel ab_model(model.get());
+    smpl::collision::AttachedBodiesCollisionModel ab_model(model.get());
 
     ////////////////////////////////////////////////////////
     // create a dependent Attached Bodies Collision Model //
     ////////////////////////////////////////////////////////
 
     std::vector<shapes::ShapeConstPtr> shapes;
-    sbpl::collision::Affine3dVector transforms;
+    smpl::collision::Affine3dVector transforms;
 
 //    auto ao_shape = boost::make_shared<const shapes::Cylinder>(0.10, 0.20);
     shapes::ShapeConstPtr ao_shape(new shapes::Cylinder(0.10, 0.20));
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
     // create a dependent Attached Bodies Collision State //
     ////////////////////////////////////////////////////////
 
-    sbpl::collision::AttachedBodiesCollisionState ab_state(&ab_model, &state);
+    smpl::collision::AttachedBodiesCollisionState ab_state(&ab_model, &state);
     ab_state.updateSphereStates();
 
 //    state.updateSphereStates();

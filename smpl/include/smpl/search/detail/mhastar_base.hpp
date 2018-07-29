@@ -41,7 +41,7 @@
 #include <smpl/time.h>
 #include <smpl/console/console.h>
 
-namespace sbpl {
+namespace smpl {
 
 template <typename Derived>
 MHAStarBase<Derived>::MHAStarBase(
@@ -179,7 +179,7 @@ int MHAStarBase<Derived>::replan(
     m_num_expansions = 0;
     m_elapsed = 0.0;
 
-    auto start_time = sbpl::clock::now();
+    auto start_time = smpl::clock::now();
 
     ++m_call_number;
     reinit_state(m_goal_state);
@@ -200,11 +200,11 @@ int MHAStarBase<Derived>::replan(
 
     reinitSearch();
 
-    auto end_time = sbpl::clock::now();
+    auto end_time = smpl::clock::now();
     m_elapsed += to_seconds(end_time - start_time);
 
     while (!m_open[0].empty() && !time_limit_reached()) {
-        auto start_time = sbpl::clock::now();
+        auto start_time = smpl::clock::now();
 
         for (int hidx = 1; hidx < num_heuristics(); ++hidx) {
             if (m_open[0].empty()) {
@@ -241,7 +241,7 @@ int MHAStarBase<Derived>::replan(
             onClosedAnchor(s);
         }
 
-        auto end_time = sbpl::clock::now();
+        auto end_time = smpl::clock::now();
         m_elapsed += to_seconds(end_time - start_time);
     }
 
@@ -689,6 +689,6 @@ bool MHAStarBase<Derived>::closed_in_any_search(MHASearchState* state) const
     return state->closed_in_anc || state->closed_in_add;
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -48,7 +48,7 @@
 
 #include <sbpl_collision_checking/shapes.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* LOG = "cspace";
@@ -385,23 +385,23 @@ bool CollisionSpace::collisionDetails(
     return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
 }
 
-motion::Extension* CollisionSpace::getExtension(size_t class_code)
+Extension* CollisionSpace::getExtension(size_t class_code)
 {
-    if (class_code == motion::GetClassCode<motion::CollisionChecker>()) {
+    if (class_code == GetClassCode<CollisionChecker>()) {
         return this;
     }
     return nullptr;
 }
 
-bool CollisionSpace::isStateValid(const motion::RobotState& state, bool verbose)
+bool CollisionSpace::isStateValid(const RobotState& state, bool verbose)
 {
     double dist = std::numeric_limits<double>::max();
     return checkCollision(state, dist);
 }
 
 bool CollisionSpace::isStateToStateValid(
-    const motion::RobotState& start,
-    const motion::RobotState& finish,
+    const RobotState& start,
+    const RobotState& finish,
     bool verbose)
 {
     const double res = 0.05;
@@ -417,7 +417,7 @@ bool CollisionSpace::isStateToStateValid(
 
     const int inc_cc = 5;
 
-    motion::RobotState interm;
+    RobotState interm;
 
     // TODO: Looks like the idea here is to collision check the path starting at
     // the most coarse resolution (just the endpoints) and increasing the
@@ -447,9 +447,9 @@ bool CollisionSpace::isStateToStateValid(
 }
 
 bool CollisionSpace::interpolatePath(
-    const motion::RobotState& start,
-    const motion::RobotState& finish,
-    std::vector<motion::RobotState>& opath)
+    const RobotState& start,
+    const RobotState& finish,
+    std::vector<RobotState>& opath)
 {
     assert(start.size() == m_planning_joint_to_collision_model_indices.size() &&
             finish.size() == m_planning_joint_to_collision_model_indices.size());
@@ -480,7 +480,7 @@ bool CollisionSpace::interpolatePath(
     return true;
 }
 
-auto CollisionSpace::getCollisionModelVisualization(const motion::RobotState& state)
+auto CollisionSpace::getCollisionModelVisualization(const RobotState& state)
     -> std::vector<visual::Marker>
 {
     auto ma = getCollisionRobotVisualization(state);
@@ -695,4 +695,4 @@ auto BuildCollisionSpace(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

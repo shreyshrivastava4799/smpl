@@ -38,8 +38,7 @@
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool WorkspaceLatticeBase::init(
     RobotModel* _robot,
@@ -319,5 +318,4 @@ void WorkspaceLatticeBase::favCoordToWorkspace(const int* ga, double* wa) const
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

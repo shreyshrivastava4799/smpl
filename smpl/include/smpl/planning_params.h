@@ -41,8 +41,7 @@
 // system includes
 #include <boost/variant.hpp>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 enum ShortcutType
 {
@@ -144,8 +143,7 @@ private:
     void convertToString(const Parameter& p, std::string& val) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

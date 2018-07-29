@@ -5,7 +5,7 @@
 
 #include <sbpl_collision_checking/shapes.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 bool MakeCollisionShapeMarker(
@@ -41,6 +41,6 @@ bool MakeOcTreeShapeMarker(
     visualization_msgs::Marker& m);
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

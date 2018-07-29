@@ -42,7 +42,7 @@
 #define PRINT(fmt, ...)
 #endif
 
-namespace sbpl {
+namespace smpl {
 
 bool CSVParser::parseStream(std::istream& s, bool has_header)
 {
@@ -395,4 +395,4 @@ bool CSVParser::parseName(
     return parseField(s, pos, name);
 }
 
-} // namespace sbpl
+} // namespace smpl

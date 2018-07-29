@@ -39,7 +39,7 @@
 // project includes
 #include <smpl/geometry/voxel_grid.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 void VoxelizeBox(
@@ -254,7 +254,7 @@ void VoxelizeTriangle(
     VoxelGrid<Discretizer>& vg);
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/voxelize.hpp"
 

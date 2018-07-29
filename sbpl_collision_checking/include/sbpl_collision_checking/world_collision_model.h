@@ -42,7 +42,7 @@
 #include <smpl/occupancy_grid.h>
 #include <visualization_msgs/MarkerArray.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 struct CollisionObject;
@@ -113,6 +113,6 @@ typedef std::shared_ptr<WorldCollisionModel> WorldCollisionModelPtr;
 typedef std::shared_ptr<const WorldCollisionModel> WorldCollisionModelConstPtr;
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

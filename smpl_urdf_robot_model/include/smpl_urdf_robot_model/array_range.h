@@ -3,8 +3,7 @@
 
 #include <utility>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 template <class InputIt>
 struct range
@@ -33,8 +32,7 @@ auto end(const range<InputIt>& r) -> InputIt
     return r.p.second;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

@@ -35,8 +35,7 @@
 // system includes
 #include <sbpl/heuristics/heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class SoftBfsHeuristic : public RobotHeuristic
 {
@@ -66,7 +65,6 @@ private:
     void syncGridAndBfs();
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -10,8 +10,7 @@
 #include <smpl/time.h>
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "search.egwastar";
 
@@ -368,5 +367,4 @@ void ExperienceGraphPlanner::extractPath(
     cost = m_goal_state->g;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

@@ -31,7 +31,7 @@
 
 #include <vector>
 
-namespace sbpl {
+namespace smpl {
 
 struct ISuccFun {
     virtual ~ISuccFun() { }
@@ -74,4 +74,4 @@ struct ILazyPredFun {
     virtual int GetPredTrueCost(int state_id, int pred_id) = 0;
 };
 
-} // namespace sbpl
+} // namespace smpl

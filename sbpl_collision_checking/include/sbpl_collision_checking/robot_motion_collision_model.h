@@ -44,7 +44,7 @@
 // project includes
 #include <sbpl_collision_checking/robot_collision_model.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 SBPL_CLASS_FORWARD(RobotMotionCollisionModel);
@@ -62,21 +62,21 @@ public:
     MotionInterpolation(const RobotCollisionModel* rcm);
 
     int waypointCount() const { return m_waypoint_count; }
-    const motion::RobotState& diffs() const { return m_diffs; }
+    const RobotState& diffs() const { return m_diffs; }
 
     void setWaypointCount(int waypoint_count);
 
     void setEndpoints(
-        const motion::RobotState& start,
-        const motion::RobotState& finish);
+        const RobotState& start,
+        const RobotState& finish);
 
     void setEndpoints(
-        const motion::RobotState& start,
-        const motion::RobotState& finish,
+        const RobotState& start,
+        const RobotState& finish,
         const std::vector<int>& variables);
 
-    void interpolate(int n, motion::RobotState& state) const;
-    void interpolate(int n, motion::RobotState& state, const std::vector<int>& variables) const;
+    void interpolate(int n, RobotState& state) const;
+    void interpolate(int n, RobotState& state, const std::vector<int>& variables) const;
 
     // TODO: interpolation for a subset of joints
 
@@ -84,11 +84,11 @@ private:
 
     const RobotCollisionModel* m_rcm;
 
-    motion::RobotState m_start;
+    RobotState m_start;
 
     // pre-computed differences from start to finish; for quaternion variables,
     // this contains the final quaternion
-    motion::RobotState m_diffs;
+    RobotState m_diffs;
 
     int m_waypoint_count;
     double m_waypoint_count_inv;
@@ -112,30 +112,30 @@ public:
     double motionRadius(int jidx) const;
 
     double getMaxSphereMotion(
-        const motion::RobotState& start,
-        const motion::RobotState& finish) const;
+        const RobotState& start,
+        const RobotState& finish) const;
 
     double getMaxSphereMotion(
-        const motion::RobotState& diff) const;
+        const RobotState& diff) const;
 
     double getMaxSphereMotion(
-        const motion::RobotState& start,
-        const motion::RobotState& finish,
+        const RobotState& start,
+        const RobotState& finish,
         const std::vector<int>& variables) const;
 
     double getMaxSphereMotion(
-        const motion::RobotState& diff,
+        const RobotState& diff,
         const std::vector<int>& variables) const;
 
     void fillMotionInterpolation(
-        const motion::RobotState& start,
-        const motion::RobotState& finish,
+        const RobotState& start,
+        const RobotState& finish,
         double res,
         MotionInterpolation& motion) const;
 
     void fillMotionInterpolation(
-        const motion::RobotState& start,
-        const motion::RobotState& finish,
+        const RobotState& start,
+        const RobotState& finish,
         const std::vector<int>& variables,
         double res,
         MotionInterpolation& motion) const;
@@ -185,8 +185,8 @@ void MotionInterpolation::setWaypointCount(int waypoint_count)
 /// construction.
 inline
 void MotionInterpolation::setEndpoints(
-    const motion::RobotState& start,
-    const motion::RobotState& finish)
+    const RobotState& start,
+    const RobotState& finish)
 {
     m_start = start;
     m_diffs.resize(m_rcm->jointVarCount());
@@ -222,8 +222,8 @@ void MotionInterpolation::setEndpoints(
 
 inline
 void MotionInterpolation::setEndpoints(
-    const motion::RobotState& start,
-    const motion::RobotState& finish,
+    const RobotState& start,
+    const RobotState& finish,
     const std::vector<int>& variables)
 {
     m_start = start;
@@ -257,7 +257,7 @@ void MotionInterpolation::setEndpoints(
 
 /// Interpolate along the segment to generate the n'th waypoint.
 inline
-void MotionInterpolation::interpolate(int n, motion::RobotState& state) const
+void MotionInterpolation::interpolate(int n, RobotState& state) const
 {
     state.resize(m_start.size());
     const double alpha = (double)n * m_waypoint_count_inv;
@@ -303,7 +303,7 @@ void MotionInterpolation::interpolate(int n, motion::RobotState& state) const
 inline
 void MotionInterpolation::interpolate(
     int n,
-    motion::RobotState& state,
+    RobotState& state,
     const std::vector<int>& variables) const
 {
     state.resize(m_start.size());
@@ -341,8 +341,8 @@ double RobotMotionCollisionModel::motionRadius(int jidx) const
 
 inline
 void RobotMotionCollisionModel::fillMotionInterpolation(
-    const motion::RobotState& start,
-    const motion::RobotState& finish,
+    const RobotState& start,
+    const RobotState& finish,
     double res,
     MotionInterpolation& motion) const
 {
@@ -357,8 +357,8 @@ void RobotMotionCollisionModel::fillMotionInterpolation(
 
 inline
 void RobotMotionCollisionModel::fillMotionInterpolation(
-    const motion::RobotState& start,
-    const motion::RobotState& finish,
+    const RobotState& start,
+    const RobotState& finish,
     const std::vector<int>& variables,
     double res,
     MotionInterpolation& motion) const
@@ -373,6 +373,6 @@ void RobotMotionCollisionModel::fillMotionInterpolation(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

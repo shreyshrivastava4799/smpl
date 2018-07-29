@@ -39,7 +39,7 @@
 // project includes
 #include <sbpl_collision_checking/robot_collision_state.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 bool CheckSphereCollision(
@@ -165,6 +165,6 @@ bool CheckVoxelsCollisions(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

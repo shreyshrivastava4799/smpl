@@ -10,15 +10,13 @@
 // project includes
 #include <smpl_urdf_robot_model/smpl_urdf_robot_model.h>
 
-namespace smpl = sbpl::motion;
-
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "robot_model_test");
     ros::NodeHandle nh;
 
-    sbpl::VisualizerROS visualizer;
-    sbpl::visual::set_visualizer(&visualizer);
+    smpl::VisualizerROS visualizer;
+    smpl::visual::set_visualizer(&visualizer);
     ros::Duration(1.0).sleep(); // give the publisher time to set up
 
     auto model = urdf::parseURDFFile(argv[1]);
@@ -82,7 +80,7 @@ int main(int argc, char* argv[])
 
     }
 
-    auto gray = sbpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f };
+    auto gray = smpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f };
     SV_SHOW_INFO(MakeRobotVisualization(&robot_state, gray, "map", "test_visual"));
     SV_SHOW_INFO(MakeCollisionVisualization(&robot_state, gray, "map", "test_collision"));
 

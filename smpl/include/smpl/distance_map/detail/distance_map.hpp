@@ -39,7 +39,7 @@
 #include <algorithm>
 #include <set>
 
-namespace sbpl {
+namespace smpl {
 
 #define VECTOR_BUCKET_LIST_INSERT(o, key) \
 {\
@@ -803,6 +803,6 @@ void DistanceMap<Derived>::resetCell(Cell& c) const
     c.dir = NO_UPDATE_DIR;
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -4,7 +4,7 @@
 #include <iterator>
 #include <utility>
 
-namespace sbpl {
+namespace smpl {
 
 template <class BidirIt, class UnaryPredicate>
 auto unordered_remove_if(
@@ -36,6 +36,6 @@ auto unordered_remove(
             });
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

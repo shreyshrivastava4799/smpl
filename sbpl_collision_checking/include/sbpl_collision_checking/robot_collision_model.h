@@ -51,7 +51,7 @@
 #include <sbpl_collision_checking/shapes.h>
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 typedef Eigen::Affine3d (*JointTransformFunction)(
@@ -708,6 +708,6 @@ double RobotCollisionModel::maxLeafSphereRadius() const
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

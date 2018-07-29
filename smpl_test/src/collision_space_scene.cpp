@@ -8,7 +8,7 @@
 
 static const char* LOG = "collision_space_scene";
 
-using namespace sbpl::collision;
+using namespace smpl::collision;
 
 template <class T, class... Args>
 auto make_unique(Args&&... args) -> std::unique_ptr<T> {

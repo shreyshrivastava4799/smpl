@@ -7,51 +7,50 @@
 #include <smpl_urdf_robot_model/robot_model.h>
 #include <smpl_urdf_robot_model/robot_state.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace urdf {
 
-auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape
+auto MakeShapeVisualization(const Shape* shape) -> smpl::visual::Shape
 {
     switch (shape->type) {
     case ShapeType::Sphere:
     {
         auto* tmp = static_cast<const Sphere*>(shape);
-        return sbpl::visual::Sphere{ tmp->radius };
+        return smpl::visual::Sphere{ tmp->radius };
     }
     case ShapeType::Box:
     {
         auto* tmp = static_cast<const Box*>(shape);
-        return sbpl::visual::Cube{ tmp->size.x(), tmp->size.y(), tmp->size.z() };
+        return smpl::visual::Cube{ tmp->size.x(), tmp->size.y(), tmp->size.z() };
     }
     case ShapeType::Cylinder:
     {
         auto* tmp = static_cast<const Cylinder*>(shape);
-        return sbpl::visual::Cylinder{ tmp->radius, tmp->height };
+        return smpl::visual::Cylinder{ tmp->radius, tmp->height };
     }
     case ShapeType::Mesh:
     {
         auto* tmp = static_cast<const Mesh*>(shape);
-        return sbpl::visual::MeshResource{ tmp->filename, tmp->scale };
+        return smpl::visual::MeshResource{ tmp->filename, tmp->scale };
     }
     }
 }
 
 auto MakeRobotVisualization(
     const RobotState* state,
-    sbpl::visual::Color color,
+    smpl::visual::Color color,
     const std::string& frame,
     const std::string& ns,
     int32_t* id)
-    -> std::vector<sbpl::visual::Marker>
+    -> std::vector<smpl::visual::Marker>
 {
-    std::vector<sbpl::visual::Marker> markers;
+    std::vector<smpl::visual::Marker> markers;
 
     auto first_id = id == NULL ? 0 : *id;
     for (auto& link : Links(state->model)) {
         auto* pose = GetLinkTransform(state, &link);
         for (auto& visual : link.visual) {
-            sbpl::visual::Marker m;
+            smpl::visual::Marker m;
 
             m.pose = *GetVisualBodyTransform(state, &visual);
             m.shape = MakeShapeVisualization(visual.shape);
@@ -70,18 +69,18 @@ auto MakeRobotVisualization(
 
 auto MakeCollisionVisualization(
     const RobotState* state,
-    sbpl::visual::Color color,
+    smpl::visual::Color color,
     const std::string& frame,
     const std::string& ns,
     int32_t* id)
-    -> std::vector<sbpl::visual::Marker>
+    -> std::vector<smpl::visual::Marker>
 {
-    std::vector<sbpl::visual::Marker> markers;
+    std::vector<smpl::visual::Marker> markers;
 
     auto first_id = id == NULL ? 0 : *id;
     for (auto& link : Links(state->model)) {
         for (auto& collision : link.collision) {
-            sbpl::visual::Marker m;
+            smpl::visual::Marker m;
             m.pose = *GetCollisionBodyTransform(state, &collision);
             m.shape = MakeShapeVisualization(collision.shape);
             m.color = color;
@@ -99,6 +98,5 @@ auto MakeCollisionVisualization(
 }
 
 } // namespace urdf
-} // namespace motion
-} // namesace sbpl
+} // namesace smpl
 

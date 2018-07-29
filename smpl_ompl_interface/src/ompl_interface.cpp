@@ -28,10 +28,7 @@
 #include <smpl/robot_model.h>
 #include <smpl/search/arastar.h>
 
-namespace smpl = sbpl::motion;
-
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace detail {
 
 // stolen defer from scdl
@@ -194,7 +191,7 @@ struct CollisionChecker : public smpl::CollisionChecker
         std::vector<smpl::RobotState>& path) override;
 
     auto getCollisionModelVisualization(const RobotState& state)
-        -> std::vector<sbpl::visual::Marker> override;
+        -> std::vector<smpl::visual::Marker> override;
     ///@}
 
     /// \name Extension Interface
@@ -237,7 +234,7 @@ bool CollisionChecker::interpolatePath(
 }
 
 auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
-    -> std::vector<sbpl::visual::Marker>
+    -> std::vector<smpl::visual::Marker>
 {
     return this->visualizer(state);
 }
@@ -275,7 +272,7 @@ struct PlannerImpl
     std::unique_ptr<smpl::RobotHeuristic> heuristic;
 
     // search
-    std::unique_ptr<sbpl::ARAStar> search;
+    std::unique_ptr<smpl::ARAStar> search;
 
     OccupancyGrid* grid = NULL;
 
@@ -854,10 +851,10 @@ auto PlannerImpl::solve(
     // and allow the state of the search to persist between calls
     this->search->force_planning_from_scratch();
 
-    sbpl::ARAStar::TimeParameters time_params;
+    smpl::ARAStar::TimeParameters time_params;
     time_params.bounded = this->search->boundExpansions();
     time_params.improve = this->search->improveSolution();
-    time_params.type = sbpl::ARAStar::TimeParameters::USER;
+    time_params.type = smpl::ARAStar::TimeParameters::USER;
     time_params.timed_out_fun = [&]() { return ptc.eval(); };
 
     auto start_id = space.getStartStateID();
@@ -1073,6 +1070,5 @@ auto MakeStateOMPL(
     return std::move(s);
 }
 
-} // namespace motion
 } // namespace smpl
 

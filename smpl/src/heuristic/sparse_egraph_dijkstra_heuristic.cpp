@@ -42,8 +42,7 @@
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/graph/experience_graph_extension.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.egraph_bfs";
 
@@ -679,5 +678,4 @@ void SparseEGraphDijkstra3DHeuristic::syncGridAndDijkstra()
     SMPL_INFO_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

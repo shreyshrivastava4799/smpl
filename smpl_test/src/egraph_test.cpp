@@ -39,8 +39,6 @@
 // system includes
 #include <smpl/graph/experience_graph.h>
 
-namespace smpl = sbpl::motion;
-
 bool IteratedAllNodes(const smpl::ExperienceGraph& eg)
 {
     std::vector<bool> found(eg.num_nodes(), false);

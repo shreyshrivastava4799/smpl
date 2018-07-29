@@ -38,8 +38,7 @@
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.euclid_dist";
 
@@ -285,5 +284,4 @@ double EuclidDistHeuristic::computeDistance(
             m_z_coeff * sqrd(diff.z());
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

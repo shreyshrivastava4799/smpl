@@ -37,7 +37,7 @@
 #include <memory>
 #include <utility>
 
-namespace sbpl {
+namespace smpl {
 namespace detail {
 
 template <typename T>
@@ -180,7 +180,7 @@ protected:
 };
 
 } // namespace detail
-} // namespace sbpl
+} // namespace smpl
 
 #include "octree_base.hpp"
 

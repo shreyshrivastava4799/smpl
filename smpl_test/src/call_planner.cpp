@@ -56,8 +56,6 @@
 #include "collision_space_scene.h"
 #include "pr2_allowed_collision_pairs.h"
 
-namespace smpl = sbpl::motion;
-
 void FillGoalConstraint(
     const std::vector<double>& pose,
     std::string frame_id,
@@ -83,7 +81,7 @@ void FillGoalConstraint(
 //    goals.position_constraints[0].position.z = pose[2];
 
     Eigen::Quaterniond q;
-    sbpl::angles::from_euler_zyx(pose[5], pose[4], pose[3], q);
+    smpl::angles::from_euler_zyx(pose[5], pose[4], pose[3], q);
     tf::quaternionEigenToMsg(q, goals.orientation_constraints[0].orientation);
 
     geometry_msgs::Pose p;
@@ -256,7 +254,7 @@ bool ReadInitialConfiguration(
                     multi_dof_joint_state.joint_names[i] = std::string(xlist[i]["joint_name"]);
 
                     Eigen::Quaterniond q;
-                    sbpl::angles::from_euler_zyx(
+                    smpl::angles::from_euler_zyx(
                             (double)xlist[i]["yaw"], (double)xlist[i]["pitch"], (double)xlist[i]["roll"], q);
 
                     geometry_msgs::Quaternion orientation;
@@ -389,7 +387,7 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
 }
 
 auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
-    -> std::unique_ptr<sbpl::motion::KDLRobotModel>
+    -> std::unique_ptr<smpl::KDLRobotModel>
 {
     if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
         ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
@@ -397,7 +395,7 @@ auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
     }
 
     ROS_INFO("Construct Generic KDL Robot Model");
-    std::unique_ptr<sbpl::motion::KDLRobotModel> rm(new sbpl::motion::KDLRobotModel);
+    std::unique_ptr<smpl::KDLRobotModel> rm(new smpl::KDLRobotModel);
 
     if (!rm->init(urdf, config.kinematics_frame, config.chain_tip_link)) {
         ROS_ERROR("Failed to initialize robot model.");
@@ -414,8 +412,8 @@ int main(int argc, char* argv[])
     ros::NodeHandle ph("~");
 
     ROS_INFO("Initialize visualizer");
-    sbpl::VisualizerROS visualizer(nh, 100);
-    sbpl::viz::set_visualizer(&visualizer);
+    smpl::VisualizerROS visualizer(nh, 100);
+    smpl::viz::set_visualizer(&visualizer);
 
     // Let publishers set up
     ros::Duration(1.0).sleep();
@@ -471,7 +469,7 @@ int main(int argc, char* argv[])
     auto df_origin_z = 0.0;
     auto max_distance = 1.8;
 
-    using DistanceMapType = sbpl::EuclidDistanceMap;
+    using DistanceMapType = smpl::EuclidDistanceMap;
 
     auto df = std::make_shared<DistanceMapType>(
             df_origin_x, df_origin_y, df_origin_z,
@@ -480,7 +478,7 @@ int main(int argc, char* argv[])
             max_distance);
 
     auto ref_counted = false;
-    sbpl::OccupancyGrid grid(df, ref_counted);
+    smpl::OccupancyGrid grid(df, ref_counted);
 
     grid.setReferenceFrame(planning_frame);
     SV_SHOW_INFO(grid.getBoundingBoxVisualization());
@@ -495,13 +493,13 @@ int main(int argc, char* argv[])
     // its associated CollisionSpace instance.
     CollisionSpaceScene scene;
 
-    sbpl::collision::CollisionModelConfig cc_conf;
-    if (!sbpl::collision::CollisionModelConfig::Load(ph, cc_conf)) {
+    smpl::collision::CollisionModelConfig cc_conf;
+    if (!smpl::collision::CollisionModelConfig::Load(ph, cc_conf)) {
         ROS_ERROR("Failed to load Collision Model Config");
         return 1;
     }
 
-    sbpl::collision::CollisionSpace cc;
+    smpl::collision::CollisionSpace cc;
     if (!cc.init(
             &grid,
             robot_description,
@@ -514,7 +512,7 @@ int main(int argc, char* argv[])
     }
 
     if (cc.robotCollisionModel()->name() == "pr2") {
-        sbpl::collision::AllowedCollisionMatrix acm;
+        smpl::collision::AllowedCollisionMatrix acm;
         for (auto& pair : PR2AllowedCollisionPairs) {
             acm.setEntry(pair.first, pair.second, true);
         }

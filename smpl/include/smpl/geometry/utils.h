@@ -30,13 +30,13 @@
 #ifndef SMPL_UTILS_H
 #define SMPL_UTILS_H
 
-namespace sbpl {
+namespace smpl {
 namespace utils {
 
 template <typename T>
 constexpr T sign(T val) { return (val == 0) ? ((T)0) : ((val > 0) ? ((T)1) : (T(-1))); }
 
 } // end namespace utils
-} // end namespace sbpl
+} // end namespace smpl
 
 #endif

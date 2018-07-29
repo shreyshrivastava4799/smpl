@@ -10,8 +10,7 @@
 // project includes
 #include <smpl_urdf_robot_model/robot_model.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace urdf {
 
 static
@@ -697,6 +696,5 @@ bool IsDirty(const RobotState* state)
 }
 
 } // namespace urdf
-} // namespace motion
 } // namespace smpl
 

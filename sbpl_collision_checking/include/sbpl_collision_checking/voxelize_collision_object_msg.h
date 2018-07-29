@@ -10,7 +10,7 @@
 #include <shape_msgs/Plane.h>
 #include <shape_msgs/SolidPrimitive.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 bool VoxelizeCollisionObject(
@@ -79,7 +79,7 @@ bool VoxelizePlane(
     std::vector<Eigen::Vector3d>& voxels);
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

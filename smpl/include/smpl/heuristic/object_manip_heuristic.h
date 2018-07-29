@@ -5,8 +5,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ExperienceGraphExtension;
 class ExtractRobotStateExtension;
@@ -60,8 +59,7 @@ public:
     auto getExtension(size_t class_code) -> Extension* override;
 };
 
-} // namspace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

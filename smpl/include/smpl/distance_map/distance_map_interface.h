@@ -42,7 +42,7 @@
 // project includes
 #include <smpl/forward.h>
 
-namespace sbpl {
+namespace smpl {
 
 SBPL_CLASS_FORWARD(DistanceMapInterface)
 
@@ -142,6 +142,6 @@ protected:
     double m_res;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

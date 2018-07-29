@@ -41,7 +41,7 @@
 #include <smpl/geometry/mesh_utils.h>
 #include <smpl/geometry/triangle.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 //////////////////////////////////
@@ -963,4 +963,4 @@ void VoxelizeSphereListQAD(
 }
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl

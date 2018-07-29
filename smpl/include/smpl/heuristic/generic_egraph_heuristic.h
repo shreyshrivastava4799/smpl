@@ -38,8 +38,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class GenericEgraphHeuristic :
     public RobotHeuristic,
@@ -116,7 +115,6 @@ private:
     intrusive_heap<HeuristicNode, NodeCompare> m_open;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

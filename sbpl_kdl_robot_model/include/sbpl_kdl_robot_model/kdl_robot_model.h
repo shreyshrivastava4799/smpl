@@ -48,8 +48,7 @@
 #include <smpl_urdf_robot_model/smpl_urdf_robot_model.h>
 #include <urdf/model.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class KDLRobotModel :
     public virtual urdf::URDFRobotModel,
@@ -138,7 +137,6 @@ public:
     double m_timeout;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -41,7 +41,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
+namespace smpl {
 
 static const char* LOG = "search.smhastar";
 static const char* ELOG = "search.smhastar.expansions";
@@ -624,4 +624,4 @@ bool SMHAStar::closed_in_any_search(SMHAState* state) const
     return state->closed_in_anc || state->closed_in_add;
 }
 
-} // namespace sbpl
+} // namespace smpl

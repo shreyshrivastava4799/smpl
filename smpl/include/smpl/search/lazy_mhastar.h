@@ -36,15 +36,15 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/search/lazy_search_interface.h>
 
-namespace sbpl {
+namespace smpl {
 
 struct LazySMHAStar;
 
 bool Init(
     LazySMHAStar& search,
     ILazySuccFun* succ_fun,
-    motion::RobotHeuristic* heuristic,
-    motion::RobotHeuristic* heuristics[],
+    RobotHeuristic* heuristic,
+    RobotHeuristic* heuristics[],
     size_t h_count);
 
 int Replan(
@@ -98,8 +98,8 @@ struct LazySMHAStar
     };
 
     ILazySuccFun*               succ_fun_       = nullptr;
-    motion::RobotHeuristic*     h_anchor_       = nullptr;
-    motion::RobotHeuristic**    h_others_       = nullptr;
+    RobotHeuristic*             h_anchor_       = nullptr;
+    RobotHeuristic**            h_others_       = nullptr;
     size_t                      h_count_        = 0; // the number of additional heuristics
 
     std::vector<State*>     states_;
@@ -117,4 +117,4 @@ struct LazySMHAStar
     std::vector<bool> true_costs_;
 };
 
-} // namespace sbpl
+} // namespace smpl

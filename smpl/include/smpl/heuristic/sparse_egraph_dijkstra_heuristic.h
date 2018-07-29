@@ -41,11 +41,10 @@
 #include <smpl/graph/experience_graph.h>
 #include <smpl/grid/sparse_grid.h>
 
-namespace sbpl {
+namespace smpl {
 
 class OccupancyGrid;
 
-namespace motion {
 
 class ExperienceGraphExtension;
 class PointProjectionExtension;
@@ -174,7 +173,6 @@ private:
     void syncGridAndDijkstra();
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

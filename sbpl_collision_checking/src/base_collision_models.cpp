@@ -38,7 +38,7 @@
 // project includes
 #include <sbpl_collision_checking/base_collision_models.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 namespace sphere_traits {
@@ -706,4 +706,4 @@ std::string to_string(const SphereIndex& i)
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

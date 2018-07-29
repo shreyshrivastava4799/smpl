@@ -45,7 +45,7 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 
-namespace sbpl {
+namespace smpl {
 
 MetaMHAstarDTS::MetaMHAstarDTS(
     DiscreteSpaceInformation* environment,
@@ -181,7 +181,7 @@ int MetaMHAstarDTS::replan(
     m_num_expansions = 0;
     m_elapsed = 0.0;
 
-    auto start_time = sbpl::clock::now();
+    auto start_time = smpl::clock::now();
 
     ++m_call_number;
     reinit_state(m_goal_state);
@@ -204,14 +204,14 @@ int MetaMHAstarDTS::replan(
     std::fill(m_betas.begin(), m_betas.end(), 1.0);
     m_rng.seed(0);
 
-    auto end_time = sbpl::clock::now();
+    auto end_time = smpl::clock::now();
     m_elapsed += to_seconds(end_time - start_time);
 
     const int anchor_freq = m_hcount;
     int iter_count = 0;
 
     while (!m_open[0].empty() && !time_limit_reached()) {
-        auto start_time = sbpl::clock::now();
+        auto start_time = smpl::clock::now();
 
         // check termination criteria
         if (m_goal_state->g <= m_eps * get_minf(m_open[0])) {
@@ -250,7 +250,7 @@ int MetaMHAstarDTS::replan(
             s->closed_in_anc = true;
         }
 
-        auto end_time = sbpl::clock::now();
+        auto end_time = smpl::clock::now();
         m_elapsed += to_seconds(end_time - start_time);
     }
 
@@ -693,4 +693,4 @@ bool MetaMHAstarDTS::closed_in_any_search(MHASearchState* state) const
     return state->closed_in_anc || state->closed_in_add;
 }
 
-} // namespace sbpl
+} // namespace smpl

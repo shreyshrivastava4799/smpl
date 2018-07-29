@@ -34,7 +34,7 @@
 // standard includes
 #include <set>
 
-namespace sbpl {
+namespace smpl {
 
 SparseDistanceMap::SparseDistanceMap(
     double origin_x, double origin_y, double origin_z,
@@ -822,4 +822,4 @@ double SparseDistanceMap::getInterpMetricSquaredDistance(
     return (sum - m_error) * (sum - m_error);
 }
 
-} // namespace sbpl
+} // namespace smpl

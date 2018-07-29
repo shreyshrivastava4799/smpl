@@ -51,8 +51,7 @@
 #include <smpl/graph/workspace_lattice_base.h>
 #include <smpl/graph/workspace_lattice_types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 struct WorkspaceLatticeActionSpace;
 
@@ -183,8 +182,7 @@ struct WorkspaceLattice :
         -> std::vector<visual::Marker>;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

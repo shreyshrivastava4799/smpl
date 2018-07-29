@@ -41,8 +41,7 @@
 #include <smpl/debug/marker.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class BfsHeuristic : public RobotHeuristic
 {
@@ -103,7 +102,6 @@ private:
     int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -1,6 +1,6 @@
 #include <smpl/console/ansi.h>
 
-namespace sbpl {
+namespace smpl {
 namespace console {
 namespace codes {
 
@@ -29,4 +29,4 @@ const char* white = "\x1B[37m";
 
 } // namespace codes
 } // namespace console
-} // namespace sbpl
+} // namespace smpl

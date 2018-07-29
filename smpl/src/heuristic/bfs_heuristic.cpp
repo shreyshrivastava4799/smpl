@@ -39,8 +39,7 @@
 #include <smpl/grid/grid.h>
 #include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.bfs";
 
@@ -414,5 +413,4 @@ int BfsHeuristic::getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

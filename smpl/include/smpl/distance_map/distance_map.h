@@ -48,7 +48,7 @@
 
 #include "detail/distance_map_common.h"
 
-namespace sbpl {
+namespace smpl {
 
 template <typename Derived>
 class DistanceMap : public DistanceMapInterface
@@ -191,7 +191,7 @@ private:
     void resetCell(Cell& c) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/distance_map.hpp"
 

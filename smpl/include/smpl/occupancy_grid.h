@@ -47,7 +47,7 @@
 #include <smpl/debug/marker.h>
 #include <smpl/distance_map/distance_map_interface.h>
 
-namespace sbpl {
+namespace smpl {
 
 SBPL_CLASS_FORWARD(OccupancyGrid)
 
@@ -278,6 +278,6 @@ int OccupancyGrid::getCellCount() const
     return m_grid->numCellsX() * m_grid->numCellsY() * m_grid->numCellsZ();
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

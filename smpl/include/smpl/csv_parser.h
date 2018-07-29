@@ -37,7 +37,7 @@
 #include <string>
 #include <vector>
 
-namespace sbpl {
+namespace smpl {
 
 class CSVParser
 {
@@ -123,6 +123,6 @@ private:
         std::string& name);
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

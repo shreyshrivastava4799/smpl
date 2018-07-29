@@ -44,8 +44,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/occupancy_grid.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class DijkstraEgraphHeuristic3D :
     public RobotHeuristic,
@@ -164,7 +163,6 @@ private:
     void syncGridAndDijkstra();
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

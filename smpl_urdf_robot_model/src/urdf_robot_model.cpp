@@ -4,8 +4,7 @@
 #include <smpl_urdf_robot_model/robot_state_bounds.h>
 #include <smpl_urdf_robot_model/robot_model.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace urdf {
 
 bool Init(
@@ -83,7 +82,7 @@ void SetReferenceState(URDFRobotModel* model, const double* positions)
 }
 
 static
-void UpdateState(URDFRobotModel* model, const sbpl::motion::RobotState* state)
+void UpdateState(URDFRobotModel* model, const smpl::RobotState* state)
 {
     for (auto i = 0; i < model->jointVariableCount(); ++i) {
         SetVariablePosition(
@@ -93,7 +92,7 @@ void UpdateState(URDFRobotModel* model, const sbpl::motion::RobotState* state)
     }
 }
 
-auto URDFRobotModel::computeFK(const sbpl::motion::RobotState& state)
+auto URDFRobotModel::computeFK(const smpl::RobotState& state)
     -> Eigen::Affine3d
 {
     UpdateState(this, &state);
@@ -132,7 +131,7 @@ double URDFRobotModel::accLimit(int jidx) const
 }
 
 bool URDFRobotModel::checkJointLimits(
-    const sbpl::motion::RobotState& state,
+    const smpl::RobotState& state,
     bool verbose)
 {
     for (auto i = 0; i < this->jointVariableCount(); ++i) {
@@ -144,14 +143,13 @@ bool URDFRobotModel::checkJointLimits(
     return true;
 }
 
-auto URDFRobotModel::getExtension(size_t class_code) -> sbpl::motion::Extension*
+auto URDFRobotModel::getExtension(size_t class_code) -> smpl::Extension*
 {
-    if (class_code == sbpl::motion::GetClassCode<sbpl::motion::RobotModel>()) return this;
-    if (class_code == sbpl::motion::GetClassCode<sbpl::motion::ForwardKinematicsInterface>()) return this;
+    if (class_code == smpl::GetClassCode<smpl::RobotModel>()) return this;
+    if (class_code == smpl::GetClassCode<smpl::ForwardKinematicsInterface>()) return this;
     return NULL;
 }
 
 } // namespace urdf
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 

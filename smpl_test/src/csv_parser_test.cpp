@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
     }
     std::ifstream ifs(argv[1]);
 
-    sbpl::CSVParser parser;
+    smpl::CSVParser parser;
     if (!parser.parseStream(ifs)) {
         fprintf(stderr, "failed to parse %s\n", argv[0]);
         return 1;

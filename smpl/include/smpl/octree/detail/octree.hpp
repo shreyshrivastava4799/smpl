@@ -38,7 +38,7 @@
 #include <cmath>
 #include <algorithm>
 
-namespace sbpl {
+namespace smpl {
 
 /// Construct an OcTree whose root node's value is initialized through value
 /// initialization
@@ -445,6 +445,6 @@ bool OcTree<T, Allocator>::dfs_iterator<U, V>::operator!=(
     return !(s == i.s);
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

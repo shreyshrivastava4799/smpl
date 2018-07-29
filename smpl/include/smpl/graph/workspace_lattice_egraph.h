@@ -3,10 +3,7 @@
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/graph/experience_graph.h>
 
-namespace smpl = sbpl::motion;
-
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 struct WorkspaceLatticeEGraph :
     public WorkspaceLattice,
@@ -83,5 +80,4 @@ struct WorkspaceLatticeEGraph :
 };
 
 } // namespace smpl
-} // namespace sbpl
 

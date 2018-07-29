@@ -4,8 +4,7 @@
 // system includes
 #include <Eigen/Dense>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace urdf {
 
 using Affine3 = Eigen::Affine3d;
@@ -15,7 +14,6 @@ using AngleAxis = Eigen::AngleAxisd;
 using Translation3 = Eigen::Translation3d;
 
 } // namespace urdf
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

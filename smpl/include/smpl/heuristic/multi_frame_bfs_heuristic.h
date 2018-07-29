@@ -41,8 +41,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/bfs3d/bfs3d.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class MultiFrameBfsHeuristic : public RobotHeuristic
 {
@@ -112,7 +111,6 @@ private:
     int combine_costs(int c1, int c2) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

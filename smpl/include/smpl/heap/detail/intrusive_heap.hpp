@@ -37,7 +37,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-namespace sbpl {
+namespace smpl {
 
 template <class T, class Compare>
 intrusive_heap<T, Compare>::intrusive_heap(const compare& comp) :
@@ -429,6 +429,6 @@ void swap(intrusive_heap<T, Compare>& lhs, intrusive_heap<T, Compare>& rhs)
     lhs.swap(rhs);
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

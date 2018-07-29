@@ -39,7 +39,7 @@
 // project includes
 #include <smpl/geometry/voxel_grid.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 void CreateIndexedBoxMesh(
@@ -95,7 +95,7 @@ void CreateGridMesh(
     std::vector<Eigen::Vector3d>& vertices);
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/mesh_utils.hpp"
 

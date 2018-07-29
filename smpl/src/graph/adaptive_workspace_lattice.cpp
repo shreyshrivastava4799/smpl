@@ -45,7 +45,7 @@
 constexpr auto PlanAdaptiveGridVisName = "adaptive_grid_plan";
 constexpr auto TrackAdaptiveGridVisName = "adaptive_grid_track";
 
-auto std::hash<sbpl::motion::AdaptiveGridState>::operator()(
+auto std::hash<smpl::AdaptiveGridState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -55,7 +55,7 @@ auto std::hash<sbpl::motion::AdaptiveGridState>::operator()(
     return seed;
 }
 
-auto std::hash<sbpl::motion::AdaptiveWorkspaceState>::operator()(
+auto std::hash<smpl::AdaptiveWorkspaceState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -63,8 +63,7 @@ auto std::hash<sbpl::motion::AdaptiveWorkspaceState>::operator()(
     return seed;
 }
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 std::ostream& operator<<(std::ostream& o, const AdaptiveGridState& s)
 {
@@ -1114,5 +1113,4 @@ auto AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) cons
         plan_mode ? PlanAdaptiveGridVisName : TrackAdaptiveGridVisName);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

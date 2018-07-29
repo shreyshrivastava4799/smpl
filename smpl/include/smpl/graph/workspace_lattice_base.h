@@ -36,8 +36,7 @@
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/graph/workspace_lattice_types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 /// Base class for graph representations that represent states via a 1:1 mapping
 /// from joint space states to states in SE(3) alongside an array of redundant
@@ -112,7 +111,6 @@ public:
     void favCoordToWorkspace(const int* ga, double* wa) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -5,8 +5,7 @@
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const double FixedPointRatio = 1000.0;
 
@@ -285,14 +284,14 @@ int ObjectManipulationHeuristic::GetGoalHeuristic(int state_id)
             if ((dbx * dbx + dby * dby) > (this->heading_thresh * this->heading_thresh)) {
                 auto heading = atan2(dby, dbx);
                 double heading_diff;
-                if (sbpl::angles::shortest_angle_dist(heading, state[2]) <
-                    sbpl::angles::shortest_angle_dist(heading + M_PI, state[2]))
+                if (smpl::angles::shortest_angle_dist(heading, state[2]) <
+                    smpl::angles::shortest_angle_dist(heading + M_PI, state[2]))
                 {
-                    heading_weight = sbpl::angles::shortest_angle_dist(heading, state[2]) +
-                            sbpl::angles::shortest_angle_dist(heading, egraph_state[2]);
+                    heading_weight = smpl::angles::shortest_angle_dist(heading, state[2]) +
+                            smpl::angles::shortest_angle_dist(heading, egraph_state[2]);
                 } else {
-                    heading_weight = sbpl::angles::shortest_angle_dist(heading + M_PI, state[2]) +
-                            sbpl::angles::shortest_angle_dist(heading + M_PI, egraph_state[2]);
+                    heading_weight = smpl::angles::shortest_angle_dist(heading + M_PI, state[2]) +
+                            smpl::angles::shortest_angle_dist(heading + M_PI, egraph_state[2]);
                 }
             } else {
                 heading_weight = dbtheta;
@@ -368,5 +367,4 @@ Extension* ObjectManipulationHeuristic::getExtension(size_t class_code)
     return nullptr;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

@@ -31,8 +31,7 @@
 
 #include <smpl/heuristic/zero_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool ZeroHeuristic::init(RobotPlanningSpace* space)
 {
@@ -72,6 +71,5 @@ int ZeroHeuristic::GetFromToHeuristic(int from_id, int to_id)
     return 0;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 

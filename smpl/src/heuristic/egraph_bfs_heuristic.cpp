@@ -39,8 +39,7 @@
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.dijkstra_egraph";
 static const char* SLOG = "heuristic.dijkstra_egraph.shortcuts";
@@ -674,5 +673,4 @@ void DijkstraEgraphHeuristic3D::syncGridAndDijkstra()
     SMPL_INFO_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

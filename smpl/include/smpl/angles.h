@@ -38,7 +38,7 @@
 // system includes
 #include <Eigen/Dense>
 
-namespace sbpl {
+namespace smpl {
 namespace angles {
 
 /// \brief Normalize an angle into the range [-pi, pi].
@@ -196,7 +196,7 @@ auto get_nearest_planar_rotation(const Eigen::Quaternion<T>& q) -> T
 }
 
 } // namespace angles
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

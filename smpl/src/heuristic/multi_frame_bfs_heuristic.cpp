@@ -37,8 +37,7 @@
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.mfbfs";
 
@@ -378,5 +377,4 @@ int MultiFrameBfsHeuristic::combine_costs(int c1, int c2) const
     return c1 + c2;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

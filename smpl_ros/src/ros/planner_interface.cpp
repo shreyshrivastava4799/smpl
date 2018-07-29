@@ -79,8 +79,7 @@
 #include <smpl/search/experience_graph_planner.h>
 #include <smpl/search/awastar.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 template <class T, class... Args>
 auto make_unique(Args&&... args) -> std::unique_ptr<T> {
@@ -2286,5 +2285,4 @@ bool PlannerInterface::writePath(
     return true;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

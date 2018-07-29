@@ -54,8 +54,7 @@
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/graph/action_space.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class RobotHeuristic;
 
@@ -73,23 +72,21 @@ bool operator==(const ManipLatticeState& a, const ManipLatticeState& b)
     return a.coord == b.coord;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 namespace std {
 
 template <>
-struct hash<sbpl::motion::ManipLatticeState>
+struct hash<smpl::ManipLatticeState>
 {
-    typedef sbpl::motion::ManipLatticeState argument_type;
+    typedef smpl::ManipLatticeState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };
 
 } // namespace std
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 SBPL_CLASS_FORWARD(ManipLattice);
 
@@ -242,7 +239,6 @@ private:
     ///@}
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

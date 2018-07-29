@@ -33,8 +33,7 @@
 
 #include <smpl/occupancy_grid.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool AttractorHeuristic::init(
     RobotPlanningSpace* space,
@@ -107,5 +106,4 @@ int AttractorHeuristic::GetFromToHeuristic(int from_id, int to_id)
     return 0;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

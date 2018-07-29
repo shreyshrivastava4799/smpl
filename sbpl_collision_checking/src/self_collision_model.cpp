@@ -39,7 +39,7 @@
 // project includes
 #include "collision_operations.h"
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* SCM_LOGGER = "self";
@@ -263,7 +263,7 @@ bool SelfCollisionModel::checkMotionCollision(
     MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
-    motion::RobotState interm;
+    RobotState interm;
     for (int i = 0; i < interp.waypointCount(); ++i) {
         interp.interpolate(i, interm);
         state.setJointVarPositions(interm.data());
@@ -288,7 +288,7 @@ bool SelfCollisionModel::checkMotionCollision(
     MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
-    motion::RobotState interm;
+    RobotState interm;
     for (int i = 0; i < interp.waypointCount(); ++i) {
         interp.interpolate(i, interm);
         state.setJointVarPositions(interm.data());
@@ -930,14 +930,14 @@ bool CheckGeometryCollision(
         v3.y() = m2->vertices[3 * t23 + 1];
         v3.z() = m2->vertices[3 * t23 + 2];
 
-        sbpl::geometry::Triangle t1, t2;
+        smpl::geometry::Triangle t1, t2;
         t1.a = p1 * u1;
         t1.b = p1 * u2;
         t1.c = p1 * u3;
         t2.a = p2 * v1;
         t2.b = p2 * v2;
         t2.c = p2 * v3;
-        return !sbpl::geometry::Intersects(t1, t2, 1e-4);
+        return !smpl::geometry::Intersects(t1, t2, 1e-4);
     }
     return true;
 }
@@ -1773,4 +1773,4 @@ bool SelfCollisionModel::getRobotAttachedBodySpheresStateCollisionDetails(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

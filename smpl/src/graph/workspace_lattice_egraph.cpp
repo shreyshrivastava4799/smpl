@@ -15,8 +15,7 @@
 #include <smpl/graph/workspace_lattice_action_space.h>
 #include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static
 bool GetSnapMotion(
@@ -881,6 +880,5 @@ Extension* WorkspaceLatticeEGraph::getExtension(size_t class_code)
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 

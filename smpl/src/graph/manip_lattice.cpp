@@ -48,7 +48,7 @@
 #include <smpl/debug/marker_utils.h>
 #include "../profiling.h"
 
-auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
+auto std::hash<smpl::ManipLatticeState>::operator()(
     const argument_type& s) const -> result_type
 {
     size_t seed = 0;
@@ -56,8 +56,7 @@ auto std::hash<sbpl::motion::ManipLatticeState>::operator()(
     return seed;
 }
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 ManipLattice::~ManipLattice()
 {
@@ -1104,5 +1103,4 @@ void ManipLattice::startNewSearch()
     m_t_start = clock::now();
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

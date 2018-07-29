@@ -42,8 +42,7 @@
 #include <smpl/angles.h>
 #include <smpl/time.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 template <class T, class... Args>
 auto make_unique(Args&&... args) -> std::unique_ptr<T> {
@@ -211,7 +210,7 @@ void NormalizeAngles(KDLRobotModel* model, KDL::JntArray* q)
 {
     for (auto i = 0; i < model->jointVariableCount(); ++i) {
         if (model->vprops[i].continuous) {
-            (*q)(i) = sbpl::angles::normalize_angle((*q)(i));
+            (*q)(i) = smpl::angles::normalize_angle((*q)(i));
         }
     }
 }
@@ -246,7 +245,7 @@ bool KDLRobotModel::computeIKSearch(
 
     auto initial_guess = m_jnt_pos_in(m_free_angle);
 
-    auto start_time = sbpl::clock::now();
+    auto start_time = smpl::clock::now();
     auto loop_time = 0.0;
     auto count = 0;
 
@@ -271,7 +270,7 @@ bool KDLRobotModel::computeIKSearch(
         }
         m_jnt_pos_in(m_free_angle) = initial_guess + this->m_search_discretization * count;
         ROS_DEBUG("%d, %f", count, m_jnt_pos_in(m_free_angle));
-        loop_time = to_seconds(sbpl::clock::now() - start_time);
+        loop_time = to_seconds(smpl::clock::now() - start_time);
     }
 
     if (loop_time >= this->m_timeout) {
@@ -354,5 +353,4 @@ auto KDLRobotModel::getExtension(size_t class_code) -> Extension*
     return URDFRobotModel::getExtension(class_code);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

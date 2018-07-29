@@ -53,7 +53,7 @@
 #include <sbpl_collision_checking/voxel_operations.h>
 #include "transform_functions.h"
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* LOG = "robot_model";
@@ -1203,4 +1203,4 @@ bool RobotCollisionModel::voxelizeGeometry(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

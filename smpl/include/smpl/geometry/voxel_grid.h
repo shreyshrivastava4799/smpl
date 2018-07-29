@@ -39,7 +39,7 @@
 // project includes
 #include <smpl/geometry/discretize.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 struct MemoryIndex
@@ -506,6 +506,6 @@ public:
 };
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #endif

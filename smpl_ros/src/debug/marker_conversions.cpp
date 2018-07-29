@@ -1,6 +1,6 @@
 #include <smpl/debug/marker_conversions.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 void ConvertMarkerMsgToMarker(const visualization_msgs::Marker& mm, Marker& m)
@@ -252,13 +252,13 @@ auto ConvertMarkersToMarkerArray(const std::vector<Marker>& markers)
 }
 
 auto ConvertMarkerArrayToMarkers(const visualization_msgs::MarkerArray& ma)
-    -> std::vector<sbpl::visual::Marker>
+    -> std::vector<smpl::visual::Marker>
 {
-    std::vector<sbpl::visual::Marker> markers;
+    std::vector<smpl::visual::Marker> markers;
     markers.reserve(ma.markers.size());
 
     for (auto& m : ma.markers) {
-        sbpl::visual::Marker marker;
+        smpl::visual::Marker marker;
         ConvertMarkerMsgToMarker(m, marker);
         markers.push_back(std::move(marker));
     }
@@ -267,4 +267,4 @@ auto ConvertMarkerArrayToMarkers(const visualization_msgs::MarkerArray& ma)
 }
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl

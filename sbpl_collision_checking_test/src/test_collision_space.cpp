@@ -49,8 +49,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "sbpl_collision_space_test");
     ros::NodeHandle nh;
 
-    sbpl::VisualizerROS visualizer;
-    sbpl::visual::set_visualizer(&visualizer);
+    smpl::VisualizerROS visualizer;
+    smpl::visual::set_visualizer(&visualizer);
 
     ros::NodeHandle ph("~");
 
@@ -90,13 +90,13 @@ int main(int argc, char **argv)
 
     const double res = 0.02;
     const double max_distance = 0.4;
-    auto df = std::make_shared<sbpl::PropagationDistanceField>(
+    auto df = std::make_shared<smpl::PropagationDistanceField>(
             origin[0], origin[1], origin[2],
             dims[0], dims[1], dims[2],
             res,
             max_distance);
 
-    sbpl::OccupancyGrid grid(df);
+    smpl::OccupancyGrid grid(df);
     grid.setReferenceFrame(world_frame);
 
     std::string urdf_string;
@@ -105,13 +105,13 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    sbpl::collision::CollisionModelConfig cspace_config;
-    if (!sbpl::collision::CollisionModelConfig::Load(ros::NodeHandle(), cspace_config)) {
+    smpl::collision::CollisionModelConfig cspace_config;
+    if (!smpl::collision::CollisionModelConfig::Load(ros::NodeHandle(), cspace_config)) {
         ROS_ERROR("Failed to load Collision Model Config");
         return 1;
     }
 
-    sbpl::collision::CollisionSpace cspace;
+    smpl::collision::CollisionSpace cspace;
     if (!cspace.init(&grid, urdf_string, cspace_config, group_name, joint_names)) {
         ROS_ERROR("Failed to initialize Collision Space");
         return 1;

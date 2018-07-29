@@ -45,7 +45,7 @@
 #include <sbpl_collision_checking/base_collision_states.h>
 #include <sbpl_collision_checking/robot_collision_model.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 class RobotCollisionState
@@ -599,6 +599,6 @@ inline auto RobotCollisionState::getVisualization(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

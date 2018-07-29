@@ -38,8 +38,7 @@
 // system includes
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 const std::string PlanningParams::DefaultRobotModelLog = "robot";
 const std::string PlanningParams::DefaultGraphLog = "graph";
@@ -268,5 +267,4 @@ void PlanningParams::convertToString(const Parameter& p, std::string& val) const
     val = boost::apply_visitor(string_converter(), p);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

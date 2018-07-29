@@ -35,8 +35,7 @@
 // project includes
 #include <smpl/heuristic/robot_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class EuclidDistHeuristic : public RobotHeuristic
 {
@@ -95,7 +94,6 @@ private:
         const Eigen::Vector3d& v) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

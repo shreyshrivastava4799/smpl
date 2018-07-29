@@ -35,7 +35,7 @@
 #include <cstdlib>
 #include <iterator>
 
-namespace sbpl {
+namespace smpl {
 
 template <typename T>
 class Grid3
@@ -139,7 +139,7 @@ private:
 template <typename T>
 void swap(Grid3<T>& lhs, Grid3<T>& rhs);
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/grid.hpp"
 

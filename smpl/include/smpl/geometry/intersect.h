@@ -29,7 +29,7 @@
 
 #include <smpl/geometry/triangle.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 struct Triangle;
@@ -37,4 +37,4 @@ struct Triangle;
 bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps = 1e-4);
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl

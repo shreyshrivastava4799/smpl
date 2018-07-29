@@ -40,7 +40,7 @@
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/time.h>
 
-namespace sbpl {
+namespace smpl {
 
 /// An implementation of the ARA* (Anytime Repairing A*) search algorithm. This
 /// algorithm runs a series of weighted A* searches with decreasing bounds on
@@ -171,6 +171,6 @@ struct AWAStar : public SBPLPlanner
         int& cost) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

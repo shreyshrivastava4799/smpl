@@ -7,33 +7,31 @@
 // system includes
 #include <smpl/debug/marker.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 namespace urdf {
 
 struct RobotState;
 struct Shape;
 
-auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape;
+auto MakeShapeVisualization(const Shape* shape) -> smpl::visual::Shape;
 
 auto MakeRobotVisualization(
     const RobotState* state,
-    sbpl::visual::Color color = sbpl::visual::Color{ 0.0f, 0.0f, 0.0f, 1.0f },
+    smpl::visual::Color color = smpl::visual::Color{ 0.0f, 0.0f, 0.0f, 1.0f },
     const std::string& frame = std::string(),
     const std::string& ns = std::string(),
     int32_t* id = NULL)
-    -> std::vector<sbpl::visual::Marker>;
+    -> std::vector<smpl::visual::Marker>;
 
 auto MakeCollisionVisualization(
     const RobotState* state,
-    sbpl::visual::Color color = sbpl::visual::Color{ 0.0f, 0.0f, 0.0f, 1.0f },
+    smpl::visual::Color color = smpl::visual::Color{ 0.0f, 0.0f, 0.0f, 1.0f },
     const std::string& frame = std::string(),
     const std::string& ns = std::string(),
     int32_t* id = NULL)
-    -> std::vector<sbpl::visual::Marker>;
+    -> std::vector<smpl::visual::Marker>;
 
 } // namespace urdf
-} // namespace motion
 } // namespace sbpl
 
 #endif

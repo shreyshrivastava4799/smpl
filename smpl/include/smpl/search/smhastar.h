@@ -41,7 +41,7 @@
 class DiscreteSpaceInformation;
 class Heuristic;
 
-namespace sbpl {
+namespace smpl {
 
 struct SMHAState
 {
@@ -238,6 +238,6 @@ private:
     bool closed_in_any_search(SMHAState* state) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

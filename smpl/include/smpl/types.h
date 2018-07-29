@@ -42,8 +42,7 @@
 #include <Eigen/StdVector>
 #include <boost/functional/hash.hpp>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 template <
     class Key,
@@ -204,7 +203,6 @@ struct GoalConstraint
     GoalType type;                      // type of goal constraint
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

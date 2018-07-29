@@ -33,7 +33,7 @@
 
 #include <algorithm>
 
-namespace sbpl {
+namespace smpl {
 
 MHAStarPP::MHAStarPP(
     DiscreteSpaceInformation* environment,
@@ -74,4 +74,4 @@ bool MHAStarPP::satisfies_p_criterion(MHASearchState* state) const
             std::max(m_max_fval_closed_anc, m_open[0].min()->f);
 }
 
-} // namespace sbpl
+} // namespace smpl

@@ -39,7 +39,7 @@
 // project includes
 #include <smpl/grid/sparse_grid.h>
 
-namespace sbpl {
+namespace smpl {
 
 template <class Allocator = std::allocator<std::uint8_t>>
 class SparseBinaryGrid
@@ -147,7 +147,7 @@ private:
     std::uint8_t get_mask(int x, int y, int z) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/sparse_binary_grid.hpp"
 

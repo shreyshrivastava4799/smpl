@@ -41,8 +41,7 @@
 // project includes
 #include <sbpl_pr2_robot_model/orientation_solver.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class UBR1KDLRobotModel : public KDLRobotModel
 {
@@ -69,7 +68,6 @@ private:
     std::string m_end_effector_link_name;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

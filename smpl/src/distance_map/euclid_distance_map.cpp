@@ -31,7 +31,7 @@
 
 #include <smpl/distance_map/euclid_distance_map.h>
 
-namespace sbpl {
+namespace smpl {
 
 EuclidDistanceMap::EuclidDistanceMap(
     double origin_x, double origin_y, double origin_z,
@@ -55,4 +55,4 @@ int EuclidDistanceMap::distance(const Cell& n, const Cell& s)
     return dx * dx + dy * dy + dz * dz;
 }
 
-} // namespace sbpl
+} // namespace smpl

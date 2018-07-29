@@ -5,7 +5,7 @@
 
 #include <smpl/debug/marker_conversions.h>
 
-namespace sbpl {
+namespace smpl {
 
 VisualizerROS::VisualizerROS(
     const ros::NodeHandle& nh,
@@ -155,4 +155,4 @@ void VisualizerROS::visualize(
     }
 }
 
-} // namespace sbpl
+} // namespace smpl

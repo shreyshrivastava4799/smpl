@@ -39,7 +39,7 @@
 // system includes
 #include <leatherman/print.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* XmlRpcValueTypeToString(const XmlRpc::XmlRpcValue::Type type)
@@ -601,5 +601,5 @@ bool LoadAllowedCollisionMatrix(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 

@@ -31,7 +31,7 @@
 
 #include <smpl/distance_map/distance_map.h>
 
-namespace sbpl {
+namespace smpl {
 
 class EdgeEuclidDistanceMap : public DistanceMap<EdgeEuclidDistanceMap>
 {
@@ -53,4 +53,4 @@ private:
     int distance(const Cell& n, const Cell& s);
 };
 
-} // namespace sbpl
+} // namespace smpl

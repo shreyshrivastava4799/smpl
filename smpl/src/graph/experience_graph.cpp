@@ -4,8 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 ExperienceGraph::ExperienceGraph()
 {
@@ -310,5 +309,4 @@ void ExperienceGraph::insert_incident_edge(edge_id eid, node_id uid, node_id vid
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

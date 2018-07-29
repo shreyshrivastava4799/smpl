@@ -45,8 +45,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ExperienceGraphPlanner : public SBPLPlanner
 {
@@ -130,7 +129,6 @@ private:
     void extractPath(std::vector<int>& solution, int& cost) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

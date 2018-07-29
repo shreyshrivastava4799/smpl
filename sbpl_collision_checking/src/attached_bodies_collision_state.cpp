@@ -34,7 +34,7 @@
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
 #include <sbpl_collision_checking/debug.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* ABS_LOGGER = "attached_bodies_state";
@@ -194,4 +194,4 @@ void AttachedBodiesCollisionState::reinitCollisionState()
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

@@ -45,7 +45,7 @@
 #include <Eigen/StdVector>
 #include <moveit/collision_detection/collision_matrix.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 struct Sphere
@@ -108,6 +108,6 @@ struct CollisionDetails
 };
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

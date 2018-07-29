@@ -10,7 +10,7 @@
 #include <ros/console.h>
 #include <smpl/geometry/voxelize.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 std::vector<std::uint32_t> ConvertToVertexIndices(
@@ -851,4 +851,4 @@ bool VoxelizePlane(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
     sleep(1);
     ros::spinOnce();
 
-    sbpl::motion::KDLRobotModel rm;
+    smpl::KDLRobotModel rm;
 
     std::string urdf;
     nh.param<std::string>("robot_description", urdf, "");
@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
     ROS_WARN("Robot Model Information");
     rm.printRobotModelInformation();
 
-    sbpl::motion::RobotState fka(num_planning_joints, 0.0);
+    smpl::RobotState fka(num_planning_joints, 0.0);
     fka[0] = -0.5;
     fka[1] = -0.3;
     fka[2] =  0.0;
@@ -98,8 +98,8 @@ int main(int argc, char* argv[])
             Eigen::Translation3d(0.766268, -0.188, 0.790675) *
             Eigen::AngleAxisd(0.5, Eigen::Vector3d::UnitX());
 
-    sbpl::motion::RobotState seed(num_planning_joints, 0.0);
-    sbpl::motion::RobotState ika(num_planning_joints, 0.0);
+    smpl::RobotState seed(num_planning_joints, 0.0);
+    smpl::RobotState ika(num_planning_joints, 0.0);
     if (!rm.computeIK(pose, seed, ika)) {
         ROS_ERROR("Failed to compute fK");
         return 0;

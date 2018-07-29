@@ -37,7 +37,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace sbpl {
+namespace smpl {
 
 template <typename T>
 Grid3<T>::Grid3() : m_data(nullptr), m_dims()
@@ -395,6 +395,6 @@ void Grid3<T>::resize(size_type count)
     }
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

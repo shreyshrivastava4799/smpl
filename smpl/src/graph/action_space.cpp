@@ -34,8 +34,7 @@
 // project includes
 #include <smpl/graph/robot_planning_space.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 ActionSpace::~ActionSpace()
 {
@@ -55,5 +54,4 @@ bool ActionSpace::init(RobotPlanningSpace* space)
     return true;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

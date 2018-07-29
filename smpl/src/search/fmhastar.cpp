@@ -31,7 +31,7 @@
 
 #include <smpl/search/fmhastar.h>
 
-namespace sbpl {
+namespace smpl {
 
 FMHAstar::FMHAstar(
     DiscreteSpaceInformation* environment,
@@ -59,4 +59,4 @@ bool FMHAstar::satisfies_p_criterion(
     return state->od[0].f <= m_eps * m_open[0].min()->f;
 }
 
-} // namespace sbpl
+} // namespace smpl

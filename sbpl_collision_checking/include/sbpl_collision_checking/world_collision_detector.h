@@ -44,7 +44,7 @@
 #include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <sbpl_collision_checking/attached_bodies_collision_state.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 SBPL_CLASS_FORWARD(WorldCollisionDetector);
@@ -106,4 +106,4 @@ private:
 #endif
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

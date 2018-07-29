@@ -38,8 +38,7 @@
 #include <smpl/extension.h>
 #include <smpl/graph/experience_graph.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ExperienceGraphExtension : public virtual Extension
 {
@@ -61,7 +60,6 @@ public:
     virtual int getStateID(ExperienceGraph::node_id n) const = 0;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

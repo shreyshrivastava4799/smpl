@@ -9,15 +9,13 @@
 #include <Eigen/Dense>
 #include <ompl/base/Planner.h>
 
-namespace sbpl {
+namespace smpl {
 
 class OccupancyGrid;
 
 namespace visual {
 struct Marker;
 } // namespace visual
-
-namespace motion {
 
 namespace detail {
 struct PlannerImpl;
@@ -49,7 +47,7 @@ struct OMPLPlanner : public ompl::base::Planner
     ~OMPLPlanner();
 
     using VisualizerFun = std::function<
-            std::vector<sbpl::visual::Marker>(const std::vector<double>& state)>;
+            std::vector<smpl::visual::Marker>(const std::vector<double>& state)>;
     void setStateVisualizer(const VisualizerFun& fun);
 
     void setOccupancyGrid(OccupancyGrid* grid);
@@ -85,7 +83,6 @@ auto MakeStateOMPL(
     const std::vector<double>& state)
     -> ompl::base::ScopedState<>;
 
-} // namespace motion
 } // namespace smpl
 
 #endif

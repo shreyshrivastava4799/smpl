@@ -49,7 +49,7 @@
 #include <sbpl_collision_checking/robot_collision_state.h>
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 #define SCDL_USE_META_TREE 0
@@ -270,6 +270,6 @@ private:
 };
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif
