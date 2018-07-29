@@ -9,11 +9,11 @@
 // project includes
 #include <smpl/angles.h>
 #include <smpl/csv_parser.h>
-#include <smpl/intrusive_heap.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/workspace_lattice_action_space.h>
+#include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
 namespace motion {

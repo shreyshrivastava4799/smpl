@@ -88,7 +88,7 @@ struct WorkspaceLattice :
     ~WorkspaceLattice();
 
     void setVisualizationFrameId(const std::string& frame_id);
-    const std::string& visualizationFrameId() const;
+    auto visualizationFrameId() const -> const std::string&;
 
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
@@ -161,7 +161,7 @@ struct WorkspaceLattice :
 
     int reserveHashEntry();
     int createState(const WorkspaceCoord& coord);
-    WorkspaceLatticeState* getState(int state_id) const;
+    auto getState(int state_id) const -> WorkspaceLatticeState*;
 
     bool checkAction(
         const RobotState& state,

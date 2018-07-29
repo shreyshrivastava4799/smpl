@@ -29,34 +29,47 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/search/focal_mhastar.h>
+#include <smpl/search/umhastar.h>
 
 namespace sbpl {
 
-FocalMultiHeuristicAstar::FocalMultiHeuristicAstar(
+UMHAStar::UMHAStar(
     DiscreteSpaceInformation* environment,
     Heuristic* hanchor,
     Heuristic** heurs,
     int hcount)
 :
-    MultiHeuristicAStarBase(environment, hanchor, heurs, hcount)
+    MHAStarBase(environment, hanchor, heurs, hcount),
+    m_max_fval_closed_anc(0)
 {
 }
 
-int FocalMultiHeuristicAstar::priority(MHASearchState* state)
+void UMHAStar::reinitSearch()
 {
-    return state->g + state->od[0].h;
+    m_max_fval_closed_anc = m_start_state->od[0].f; //0;
 }
 
-bool FocalMultiHeuristicAstar::terminated() const
+void UMHAStar::on_closed_anchor(MHASearchState* s)
+{
+    if (s->od[0].f > m_max_fval_closed_anc) {
+        m_max_fval_closed_anc = s->od[0].f;
+    }
+}
+
+int UMHAStar::priority(MHASearchState* state)
+{
+    return state->g + m_eps * state->od[0].h;
+}
+
+bool UMHAStar::terminated() const
 {
     return m_goal_state->g <= m_eps * get_minf(m_open[0]);
 }
 
-bool FocalMultiHeuristicAstar::satisfies_p_criterion(
+bool UMHAStar::satisfies_p_criterion(
         MHASearchState* state) const
 {
-    return state->od[0].f <= m_eps * m_open[0].min()->f;
+    return true;
 }
 
 } // namespace sbpl

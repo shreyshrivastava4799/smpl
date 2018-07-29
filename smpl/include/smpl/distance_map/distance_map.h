@@ -42,9 +42,9 @@
 #include <Eigen/StdVector>
 
 // project includes
-#include <smpl/grid.h>
 #include <smpl/forward.h>
 #include <smpl/distance_map/distance_map_interface.h>
+#include <smpl/grid/grid.h>
 
 #include "detail/distance_map_common.h"
 

@@ -66,7 +66,6 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/smpl)
 
 add_library(
     smpl
-    src/bfs3d.cpp
     src/csv_parser.cpp
     src/collision_checker.cpp
     src/console/ansi.cpp
@@ -75,6 +74,7 @@ add_library(
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
+    src/bfs3d/bfs3d.cpp
     src/debug/colors.cpp
     src/debug/marker_utils.cpp
     src/debug/visualize.cpp
@@ -98,7 +98,6 @@ add_library(
     src/graph/workspace_lattice_base.cpp
     src/graph/workspace_lattice_egraph.cpp
     src/graph/simple_workspace_lattice_action_space.cpp
-    src/graph/roman_workspace_lattice_action_space.cpp
     src/heuristic/attractor_heuristic.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
@@ -110,10 +109,10 @@ add_library(
     src/heuristic/multi_frame_bfs_heuristic.cpp
     src/heuristic/sparse_egraph_dijkstra_heuristic.cpp
     src/heuristic/zero_heuristic.cpp
-    src/search/focal_mhastar.cpp
+    src/search/fmhastar.cpp
     src/search/meta_mhastar_dts.cpp
     src/search/mhastarpp.cpp
-    src/search/unconstrained_mhastar.cpp
+    src/search/umhastar.cpp
     src/search/arastar.cpp
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp

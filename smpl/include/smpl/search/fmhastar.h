@@ -29,33 +29,27 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_UNCONSTRAINED_MHASTAR_H
-#define SMPL_UNCONSTRAINED_MHASTAR_H
+#ifndef SMPL_FMHASTAR_SEARCH_H
+#define SMPL_FMHASTAR_SEARCH_H
 
 // project includes
 #include <smpl/search/mhastar_base.h>
 
 namespace sbpl {
 
-class UnconstrainedMHAStar :
-    public MultiHeuristicAStarBase<UnconstrainedMHAStar>
+class FMHAstar : public MHAStarBase<FMHAstar>
 {
 public:
 
-    UnconstrainedMHAStar(
+    FMHAstar(
         DiscreteSpaceInformation* environment,
         Heuristic* hanchor,
         Heuristic** heurs,
         int hcount);
 
-    friend class MultiHeuristicAStarBase<UnconstrainedMHAStar>;
+    friend class MHAStarBase<FMHAstar>;
 
 private:
-
-    int m_max_fval_closed_anc;
-
-    void reinitSearch();
-    void on_closed_anchor(MHASearchState* s);
 
     int priority(MHASearchState* state);
     bool terminated() const;

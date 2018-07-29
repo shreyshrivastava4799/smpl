@@ -34,10 +34,10 @@
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
 #include <smpl/console/console.h>
-#include <smpl/intrusive_heap.h>
-#include <smpl/grid.h>
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
+#include <smpl/grid/grid.h>
+#include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
 namespace motion {

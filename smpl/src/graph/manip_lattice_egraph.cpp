@@ -36,9 +36,9 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/csv_parser.h>
-#include <smpl/intrusive_heap.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
 namespace motion {

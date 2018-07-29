@@ -36,7 +36,7 @@
 #include <sbpl/planners/planner.h>
 #include <sbpl/utils/heap.h>
 
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
 
 class DiscreteSpaceInformation;
 class Heuristic;

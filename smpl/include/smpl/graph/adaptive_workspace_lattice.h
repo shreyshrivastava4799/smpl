@@ -39,13 +39,13 @@
 #include <vector>
 
 // project includes
-#include <smpl/grid.h>
-#include <smpl/occupancy_grid.h>
-#include <smpl/time.h>
-#include <smpl/types.h>
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/workspace_lattice_base.h>
+#include <smpl/grid/grid.h>
+#include <smpl/occupancy_grid.h>
+#include <smpl/time.h>
+#include <smpl/types.h>
 
 namespace sbpl {
 namespace motion {

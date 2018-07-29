@@ -41,7 +41,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/container/stable_vector.hpp>
 
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
 
 #define LOGDEBUG 0
 #if LOGDEBUG

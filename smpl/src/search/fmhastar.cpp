@@ -29,47 +29,34 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/search/unconstrained_mhastar.h>
+#include <smpl/search/fmhastar.h>
 
 namespace sbpl {
 
-UnconstrainedMHAStar::UnconstrainedMHAStar(
+FMHAstar::FMHAstar(
     DiscreteSpaceInformation* environment,
     Heuristic* hanchor,
     Heuristic** heurs,
     int hcount)
 :
-    MultiHeuristicAStarBase(environment, hanchor, heurs, hcount),
-    m_max_fval_closed_anc(0)
+    MHAStarBase(environment, hanchor, heurs, hcount)
 {
 }
 
-void UnconstrainedMHAStar::reinitSearch()
+int FMHAstar::priority(MHASearchState* state)
 {
-    m_max_fval_closed_anc = m_start_state->od[0].f; //0;
+    return state->g + state->od[0].h;
 }
 
-void UnconstrainedMHAStar::on_closed_anchor(MHASearchState* s)
-{
-    if (s->od[0].f > m_max_fval_closed_anc) {
-        m_max_fval_closed_anc = s->od[0].f;
-    }
-}
-
-int UnconstrainedMHAStar::priority(MHASearchState* state)
-{
-    return state->g + m_eps * state->od[0].h;
-}
-
-bool UnconstrainedMHAStar::terminated() const
+bool FMHAstar::terminated() const
 {
     return m_goal_state->g <= m_eps * get_minf(m_open[0]);
 }
 
-bool UnconstrainedMHAStar::satisfies_p_criterion(
+bool FMHAstar::satisfies_p_criterion(
         MHASearchState* state) const
 {
-    return true;
+    return state->od[0].f <= m_eps * m_open[0].min()->f;
 }
 
 } // namespace sbpl

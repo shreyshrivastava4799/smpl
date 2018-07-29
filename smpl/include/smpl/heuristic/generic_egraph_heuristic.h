@@ -33,8 +33,8 @@
 #define SMPL_GENERIC_EGRAPH_HEURISTIC_H
 
 // project includes
-#include <smpl/intrusive_heap.h>
 #include <smpl/graph/experience_graph_extension.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 

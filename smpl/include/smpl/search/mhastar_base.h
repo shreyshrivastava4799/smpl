@@ -43,7 +43,7 @@
 #include <sbpl/heuristics/heuristic.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
 
 namespace sbpl {
 
@@ -79,17 +79,17 @@ std::ostream &operator<<(std::ostream &o, const MHASearchState &s)
 }
 
 template <typename Derived>
-class MultiHeuristicAStarBase : public SBPLPlanner
+class MHAStarBase : public SBPLPlanner
 {
 public:
 
-    MultiHeuristicAStarBase(
+    MHAStarBase(
         DiscreteSpaceInformation* environment,
         Heuristic* hanchor,
         Heuristic** heurs,
         int hcount);
 
-    ~MultiHeuristicAStarBase();
+    ~MHAStarBase();
 
     /// \name Required Functions from SBPLPlanner
     ///@{

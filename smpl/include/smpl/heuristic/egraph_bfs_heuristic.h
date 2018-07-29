@@ -36,10 +36,10 @@
 #include <vector>
 
 // project includes
-#include <smpl/grid.h>
-#include <smpl/intrusive_heap.h>
 #include <smpl/debug/marker.h>
 #include <smpl/graph/experience_graph_extension.h>
+#include <smpl/grid/grid.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/occupancy_grid.h>
