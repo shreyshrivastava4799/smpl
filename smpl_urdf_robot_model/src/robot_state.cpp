@@ -99,7 +99,7 @@ bool Init(
 {
     RobotState robot_state;
 
-    robot_state.model = model;
+    out->model = model;
 
     int mult = 1;
     if (with_velocities) {
@@ -108,39 +108,38 @@ bool Init(
     if (with_accelerations) {
         ++mult;
     }
-    robot_state.values.resize(mult * GetVariableCount(model));
+    out->values.resize(mult * GetVariableCount(model));
     for (int i = 0; i < GetVariableCount(model); ++i) {
-        robot_state.values[i] = GetDefaultPosition(model, GetVariable(model, i));
+        out->values[i] = GetDefaultPosition(model, GetVariable(model, i));
     }
 
-    double* data = robot_state.values.data();
-    robot_state.positions = data;
+    double* data = out->values.data();
+    out->positions = data;
     data += GetVariableCount(model);
     if (with_velocities) {
-        robot_state.velocities = data;
+        out->velocities = data;
         data += GetVariableCount(model);
     }
     if (with_accelerations) {
-        robot_state.accelerations = data;
+        out->accelerations = data;
         data += GetVariableCount(model);
     }
 
-    robot_state.transforms.resize(
+    out->transforms.resize(
             GetLinkCount(model) +
             GetJointCount(model) +
             GetCollisionBodyCount(model) +
             GetVisualBodyCount(model));
 
-    robot_state.link_transforms = robot_state.transforms.data();
-    robot_state.joint_transforms = robot_state.link_transforms + GetLinkCount(model);
-    robot_state.link_collision_transforms = robot_state.joint_transforms + GetJointCount(model);
-    robot_state.link_visual_transforms = robot_state.link_collision_transforms + GetCollisionBodyCount(model);
+    out->link_transforms = out->transforms.data();
+    out->joint_transforms = out->link_transforms + GetLinkCount(model);
+    out->link_collision_transforms = out->joint_transforms + GetJointCount(model);
+    out->link_visual_transforms = out->link_collision_transforms + GetCollisionBodyCount(model);
 
-    robot_state.dirty_links_joint = model->root_joint;
-    robot_state.dirty_collisions_joint = model->root_joint;
-    robot_state.dirty_visuals_joint = model->root_joint;
+    out->dirty_links_joint = model->root_joint;
+    out->dirty_collisions_joint = model->root_joint;
+    out->dirty_visuals_joint = model->root_joint;
 
-    *out = std::move(robot_state);
     return true;
 }
 
