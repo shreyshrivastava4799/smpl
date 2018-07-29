@@ -47,8 +47,6 @@
 
 namespace smpl {
 
-SBPL_CLASS_FORWARD(RobotHeuristic);
-
 class RobotHeuristic :
     public Heuristic,
     public RobotPlanningSpaceObserver,

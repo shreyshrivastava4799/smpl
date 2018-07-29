@@ -55,10 +55,7 @@
 
 namespace smpl {
 
-class RobotPlanningSpace;
-
-SBPL_CLASS_FORWARD(RobotPlanningSpace);
-SBPL_CLASS_FORWARD(ManipLatticeActionSpace);
+class ManipLattice;
 
 class ManipLatticeActionSpace : public ActionSpace
 {

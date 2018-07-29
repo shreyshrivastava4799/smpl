@@ -362,22 +362,22 @@ double SMHAStar::get_max_time() const
 bool SMHAStar::check_params(const ReplanParams& params)
 {
     if (params.initial_eps < 1.0) {
-        SBPL_ERROR("Initial Epsilon must be greater than or equal to 1");
+        SMPL_ERROR("Initial Epsilon must be greater than or equal to 1");
         return false;
     }
 
     if (params.final_eps > params.initial_eps) {
-        SBPL_ERROR("Final Epsilon must be less than or equal to initial epsilon");
+        SMPL_ERROR("Final Epsilon must be less than or equal to initial epsilon");
         return false;
     }
 
     if (params.dec_eps <= 0.0) {
-        SBPL_ERROR("Delta epsilon must be strictly positive");
+        SMPL_ERROR("Delta epsilon must be strictly positive");
         return false;
     }
 
     if (m_initial_eps_mha < 1.0) {
-        SBPL_ERROR("MHA Epsilon must be greater than or equal to 1");
+        SMPL_ERROR("MHA Epsilon must be greater than or equal to 1");
         return false;
     }
 
@@ -385,7 +385,7 @@ bool SMHAStar::check_params(const ReplanParams& params)
         params.max_time <= 0.0 &&
         m_max_expansions <= 0)
     {
-        SBPL_ERROR("Max Time or Max Expansions must be positive");
+        SMPL_ERROR("Max Time or Max Expansions must be positive");
         return false;
     }
 

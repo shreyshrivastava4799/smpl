@@ -118,7 +118,7 @@ OccupancyGrid::OccupancyGrid(
 /// \param df The distance field
 /// \param ref_counted Whether to reference count cells
 OccupancyGrid::OccupancyGrid(
-    const DistanceMapInterfacePtr& df,
+    const std::shared_ptr<DistanceMapInterface>& df,
     bool ref_counted)
 :
     m_grid(df),

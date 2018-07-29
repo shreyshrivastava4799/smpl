@@ -126,15 +126,15 @@ namespace viz = visual;
 
 } // namespace smpl
 
-#define SBPL_VISUALIZE_SEVERITY_DEBUG   0
-#define SBPL_VISUALIZE_SEVERITY_INFO    1
-#define SBPL_VISUALIZE_SEVERITY_WARN    2
-#define SBPL_VISUALIZE_SEVERITY_ERROR   3
-#define SBPL_VISUALIZE_SEVERITY_FATAL   4
-#define SBPL_VISUALIZE_SEVERITY_NONE    5
+#define SMPL_VISUALIZE_SEVERITY_DEBUG   0
+#define SMPL_VISUALIZE_SEVERITY_INFO    1
+#define SMPL_VISUALIZE_SEVERITY_WARN    2
+#define SMPL_VISUALIZE_SEVERITY_ERROR   3
+#define SMPL_VISUALIZE_SEVERITY_FATAL   4
+#define SMPL_VISUALIZE_SEVERITY_NONE    5
 
-#ifndef SBPL_VISUALIZE_MIN_SEVERITY
-#define SBPL_VISUALIZE_MIN_SEVERITY SBPL_VISUALIZE_SEVERITY_DEBUG
+#ifndef SMPL_VISUALIZE_MIN_SEVERITY
+#define SMPL_VISUALIZE_MIN_SEVERITY SMPL_VISUALIZE_SEVERITY_DEBUG
 #endif
 
 #define SV_ROOT_VIZ_NAME "sv"
@@ -192,7 +192,7 @@ namespace viz = visual;
 
 #define SV_SHOW(level, name, markers) SV_SHOW_COND(true, level, name, markers)
 
-#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_DEBUG)
+#if (SMPL_VISUALIZE_MIN_SEVERITY > SMPL_VISUALIZE_SEVERITY_DEBUG)
 #define SV_SHOW_DEBUG(markers)
 #define SV_SHOW_DEBUG_NAMED(name, markers)
 #define SV_SHOW_DEBUG_COND(cond, markers)
@@ -212,7 +212,7 @@ namespace viz = visual;
 #define SV_SHOW_DEBUG_ONCE_NAMED(name, markers) SV_SHOW_ONCE(::smpl::visual::Level::Debug, std::string(SV_NAME_PREFIX) + "." + name, markers)
 #endif
 
-#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_INFO)
+#if (SMPL_VISUALIZE_MIN_SEVERITY > SMPL_VISUALIZE_SEVERITY_INFO)
 #define SV_SHOW_INFO(markers)
 #define SV_SHOW_INFO_NAMED(name, markers)
 #define SV_SHOW_INFO_COND(cond, markers)
@@ -232,7 +232,7 @@ namespace viz = visual;
 #define SV_SHOW_INFO_ONCE_NAMED(name, markers) SV_SHOW_ONCE(::smpl::visual::Level::Info, std::string(SV_NAME_PREFIX) + "." + name, markers)
 #endif
 
-#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_WARN)
+#if (SMPL_VISUALIZE_MIN_SEVERITY > SMPL_VISUALIZE_SEVERITY_WARN)
 #define SV_SHOW_WARN(markers)
 #define SV_SHOW_WARN_NAMED(name, markers)
 #define SV_SHOW_WARN_COND(cond, markers)
@@ -252,7 +252,7 @@ namespace viz = visual;
 #define SV_SHOW_WARN_ONCE_NAMED(name, markers) SV_SHOW_ONCE(::smpl::visual::Level::Warn, std::string(SV_NAME_PREFIX) + "." + name, markers)
 #endif
 
-#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_ERROR)
+#if (SMPL_VISUALIZE_MIN_SEVERITY > SMPL_VISUALIZE_SEVERITY_ERROR)
 #define SV_SHOW_ERROR(markers)
 #define SV_SHOW_ERROR_NAMED(name, markers)
 #define SV_SHOW_ERROR_COND(cond, markers)
@@ -272,7 +272,7 @@ namespace viz = visual;
 #define SV_SHOW_ERROR_ONCE_NAMED(name, markers) SV_SHOW_ONCE(::smpl::visual::Level::Error, std::string(SV_NAME_PREFIX) + "." + name, markers)
 #endif
 
-#if (SBPL_VISUALIZE_MIN_SEVERITY > SBPL_VISUALIZE_SEVERITY_FATAL)
+#if (SMPL_VISUALIZE_MIN_SEVERITY > SMPL_VISUALIZE_SEVERITY_FATAL)
 #define SV_SHOW_FATAL(markers)
 #define SV_SHOW_FATAL_NAMED(name, markers)
 #define SV_SHOW_FATAL_COND(cond, markers)

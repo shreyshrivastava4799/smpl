@@ -50,8 +50,7 @@
 
 namespace smpl {
 
-SBPL_CLASS_FORWARD(RobotHeuristic);
-SBPL_CLASS_FORWARD(RobotPlanningSpace);
+class RobotHeuristic;
 
 class RobotPlanningSpace :
     public DiscreteSpaceInformation,

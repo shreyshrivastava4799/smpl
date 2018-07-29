@@ -158,15 +158,15 @@ int MetaMHAstarDTS::replan(
 
     m_params = params;
 
-    SBPL_INFO("Generic Search parameters:");
-    SBPL_INFO("  Initial Epsilon: %0.3f", m_params.initial_eps);
-    SBPL_INFO("  Final Epsilon: %0.3f", m_params.final_eps);
-    SBPL_INFO("  Delta Epsilon: %0.3f", m_params.dec_eps);
-    SBPL_INFO("  Return First Solution: %s", m_params.return_first_solution ? "true" : "false");
-    SBPL_INFO("  Max Time: %0.3f", m_params.max_time);
-    SBPL_INFO("  Repair Time: %0.3f", m_params.repair_time);
-    SBPL_INFO("MHA Search parameters:");
-    SBPL_INFO("  Max Expansions: %d", m_max_expansions);
+    SMPL_INFO("Generic Search parameters:");
+    SMPL_INFO("  Initial Epsilon: %0.3f", m_params.initial_eps);
+    SMPL_INFO("  Final Epsilon: %0.3f", m_params.final_eps);
+    SMPL_INFO("  Delta Epsilon: %0.3f", m_params.dec_eps);
+    SMPL_INFO("  Return First Solution: %s", m_params.return_first_solution ? "true" : "false");
+    SMPL_INFO("  Max Time: %0.3f", m_params.max_time);
+    SMPL_INFO("  Repair Time: %0.3f", m_params.repair_time);
+    SMPL_INFO("MHA Search parameters:");
+    SMPL_INFO("  Max Expansions: %d", m_max_expansions);
 
     environment_->EnsureHeuristicsUpdated(true); // TODO: support backwards search
 
@@ -370,17 +370,17 @@ double MetaMHAstarDTS::get_max_time() const
 bool MetaMHAstarDTS::check_params(const ReplanParams& params)
 {
     if (params.initial_eps < 1.0) {
-        SBPL_ERROR("Initial Epsilon must be greater than or equal to 1");
+        SMPL_ERROR("Initial Epsilon must be greater than or equal to 1");
         return false;
     }
 
     if (params.final_eps > params.initial_eps) {
-        SBPL_ERROR("Final Epsilon must be less than or equal to initial epsilon");
+        SMPL_ERROR("Final Epsilon must be less than or equal to initial epsilon");
         return false;
     }
 
     if (params.dec_eps <= 0.0) {
-        SBPL_ERROR("Delta epsilon must be strictly positive");
+        SMPL_ERROR("Delta epsilon must be strictly positive");
         return false;
     }
 
@@ -388,7 +388,7 @@ bool MetaMHAstarDTS::check_params(const ReplanParams& params)
         params.max_time <= 0.0 &&
         m_max_expansions <= 0)
     {
-        SBPL_ERROR("Max Time or Max Expansions must be positive");
+        SMPL_ERROR("Max Time or Max Expansions must be positive");
         return false;
     }
 

@@ -44,8 +44,6 @@
 
 namespace smpl {
 
-SBPL_CLASS_FORWARD(DistanceMapInterface)
-
 /// Abstract base class for Distance Map implementations. This class specifies
 /// methods for returning distances to the nearest occupied cells, both in
 /// cell units and metric units.

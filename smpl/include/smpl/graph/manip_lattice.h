@@ -88,8 +88,6 @@ struct hash<smpl::ManipLatticeState>
 
 namespace smpl {
 
-SBPL_CLASS_FORWARD(ManipLattice);
-
 /// \class Discrete space constructed by expliciting discretizing each joint
 class ManipLattice :
     public RobotPlanningSpace,

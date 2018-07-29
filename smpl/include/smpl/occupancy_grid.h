@@ -49,8 +49,6 @@
 
 namespace smpl {
 
-SBPL_CLASS_FORWARD(OccupancyGrid)
-
 class OccupancyGrid
 {
 public:
@@ -64,7 +62,7 @@ public:
         double max_dist,
         bool ref_counted = false);
 
-    OccupancyGrid(const DistanceMapInterfacePtr& df, bool ref_counted = false);
+    OccupancyGrid(const std::shared_ptr<DistanceMapInterface>& df, bool ref_counted = false);
 
     OccupancyGrid(const OccupancyGrid& o);
 
@@ -73,7 +71,8 @@ public:
     OccupancyGrid& operator=(const OccupancyGrid& rhs);
     OccupancyGrid& operator=(OccupancyGrid&& rhs) = default;
 
-    const DistanceMapInterfacePtr& getDistanceField() const { return m_grid; }
+    auto getDistanceField() const -> const std::shared_ptr<DistanceMapInterface>&
+    { return m_grid; }
 
     /// \name Modifiers
     ///@{
@@ -159,7 +158,7 @@ public:
 
 private:
 
-    DistanceMapInterfacePtr m_grid;
+    std::shared_ptr<DistanceMapInterface> m_grid;
     std::string reference_frame_;
 
     bool m_ref_counted;

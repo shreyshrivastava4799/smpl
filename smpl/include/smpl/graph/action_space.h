@@ -37,9 +37,8 @@
 
 namespace smpl {
 
-SBPL_CLASS_FORWARD(RobotPlanningSpace);
+class RobotPlanningSpace;
 
-SBPL_CLASS_FORWARD(ActionSpace);
 class ActionSpace : public RobotPlanningSpaceObserver
 {
 public:
