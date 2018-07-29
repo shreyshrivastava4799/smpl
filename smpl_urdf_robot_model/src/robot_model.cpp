@@ -533,6 +533,21 @@ auto GetJointCount(const RobotModel* model) -> size_t
     return model->joints.size();
 }
 
+auto GetJointType(const Joint* joint) -> JointType
+{
+    return joint->type;
+}
+
+auto GetJointOrigin(const Joint* joint) -> const Affine3*
+{
+    return &joint->origin;
+}
+
+auto GetJointAxis(const Joint* joint) -> const Vector3*
+{
+    return &joint->axis;
+}
+
 auto GetVariableCount(const RobotModel* model) -> size_t
 {
     return model->variables.size();
@@ -751,6 +766,16 @@ auto GetFirstVariable(const Joint* joint) -> const JointVariable*
 auto Variables(const Joint* joint) -> range<const JointVariable*>
 {
     return make_range<const JointVariable*>(joint->vfirst, joint->vlast);
+}
+
+auto GetChildLink(const Joint* joint) -> const Link*
+{
+    return joint->child;
+}
+
+auto GetParentLink(const Joint* joint) -> const Link*
+{
+    return joint->parent;
 }
 
 auto GetCommonRoot(

@@ -16,6 +16,7 @@ namespace sbpl {
 namespace motion {
 namespace urdf {
 
+enum struct JointType;
 struct RobotModel;
 struct JointSpec;
 struct Link;
@@ -93,9 +94,14 @@ auto CollisionBodies(const Link* link) -> range<const LinkCollision*>;
 // Joint Properties //
 //////////////////////
 
+auto GetJointType(const Joint* joint) -> JointType;
+auto GetJointOrigin(const Joint* joint) -> const Affine3*;
+auto GetJointAxis(const Joint* joint) -> const Vector3*;
 auto GetVariableCount(const Joint* joint) -> size_t;
 auto GetFirstVariable(const Joint* joint) -> const JointVariable*;
 auto Variables(const Joint* joint) -> range<const JointVariable*>;
+auto GetChildLink(const Joint* joint) -> const Link*;
+auto GetParentLink(const Joint* joint) -> const Link*;
 
 auto GetCommonRoot(const RobotModel* model, const Joint* a, const Joint* b) -> const Joint*;
 bool IsAncestor(const RobotModel* model, const Joint* a, const Joint* b);
