@@ -1107,7 +1107,7 @@ PlannerInterface::~PlannerInterface()
 
 bool PlannerInterface::init(const PlanningParams& params)
 {
-    ROS_INFO_NAMED(PI_LOGGER, "initialize arm planner interface");
+    ROS_INFO_NAMED(PI_LOGGER, "Initialize planner interface");
 
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Path: %s", params.shortcut_path ? "true" : "false");
     ROS_INFO_NAMED(PI_LOGGER, "  Shortcut Type: %s", to_string(params.shortcut_type).c_str());
@@ -1125,7 +1125,7 @@ bool PlannerInterface::init(const PlanningParams& params)
 
     m_initialized = true;
 
-    ROS_INFO_NAMED(PI_LOGGER, "initialized arm planner interface");
+    ROS_INFO_NAMED(PI_LOGGER, "Initialized planner interface");
     return m_initialized;
 }
 

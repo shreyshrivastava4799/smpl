@@ -236,5 +236,35 @@ void ConvertMarkerToMarkerMsg(
     mm.mesh_use_embedded_materials = (m.flags & Marker::MESH_USE_EMBEDDED_MATERIALS);
 }
 
+auto ConvertMarkersToMarkerArray(const std::vector<Marker>& markers)
+    -> visualization_msgs::MarkerArray
+{
+    visualization_msgs::MarkerArray ma;
+    ma.markers.reserve(markers.size());
+
+    for (auto& marker : markers) {
+        visualization_msgs::Marker m;
+        ConvertMarkerToMarkerMsg(marker, m);
+        ma.markers.push_back(std::move(m));
+    }
+
+    return ma;
+}
+
+auto ConvertMarkerArrayToMarkers(const visualization_msgs::MarkerArray& ma)
+    -> std::vector<sbpl::visual::Marker>
+{
+    std::vector<sbpl::visual::Marker> markers;
+    markers.reserve(ma.markers.size());
+
+    for (auto& m : ma.markers) {
+        sbpl::visual::Marker marker;
+        ConvertMarkerMsgToMarker(m, marker);
+        markers.push_back(std::move(marker));
+    }
+
+    return markers;
+}
+
 } // namespace visual
 } // namespace sbpl
