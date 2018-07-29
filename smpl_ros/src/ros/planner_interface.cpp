@@ -610,9 +610,9 @@ auto MakeEuclidDistHeuristic(
     params.param("rot_coeff", wr, 1.0);
 
     h->setWeightX(wx);
-    h->setWeightY(wx);
-    h->setWeightZ(wx);
-    h->setWeightRot(wx);
+    h->setWeightY(wy);
+    h->setWeightZ(wz);
+    h->setWeightRot(wr);
     return std::move(h);
 };
 
