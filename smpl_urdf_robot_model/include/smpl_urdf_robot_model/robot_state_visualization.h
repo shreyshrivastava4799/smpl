@@ -12,6 +12,9 @@ namespace motion {
 namespace urdf {
 
 struct RobotState;
+struct Shape;
+
+auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape;
 
 auto MakeRobotVisualization(
     const RobotState* state,

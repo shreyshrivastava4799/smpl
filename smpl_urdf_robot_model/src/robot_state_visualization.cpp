@@ -11,7 +11,6 @@ namespace sbpl {
 namespace motion {
 namespace urdf {
 
-static
 auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape
 {
     switch (shape->type) {
@@ -24,7 +23,6 @@ auto MakeShapeVisualization(const Shape* shape) -> sbpl::visual::Shape
     {
         auto* tmp = static_cast<const Box*>(shape);
         return sbpl::visual::Cube{ tmp->size.x(), tmp->size.y(), tmp->size.z() };
-
     }
     case ShapeType::Cylinder:
     {
