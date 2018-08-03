@@ -37,6 +37,8 @@
 
 namespace smpl {
 
+struct GoalConstraint;
+
 class RobotPlanningSpaceObserver
 {
 public:
