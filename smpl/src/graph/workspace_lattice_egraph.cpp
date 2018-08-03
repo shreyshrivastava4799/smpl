@@ -168,7 +168,7 @@ bool FindShortestExperienceGraphPath(
         }
     }
 
-    SMPL_INFO("Expanded %d nodes looking for shortcut", exp_count);
+    SMPL_DEBUG("Expanded %d nodes looking for shortcut", exp_count);
     return false;
 }
 
@@ -184,7 +184,7 @@ bool ParseExperienceGraphFile(
         return false;
     }
 
-    SMPL_INFO("Parse experience graph at '%s'", filepath.c_str());
+    SMPL_DEBUG("Parse experience graph at '%s'", filepath.c_str());
 
     CSVParser parser;
     auto with_header = true;
@@ -193,10 +193,10 @@ bool ParseExperienceGraphFile(
         return false;
     }
 
-    SMPL_INFO("Parsed experience graph file");
-    SMPL_INFO("  Has Header: %s", parser.hasHeader() ? "true" : "false");
-    SMPL_INFO("  %zu records", parser.recordCount());
-    SMPL_INFO("  %zu fields", parser.fieldCount());
+    SMPL_DEBUG("Parsed experience graph file");
+    SMPL_DEBUG("  Has Header: %s", parser.hasHeader() ? "true" : "false");
+    SMPL_DEBUG("  %zu records", parser.recordCount());
+    SMPL_DEBUG("  %zu fields", parser.fieldCount());
 
     auto jvar_count = robot_model->getPlanningJoints().size();
     if (parser.fieldCount() < jvar_count) {
@@ -224,7 +224,7 @@ bool ParseExperienceGraphFile(
         egraph_states.push_back(std::move(state));
     }
 
-    SMPL_INFO("Read %zu states from experience graph file", egraph_states.size());
+    SMPL_DEBUG("Read %zu states from experience graph file", egraph_states.size());
     return true;
 }
 
@@ -559,7 +559,7 @@ bool WorkspaceLatticeEGraph::extractPath(
             auto prev_node = std::distance(begin(this->egraph_node_to_state), pnit);
             auto curr_node = std::distance(begin(this->egraph_node_to_state), cnit);
 
-            SMPL_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, prev_node, curr_node);
+            SMPL_DEBUG("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, prev_node, curr_node);
 
             std::vector<ExperienceGraph::node_id> node_path;
             found = FindShortestExperienceGraphPath(this->egraph, prev_node, curr_node, node_path);
@@ -579,7 +579,7 @@ bool WorkspaceLatticeEGraph::extractPath(
         SMPL_DEBUG_NAMED(params()->graph_log, "Check for snap successor");
         int cost;
         if (snap(prev_id, curr_id, cost)) {
-            SMPL_INFO("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
+            SMPL_DEBUG("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
             if (!GetSnapMotion(this, prev_id, curr_id, opath)) {
 
             }
@@ -603,7 +603,7 @@ bool WorkspaceLatticeEGraph::extractPath(
     // we made it!
     path = std::move(opath);
 
-    SMPL_INFO("Final path:");
+    SMPL_DEBUG("Final path:");
     for (auto& point : path) {
         SMPL_INFO_STREAM("  " << point);
     }
@@ -642,7 +642,7 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
 
         if (egraph_states.empty()) continue;
 
-        SMPL_INFO("Create hash entries for experience graph states");
+        SMPL_DEBUG("Create hash entries for experience graph states");
 
         // create the first state
         // 1. insert continuous state into the ExperienceGraph
@@ -657,7 +657,7 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
 
         auto prev_node_id = this->egraph.insert_node(prev_pt);
         {
-            SMPL_INFO("xyz = %d, %d, %d, %d, %d, %d",
+            SMPL_DEBUG("xyz = %d, %d, %d, %d, %d, %d",
                     prev_disc_pt[0],
                     prev_disc_pt[1],
                     prev_disc_pt[2],
@@ -691,7 +691,7 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
 
             if (disc_pt != prev_disc_pt) {
                 auto node_id = this->egraph.insert_node(robot_state);
-            SMPL_INFO("xyz = %d, %d, %d, %d, %d, %d",
+            SMPL_DEBUG("xyz = %d, %d, %d, %d, %d, %d",
                     disc_pt[0],
                     disc_pt[1],
                     disc_pt[2],
@@ -720,7 +720,7 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
         }
     }
 
-    SMPL_INFO("Experience graph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
+    SMPL_DEBUG("Experience graph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
     return true;
 }
 
@@ -745,7 +745,7 @@ bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(src_state->state, "shortcut_from"));
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(dst_state->state, "shortcut_to"));
 
-    SMPL_INFO("  shortcut %d -> %d!", src_id, dst_id);
+    SMPL_DEBUG("  shortcut %d -> %d!", src_id, dst_id);
     cost = 10;
     return true;
 }
