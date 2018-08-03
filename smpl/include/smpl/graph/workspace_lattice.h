@@ -157,6 +157,7 @@ struct WorkspaceLattice :
 
     bool setGoalPose(const GoalConstraint& goal);
     bool setGoalJointState(const GoalConstraint& goal);
+    bool setUserGoal(const GoalConstraint& goal);
 
     int reserveHashEntry();
     int createState(const WorkspaceCoord& coord);
