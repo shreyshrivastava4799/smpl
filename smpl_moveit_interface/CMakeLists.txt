@@ -7,10 +7,17 @@ endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
+option(SMPL_MOVEIT_INTERFACE_QT5 "Build RViz plugin against Qt5" OFF)
+
 find_package(Boost REQUIRED)
 
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
+if(${SMPL_MOVEIT_INTERFACE_QT5})
+    find_package(Qt5Widgets REQUIRED)
+    find_package(Qt5Core REQUIRED)
+else()
+    find_package(Qt4 REQUIRED)
+    include(${QT_USE_FILE})
+endif()
 
 find_package(
     catkin
@@ -55,14 +62,26 @@ add_library(smpl_moveit_robot_model src/planner/moveit_robot_model.cpp)
 # Build move_group_command_panel_plugin plugin #
 ################################################
 
-qt4_wrap_cpp(
-    MOVE_GROUP_COMMAND_PANEL_MOC_SOURCES
-    include/moveit_planners_sbpl/interface/joint_variable_command_widget.h
-    include/moveit_planners_sbpl/interface/robot_command_model.h
-    include/moveit_planners_sbpl/interface/ik_command_interactive_marker.h
-    include/moveit_planners_sbpl/interface/teleop_command.h
+set(MOVE_GROUP_COMMAND_PANEL_MOC_HEADERS
+    include/smpl_moveit_interface/interface/joint_variable_command_widget.h
+    include/smpl_moveit_interface/interface/robot_command_model.h
+    include/smpl_moveit_interface/interface/ik_command_interactive_marker.h
+    include/smpl_moveit_interface/interface/teleop_command.h
     src/interface/move_group_command_model.h
     src/interface/move_group_command_panel.h)
+
+if(SMPL_MOVEIT_INTERFACE_QT5)
+    qt5_wrap_cpp(MOVE_GROUP_COMMAND_PANEL_MOC_SOURCES ${MOVE_GROUP_COMMAND_PANEL_MOC_HEADERS})
+else()
+    qt4_wrap_cpp(MOVE_GROUP_COMMAND_PANEL_MOC_SOURCES ${MOVE_GROUP_COMMAND_PANEL_MOC_HEADERS})
+endif()
+
+if(SMPL_MOVEIT_INTERFACE_QT5)
+    set(MOVE_GROUP_COMMAND_PANEL_QT_LIBRARIES Qt5::Core Qt5::Widgets)
+else()
+    set(MOVE_GROUP_COMMAND_PANEL_QT_LIBRARIES ${QT_LIBRARIES})
+endif()
+
 add_library(
     move_group_command_panel_plugin
     ${MOVE_GROUP_COMMAND_PANEL_MOC_SOURCES}
@@ -75,7 +94,7 @@ add_library(
     src/interface/utils.cpp)
 target_link_libraries(
     move_group_command_panel_plugin
-    ${QT_LIBRARIES}
+    ${MOVE_GROUP_COMMAND_PANEL_QT_LIBRARIES}
     ${catkin_LIBRARIES})
 
 # Ad-hoc handling of API differences between indigo and kinetic distributions

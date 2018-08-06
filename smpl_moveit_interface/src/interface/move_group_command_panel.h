@@ -7,7 +7,13 @@
 #include <string>
 
 // system includes
-#include <QtGui>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QSpinBox>
+#include <QGroupBox>
+#include <QVBoxLayout>
 #ifndef Q_MOC_RUN
 #include <moveit/robot_model/robot_model.h>
 #include <ros/ros.h>

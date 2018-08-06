@@ -1,6 +1,8 @@
 #include "move_group_command_panel.h"
 
 // system includes
+#include <QMessageBox>
+#include <QScrollArea>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
 #include <visualization_msgs/MarkerArray.h>

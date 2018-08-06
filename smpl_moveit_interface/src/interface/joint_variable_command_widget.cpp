@@ -2,6 +2,7 @@
 
 // system includes
 #include <Eigen/Dense>
+#include <QGridLayout>
 #include <ros/console.h>
 #include <smpl/angles.h>
 #include <smpl/console/nonstd.h>

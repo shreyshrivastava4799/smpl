@@ -6,7 +6,10 @@
 #include <vector>
 
 // system includes
-#include <QtGui>
+#include <QWidget>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QLabel>
 
 #ifndef Q_MOC_RUN
 #include <moveit/robot_model/robot_model.h>
