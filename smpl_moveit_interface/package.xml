@@ -1,5 +1,5 @@
 <package format="2">
-    <name>moveit_planners_sbpl</name>
+    <name>smpl_moveit_interface</name>
     <version>0.0.0</version>
     <description>MoveIt interface to SBPL</description>
     <author email="andrew.dornbush@gmail.com">Andrew Dornbush</author>

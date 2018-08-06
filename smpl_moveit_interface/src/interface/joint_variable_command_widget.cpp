@@ -1,4 +1,4 @@
-#include <moveit_planners_sbpl/interface/joint_variable_command_widget.h>
+#include <smpl_moveit_interface/interface/joint_variable_command_widget.h>
 
 // system includes
 #include <Eigen/Dense>
@@ -6,7 +6,7 @@
 #include <smpl/angles.h>
 #include <smpl/console/nonstd.h>
 
-#include <moveit_planners_sbpl/interface/robot_command_model.h>
+#include <smpl_moveit_interface/interface/robot_command_model.h>
 
 namespace sbpl_interface {
 

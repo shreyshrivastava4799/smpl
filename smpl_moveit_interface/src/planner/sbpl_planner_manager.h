@@ -8,7 +8,7 @@
 #include <smpl/debug/visualizer_ros.h>
 
 // project includes
-#include <moveit_planners_sbpl/planner/moveit_robot_model.h>
+#include <smpl_moveit_interface/planner/moveit_robot_model.h>
 
 namespace sbpl_interface {
 

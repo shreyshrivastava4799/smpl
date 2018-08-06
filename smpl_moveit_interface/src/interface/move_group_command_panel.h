@@ -15,8 +15,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #endif
 
-#include <moveit_planners_sbpl/interface/ik_command_interactive_marker.h>
-#include <moveit_planners_sbpl/interface/teleop_command.h>
+#include <smpl_moveit_interface/interface/ik_command_interactive_marker.h>
+#include <smpl_moveit_interface/interface/teleop_command.h>
 
 #include "move_group_command_model.h"
 

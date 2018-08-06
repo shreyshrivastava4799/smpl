@@ -25,7 +25,7 @@
 #include <rviz/config.h>
 #endif
 
-#include <moveit_planners_sbpl/interface/robot_command_model.h>
+#include <smpl_moveit_interface/interface/robot_command_model.h>
 
 namespace sbpl_interface {
 

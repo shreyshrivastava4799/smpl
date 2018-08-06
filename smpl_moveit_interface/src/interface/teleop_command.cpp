@@ -1,12 +1,12 @@
-#include <moveit_planners_sbpl/interface/teleop_command.h>
+#include <smpl_moveit_interface/interface/teleop_command.h>
 
 // system includes
 #include <QTimer>
 #include <smpl/angles.h>
 
 // project includes
-#include <moveit_planners_sbpl/interface/robot_command_model.h>
-#include <moveit_planners_sbpl/interface/utils.h>
+#include <smpl_moveit_interface/interface/robot_command_model.h>
+#include <smpl_moveit_interface/interface/utils.h>
 
 namespace sbpl_interface {
 

@@ -16,7 +16,7 @@
 #include <smpl/distance_map/distance_map_interface.h>
 
 // project includes
-#include <moveit_planners_sbpl/planner/moveit_robot_model.h>
+#include <smpl_moveit_interface/planner/moveit_robot_model.h>
 
 #include "moveit_collision_checker.h"
 

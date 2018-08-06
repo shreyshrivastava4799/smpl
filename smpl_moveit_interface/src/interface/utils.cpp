@@ -1,4 +1,4 @@
-#include <moveit_planners_sbpl/interface/utils.h>
+#include <smpl_moveit_interface/interface/utils.h>
 
 // standard includes
 #include <algorithm>

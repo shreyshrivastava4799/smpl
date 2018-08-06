@@ -15,7 +15,7 @@
 #include <ros/console.h>
 #include <smpl/angles.h>
 
-#include <moveit_planners_sbpl/interface/utils.h>
+#include <smpl_moveit_interface/interface/utils.h>
 
 namespace sbpl_interface {
 

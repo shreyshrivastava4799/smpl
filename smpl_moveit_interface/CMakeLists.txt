@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(moveit_planners_sbpl)
+project(smpl_moveit_interface)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -136,7 +136,7 @@ target_link_libraries(
 ###########
 
 install(
-    DIRECTORY include/moveit_planners_sbpl
+    DIRECTORY include/smpl_moveit_interface
     DESTINATION include
     FILES_MATCHING PATTERN "*.h")
 

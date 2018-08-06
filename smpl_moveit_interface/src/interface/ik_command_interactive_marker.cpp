@@ -1,4 +1,4 @@
-#include <moveit_planners_sbpl/interface/ik_command_interactive_marker.h>
+#include <smpl_moveit_interface/interface/ik_command_interactive_marker.h>
 
 #include <cmath>
 #include <cstdlib>
@@ -6,8 +6,8 @@
 #include <Eigen/Dense>
 #include <eigen_conversions/eigen_msg.h>
 
-#include <moveit_planners_sbpl/interface/robot_command_model.h>
-#include <moveit_planners_sbpl/interface/utils.h>
+#include <smpl_moveit_interface/interface/robot_command_model.h>
+#include <smpl_moveit_interface/interface/utils.h>
 
 namespace sbpl_interface {
 
