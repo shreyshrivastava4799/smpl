@@ -5,4 +5,5 @@
         <description>
             A panel widget for controlling a phantom robot for specifying move group commands
         </description>
+    </class>
 </library>
