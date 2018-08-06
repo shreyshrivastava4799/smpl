@@ -664,6 +664,42 @@ auto GetJointTransform(const RobotState* state, int index) -> const Affine3*
     return &state->joint_transforms[index];
 }
 
+auto GetUpdatedLinkTransform(RobotState* state, const Link* link) -> const Affine3*
+{
+    UpdateLinkTransform(state, link);
+    return GetLinkTransform(state, link);
+}
+
+auto GetUpdatedLinkTransform(RobotState* state, int index) -> const Affine3*
+{
+    UpdateLinkTransform(state, index);
+    return GetLinkTransform(state, index);
+}
+
+auto GetUpdatedCollisionBodyTransform(RobotState* state, const LinkCollision* collision) -> const Affine3*
+{
+    UpdateCollisionBodyTransform(state, collision);
+    return GetCollisionBodyTransform(state, collision);
+}
+
+auto GetUpdatedCollisionBodyTransform(RobotState* state, int index) -> const Affine3*
+{
+    UpdateCollisionBodyTransform(state, index);
+    return GetCollisionBodyTransform(state, index);
+}
+
+auto GetUpdatedVisualBodyTransform(RobotState* state, const LinkVisual* visual) -> const Affine3*
+{
+    UpdateVisualBodyTransform(state, visual);
+    return GetVisualBodyTransform(state, visual);
+}
+
+auto GetUpdatedVisualBodyTransform(RobotState* state, int index) -> const Affine3*
+{
+    UpdateVisualBodyTransform(state, index);
+    return GetVisualBodyTransform(state, index);
+}
+
 bool IsJointTransformDirty(const RobotState* state, const Joint* joint)
 {
     return true;

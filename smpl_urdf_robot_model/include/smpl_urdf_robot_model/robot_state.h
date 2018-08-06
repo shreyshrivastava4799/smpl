@@ -135,6 +135,13 @@ auto GetVisualBodyTransform(const RobotState* state, int index) -> const Affine3
 auto GetJointTransform(const RobotState* state, const Joint* joint) -> const Affine3*;
 auto GetJointTransform(const RobotState* state, int joint) -> const Affine3*;
 
+auto GetUpdatedLinkTransform(RobotState* state, const Link* link) -> const Affine3*;
+auto GetUpdatedLinkTransform(RobotState* state, int index) -> const Affine3*;
+auto GetUpdatedCollisionBodyTransform(RobotState* state, const LinkCollision* collision) -> const Affine3*;
+auto GetUpdatedCollisionBodyTransform(RobotState* state, int index) -> const Affine3*;
+auto GetUpdatedVisualBodyTransform(RobotState* state, const LinkVisual* visual) -> const Affine3*;
+auto GetUpdatedVisualBodyTransform(RobotState* state, int index) -> const Affine3*;
+
 // Query whether the transform for a given entity is outdated.
 bool IsJointTransformDirty(const RobotState* state, const Joint* joint);
 bool IsLinkTransformDirty(const RobotState* state, const Link* link);
