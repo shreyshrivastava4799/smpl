@@ -39,11 +39,21 @@
 #include <Eigen/Dense>
 
 namespace smpl {
-namespace angles {
 
-/// \brief Normalize an angle into the range [-pi, pi].
-inline
-double normalize_angle(double angle)
+/// Convert an angle specified in radians to degrees.
+constexpr double to_degrees(double rads)
+{
+    return rads * 180.0 / M_PI;
+}
+
+/// Convert an angle specified in degrees to radians.
+constexpr double to_radians(double degs)
+{
+    return degs * M_PI / 180.0;
+}
+
+/// Normalize an angle into the range [-pi, pi].
+inline double normalize_angle(double angle)
 {
     // normalize to [-2*pi, 2*pi] range
     if (std::fabs(angle) > 2.0 * M_PI) {
@@ -60,8 +70,7 @@ double normalize_angle(double angle)
     return angle;
 }
 
-inline
-double normalize_angle_positive(double angle)
+inline double normalize_angle_positive(double angle)
 {
     angle = normalize_angle(angle);
     if (angle < 0.0) {
@@ -70,61 +79,42 @@ double normalize_angle_positive(double angle)
     return angle;
 }
 
-/// \brief Convert an angle specified in radians to degrees.
-constexpr double to_degrees(double rads)
-{
-    return rads * 180.0 / M_PI;
-}
-
-/// \brief Convert an angle specified in degrees to radians.
-constexpr double to_radians(double degs)
-{
-    return degs * M_PI / 180.0;
-}
-
-/// \brief Return the shortest signed difference between two angles.
-inline
-double shortest_angle_diff(double af, double ai)
+/// Return the shortest signed difference between two angles.
+inline double shortest_angle_diff(double af, double ai)
 {
     return normalize_angle(af - ai);
 }
 
-/// \brief Return the shortest distance between two angles.
-inline
-double shortest_angle_dist(double af, double ai)
+/// Return the shortest distance between two angles.
+inline double shortest_angle_dist(double af, double ai)
 {
     return std::fabs(shortest_angle_diff(af, ai));
 }
 
-inline
-double minor_arc_diff(double af, double ai)
+inline double minor_arc_diff(double af, double ai)
 {
     return shortest_angle_diff(af, ai);
 }
 
-inline
-double major_arc_diff(double af, double ai)
+inline double major_arc_diff(double af, double ai)
 {
     double diff = shortest_angle_diff(af, ai);
     return -1.0 * std::copysign(1.0, diff) * (2.0 * M_PI - std::fabs(diff));
 }
 
-inline
-double minor_arc_dist(double af, double ai)
+inline double minor_arc_dist(double af, double ai)
 {
     return std::fabs(minor_arc_diff(af, ai));
 }
 
-inline
-double major_arc_dist(double af, double ai)
+inline double major_arc_dist(double af, double ai)
 {
     return std::fabs(major_arc_diff(af, ai));
 }
 
-/// \brief Return the closest angle equivalent to af that is numerically greater
-///        than ai
-inline
-double unwind(double ai, double af)
+/// Return the closest angle equivalent to af that is numerically greater than
+/// ai.
+inline double unwind(double ai, double af)
 {
     //2.0 * M_PI * std::floor((af - ai) / (2.0 * M_PI));
     af = std::remainder(af - ai, 2.0 * M_PI);
@@ -169,16 +159,16 @@ template <typename T>
 void normalize_euler_zyx(T& y, T& p, T& r)
 {
     Eigen::Matrix<T, 3, 3> rot;
-    angles::from_euler_zyx(y, p, r, rot);
-    angles::get_euler_zyx(rot, y, p, r);
+    from_euler_zyx(y, p, r, rot);
+    get_euler_zyx(rot, y, p, r);
 }
 
 template <typename T>
 void normalize_euler_zyx(T* angles) // in order r, p, y
 {
     Eigen::Matrix<T, 3, 3> rot;
-    angles::from_euler_zyx(angles[2], angles[1], angles[0], rot);
-    angles::get_euler_zyx(rot, angles[2], angles[1], angles[0]);
+    from_euler_zyx(angles[2], angles[1], angles[0], rot);
+    get_euler_zyx(rot, angles[2], angles[1], angles[0]);
 }
 
 template <typename T>
@@ -195,7 +185,100 @@ auto get_nearest_planar_rotation(const Eigen::Quaternion<T>& q) -> T
     }
 }
 
+namespace angles { // keep this around for compatibility
+
+constexpr double to_degrees(double rads) { return ::smpl::to_degrees(rads); }
+constexpr double to_radians(double degs) { return ::smpl::to_radians(degs); }
+
+inline double normalize_angle(double angle)
+{
+    return ::smpl::normalize_angle(angle);
+}
+
+inline double normalize_angle_positive(double angle)
+{
+    return ::smpl::normalize_angle_positive(angle);
+}
+
+inline double shortest_angle_diff(double af, double ai)
+{
+    return ::smpl::shortest_angle_diff(af, ai);
+}
+
+inline double shortest_angle_dist(double af, double ai)
+{
+    return ::smpl::shortest_angle_dist(af, ai);
+}
+
+inline double minor_arc_diff(double af, double ai)
+{
+    return ::smpl::minor_arc_diff(af, ai);
+}
+
+inline double major_arc_diff(double af, double ai)
+{
+    return ::smpl::major_arc_diff(af, ai);
+}
+
+inline double minor_arc_dist(double af, double ai)
+{
+    return ::smpl::minor_arc_dist(af, ai);
+}
+
+inline double major_arc_dist(double af, double ai)
+{
+    return ::smpl::major_arc_dist(af, ai);
+}
+
+inline double unwind(double ai, double af)
+{
+    return ::smpl::unwind(ai, af);
+}
+
+template <typename T>
+void get_euler_zyx(const Eigen::Matrix<T, 3, 3>& rot, T& y, T& p, T& r)
+{
+    return ::smpl::get_euler_zyx(rot, y, p, r);
+}
+
+template <typename T>
+void get_euler_zyx(const Eigen::Quaternion<T>& rot, T& y, T& p, T& r)
+{
+    return ::smpl::get_euler_zyx(rot, y, p, r);
+}
+
+template <typename T>
+void from_euler_zyx(T y, T p, T r, Eigen::Matrix<T, 3, 3>& rot)
+{
+    return ::smpl::from_euler_zyx(y, p, r, rot);
+}
+
+template <typename T>
+void from_euler_zyx(T y, T p, T r, Eigen::Quaternion<T>& q)
+{
+    return ::smpl::from_euler_zyx(y, p, r, q);
+}
+
+template <typename T>
+void normalize_euler_zyx(T& y, T& p, T& r)
+{
+    return ::smpl::normalize_euler_zyx(y, p, r);
+}
+
+template <typename T>
+void normalize_euler_zyx(T* angles)
+{
+    return ::smpl::normalize_euler_zyx(angles);
+}
+
+template <typename T>
+T get_nearest_planar_rotation(const Eigen::Quaternion<T>& q)
+{
+    return ::smpl::get_nearest_planar_rotation(q);
+}
+
 } // namespace angles
+
 } // namespace smpl
 
 #endif
