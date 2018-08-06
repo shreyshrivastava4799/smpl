@@ -507,7 +507,7 @@ bool CollisionSpace::init(
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
 {
-    auto urdf = boost::make_shared<urdf::Model>();
+    auto urdf = boost::make_shared<::urdf::Model>();
     if (!urdf->initString(urdf_string)) {
         ROS_ERROR_NAMED(LOG, "Failed to parse URDF");
         return false;
@@ -524,7 +524,7 @@ bool CollisionSpace::init(
 ///     will appear in calls to isStateValid and friends
 bool CollisionSpace::init(
     OccupancyGrid* grid,
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)
@@ -665,7 +665,7 @@ auto BuildCollisionSpace(
 
 auto BuildCollisionSpace(
     OccupancyGrid* grid,
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)

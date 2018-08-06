@@ -72,7 +72,7 @@ public:
 
     bool init(
         OccupancyGrid* grid,
-        const urdf::ModelInterface& urdf,
+        const ::urdf::ModelInterface& urdf,
         const CollisionModelConfig& config,
         const std::string& group_name,
         const std::vector<std::string>& planning_joints);
@@ -272,7 +272,7 @@ auto BuildCollisionSpace(
 
 auto BuildCollisionSpace(
     OccupancyGrid* grid,
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config,
     const std::string& group_name,
     const std::vector<std::string>& planning_joints)

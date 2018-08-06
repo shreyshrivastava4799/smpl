@@ -81,14 +81,14 @@ class RobotCollisionModel
 public:
 
     static auto Load(
-        const urdf::ModelInterface& urdf,
+        const ::urdf::ModelInterface& urdf,
         const CollisionModelConfig& config)
         -> RobotCollisionModelPtr;
 
     RobotCollisionModel() = default;
 
     bool init(
-        const urdf::ModelInterface& urdf,
+        const ::urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
     ~RobotCollisionModel();
@@ -259,28 +259,28 @@ private:
     // this function will take care of appending joint information independent
     // of the type of joint including, name, origin, axis, and offsets into
     // joint variable array
-    void addJoint(const urdf::Joint& joint);
+    void addJoint(const ::urdf::Joint& joint);
 
     // each of these functions is responsible for appending its corresponding
     // per-variable names, flags, and bounds, the type of the joint, and the
     // function used for computing joint transforms
-    void addFixedJoint(const urdf::Joint& joint);
-    void addRevoluteJoint(const urdf::Joint& joint);
-    void addPrismaticJoint(const urdf::Joint& joint);
-    void addContinuousJoint(const urdf::Joint& joint);
-    void addPlanarJoint(const urdf::Joint& joint);
-    void addFloatingJoint(const urdf::Joint& joint);
+    void addFixedJoint(const ::urdf::Joint& joint);
+    void addRevoluteJoint(const ::urdf::Joint& joint);
+    void addPrismaticJoint(const ::urdf::Joint& joint);
+    void addContinuousJoint(const ::urdf::Joint& joint);
+    void addPlanarJoint(const ::urdf::Joint& joint);
+    void addFloatingJoint(const ::urdf::Joint& joint);
 
     bool initRobotModel(
-        const urdf::ModelInterface& urdf,
+        const ::urdf::ModelInterface& urdf,
         const WorldJointConfig& config);
 
     bool initCollisionModel(
-        const urdf::ModelInterface& urdf,
+        const ::urdf::ModelInterface& urdf,
         const CollisionModelConfig& config);
 
-    bool initCollisionShapes(const urdf::ModelInterface& urdf);
-    bool createCollisionShape(const urdf::Collision& collision);
+    bool initCollisionShapes(const ::urdf::ModelInterface& urdf);
+    bool createCollisionShape(const ::urdf::Collision& collision);
 
     bool expandGroups(
         const std::vector<CollisionGroupConfig>& groups,
@@ -290,7 +290,7 @@ private:
         int urdf_link_index,
         double radius,
         std::vector<CollisionSphereModel>& spheres) const;
-    
+
     bool generateBoundingSpheres(
         const CollisionGeometry* geom,
         double radius,
@@ -300,27 +300,27 @@ private:
 
     bool checkCollisionModelReferences() const;
 
-    Eigen::Affine3d poseUrdfToEigen(const urdf::Pose& p) const;
+    Eigen::Affine3d poseUrdfToEigen(const ::urdf::Pose& p) const;
 
     bool voxelizeLink(
-        const urdf::ModelInterface& urdf,
+        const ::urdf::ModelInterface& urdf,
         const std::string& link_name,
         CollisionVoxelsModel& model) const;
 
     bool voxelizeCollisionElement(
-        const urdf::Collision& collision,
+        const ::urdf::Collision& collision,
         double res,
         std::vector<Eigen::Vector3d>& voxels) const;
 
     bool voxelizeGeometry(
-        const urdf::Geometry& geom,
+        const ::urdf::Geometry& geom,
         const Eigen::Affine3d& pose,
         double res,
         std::vector<Eigen::Vector3d>& voxels) const;
 };
 
 auto LoadRobotCollisionModel(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
     -> std::unique_ptr<RobotCollisionModel>;
 
