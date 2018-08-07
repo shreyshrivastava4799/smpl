@@ -8,7 +8,7 @@
     <maintainer email="andrew.dornbush@gmail.com">Andrew Dornbush</maintainer>
     <license>BSD</license>
 
-    <buildtool_depend>catkin</buildtool_depend>
+    <buildtool_depend>cmake</buildtool_depend>
 
     <depend>boost</depend>
     <depend>eigen</depend>
@@ -18,4 +18,8 @@
     <depend>roscpp</depend>
     <depend>trajectory_msgs</depend>
     <depend>visualization_msgs</depend>
+
+    <export>
+        <build_type>cmake</build_type>
+    </export>
 </package>
