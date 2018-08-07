@@ -31,7 +31,7 @@
 
 #include <smpl/distance_map/detail/distance_map_common.h>
 
-namespace sbpl {
+namespace smpl {
 
 /// \param[out] neighbors Precomputed array of possibly 27-connected directions.
 ///     A particular neighbor is indexed via the dirnum(x, y, z, 0) function.
@@ -83,4 +83,4 @@ void CreateNeighborUpdateList(
     }
 }
 
-} // namespace sbpl
+} // namespace smpl

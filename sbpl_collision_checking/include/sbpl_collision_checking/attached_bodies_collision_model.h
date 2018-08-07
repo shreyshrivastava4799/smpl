@@ -45,7 +45,7 @@
 #include <sbpl_collision_checking/robot_collision_model.h>
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 class AttachedBodiesCollisionModel
@@ -376,6 +376,6 @@ const std::vector<int>& AttachedBodiesCollisionModel::groupLinkIndices(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

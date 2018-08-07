@@ -7,7 +7,7 @@
 
 #include <sbpl_collision_checking/shapes.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 bool VoxelizeObject(
@@ -92,6 +92,6 @@ bool VoxelizeOcTree(
     std::vector<Eigen::Vector3d>& voxels);
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

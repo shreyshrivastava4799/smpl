@@ -46,7 +46,7 @@
 #include <smpl/distance_map/distance_map_interface.h>
 #include "detail/distance_map_common.h"
 
-namespace sbpl {
+namespace smpl {
 
 class SparseDistanceMap : public DistanceMapInterface
 {
@@ -221,6 +221,6 @@ public:
     double getInterpMetricSquaredDistance(double x, double y, double z) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

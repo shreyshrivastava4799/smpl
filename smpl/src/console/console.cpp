@@ -13,7 +13,7 @@
 #include <smpl/console/ansi.h>
 #include <smpl/console/nonstd.h>
 
-namespace sbpl {
+namespace smpl {
 namespace console {
 
 bool g_initialized = false;
@@ -272,4 +272,4 @@ void print(Level level, const char* filename, int line, const std::stringstream&
 }
 
 } // namespace console
-} // namespace sbpl
+} // namespace smpl

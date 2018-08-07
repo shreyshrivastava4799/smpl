@@ -27,12 +27,12 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef sbpl_geometry_triangle_h
-#define sbpl_geometry_triangle_h
+#ifndef smpl_geometry_triangle_h
+#define smpl_geometry_triangle_h
 
 #include <Eigen/Dense>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 struct Triangle
@@ -53,6 +53,6 @@ struct Triangle
 };
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #endif

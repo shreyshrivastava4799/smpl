@@ -42,8 +42,7 @@
 #include <smpl/types.h>
 #include <smpl/debug/marker.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class CollisionChecker : public virtual Extension
 {
@@ -112,8 +111,7 @@ public:
         const RobotState& finish) = 0;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

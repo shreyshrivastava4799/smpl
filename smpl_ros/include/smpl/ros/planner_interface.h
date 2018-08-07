@@ -63,8 +63,7 @@
 
 SBPL_CLASS_FORWARD(SBPLPlanner);
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 using PlanningSpaceFactory = std::function<
         std::unique_ptr<RobotPlanningSpace>(
@@ -77,6 +76,8 @@ using HeuristicFactory = std::function<
 using PlannerFactory = std::function<
         std::unique_ptr<SBPLPlanner>(
                 RobotPlanningSpace*, RobotHeuristic*)>;
+
+using GoalConstraints = std::vector<moveit_msgs::Constraints>;
 
 SBPL_CLASS_FORWARD(PlannerInterface);
 class PlannerInterface
@@ -99,7 +100,7 @@ public:
 
     static
     bool SupportsGoalConstraints(
-        const std::vector<moveit_msgs::Constraints>& constraints,
+        const GoalConstraints& constraints,
         std::string& why);
 
     bool canServiceRequest(
@@ -129,7 +130,7 @@ public:
     ///     "solution cost"
     ///
     /// @return The statistics
-    std::map<std::string, double> getPlannerStats();
+    auto getPlannerStats() -> std::map<std::string, double>;
 
     /// \name Visualization
     ///@{
@@ -168,9 +169,6 @@ protected:
 
     std::string m_planner_id;
 
-    moveit_msgs::MotionPlanRequest m_req;
-    moveit_msgs::MotionPlanResponse m_res;
-
     bool checkConstructionArgs() const;
 
     // Initialize the SBPL planner and the smpl environment
@@ -179,36 +177,11 @@ protected:
     bool checkParams(const PlanningParams& params) const;
 
     // Set start configuration
+    bool setGoal(const GoalConstraints& v_goal_constraints);
     bool setStart(const moveit_msgs::RobotState& state);
-
-    // Set goal(s)
-    bool setGoalPosition(const moveit_msgs::Constraints& goals);
-
-    // use this to set a 7dof goal!
-    bool setGoalConfiguration(const moveit_msgs::Constraints& goal_constraints);
-
-    // Plan a path to a cartesian goal(s)
-    bool planToPose(
-        const moveit_msgs::MotionPlanRequest& req,
-        std::vector<RobotState>& path,
-        moveit_msgs::MotionPlanResponse& res);
-    bool planToConfiguration(
-        const moveit_msgs::MotionPlanRequest& req,
-        std::vector<RobotState>& path,
-        moveit_msgs::MotionPlanResponse& res);
 
     // Retrieve plan from sbpl
     bool plan(double allowed_time, std::vector<RobotState>& path);
-
-    bool extractGoalPoseFromGoalConstraints(
-        const moveit_msgs::Constraints& goal_constraints,
-        Eigen::Affine3d& goal_pose_out,
-        Eigen::Vector3d& offset) const;
-
-    // extract tolerance as an array of 6 doubles: x, y, z, roll, pitch, yaw
-    bool extractGoalToleranceFromGoalConstraints(
-        const moveit_msgs::Constraints& goal_constraints,
-        double* tolerance_out);
 
     void clearMotionPlanResponse(
         const moveit_msgs::MotionPlanRequest& req,
@@ -227,7 +200,9 @@ protected:
     void postProcessPath(std::vector<RobotState>& path) const;
     void convertJointVariablePathToJointTrajectory(
         const std::vector<RobotState>& path,
-        trajectory_msgs::JointTrajectory& traj) const;
+        const std::string& joint_state_frame,
+        const std::string& multi_dof_joint_state_frame,
+        moveit_msgs::RobotTrajectory& traj) const;
     void profilePath(trajectory_msgs::JointTrajectory& traj) const;
     void removeZeroDurationSegments(trajectory_msgs::JointTrajectory& traj) const;
 
@@ -236,7 +211,6 @@ protected:
         const moveit_msgs::RobotTrajectory& traj) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

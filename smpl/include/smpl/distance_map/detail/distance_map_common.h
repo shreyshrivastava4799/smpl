@@ -39,7 +39,7 @@
 // system includes
 #include <Eigen/Dense>
 
-namespace sbpl {
+namespace smpl {
 
 #define SMPL_DMAP_RETURN_CHANGED_CELLS 0
 
@@ -70,6 +70,6 @@ struct Eigen_Vector3i_compare
     }
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

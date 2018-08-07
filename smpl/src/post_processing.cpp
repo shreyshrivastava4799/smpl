@@ -46,8 +46,7 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/geometry/shortcut.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 double distance(
     const RobotModel& robot,
@@ -504,5 +503,4 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
     return true;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

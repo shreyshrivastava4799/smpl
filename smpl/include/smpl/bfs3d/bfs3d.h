@@ -39,8 +39,7 @@
 #include <tuple>
 #include <iostream>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class BFS_3D
 {
@@ -172,30 +171,25 @@ void BFS_3D::run(InputIt cells_begin, InputIt cells_end)
     int xyz[3];
     int ind = 0;
     int start_count = 0;
-    for (auto it = cells_begin; it != cells_end; ++it) {
+    for (auto it = cells_begin; it != cells_end;) {
         if (ind == 3) {
-            const int origin = getNode(xyz[0], xyz[1], xyz[2]);
+            auto origin = getNode(xyz[0], xyz[1], xyz[2]);
             m_queue[start_count++] = origin;
             m_distance_grid[origin] = 0;
             ind = 0;
-        }
-        else {
-            xyz[ind++] = *it;
+        } else {
+            xyz[ind++] = *it++;
         }
     }
 
     m_queue_tail = start_count;
 
     // fire off background thread to compute bfs
-    m_search_thread = std::thread(
-            static_cast<void (BFS_3D::*)(int, int, int volatile*, int*, int&, int&)>(&BFS_3D::search),
-            this,
-            m_dim_x,
-            m_dim_xy,
-            m_distance_grid,
-            m_queue,
-            m_queue_head,
-            m_queue_tail);
+    m_search_thread = std::thread([&]()
+    {
+        this->search(m_dim_x, m_dim_xy, m_distance_grid, m_queue, m_queue_head, m_queue_tail);
+    });
+
     m_running = true;
 }
 
@@ -248,7 +242,6 @@ inline int BFS_3D::neighbor(int node, int neighbor) const
     return node + m_neighbor_offsets[neighbor];
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -36,8 +36,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool JointDistHeuristic::init(RobotPlanningSpace* space)
 {
@@ -135,5 +134,4 @@ double JointDistHeuristic::computeJointDistance(
     return std::sqrt(dsum);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

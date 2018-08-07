@@ -1,0 +1,13 @@
+<package format="2">
+    <name>smpl_ompl_interface</name>
+    <description>The smpl_ompl package</description>
+    <version>0.0.0</version>
+    <author email="andrew.dornbush@gmail.com">Andrew Dornbush</author>
+    <maintainer email="andrew.dornbush@gmail.com">Andrew Dornbush</maintainer>
+    <license>TODO</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <depend>ompl</depend>
+    <depend>smpl</depend>
+</package>

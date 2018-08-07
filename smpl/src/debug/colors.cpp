@@ -1,6 +1,6 @@
 #include <smpl/debug/colors.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 Color MakeColorHSV(float h, float s, float v, float a)
@@ -81,4 +81,4 @@ void rgb_to_hsv(double* h, double* s, double* v, double r, double g, double b)
 }
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl

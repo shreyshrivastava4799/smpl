@@ -34,8 +34,7 @@
 
 #include <vector>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ExperienceGraphHeuristicExtension : public virtual Extension
 {
@@ -56,7 +55,6 @@ public:
 private:
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

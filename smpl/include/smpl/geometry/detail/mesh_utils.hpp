@@ -34,7 +34,7 @@
 
 #include <cstdio>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 template <typename Discretizer>
@@ -172,6 +172,6 @@ void CreateGridMesh(
 }
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #endif

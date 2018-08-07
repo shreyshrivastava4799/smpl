@@ -40,7 +40,7 @@
 #include <smpl/geometry/voxelize.h>
 #include <smpl/geometry/mesh_utils.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 /// \brief Cover the surface of a box with a set of spheres.
@@ -318,4 +318,4 @@ void ComputeMeshBoundingSpheres(
 }
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl

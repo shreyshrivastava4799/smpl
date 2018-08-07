@@ -12,7 +12,7 @@
 
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 enum class ShapeType
@@ -137,6 +137,6 @@ struct LinkCollisionGeometry {
 };
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

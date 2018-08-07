@@ -6,7 +6,7 @@
 #include <geometric_shapes/shape_operations.h>
 #include <ros/console.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 // Construct a CollisionShape from a SolidPrimitive. The returned shape is
@@ -505,24 +505,24 @@ void FreeManagedCollisionObject(CollisionObject& co)
 {
     for (auto& shape : co.shapes) {
         switch (shape->type) {
-        case sbpl::collision::ShapeType::Sphere:
-            delete static_cast<sbpl::collision::SphereShape*>(shape);
+        case smpl::collision::ShapeType::Sphere:
+            delete static_cast<smpl::collision::SphereShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Cylinder:
-            delete static_cast<sbpl::collision::CylinderShape*>(shape);
+        case smpl::collision::ShapeType::Cylinder:
+            delete static_cast<smpl::collision::CylinderShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Cone:
-            delete static_cast<sbpl::collision::ConeShape*>(shape);
+        case smpl::collision::ShapeType::Cone:
+            delete static_cast<smpl::collision::ConeShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Box:
-            delete static_cast<sbpl::collision::BoxShape*>(shape);
+        case smpl::collision::ShapeType::Box:
+            delete static_cast<smpl::collision::BoxShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Plane:
-            delete static_cast<sbpl::collision::PlaneShape*>(shape);
+        case smpl::collision::ShapeType::Plane:
+            delete static_cast<smpl::collision::PlaneShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Mesh:
+        case smpl::collision::ShapeType::Mesh:
         {
-            auto* m = static_cast<sbpl::collision::MeshShape*>(shape);
+            auto* m = static_cast<smpl::collision::MeshShape*>(shape);
             if (m->vertices != NULL) {
                 delete[] m->vertices;
             }
@@ -532,9 +532,9 @@ void FreeManagedCollisionObject(CollisionObject& co)
             delete m;
             break;
         }
-        case sbpl::collision::ShapeType::OcTree:
+        case smpl::collision::ShapeType::OcTree:
         {
-            auto* o = static_cast<sbpl::collision::OcTreeShape*>(shape);
+            auto* o = static_cast<smpl::collision::OcTreeShape*>(shape);
             delete o->octree;
             delete o;
             break;
@@ -550,26 +550,26 @@ void FreeManagedCollisionObjectShallow(CollisionObject& co)
 {
     for (auto& shape : co.shapes) {
         switch (shape->type) {
-        case sbpl::collision::ShapeType::Sphere:
-            delete static_cast<sbpl::collision::SphereShape*>(shape);
+        case smpl::collision::ShapeType::Sphere:
+            delete static_cast<smpl::collision::SphereShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Cylinder:
-            delete static_cast<sbpl::collision::CylinderShape*>(shape);
+        case smpl::collision::ShapeType::Cylinder:
+            delete static_cast<smpl::collision::CylinderShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Cone:
-            delete static_cast<sbpl::collision::ConeShape*>(shape);
+        case smpl::collision::ShapeType::Cone:
+            delete static_cast<smpl::collision::ConeShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Box:
-            delete static_cast<sbpl::collision::BoxShape*>(shape);
+        case smpl::collision::ShapeType::Box:
+            delete static_cast<smpl::collision::BoxShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Plane:
-            delete static_cast<sbpl::collision::PlaneShape*>(shape);
+        case smpl::collision::ShapeType::Plane:
+            delete static_cast<smpl::collision::PlaneShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::Mesh:
-            delete static_cast<sbpl::collision::MeshShape*>(shape);
+        case smpl::collision::ShapeType::Mesh:
+            delete static_cast<smpl::collision::MeshShape*>(shape);
             break;
-        case sbpl::collision::ShapeType::OcTree:
-            delete static_cast<sbpl::collision::OcTreeShape*>(shape);
+        case smpl::collision::ShapeType::OcTree:
+            delete static_cast<smpl::collision::OcTreeShape*>(shape);
             break;
         }
     }
@@ -579,4 +579,4 @@ void FreeManagedCollisionObjectShallow(CollisionObject& co)
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

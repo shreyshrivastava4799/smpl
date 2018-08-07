@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-namespace sbpl {
+namespace smpl {
 
 template <class Allocator>
 SparseBinaryGrid<Allocator>::SparseBinaryGrid() :
@@ -293,6 +293,6 @@ std::uint8_t SparseBinaryGrid<Allocator>::get_mask(int x, int y, int z) const
     return 1 << ((cx << 2) | (cy << 1) | (cz));
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

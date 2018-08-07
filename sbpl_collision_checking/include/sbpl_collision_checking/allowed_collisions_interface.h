@@ -36,7 +36,7 @@
 
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 class AllowedCollisionsInterface
@@ -52,6 +52,6 @@ public:
 };
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

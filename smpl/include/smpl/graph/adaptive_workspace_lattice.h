@@ -39,16 +39,15 @@
 #include <vector>
 
 // project includes
-#include <smpl/grid.h>
-#include <smpl/occupancy_grid.h>
-#include <smpl/time.h>
-#include <smpl/types.h>
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/workspace_lattice_base.h>
+#include <smpl/grid/grid.h>
+#include <smpl/occupancy_grid.h>
+#include <smpl/time.h>
+#include <smpl/types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 /// Base class for adaptive states. Denotes whether a state is high dimensional.
 struct AdaptiveState
@@ -90,32 +89,30 @@ bool operator==(
     return a.coord == b.coord;
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 // std::hash specializations for state types
 namespace std {
 
 template <>
-struct hash<sbpl::motion::AdaptiveGridState>
+struct hash<smpl::AdaptiveGridState>
 {
-    typedef sbpl::motion::AdaptiveGridState argument_type;
+    typedef smpl::AdaptiveGridState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };
 
 template <>
-struct hash<sbpl::motion::AdaptiveWorkspaceState>
+struct hash<smpl::AdaptiveWorkspaceState>
 {
-    typedef sbpl::motion::AdaptiveWorkspaceState argument_type;
+    typedef smpl::AdaptiveWorkspaceState argument_type;
     typedef std::size_t result_type;
     result_type operator()(const argument_type& s) const;
 };
 
 } // namespace std
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class AdaptiveWorkspaceLattice :
     public WorkspaceLatticeBase,
@@ -278,7 +275,6 @@ private:
     auto getAdaptiveGridVisualization(bool plan_mode) const -> visual::Marker;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

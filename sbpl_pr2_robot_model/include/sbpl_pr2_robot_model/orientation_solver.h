@@ -31,8 +31,8 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_orientation_solver_h
-#define sbpl_manip_orientation_solver_h
+#ifndef SBPL_PR2_ROBOT_MODEL_ORIENTATION_SOLVER_H
+#define SBPL_PR2_ROBOT_MODEL_ORIENTATION_SOLVER_H
 
 // standard includes
 #include <stdio.h>
@@ -40,8 +40,7 @@
 #include <string>
 #include <vector>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class RPYSolver
 {
@@ -96,8 +95,7 @@ class RPYSolver
         int attempt) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

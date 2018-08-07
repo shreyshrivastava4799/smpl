@@ -8,7 +8,7 @@
 
 BOOST_AUTO_TEST_CASE(DefaultConstructorTest)
 {
-    sbpl::SparseBinaryGrid<> g;
+    smpl::SparseBinaryGrid<> g;
     BOOST_CHECK_EQUAL(g.max_depth(), 15);
 
     std::uint64_t max_coord = 1u << 16;
@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(DefaultConstructorTest)
 
 BOOST_AUTO_TEST_CASE(ValueConstructorTest)
 {
-    sbpl::SparseBinaryGrid<> g(true);
+    smpl::SparseBinaryGrid<> g(true);
     for (int x = 0; x < 8; ++x) {
     for (int y = 0; y < 8; ++y) {
     for (int z = 0; z < 8; ++z) {
@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(ValueConstructorTest)
 
 BOOST_AUTO_TEST_CASE(SetSingleNodeTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
 
     BOOST_CHECK_EQUAL(g.tree().num_nodes(), 1);
     BOOST_CHECK_EQUAL(g.tree().num_leaves(), 1);
@@ -53,10 +53,10 @@ BOOST_AUTO_TEST_CASE(SetSingleNodeTest)
 
 BOOST_AUTO_TEST_CASE(CopyConstructorTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
     g.set(0, 0, 0, true);
 
-    sbpl::SparseBinaryGrid<> cg(g);
+    smpl::SparseBinaryGrid<> cg(g);
     BOOST_CHECK_EQUAL(cg.get(0, 0, 0), true);
 
     BOOST_CHECK_EQUAL(cg.size_x(), g.size_x());
@@ -68,19 +68,19 @@ BOOST_AUTO_TEST_CASE(CopyConstructorTest)
 
 BOOST_AUTO_TEST_CASE(MoveConstructorTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
     g.set(0, 0, 0, true);
 
-    sbpl::SparseBinaryGrid<> g2(std::move(g));
+    smpl::SparseBinaryGrid<> g2(std::move(g));
 
     BOOST_CHECK_EQUAL(g2.get(0, 0, 0), true);
 }
 
 BOOST_AUTO_TEST_CASE(CopyAssignmentTest)
 {
-    sbpl::SparseBinaryGrid<> g1(false);
+    smpl::SparseBinaryGrid<> g1(false);
 
-    sbpl::SparseBinaryGrid<> g2(false);
+    smpl::SparseBinaryGrid<> g2(false);
     g2.set(0, 0, 0, true);
 
     g1 = g2;
@@ -99,9 +99,9 @@ BOOST_AUTO_TEST_CASE(CopyAssignmentTest)
 
 BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
 {
-    sbpl::SparseBinaryGrid<> t1(true);
+    smpl::SparseBinaryGrid<> t1(true);
 
-    sbpl::SparseBinaryGrid<> t2(true);
+    smpl::SparseBinaryGrid<> t2(true);
     t2.set(0, 0, 0, false);
 
     t1 = std::move(t2);
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
 
 BOOST_AUTO_TEST_CASE(SetAndUnsetNodeTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
 
     g.set(0, 0, 0, true);
     g.set(0, 0, 0, false);
@@ -122,13 +122,13 @@ BOOST_AUTO_TEST_CASE(SetAndUnsetNodeTest)
 
 BOOST_AUTO_TEST_CASE(CheckerboardTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
 }
 
 BOOST_AUTO_TEST_CASE(ExtentsTest)
 {
     auto max_coord = std::numeric_limits<std::uint16_t>::max();
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
 
     g.set(0,         0,         0,         true);
     g.set(0,         0,         max_coord, true);
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(ExtentsTest)
 
 BOOST_AUTO_TEST_CASE(ResetTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
     g.set(0, 0, 0, true);
 
     g.reset(false);
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE(ResetTest)
 /// Test automatic compression on a small sparse grid
 BOOST_AUTO_TEST_CASE(AutoCompressionTest)
 {
-    sbpl::SparseBinaryGrid<> g(8, 8, 8, false);
+    smpl::SparseBinaryGrid<> g(8, 8, 8, false);
 
     BOOST_CHECK_EQUAL(g.max_depth(), 2);
     BOOST_CHECK_EQUAL(g.size(), 8 * 8 * 8);
@@ -176,13 +176,13 @@ BOOST_AUTO_TEST_CASE(AutoCompressionTest)
 /// Test bounded depth for a smallish sparse grid
 BOOST_AUTO_TEST_CASE(BoundedGridDepthTest)
 {
-    sbpl::SparseBinaryGrid<> g(1024, 1024, 1024);
+    smpl::SparseBinaryGrid<> g(1024, 1024, 1024);
     BOOST_CHECK_EQUAL(g.max_depth(), 9);
 }
 
 BOOST_AUTO_TEST_CASE(LazySetNodeTest)
 {
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
 
     // enforce node creation
     for (int x = 0; x < 16; ++x) {
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(VisitorTest)
 
     auto print = [](int v) { std::cout << v << std::endl; };
 
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
     g.set(0, 0, 0, true);
 
     g.accept(dispatcher);
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(VisitorTest)
 BOOST_AUTO_TEST_CASE(LeafCoordsVisitorTest)
 {
     auto max_coord = std::numeric_limits<std::uint16_t>::max();
-    sbpl::SparseBinaryGrid<int> g(0);
+    smpl::SparseBinaryGrid<int> g(0);
     g.set(0, 0, 0, 1);
 
 //    g.set(0,         0,         0,         8);
@@ -265,7 +265,7 @@ BOOST_AUTO_TEST_CASE(CompareMemUsageTest)
     const int xmax = scale * 512;
     const int ymax = scale * 512;
     const int zmax = scale * 80;
-    sbpl::SparseBinaryGrid<> g(false);
+    smpl::SparseBinaryGrid<> g(false);
     for (int x = 0; x < xmax; ++x) {
     for (int y = 0; y < ymax; ++y) {
     for (int z = 0; z < zmax; ++z) {
@@ -299,7 +299,7 @@ BOOST_AUTO_TEST_CASE(CompareMemUsageTest)
 
 BOOST_AUTO_TEST_CASE(ResizeTest)
 {
-    sbpl::SparseBinaryGrid<> g;
+    smpl::SparseBinaryGrid<> g;
     g.resize(8, 8, 8);
     BOOST_CHECK_EQUAL(g.max_depth(), 2);
 }

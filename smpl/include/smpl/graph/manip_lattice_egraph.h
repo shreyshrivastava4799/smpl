@@ -36,8 +36,7 @@
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/graph/manip_lattice.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ManipLatticeEgraph : public ManipLattice, public ExperienceGraphExtension
 {
@@ -115,7 +114,6 @@ private:
     void rasterizeExperienceGraph();
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

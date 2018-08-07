@@ -35,16 +35,17 @@
 // standard includes
 #include <assert.h>
 #include <algorithm>
+#include <functional>
 
 // system includes
 #include <sbpl/heuristics/heuristic.h>
 #include <sbpl/planners/planner.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/time.h>
 
-namespace sbpl {
+namespace smpl {
 
 /// An implementation of the ARA* (Anytime Repairing A*) search algorithm. This
 /// algorithm runs a series of weighted A* searches with decreasing bounds on
@@ -85,11 +86,13 @@ public:
     {
         bool bounded;
         bool improve;
-        enum TimingType { EXPANSIONS, TIME } type;
+        enum TimingType { EXPANSIONS, TIME, USER } type;
         int max_expansions_init;
         int max_expansions;
         clock::duration max_allowed_time_init;
         clock::duration max_allowed_time;
+
+        std::function<bool()> timed_out_fun;
     };
 
     ARAStar(DiscreteSpaceInformation* space, Heuristic* heuristic);
@@ -256,6 +259,6 @@ private:
         int& cost) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

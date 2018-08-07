@@ -32,8 +32,7 @@
 #ifndef SMPL_COST_FUNCTION_H
 #define SMPL_COST_FUNCTION_H
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class CostFunction
 {
@@ -47,7 +46,6 @@ public:
 private:
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

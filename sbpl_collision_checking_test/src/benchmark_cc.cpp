@@ -49,7 +49,7 @@
 #include "pr2_allowed_collision_pairs.h"
 
 auto CreateGrid(const ros::NodeHandle& nh, double max_dist)
-    -> std::unique_ptr<sbpl::OccupancyGrid>
+    -> std::unique_ptr<smpl::OccupancyGrid>
 {
     const char* world_collision_model_param = "world_collision_model";
     std::string wcm_key;
@@ -108,28 +108,28 @@ auto CreateGrid(const ros::NodeHandle& nh, double max_dist)
 
     const int dflib = 2; // 0 -> my dense, 1 -> my sparse, 2 -> df
 
-    std::unique_ptr<sbpl::OccupancyGrid> grid;
+    std::unique_ptr<smpl::OccupancyGrid> grid;
     if (dflib == 0) {
-        auto df = std::make_shared<sbpl::EuclidDistanceMap>(
+        auto df = std::make_shared<smpl::EuclidDistanceMap>(
                 origin_x, origin_y, origin_z,
                 size_x, size_y, size_z,
                 res_m,
                 max_distance_m);
 
-        grid = std::unique_ptr<sbpl::OccupancyGrid>(
-                new sbpl::OccupancyGrid(df, ref_counted));
+        grid = std::unique_ptr<smpl::OccupancyGrid>(
+                new smpl::OccupancyGrid(df, ref_counted));
 
     } else if (dflib == 1){
-        auto df = std::make_shared<sbpl::SparseDistanceMap>(
+        auto df = std::make_shared<smpl::SparseDistanceMap>(
                 origin_x, origin_y, origin_z,
                 size_x, size_y, size_z,
                 res_m,
                 max_distance_m);
-        grid = std::unique_ptr<sbpl::OccupancyGrid>(
-                new sbpl::OccupancyGrid(df, ref_counted));
+        grid = std::unique_ptr<smpl::OccupancyGrid>(
+                new smpl::OccupancyGrid(df, ref_counted));
     } else {
-        grid = std::unique_ptr<sbpl::OccupancyGrid>(
-                new sbpl::OccupancyGrid(
+        grid = std::unique_ptr<smpl::OccupancyGrid>(
+                new smpl::OccupancyGrid(
                         size_x, size_y, size_z,
                         res_m,
                         origin_x, origin_y, origin_z,
@@ -160,16 +160,16 @@ public:
 private:
 
     ros::NodeHandle m_nh;
-    std::unique_ptr<sbpl::OccupancyGrid> m_grid;
+    std::unique_ptr<smpl::OccupancyGrid> m_grid;
     std::vector<std::string> m_planning_joints;
-    sbpl::collision::RobotCollisionModelPtr m_rcm;
-    sbpl::collision::CollisionSpace m_cspace;
+    smpl::collision::RobotCollisionModelPtr m_rcm;
+    smpl::collision::CollisionSpace m_cspace;
     std::default_random_engine m_rng;
     ros::Publisher m_pub;
 
     std::vector<double> createRandomState();
 
-    void initACM(sbpl::collision::AllowedCollisionMatrix& acm);
+    void initACM(smpl::collision::AllowedCollisionMatrix& acm);
 };
 
 bool CollisionSpaceProfiler::init()
@@ -191,13 +191,13 @@ bool CollisionSpaceProfiler::init()
         return false;
     }
 
-    sbpl::collision::CollisionModelConfig config;
-    if (!sbpl::collision::CollisionModelConfig::Load(m_nh, config)) {
+    smpl::collision::CollisionModelConfig config;
+    if (!smpl::collision::CollisionModelConfig::Load(m_nh, config)) {
         ROS_ERROR("Failed to load collision model config");
         return false;
     }
 
-    m_rcm = sbpl::collision::RobotCollisionModel::Load(urdf, config);
+    m_rcm = smpl::collision::RobotCollisionModel::Load(urdf, config);
 
     ROS_INFO("max leaf sphere radius: %0.3f", m_rcm->maxLeafSphereRadius());
 
@@ -222,7 +222,7 @@ bool CollisionSpaceProfiler::init()
         return false;
     }
 
-    sbpl::collision::AllowedCollisionMatrix acm;
+    smpl::collision::AllowedCollisionMatrix acm;
     initACM(acm);
     m_cspace.setAllowedCollisionMatrix(acm);
 
@@ -303,7 +303,7 @@ std::vector<double> CollisionSpaceProfiler::createRandomState()
     return out;
 }
 
-void CollisionSpaceProfiler::initACM(sbpl::collision::AllowedCollisionMatrix& acm)
+void CollisionSpaceProfiler::initACM(smpl::collision::AllowedCollisionMatrix& acm)
 {
     for (auto& pair : PR2AllowedCollisionPairs) {
         acm.setEntry(pair.first, pair.second, true);

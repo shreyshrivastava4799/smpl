@@ -44,7 +44,7 @@
 // project includes
 #include <sbpl_collision_checking/types.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 struct WorldJointConfig
@@ -127,7 +127,7 @@ bool LoadAllowedCollisionMatrix(
     AllowedCollisionMatrix& acm);
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

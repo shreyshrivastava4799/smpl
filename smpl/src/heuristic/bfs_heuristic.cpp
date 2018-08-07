@@ -34,13 +34,12 @@
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
 #include <smpl/console/console.h>
-#include <smpl/intrusive_heap.h>
-#include <smpl/grid.h>
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
+#include <smpl/grid/grid.h>
+#include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 static const char* LOG = "heuristic.bfs";
 
@@ -82,24 +81,67 @@ void BfsHeuristic::setCostPerCell(int cost_per_cell)
 
 void BfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
-    int gx, gy, gz;
-    grid()->worldToGrid(
-            goal.tgt_off_pose.translation()[0],
-            goal.tgt_off_pose.translation()[1],
-            goal.tgt_off_pose.translation()[2],
-            gx, gy, gz);
+    switch (goal.type) {
+    case GoalType::XYZ_GOAL:
+    case GoalType::XYZ_RPY_GOAL:
+    case GoalType::JOINT_STATE_GOAL:
+    {
+        // TODO: this assumes goal.pose is initialized, regardless of what kind of
+        // goal this is.
+        int gx, gy, gz;
+        grid()->worldToGrid(
+                goal.pose.translation()[0],
+                goal.pose.translation()[1],
+                goal.pose.translation()[2],
+                gx, gy, gz);
 
-    SMPL_DEBUG_NAMED(LOG, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
+        SMPL_DEBUG_NAMED(LOG, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
 
-    if (!m_bfs->inBounds(gx, gy, gz)) {
-        SMPL_ERROR_NAMED(LOG, "Heuristic goal is out of BFS bounds");
+        if (!m_bfs->inBounds(gx, gy, gz)) {
+            SMPL_ERROR_NAMED(LOG, "Heuristic goal is out of BFS bounds");
+        }
+
+        m_goal_x = gx;
+        m_goal_y = gy;
+        m_goal_z = gz;
+
+        m_bfs->run(gx, gy, gz);
+        break;
     }
+    case GoalType::MULTIPLE_POSE_GOAL:
+    {
+        std::vector<int> cell_coords;
+        for (auto& goal_pose : goal.poses) {
+            int gx, gy, gz;
+            grid()->worldToGrid(
+                    goal.pose.translation()[0],
+                    goal.pose.translation()[1],
+                    goal.pose.translation()[2],
+                    gx, gy, gz);
 
-    m_goal_x = gx;
-    m_goal_y = gy;
-    m_goal_z = gz;
+            SMPL_DEBUG_NAMED(LOG, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
 
-    m_bfs->run(gx, gy, gz);
+            if (!m_bfs->inBounds(gx, gy, gz)) {
+                SMPL_ERROR_NAMED(LOG, "Heuristic goal is out of BFS bounds");
+                continue;
+            }
+
+            cell_coords.push_back(gx);
+            cell_coords.push_back(gy);
+            cell_coords.push_back(gz);
+
+            m_goal_x = gx;
+            m_goal_y = gy;
+            m_goal_z = gz;
+        }
+        m_bfs->run(begin(cell_coords), end(cell_coords));
+        break;
+    }
+    case GoalType::USER_GOAL_CONSTRAINT_FN:
+    default:
+        ROS_ERROR("Unsupported goal type in BFS Heuristic");
+        break;
+    }
 }
 
 double BfsHeuristic::getMetricStartDistance(double x, double y, double z)
@@ -371,5 +413,4 @@ int BfsHeuristic::getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

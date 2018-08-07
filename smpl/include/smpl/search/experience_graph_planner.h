@@ -32,18 +32,20 @@
 #ifndef SMPL_EGRAPH_PLANNER_H
 #define SMPL_EGRAPH_PLANNER_H
 
+// standard includes
+#include <stdint.h>
+
 // system includes
 #include <sbpl/planners/planner.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/graph/robot_planning_space.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ExperienceGraphPlanner : public SBPLPlanner
 {
@@ -86,11 +88,11 @@ private:
     struct SearchState : public heap_element
     {
         int state_id;
-        unsigned int g;
-        unsigned int h;
-        unsigned int f;
-        unsigned short iteration_closed;
-        unsigned short call_number;
+        int32_t g;
+        int32_t h;
+        int64_t f;
+        uint16_t iteration_closed;
+        uint16_t call_number;
         SearchState* bp;
     };
 
@@ -127,7 +129,6 @@ private:
     void extractPath(std::vector<int>& solution, int& cost) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

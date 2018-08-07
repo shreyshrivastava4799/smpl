@@ -6,7 +6,7 @@
 // project includes
 #include <smpl/angles.h>
 
-namespace sbpl {
+namespace smpl {
 
 // from http://eigen.tuxfamily.org/bz/show_bug.cgi?id=257, specific to 2x2 matrices
 static inline auto pinv(const Eigen::Matrix2d& a, double eps) -> Eigen::Matrix2d
@@ -123,4 +123,4 @@ auto MakeUnicycleMotion(
     return motion;
 }
 
-} // namespace sbpl
+} // namespace smpl

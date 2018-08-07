@@ -1,0 +1,82 @@
+<launch>
+    <arg name="debug" default="false"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
+
+    <arg unless="$(arg debug)" name="launch-prefix" value=""/>
+    <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
+
+    <env name="SMPL_VISUALIZE_CONFIG_FILE" value="$(find smpl_test)/config/smpl_visual.ini"/>
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find smpl_test)/config/rosconsole.properties"/>
+
+    <node
+        pkg="smpl_test"
+        type="call_ompl_planner"
+        name="call_ompl_planner"
+        launch-prefix="$(arg launch-prefix)"
+    >
+        <param name="planning_frame" value="odom_combined"/>
+
+        <rosparam param="robot_model">
+            group_name: right_arm
+            planning_joints:
+                r_shoulder_pan_joint
+                r_shoulder_lift_joint
+                r_upper_arm_roll_joint
+                r_elbow_flex_joint
+                r_forearm_roll_joint
+                r_wrist_flex_joint
+                r_wrist_roll_joint
+            planning_link:
+                r_gripper_palm_link
+            kinematics_frame:
+                torso_lift_link
+            chain_tip_link:
+                r_gripper_palm_link
+        </rosparam>
+
+        <!-- world description -->
+        <param name="object_filename" value="$(find smpl_test)/env/tabletop.env"/>
+
+        <!-- collision model params -->
+        <rosparam command="load" file="$(find sbpl_collision_checking_test)/config/collision_model_pr2.yaml"/>
+
+        <!-- planner params -->
+        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
+        <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+
+        <!-- query params -->
+        <rosparam param="initial_configuration">
+            joint_state:
+              - { name: torso_lift_joint,       position: 0.16825 }
+              - { name: r_shoulder_pan_joint,   position: 0 }
+              - { name: r_shoulder_lift_joint,  position: 0.0 }
+              - { name: r_upper_arm_roll_joint, position: 0.0 }
+              - { name: r_elbow_flex_joint,     position: -1.1356 } #-0.2 }
+              - { name: r_forearm_roll_joint,   position: 0.0 }
+              - { name: r_wrist_flex_joint,     position: -1.05 } #-0.2 }
+              - { name: r_wrist_roll_joint,     position: 0.0 }
+
+            multi_dof_joint_state:
+              - frame_id: odom_combined
+                joint_name: torso_lift_link
+                x: -0.05
+                y: 0.0
+                z: 0.959
+                roll: 0.0
+                pitch: 0.0
+                yaw: 0.0
+        </rosparam>
+
+        <rosparam param="goal">
+            x: 0.4
+            y: -0.2
+            z: 0.36
+            roll: 0.0
+            pitch: 0.0
+            yaw: 0.0
+        </rosparam>
+
+        <param name="allowed_planning_time" value="30.0"/>
+    </node>
+</launch>

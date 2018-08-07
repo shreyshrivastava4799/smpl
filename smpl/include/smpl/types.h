@@ -37,10 +37,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include <Eigen/Dense>
+// system includes
+#include <boost/functional/hash.hpp>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 template <
     class Key,
@@ -50,6 +50,8 @@ template <
     class Allocator = std::allocator<std::pair<const Key, T>>>
 using hash_map = std::unordered_map<Key, T, Hash, KeyEqual, Allocator>;
 
+// helper struct to compute a hash value for a pointer using the hash value of
+// the object it points to
 template <typename T>
 struct PointerValueHash
 {
@@ -58,6 +60,8 @@ struct PointerValueHash
     result_type operator()(argument_type s) const { return std::hash<T>()(*s); }
 };
 
+// helper struct to test for equality between two pointers by testing for
+// equality between the objects they point to
 template <typename T>
 struct PointerValueEqual
 {
@@ -65,8 +69,21 @@ struct PointerValueEqual
     bool operator()(argument_type a, argument_type b) const { return *a == *b; }
 };
 
+template <class T, class Allocator = std::allocator<T>>
+struct VectorHash
+{
+    using argument_type = std::vector<T, Allocator>;
+    using result_type = std::size_t;
+    auto operator()(const argument_type& s) const -> result_type
+    {
+        auto seed = result_type(0);
+        boost::hash_combine(seed, boost::hash_range(begin(s), end(s)));
+        return seed;
+    }
+};
+
 #if 1
-typedef std::vector<double> RobotState;
+using RobotState = std::vector<double>;
 #else
 // This class is eventually meant to replace the above typedef to add type
 // safety to RobotState usages; currently, it is used as a compile-time
@@ -147,44 +164,8 @@ public:
 };
 #endif
 
-typedef std::vector<RobotState> Action;
+using Action = std::vector<RobotState>;
 
-enum GoalType
-{
-    INVALID_GOAL_TYPE = -1,
-    XYZ_GOAL,
-    XYZ_RPY_GOAL,
-    JOINT_STATE_GOAL,
-    USER_GOAL_CONSTRAINT_FN,
-    NUMBER_OF_GOAL_TYPES
-};
-
-using GoalConstraintFn = bool (*)(void* user, const RobotState& state);
-
-struct GoalConstraint
-{
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-    // Relevant for joint state goals
-    RobotState angles;
-    std::vector<double> angle_tolerances;
-
-    // Relevant for workspace goals
-    Eigen::Affine3d pose;               // goal pose of the planning link
-    double xyz_offset[3];               // offset from the planning link
-    double xyz_tolerance[3];            // (x, y, z) tolerance
-    double rpy_tolerance[3];            // (R, P, Y) tolerance
-
-    Eigen::Affine3d tgt_off_pose;       // goal pose offset from planning link
-    int xyz[3];                         // planning frame cell (x, y, z)
-
-    GoalConstraintFn check_goal = NULL;
-    void* check_goal_user = NULL;
-
-    GoalType type;                      // type of goal constraint
-};
-
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

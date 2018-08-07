@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <limits>
 
-namespace sbpl {
+namespace smpl {
 
 struct Pose2D
 {
@@ -109,6 +109,6 @@ inline auto MakeUnicycleMotion(
             eps);
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

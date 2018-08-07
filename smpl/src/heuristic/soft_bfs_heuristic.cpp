@@ -33,8 +33,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 SoftBfsHeuristic::SoftBfsHeuristic(
     EnvironmentROBARM3D* env,
@@ -144,5 +143,4 @@ void SoftBfsHeuristic::syncGridAndBfs()
     SMPL_INFO("%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

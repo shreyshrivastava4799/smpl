@@ -35,8 +35,7 @@
 #ifndef SMPL_ZERO_HEURISTIC_H
 #define SMPL_ZERO_HEURISTIC_H
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ZeroHeuristic : public RobotHeuristic
 {
@@ -63,7 +62,6 @@ public:
     ///@}
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

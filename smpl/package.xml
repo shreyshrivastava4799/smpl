@@ -1,7 +1,7 @@
 <package format="2">
     <name>smpl</name>
     <version>0.0.0</version>
-    <description>Motion Planning for Robotic Manipulators</description>
+    <description>The Search-Based Motion Planning Library</description>
     <author email="bcohen@seas.upenn.edu">Benjamin Cohen</author>
     <author email="andrew.dornbush@gmail.com">Andrew Dornbush</author>
     <author>Harsh Pandey</author>
@@ -12,11 +12,7 @@
 
     <depend>boost</depend>
     <depend>eigen</depend>
-    <depend>leatherman</depend>
-    <depend>moveit_core</depend>
-    <depend>moveit_msgs</depend>
     <depend>roscpp</depend>
-    <depend>trajectory_msgs</depend>
     <depend>visualization_msgs</depend>
 
     <export>

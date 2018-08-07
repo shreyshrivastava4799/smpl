@@ -45,10 +45,7 @@
 #include <smpl/graph/robot_planning_space_observer.h>
 #include <smpl/graph/robot_planning_space.h>
 
-namespace sbpl {
-namespace motion {
-
-SBPL_CLASS_FORWARD(RobotHeuristic);
+namespace smpl {
 
 class RobotHeuristic :
     public Heuristic,
@@ -94,7 +91,6 @@ private:
     RobotPlanningSpace* m_space = nullptr;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

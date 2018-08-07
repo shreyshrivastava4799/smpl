@@ -36,12 +36,11 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/csv_parser.h>
-#include <smpl/intrusive_heap.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/heap/intrusive_heap.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) const ->
     result_type
@@ -63,18 +62,17 @@ bool ManipLatticeEgraph::extractPath(
     // attempt to handle paths of length 1...do any of the sbpl planners still
     // return a single-point path in some cases?
     if (idpath.size() == 1) {
-        const int state_id = idpath[0];
+        auto state_id = idpath[0];
 
         if (state_id == getGoalStateID()) {
-            RobotState angles;
-            const ManipLatticeState* entry = getHashEntry(getStartStateID());
+            auto* entry = getHashEntry(getStartStateID());
             if (!entry) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", getStartStateID());
                 return false;
             }
             path.push_back(entry->state);
         } else {
-            const ManipLatticeState* entry = getHashEntry(state_id);
+            auto* entry = getHashEntry(state_id);
             if (!entry) {
                 SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
                 return false;
@@ -96,8 +94,7 @@ bool ManipLatticeEgraph::extractPath(
 
     // grab the first point
     {
-        RobotState angles;
-        const ManipLatticeState* entry = getHashEntry(idpath[0]);
+        auto* entry = getHashEntry(idpath[0]);
         if (!entry) {
             SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", idpath[0]);
             return false;
@@ -107,8 +104,8 @@ bool ManipLatticeEgraph::extractPath(
 
     // grab the rest of the points
     for (size_t i = 1; i < idpath.size(); ++i) {
-        const int prev_id = idpath[i - 1];
-        const int curr_id = idpath[i];
+        auto prev_id = idpath[i - 1];
+        auto curr_id = idpath[i];
         SMPL_DEBUG_NAMED(params()->graph_log, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == getGoalStateID()) {
@@ -242,7 +239,7 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     for (auto dit = boost::filesystem::directory_iterator(p);
         dit != boost::filesystem::directory_iterator(); ++dit)
     {
-        const std::string& filepath = dit->path().generic_string();
+        auto& filepath = dit->path().generic_string();
         std::vector<RobotState> egraph_states;
         if (!parseExperienceGraphFile(filepath, egraph_states)) {
             continue;
@@ -254,15 +251,15 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
         SMPL_INFO("Create hash entries for experience graph states");
 
-        const RobotState& pp = egraph_states.front();  // previous robot state
+        auto& pp = egraph_states.front();  // previous robot state
         RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
         stateToCoord(egraph_states.front(), pdp);
 
-        ExperienceGraph::node_id pid = m_egraph.insert_node(pp);
+        auto pid = m_egraph.insert_node(pp);
         m_coord_to_nodes[pdp].push_back(pid);
 
         int entry_id = reserveHashEntry();
-        ManipLatticeState* entry = getHashEntry(entry_id);
+        auto* entry = getHashEntry(entry_id);
         entry->coord = pdp;
         entry->state = pp;
 
@@ -273,17 +270,17 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
 
         std::vector<RobotState> edge_data;
         for (size_t i = 1; i < egraph_states.size(); ++i) {
-            const RobotState& p = egraph_states[i];
+            auto& p = egraph_states[i];
             RobotCoord dp(robot()->jointVariableCount());
             stateToCoord(p, dp);
             if (dp != pdp) {
                 // found a new discrete state along the path
 
-                ExperienceGraph::node_id id = m_egraph.insert_node(p);
+                auto id = m_egraph.insert_node(p);
                 m_coord_to_nodes[dp].push_back(id);
 
                 int entry_id = reserveHashEntry();
-                ManipLatticeState* entry = getHashEntry(entry_id);
+                auto* entry = getHashEntry(entry_id);
                 entry->coord = dp;
                 entry->state = p;
 
@@ -356,7 +353,7 @@ bool ManipLatticeEgraph::snap(
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(second_entry->state, "snap_to"));
 
     if (!collisionChecker()->isStateToStateValid(
-        first_entry->state, second_entry->state))
+            first_entry->state, second_entry->state))
     {
         SMPL_WARN("Failed snap!");
         return false;
@@ -608,5 +605,4 @@ void ManipLatticeEgraph::rasterizeExperienceGraph()
 //    aspace->useLongAndShortPrims(use_long_and_short_mprims);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

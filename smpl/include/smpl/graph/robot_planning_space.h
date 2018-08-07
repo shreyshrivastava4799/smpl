@@ -46,13 +46,12 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/types.h>
+#include <smpl/graph/goal_constraint.h>
 #include <smpl/graph/robot_planning_space_observer.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
-SBPL_CLASS_FORWARD(RobotHeuristic);
-SBPL_CLASS_FORWARD(RobotPlanningSpace);
+class RobotHeuristic;
 
 class RobotPlanningSpace :
     public DiscreteSpaceInformation,
@@ -220,7 +219,6 @@ const RobotHeuristic* RobotPlanningSpace::heuristic(size_t i) const
     return m_heuristics[i];
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

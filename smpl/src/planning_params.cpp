@@ -38,8 +38,7 @@
 // system includes
 #include <smpl/console/console.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 const std::string PlanningParams::DefaultRobotModelLog = "robot";
 const std::string PlanningParams::DefaultGraphLog = "graph";
@@ -66,11 +65,7 @@ std::string to_string(ShortcutType type)
 }
 
 PlanningParams::PlanningParams() :
-    planning_frame(),
-
     cost_per_cell(DefaultCostPerCell),
-
-    planning_link_sphere_radius(DefaultPlanningLinkSphereRadius),
 
     shortcut_path(DefaultShortcutPath),
     interpolate_path(DefaultInterpolatePath),
@@ -272,5 +267,4 @@ void PlanningParams::convertToString(const Parameter& p, std::string& val) const
     val = boost::apply_visitor(string_converter(), p);
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

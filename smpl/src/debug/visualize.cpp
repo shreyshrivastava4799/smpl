@@ -11,7 +11,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #endif
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 namespace impl { // debug visualization level manager implementation
@@ -342,4 +342,4 @@ void VisualizerBase::visualize(
 }
 
 } // namespace viz
-} // namespace sbpl
+} // namespace smpl

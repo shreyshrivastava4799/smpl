@@ -41,8 +41,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/bfs3d/bfs3d.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class MultiFrameBfsHeuristic : public RobotHeuristic
 {
@@ -51,6 +50,8 @@ public:
     virtual ~MultiFrameBfsHeuristic();
 
     bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
+
+    void setOffset(double x, double y, double z);
 
     double inflationRadius() const { return m_inflation_radius; }
     void setInflationRadius(double radius);
@@ -96,6 +97,8 @@ private:
     std::unique_ptr<BFS_3D> m_bfs;
     std::unique_ptr<BFS_3D> m_ee_bfs;
 
+    double m_pos_offset[3];
+
     double m_inflation_radius = 0.0;
     int m_cost_per_cell = 1;
 
@@ -108,7 +111,6 @@ private:
     int combine_costs(int c1, int c2) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

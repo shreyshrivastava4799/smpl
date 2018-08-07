@@ -29,8 +29,8 @@
 
 /// \author Andrew Dornbush
 
-#ifndef sbpl_manip_profiling_h
-#define sbpl_manip_profiling_h
+#ifndef smpl_manip_profiling_h
+#define smpl_manip_profiling_h
 
 // standard includes
 #include <chrono>
@@ -44,7 +44,7 @@
 #define SBPL_MANIP_PROFILING 0
 #endif
 
-namespace sbpl {
+namespace smpl {
 
 class RunUponDestruction
 {
@@ -111,11 +111,11 @@ private:
     int m_times;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 // Create an object to automatically stop a stopwatch upon exiting the current scope
 #if SBPL_MANIP_PROFILING
-#define PROFAUTOSTOP(watch) ::sbpl::RunUponDestruction watch##_rod([&](){ watch.stop(); });
+#define PROFAUTOSTOP(watch) ::smpl::RunUponDestruction watch##_rod([&](){ watch.stop(); });
 #else
 #define PROFAUTOSTOP(watch)
 #endif

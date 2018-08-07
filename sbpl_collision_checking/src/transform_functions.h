@@ -36,7 +36,7 @@
 
 #define SBPL_COLLISION_SPECIALIZED_JOINT_TRANSFORMS 1
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 ////////////////////////////////////////
@@ -284,6 +284,6 @@ Eigen::Affine3d ComputeFixedJointTransform(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

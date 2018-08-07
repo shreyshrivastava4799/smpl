@@ -1,6 +1,6 @@
 #include <smpl/debug/marker_conversions.h>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 void ConvertMarkerMsgToMarker(const visualization_msgs::Marker& mm, Marker& m)
@@ -236,5 +236,35 @@ void ConvertMarkerToMarkerMsg(
     mm.mesh_use_embedded_materials = (m.flags & Marker::MESH_USE_EMBEDDED_MATERIALS);
 }
 
+auto ConvertMarkersToMarkerArray(const std::vector<Marker>& markers)
+    -> visualization_msgs::MarkerArray
+{
+    visualization_msgs::MarkerArray ma;
+    ma.markers.reserve(markers.size());
+
+    for (auto& marker : markers) {
+        visualization_msgs::Marker m;
+        ConvertMarkerToMarkerMsg(marker, m);
+        ma.markers.push_back(std::move(m));
+    }
+
+    return ma;
+}
+
+auto ConvertMarkerArrayToMarkers(const visualization_msgs::MarkerArray& ma)
+    -> std::vector<smpl::visual::Marker>
+{
+    std::vector<smpl::visual::Marker> markers;
+    markers.reserve(ma.markers.size());
+
+    for (auto& m : ma.markers) {
+        smpl::visual::Marker marker;
+        ConvertMarkerMsgToMarker(m, marker);
+        markers.push_back(std::move(marker));
+    }
+
+    return markers;
+}
+
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl

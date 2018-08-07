@@ -42,7 +42,7 @@
 // project includes
 #include <sbpl_collision_checking/base_collision_models.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 struct CollisionSpheresState;
@@ -180,6 +180,6 @@ int CollisionSphereState::index() const
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

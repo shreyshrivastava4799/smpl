@@ -34,21 +34,9 @@
 
 // project includes
 #include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/workspace_lattice_types.h>
 
-namespace sbpl {
-namespace motion {
-
-/// continuous state ( x, y, z, R, P, Y, j1, ..., jn )
-typedef std::vector<double> WorkspaceState;
-
-/// discrete coordinate ( x, y, z, R, P, Y, j1, ..., jn )
-typedef std::vector<int> WorkspaceCoord;
-
-/// 6-dof pose ( x, y, z, R, P, Y )
-typedef std::vector<double> SixPose;
-
-/// 3-dof position ( x, y, z )
-typedef std::vector<double> Position;
+namespace smpl {
 
 /// Base class for graph representations that represent states via a 1:1 mapping
 /// from joint space states to states in SE(3) alongside an array of redundant
@@ -58,6 +46,19 @@ typedef std::vector<double> Position;
 class WorkspaceLatticeBase : public RobotPlanningSpace
 {
 public:
+
+    ForwardKinematicsInterface* m_fk_iface = NULL;
+    InverseKinematicsInterface* m_ik_iface = NULL;
+    RedundantManipulatorInterface* m_rm_iface = NULL;
+
+    std::vector<double> m_res;
+    std::vector<int> m_val_count;
+    int m_dof_count = 0;
+    std::vector<std::size_t> m_fangle_indices;
+    std::vector<double> m_fangle_min_limits;
+    std::vector<double> m_fangle_max_limits;
+    std::vector<bool> m_fangle_continuous;
+    std::vector<bool> m_fangle_bounded;
 
     struct Params
     {
@@ -80,19 +81,8 @@ public:
 
     virtual bool initialized() const;
 
-    const std::vector<double>& resolution() const { return m_res; }
+    auto resolution() const -> const std::vector<double>& { return m_res; }
     int dofCount() const { return m_dof_count; }
-
-protected:
-
-    ForwardKinematicsInterface* m_fk_iface = nullptr;
-    InverseKinematicsInterface* m_ik_iface = nullptr;
-    RedundantManipulatorInterface* m_rm_iface = nullptr;
-
-    std::vector<double> m_res;
-    std::vector<int> m_val_count;
-    int m_dof_count = 0;
-    std::vector<std::size_t> m_fangle_indices;
 
     size_t freeAngleCount() const { return m_fangle_indices.size(); }
 
@@ -119,11 +109,8 @@ protected:
     void poseCoordToWorkspace(const int* gp, double* wp) const;
     void favWorkspaceToCoord(const double* wa, int* ga) const;
     void favCoordToWorkspace(const int* ga, double* wa) const;
-
-    void normalizeEulerAngles(double *wr) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

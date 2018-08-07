@@ -10,7 +10,7 @@
 
 BOOST_AUTO_TEST_CASE(DefaultConstructorTest)
 {
-    sbpl::SparseGrid<int> g;
+    smpl::SparseGrid<int> g;
     BOOST_CHECK_EQUAL(g.max_depth(), 16);
 
     std::uint64_t max_coord = 1u << 16;
@@ -22,13 +22,13 @@ BOOST_AUTO_TEST_CASE(DefaultConstructorTest)
 
 BOOST_AUTO_TEST_CASE(ValueConstructorTest)
 {
-    sbpl::SparseGrid<int> g(8);
+    smpl::SparseGrid<int> g(8);
     BOOST_CHECK_EQUAL(g.get(0, 0, 0), 8);
 }
 
 BOOST_AUTO_TEST_CASE(SetSingleNodeTest)
 {
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
 
     BOOST_CHECK_EQUAL(g.tree().num_nodes(), 1);
     BOOST_CHECK_EQUAL(g.tree().num_leaves(), 1);
@@ -49,10 +49,10 @@ BOOST_AUTO_TEST_CASE(SetSingleNodeTest)
 
 BOOST_AUTO_TEST_CASE(CopyConstructorTest)
 {
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
     g.set(0, 0, 0, 8);
 
-    sbpl::SparseGrid<int> cg(g);
+    smpl::SparseGrid<int> cg(g);
     BOOST_CHECK_EQUAL(cg.get(0, 0, 0), 8);
 
     BOOST_CHECK_EQUAL(cg.size_x(), g.size_x());
@@ -64,19 +64,19 @@ BOOST_AUTO_TEST_CASE(CopyConstructorTest)
 
 BOOST_AUTO_TEST_CASE(MoveConstructorTest)
 {
-    sbpl::SparseGrid<int> g(10);
+    smpl::SparseGrid<int> g(10);
     g.set(0, 0, 0, 8);
 
-    sbpl::SparseGrid<int> g2(std::move(g));
+    smpl::SparseGrid<int> g2(std::move(g));
 
     BOOST_CHECK_EQUAL(g2.get(0, 0, 0), 8);
 }
 
 BOOST_AUTO_TEST_CASE(CopyAssignmentTest)
 {
-    sbpl::SparseGrid<int> g1(10);
+    smpl::SparseGrid<int> g1(10);
 
-    sbpl::SparseGrid<int> g2(8);
+    smpl::SparseGrid<int> g2(8);
     g2.set(0, 0, 0, 8);
 
     g1 = g2;
@@ -95,9 +95,9 @@ BOOST_AUTO_TEST_CASE(CopyAssignmentTest)
 
 BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
 {
-    sbpl::SparseGrid<int> t1(10);
+    smpl::SparseGrid<int> t1(10);
 
-    sbpl::SparseGrid<int> t2(8);
+    smpl::SparseGrid<int> t2(8);
     t2.set(0, 0, 0, 6); // set a node to create an interesting memory scenario
 
     t1 = std::move(t2);
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(MoveAssignmentTest)
 
 BOOST_AUTO_TEST_CASE(SetAndUnsetNodeTest)
 {
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
 
     g.set(0, 0, 0, 8);
     g.set(0, 0, 0, 0);
@@ -118,13 +118,13 @@ BOOST_AUTO_TEST_CASE(SetAndUnsetNodeTest)
 
 BOOST_AUTO_TEST_CASE(CheckerboardTest)
 {
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
 }
 
 BOOST_AUTO_TEST_CASE(ExtentsTest)
 {
     auto max_coord = std::numeric_limits<std::uint16_t>::max();
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
 
     g.set(0,         0,         0,         8);
     g.set(0,         0,         max_coord, 8);
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(ExtentsTest)
 
 BOOST_AUTO_TEST_CASE(ResetTest)
 {
-    sbpl::SparseGrid<int> g(8);
+    smpl::SparseGrid<int> g(8);
     g.set(0, 0, 0, 6);
 
     g.reset(4);
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(ResetTest)
 /// Test automatic compression on a small sparse grid
 BOOST_AUTO_TEST_CASE(AutoCompressionTest)
 {
-    sbpl::SparseGrid<int> g(8, 8, 8, 0);
+    smpl::SparseGrid<int> g(8, 8, 8, 0);
 
     BOOST_CHECK_EQUAL(g.max_depth(), 3);
     BOOST_CHECK_EQUAL(g.size(), 8 * 8 * 8);
@@ -172,13 +172,13 @@ BOOST_AUTO_TEST_CASE(AutoCompressionTest)
 /// Test bounded depth for a smallish sparse grid
 BOOST_AUTO_TEST_CASE(BoundedGridDepthTest)
 {
-    sbpl::SparseGrid<int> g(1024, 1024, 1024);
+    smpl::SparseGrid<int> g(1024, 1024, 1024);
     BOOST_CHECK_EQUAL(g.max_depth(), 10);
 }
 
 BOOST_AUTO_TEST_CASE(StringTreeTest)
 {
-    using StringGrid = sbpl::SparseGrid<std::string>;
+    using StringGrid = smpl::SparseGrid<std::string>;
     StringGrid t;
     t.reset("test");
     BOOST_CHECK_EQUAL(t.get(0, 0, 0), "test");
@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_CASE(StringTreeTest)
 
 BOOST_AUTO_TEST_CASE(LazySetNodeTest)
 {
-    sbpl::SparseGrid<int> g(10);
+    smpl::SparseGrid<int> g(10);
 
     // enforce node creation
     int i = 0;
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(LazySetNodeTest)
 
 BOOST_AUTO_TEST_CASE(IteratorTest)
 {
-    sbpl::SparseGrid<int> g(13);
+    smpl::SparseGrid<int> g(13);
 
     auto max_coord = std::numeric_limits<std::uint16_t>::max();
 
@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE(VisitorTest)
 
     auto print = [](int v) { std::cout << v << std::endl; };
 
-    sbpl::SparseGrid<int> g(8);
+    smpl::SparseGrid<int> g(8);
     g.set(0, 0, 0, 4);
 
     g.accept(dispatcher);
@@ -274,16 +274,16 @@ BOOST_AUTO_TEST_CASE(VisitorTest)
 
 BOOST_AUTO_TEST_CASE(AlignmentTest)
 {
-    sbpl::SparseGrid<Eigen::Vector4d> g(Eigen::Vector4d::Zero());
+    smpl::SparseGrid<Eigen::Vector4d> g(Eigen::Vector4d::Zero());
 
     g.set(0, 0, 0, Eigen::Vector4d::Ones());
 
     // ensure alignment of octree nodes is not weaker than element type
     BOOST_CHECK_GE(
-        alignof(sbpl::detail::OcTreeNode<Eigen::Vector4d>),
+        alignof(smpl::detail::OcTreeNode<Eigen::Vector4d>),
         alignof(Eigen::Vector4d));
     BOOST_CHECK_GE(
-        alignof(sbpl::detail::OcTreeBase<
+        alignof(smpl::detail::OcTreeBase<
                 Eigen::Vector4d,
                 std::allocator<Eigen::Vector4d>>),
         alignof(Eigen::Vector4d));
@@ -292,7 +292,7 @@ BOOST_AUTO_TEST_CASE(AlignmentTest)
 BOOST_AUTO_TEST_CASE(LeafCoordsVisitorTest)
 {
     auto max_coord = std::numeric_limits<std::uint16_t>::max();
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
     g.set(0, 0, 0, 1);
 
 //    g.set(0,         0,         0,         8);
@@ -318,7 +318,7 @@ BOOST_AUTO_TEST_CASE(CompareMemUsageTest)
     const int xmax = scale * 512;
     const int ymax = scale * 512;
     const int zmax = scale * 80;
-    sbpl::SparseGrid<int> g(0);
+    smpl::SparseGrid<int> g(0);
     for (int x = 0; x < xmax; ++x) {
     for (int y = 0; y < ymax; ++y) {
     for (int z = 0; z < zmax; ++z) {
@@ -350,7 +350,7 @@ BOOST_AUTO_TEST_CASE(CompareMemUsageTest)
 
 BOOST_AUTO_TEST_CASE(ResizeTest)
 {
-    sbpl::SparseGrid<int> g;
+    smpl::SparseGrid<int> g;
     g.resize(8, 8, 8);
     BOOST_CHECK_EQUAL(g.max_depth(), 3);
 }

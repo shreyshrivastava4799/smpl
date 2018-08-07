@@ -1,7 +1,7 @@
 #ifndef SMPL_DETAIL_ANSI_H
 #define SMPL_DETAIL_ANSI_H
 
-namespace sbpl {
+namespace smpl {
 namespace console {
 
 template <typename CharT, typename Traits>
@@ -223,6 +223,6 @@ rainbow(std::basic_ostream<CharT, Traits>& o)
 }
 
 } // namespace console
-} // namespace sbpl
+} // namespace smpl
 
 #endif

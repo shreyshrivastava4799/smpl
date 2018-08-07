@@ -86,8 +86,13 @@ endif()
 
 add_definitions(-DSV_PACKAGE_NAME="smpl")
 
+<<<<<<< HEAD
 set(SMPL_LIBRARY_SOURCES
     src/bfs3d.cpp
+=======
+add_library(
+    smpl
+>>>>>>> master
     src/csv_parser.cpp
     src/collision_checker.cpp
     src/console/ansi.cpp
@@ -96,6 +101,7 @@ set(SMPL_LIBRARY_SOURCES
     src/planning_params.cpp
     src/post_processing.cpp
     src/robot_model.cpp
+    src/bfs3d/bfs3d.cpp
     src/debug/colors.cpp
     src/debug/marker_utils.cpp
     src/debug/visualize.cpp
@@ -117,6 +123,8 @@ set(SMPL_LIBRARY_SOURCES
     src/graph/robot_planning_space.cpp
     src/graph/workspace_lattice.cpp
     src/graph/workspace_lattice_base.cpp
+    src/graph/workspace_lattice_egraph.cpp
+    src/graph/simple_workspace_lattice_action_space.cpp
     src/heuristic/attractor_heuristic.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
@@ -125,18 +133,21 @@ set(SMPL_LIBRARY_SOURCES
     src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
+    src/heuristic/sparse_egraph_dijkstra_heuristic.cpp
     src/heuristic/zero_heuristic.cpp
-    src/search/focal_mhastar.cpp
+    src/search/fmhastar.cpp
     src/search/meta_mhastar_dts.cpp
     src/search/mhastarpp.cpp
-    src/search/unconstrained_mhastar.cpp
+    src/search/umhastar.cpp
     src/search/arastar.cpp
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp
     src/search/lazy_arastar.cpp
     src/search/lazy_mhastar.cpp
+    src/search/smhastar.cpp
     src/search/awastar.cpp
     src/unicycle/unicycle.cpp)
+<<<<<<< HEAD
 
 set(CMAKE_DEBUG_POSTFIX "_d")
 
@@ -149,6 +160,12 @@ if(SMPL_CONSOLE_ROS)
 endif()
 if(SMPL_SV_VISUALIZATION_MSGS)
     list(APPEND PUBLIC_HEADERS ${visualization_msgs_INCLUDE_DIRS})
+=======
+target_compile_definitions(smpl PRIVATE -DROMAN)
+target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
+if(SMPL_ROS_BUILD)
+    target_link_libraries(smpl ${catkin_LIBRARIES})
+>>>>>>> master
 endif()
 
 list(APPEND PUBLIC_HEADERS ${EIGEN3_INCLUDE_DIR})

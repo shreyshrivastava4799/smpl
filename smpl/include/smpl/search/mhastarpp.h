@@ -34,9 +34,9 @@
 
 #include <smpl/search/mhastar_base.h>
 
-namespace sbpl {
+namespace smpl {
 
-class MHAStarPP : public MultiHeuristicAStarBase<MHAStarPP>
+class MHAStarPP : public MHAStarBase<MHAStarPP>
 {
 public:
 
@@ -46,7 +46,7 @@ public:
         Heuristic** heurs,
         int hcount);
 
-    friend class MultiHeuristicAStarBase<MHAStarPP>;
+    friend class MHAStarBase<MHAStarPP>;
 
 private:
 
@@ -61,6 +61,6 @@ private:
     bool satisfies_p_criterion(MHASearchState* state) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

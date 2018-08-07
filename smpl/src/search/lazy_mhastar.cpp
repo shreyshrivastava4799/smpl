@@ -2,7 +2,7 @@
 
 #include <smpl/console/console.h>
 
-namespace sbpl {
+namespace smpl {
 
 using State = LazySMHAStar::State;
 using StateCompare = LazySMHAStar::StateCompare;
@@ -292,8 +292,8 @@ static void Clear(LazySMHAStar& search)
 bool Init(
     LazySMHAStar& search,
     ILazySuccFun* succ_fun,
-    motion::RobotHeuristic* h_anchor,
-    motion::RobotHeuristic* h_others[],
+    RobotHeuristic* h_anchor,
+    RobotHeuristic* h_others[],
     size_t h_count)
 {
     if (!succ_fun || !h_anchor || !h_anchor || !h_others) {
@@ -450,4 +450,4 @@ bool LazySMHAStar::StateCompare::operator()(
     return ComputeFVal(*search_, s1) < ComputeFVal(*search_, s2);
 }
 
-} // namespace sbpl
+} // namespace smpl

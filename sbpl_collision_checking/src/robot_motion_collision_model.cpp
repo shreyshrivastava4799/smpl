@@ -33,7 +33,7 @@
 #include <sbpl_collision_checking/robot_motion_collision_model.h>
 #include <smpl/angles.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* RMCM_LOGGER = "robot_motion_model";
@@ -275,8 +275,8 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
 }
 
 double RobotMotionCollisionModel::getMaxSphereMotion(
-    const motion::RobotState& start,
-    const motion::RobotState& finish) const
+    const RobotState& start,
+    const RobotState& finish) const
 {
     assert(start.size() == m_rcm->jointVarCount());
     assert(finish.size() == m_rcm->jointVarCount());
@@ -324,7 +324,7 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
 }
 
 double RobotMotionCollisionModel::getMaxSphereMotion(
-    const motion::RobotState& diff) const
+    const RobotState& diff) const
 {
     assert(diff.size() == m_rcm->jointVarCount());
 
@@ -369,8 +369,8 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
 /// Return an upper bound on the distance any sphere might travel given the
 /// motion of a subset of joints.
 double RobotMotionCollisionModel::getMaxSphereMotion(
-    const motion::RobotState& start,
-    const motion::RobotState& finish,
+    const RobotState& start,
+    const RobotState& finish,
     const std::vector<int>& variables) const
 {
     assert(start.size() == finish.size());
@@ -407,7 +407,7 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
 }
 
 double RobotMotionCollisionModel::getMaxSphereMotion(
-    const motion::RobotState& diff,
+    const RobotState& diff,
     const std::vector<int>& variables) const
 {
     assert(diff.size() == variables.size());
@@ -440,4 +440,4 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

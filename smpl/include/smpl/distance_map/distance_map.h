@@ -42,13 +42,13 @@
 #include <Eigen/StdVector>
 
 // project includes
-#include <smpl/grid.h>
 #include <smpl/forward.h>
 #include <smpl/distance_map/distance_map_interface.h>
+#include <smpl/grid/grid.h>
 
 #include "detail/distance_map_common.h"
 
-namespace sbpl {
+namespace smpl {
 
 template <typename Derived>
 class DistanceMap : public DistanceMapInterface
@@ -191,7 +191,7 @@ private:
     void resetCell(Cell& c) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/distance_map.hpp"
 

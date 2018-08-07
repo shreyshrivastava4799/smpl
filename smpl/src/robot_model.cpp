@@ -35,8 +35,7 @@
 #include <assert.h>
 #include <sstream>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 namespace ik_option {
 
@@ -85,5 +84,4 @@ InverseKinematicsInterface::~InverseKinematicsInterface()
 {
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

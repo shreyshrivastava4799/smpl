@@ -30,7 +30,7 @@
 #ifndef SMPL_MEASURE_SIMILARITY_H
 #define SMPL_MEASURE_SIMILARITY_H
 
-namespace sbpl {
+namespace smpl {
 namespace stats {
 
 template <typename InputIt, typename CostFunction>
@@ -40,7 +40,7 @@ auto dynamic_time_warping(
         const CostFunction& cfun) -> decltype(cfun(*from_s, *from_t));
 
 } // namespace stats
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/measure_similarity.hpp"
 

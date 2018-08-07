@@ -43,7 +43,7 @@
 // project includes
 #include <sbpl_collision_checking/collision_model_config.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 class CollisionSpheresModel;
@@ -212,6 +212,6 @@ int CollisionSphereModel::index() const
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

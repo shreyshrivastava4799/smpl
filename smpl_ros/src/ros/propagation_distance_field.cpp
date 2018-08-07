@@ -34,7 +34,7 @@
 // standard includes
 #include <cmath>
 
-namespace sbpl {
+namespace smpl {
 
 PropagationDistanceField::PropagationDistanceField(
     double origin_x, double origin_y, double origin_z,
@@ -203,4 +203,4 @@ EigenSTL::vector_Vector3d PropagationDistanceField::toAlignedVector(
     return vout;
 }
 
-} // namespace sbpl
+} // namespace smpl

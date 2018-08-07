@@ -39,8 +39,7 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 AdaptivePlanner::AdaptivePlanner(
     RobotPlanningSpace* space,
@@ -342,5 +341,4 @@ void AdaptivePlanner::costs_changed(const StateChangeQuery& state_change)
 
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

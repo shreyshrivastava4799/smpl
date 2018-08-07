@@ -7,44 +7,44 @@
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/visualizer_ros.h>
 
-auto MakeCubeMarker(double t) -> sbpl::visual::Marker
+auto MakeCubeMarker(double t) -> smpl::visual::Marker
 {
     ROS_INFO("make cube marker");
-    auto marker = sbpl::visual::Marker{ };
+    auto marker = smpl::visual::Marker{ };
 
     marker.pose.position = Eigen::Vector3d(std::sin(t), 0.0, 0.0);
     marker.pose.orientation = Eigen::Quaterniond::Identity();
-    marker.shape = sbpl::visual::Cube{ 1.0, 1.0, 1.0 };
-    marker.color = sbpl::visual::Color{ 1.0f, 0.0f, 0.0f, 1.0f };
+    marker.shape = smpl::visual::Cube{ 1.0, 1.0, 1.0 };
+    marker.color = smpl::visual::Color{ 1.0f, 0.0f, 0.0f, 1.0f };
     marker.frame_id = "map";
     marker.ns = "cube";
 
     return marker;
 }
 
-auto MakeSphereMarker(double t) -> sbpl::visual::Marker
+auto MakeSphereMarker(double t) -> smpl::visual::Marker
 {
     ROS_INFO("make sphere marker");
-    auto marker = sbpl::visual::Marker{ };
+    auto marker = smpl::visual::Marker{ };
 
     marker.pose.position = Eigen::Vector3d(0.0, std::sin(t), 0.0);
     marker.pose.orientation = Eigen::Quaterniond::Identity();
-    marker.shape = sbpl::visual::Sphere{ 0.5 };
-    marker.color = sbpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f };
+    marker.shape = smpl::visual::Sphere{ 0.5 };
+    marker.color = smpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f };
     marker.frame_id = "map";
     marker.ns = "sphere";
 
     return marker;
 }
 
-auto MakeCylinderMarker(double t) -> sbpl::visual::Marker
+auto MakeCylinderMarker(double t) -> smpl::visual::Marker
 {
     ROS_INFO("make cylinder marker");
-    auto marker = sbpl::visual::Marker{ };
+    auto marker = smpl::visual::Marker{ };
     marker.pose.position = Eigen::Vector3d(0.0, 0.0, std::sin(t));
     marker.pose.orientation = Eigen::Quaterniond::Identity();
-    marker.shape = sbpl::visual::Cylinder{ 0.5, 1.0 };
-    marker.color = sbpl::visual::Color{ 0.0f, 0.0f, 1.0f, 1.0f };
+    marker.shape = smpl::visual::Cylinder{ 0.5, 1.0 };
+    marker.color = smpl::visual::Color{ 0.0f, 0.0f, 1.0f, 1.0f };
     marker.frame_id = "map";
     marker.ns = "cylinder";
     return marker;
@@ -123,8 +123,8 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "debug_vis_demo");
     ros::NodeHandle nh;
 
-    sbpl::VisualizerROS visualizer;
-    sbpl::visual::set_visualizer(&visualizer);
+    smpl::VisualizerROS visualizer;
+    smpl::visual::set_visualizer(&visualizer);
 
     std::thread cube_vis_thread(VisualizeCube);
     std::thread sphere_vis_thread(VisualizeSphere);
@@ -136,25 +136,25 @@ int main(int argc, char* argv[])
     bool enabled = true;
     while (ros::ok()) {
         if (enabled) {
-            sbpl::visual::set_visualization_level(
+            smpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".cube",
-                    sbpl::visual::Level::Warn);
-            sbpl::visual::set_visualization_level(
+                    smpl::visual::Level::Warn);
+            smpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".sphere",
-                    sbpl::visual::Level::Info);
-            sbpl::visual::set_visualization_level(
+                    smpl::visual::Level::Info);
+            smpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".cylinder",
-                    sbpl::visual::Level::Warn);
+                    smpl::visual::Level::Warn);
         } else {
-            sbpl::visual::set_visualization_level(
+            smpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".cube",
-                    sbpl::visual::Level::Info);
-            sbpl::visual::set_visualization_level(
+                    smpl::visual::Level::Info);
+            smpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".sphere",
-                    sbpl::visual::Level::Warn);
-            sbpl::visual::set_visualization_level(
+                    smpl::visual::Level::Warn);
+            smpl::visual::set_visualization_level(
                     std::string(SV_NAME_PREFIX) + ".cylinder",
-                    sbpl::visual::Level::Info);
+                    smpl::visual::Level::Info);
         }
         enabled = !enabled;
 
@@ -165,6 +165,6 @@ int main(int argc, char* argv[])
     sphere_vis_thread.join();
     cylinder_vis_thread.join();
 
-    sbpl::visual::unset_visualizer();
+    smpl::visual::unset_visualizer();
     return 0;
 }

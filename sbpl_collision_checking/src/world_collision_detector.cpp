@@ -36,7 +36,7 @@
 
 #include "collision_operations.h"
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* WCM_LOGGER = "world_collision";
@@ -93,7 +93,7 @@ bool WorldCollisionDetector::checkMotionCollision(
     MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
-    motion::RobotState interm;
+    RobotState interm;
     for (int i = 0; i < interp.waypointCount(); ++i) {
         interp.interpolate(i, interm);
         state.setJointVarPositions(interm.data());
@@ -117,7 +117,7 @@ bool WorldCollisionDetector::checkMotionCollision(
     MotionInterpolation interp(m_rcm);
     rmcm.fillMotionInterpolation(start, finish, res, interp);
 
-    motion::RobotState interm;
+    RobotState interm;
     for (int i = 0; i < interp.waypointCount(); ++i) {
         interp.interpolate(i, interm);
         state.setJointVarPositions(interm.data());
@@ -167,4 +167,4 @@ bool WorldCollisionDetector::checkAttachedBodySpheresStateCollisions(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

@@ -49,64 +49,45 @@
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/graph/workspace_lattice_base.h>
+#include <smpl/graph/workspace_lattice_types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
-#define BROKEN 1
-
-struct WorkspaceLatticeState
-{
-    WorkspaceCoord coord;
-    RobotState state;
-    int h;
-};
-
-std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s);
-
-inline
-bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)
-{
-    return a.coord == b.coord;
-}
-
-} // namespace motion
-} // namespace sbpl
-
-namespace std {
-
-template <>
-struct hash<sbpl::motion::WorkspaceLatticeState>
-{
-    typedef sbpl::motion::WorkspaceLatticeState argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(const argument_type& s) const;
-};
-
-} // namespace std
-
-namespace sbpl {
-namespace motion {
+struct WorkspaceLatticeActionSpace;
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
-class WorkspaceLattice :
+struct WorkspaceLattice :
     public WorkspaceLatticeBase,
-    public PoseProjectionExtension
+    public PoseProjectionExtension,
+    public ExtractRobotStateExtension
 {
-public:
+    WorkspaceLatticeState* m_goal_entry = NULL;
+    int m_goal_state_id = -1;
 
-    struct PoseGoal
-    {
-        SixPose pose;
-        Position offset;
-        SixPose tolerance;
-    };
+    WorkspaceLatticeState* m_start_entry = NULL;
+    int m_start_state_id = -1;
+
+    // maps state -> id
+    typedef WorkspaceLatticeState StateKey;
+    typedef PointerValueHash<StateKey> StateHash;
+    typedef PointerValueEqual<StateKey> StateEqual;
+    hash_map<StateKey*, int, StateHash, StateEqual> m_state_to_id;
+
+    // maps id -> state
+    std::vector<WorkspaceLatticeState*> m_states;
+
+    clock::time_point m_t_start;
+    mutable bool m_near_goal = false; // mutable for assignment in isGoal
+
+    WorkspaceLatticeActionSpace* m_actions = NULL;
+
+    std::string m_viz_frame_id;
 
     ~WorkspaceLattice();
 
     void setVisualizationFrameId(const std::string& frame_id);
-    const std::string& visualizationFrameId() const;
+    auto visualizationFrameId() const -> const std::string&;
 
     /// \name Reimplemented Public Functions from WorkspaceLatticeBase
     ///@{
@@ -114,7 +95,8 @@ public:
         RobotModel* robot,
         CollisionChecker* checker,
         const PlanningParams* pp,
-        const Params& params) override;
+        const Params& params,
+        WorkspaceLatticeActionSpace* actions);
     ///@}
 
     /// \name Required Functions from PoseProjectionExtension
@@ -137,6 +119,8 @@ public:
         const std::vector<int>& ids,
         std::vector<RobotState>& path) override;
     ///@}
+
+    const RobotState& extractState(int state_id) override;
 
     /// \name Required Public Functions from Extension
     ///@{
@@ -171,78 +155,35 @@ public:
     int GetTrueCost(int parent_id, int child_id) override;
     ///@}
 
-private:
-
-    WorkspaceLatticeState* m_goal_entry = nullptr;
-    int m_goal_state_id = - 1;
-
-    WorkspaceLatticeState* m_start_entry = nullptr;
-    int m_start_state_id = -1;
-
-    // maps state -> id
-    typedef WorkspaceLatticeState StateKey;
-    typedef PointerValueHash<StateKey> StateHash;
-    typedef PointerValueEqual<StateKey> StateEqual;
-    hash_map<StateKey*, int, StateHash, StateEqual> m_state_to_id;
-
-    // maps id -> state
-    std::vector<WorkspaceLatticeState*> m_states;
-
-    clock::time_point m_t_start;
-    mutable bool m_near_goal = false; // mutable for assignment in isGoal
-
-    std::vector<MotionPrimitive> m_prims;
-    bool m_ik_amp_enabled = true;
-    double m_ik_amp_thresh = 0.2;
-
-    std::string m_viz_frame_id;
-
-    bool initMotionPrimitives();
-
     bool setGoalPose(const GoalConstraint& goal);
-    bool setGoalPoses(const std::vector<PoseGoal>& goals);
+    bool setGoalJointState(const GoalConstraint& goal);
+    bool setUserGoal(const GoalConstraint& goal);
 
+    int reserveHashEntry();
     int createState(const WorkspaceCoord& coord);
-    WorkspaceLatticeState* getState(int state_id) const;
-
-    void getActions(const WorkspaceLatticeState& state, std::vector<Action>& actions);
+    auto getState(int state_id) const -> WorkspaceLatticeState*;
 
     bool checkAction(
         const RobotState& state,
-        const Action& action,
+        const WorkspaceAction& action,
         RobotState* final_rstate = nullptr);
+
+    int computeCost(
+        const WorkspaceLatticeState& src,
+        const WorkspaceLatticeState& dst);
 
     bool checkLazyAction(
         const RobotState& state,
-        const Action& action,
+        const WorkspaceAction& action,
         RobotState* final_rstate = nullptr);
 
-    bool isGoal(const WorkspaceState& state) const;
+    bool isGoal(const WorkspaceState& state, const RobotState& robot_state) const;
 
     auto getStateVisualization(const RobotState& state, const std::string& ns)
         -> std::vector<visual::Marker>;
-
-#if !BROKEN
-    std::vector<double> mp_gradient_;
-    std::vector<double> mp_dist_;
-
-    bool getMotionPrimitive(WorkspaceLatticeState* parent, MotionPrimitive& mp);
-    void getAdaptiveMotionPrim(
-        int type,
-        WorkspaceLatticeState* parent,
-        MotionPrimitive& mp);
-    void getVector(
-        int x1, int y1, int z1,
-        int x2, int y2, int z2,
-        int& xout, int& yout, int& zout,
-        int multiplier,
-        bool snap = true);
-    bool getDistanceGradient(int& x, int& y, int& z);
-#endif
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

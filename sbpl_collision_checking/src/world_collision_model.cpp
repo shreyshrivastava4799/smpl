@@ -43,7 +43,7 @@
 #include <sbpl_collision_checking/voxel_operations.h>
 #include <sbpl_collision_checking/shape_visualization.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* LOG = "world";
@@ -373,4 +373,4 @@ void WorldCollisionModel::removeAllObjects()
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

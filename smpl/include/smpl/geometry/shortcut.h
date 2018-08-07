@@ -34,7 +34,7 @@
 #include <iterator>
 #include <vector>
 
-namespace sbpl {
+namespace smpl {
 namespace shortcut {
 
 /// \brief Convenience class for specifying path generator requirements
@@ -188,7 +188,7 @@ bool DivideAndConquerShortcutPath(
     const CostCompare& leq = CostCompare());
 
 } // namespace shortcut
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/shortcut.hpp"
 

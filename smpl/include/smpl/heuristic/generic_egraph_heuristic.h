@@ -33,13 +33,12 @@
 #define SMPL_GENERIC_EGRAPH_HEURISTIC_H
 
 // project includes
-#include <smpl/intrusive_heap.h>
 #include <smpl/graph/experience_graph_extension.h>
+#include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class GenericEgraphHeuristic :
     public RobotHeuristic,
@@ -116,7 +115,6 @@ private:
     intrusive_heap<HeuristicNode, NodeCompare> m_open;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

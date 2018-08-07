@@ -2,7 +2,7 @@
 
 #include <smpl/geometry/mesh_utils.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 bool MakeCollisionShapeMarker(
@@ -55,7 +55,7 @@ bool MakeConeShapeMarker(
 
     std::vector<Eigen::Vector3d> vertices;
     std::vector<std::uint32_t> indices;
-    sbpl::geometry::CreateIndexedConeMesh(shape.radius, shape.height, vertices, indices);
+    smpl::geometry::CreateIndexedConeMesh(shape.radius, shape.height, vertices, indices);
 
     std::vector<geometry_msgs::Point> dense_vertices;
     dense_vertices.reserve(indices.size());
@@ -156,4 +156,4 @@ bool MakeOcTreeShapeMarker(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

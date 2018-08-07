@@ -36,7 +36,7 @@
 #include <cstdio>
 #include <vector>
 
-namespace sbpl {
+namespace smpl {
 namespace shortcut {
 
 template <
@@ -438,7 +438,7 @@ bool DivideAndConquerShortcutPath(
 }
 
 } // namespace shortcut
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

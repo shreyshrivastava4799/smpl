@@ -8,7 +8,7 @@
 
 /*
 template <class T>
-auto operator<<(std::ostream& o, const sbpl::DistanceMap<T>& d) -> std::ostream&
+auto operator<<(std::ostream& o, const smpl::DistanceMap<T>& d) -> std::ostream&
 {
     for (int z = 0; z < d.numCellsZ(); ++z) {
     for (int y = d.numCellsY() - 1; y >= 0; --y) {
@@ -28,7 +28,7 @@ auto operator<<(std::ostream& o, const sbpl::DistanceMap<T>& d) -> std::ostream&
 }
 */
 
-auto operator<<(std::ostream& o, const sbpl::DistanceMapInterface& d)
+auto operator<<(std::ostream& o, const smpl::DistanceMapInterface& d)
     -> std::ostream&
 {
     for (int z = 0; z < d.numCellsZ(); ++z) {
@@ -49,8 +49,8 @@ auto operator<<(std::ostream& o, const sbpl::DistanceMapInterface& d)
 }
 
 bool operator==(
-    const sbpl::DistanceMapInterface& d1,
-    const sbpl::DistanceMapInterface& d2)
+    const smpl::DistanceMapInterface& d1,
+    const smpl::DistanceMapInterface& d2)
 {
     if (std::make_tuple(d1.numCellsX(), d1.numCellsY(), d1.numCellsZ()) !=
         std::make_tuple(d2.numCellsY(), d2.numCellsY(), d2.numCellsZ()))
@@ -74,8 +74,8 @@ bool operator==(
 }
 
 bool operator!=(
-    const sbpl::DistanceMapInterface& d1,
-    const sbpl::DistanceMapInterface& d2)
+    const smpl::DistanceMapInterface& d1,
+    const smpl::DistanceMapInterface& d2)
 {
     return !(d1 == d2);
 }
@@ -155,7 +155,7 @@ void TestSpecialMemberFunctions()
 
 int main(int argc, char* argv[])
 {
-    TestSpecialMemberFunctions<sbpl::SparseDistanceMap>();
-//    TestSpecialMemberFunctions<sbpl::EuclidDistanceMap>();
+    TestSpecialMemberFunctions<smpl::SparseDistanceMap>();
+//    TestSpecialMemberFunctions<smpl::EuclidDistanceMap>();
     return 0;
 }

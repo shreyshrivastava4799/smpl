@@ -31,7 +31,7 @@
 
 #include <smpl/distance_map/chessboard_distance_map.h>
 
-namespace sbpl {
+namespace smpl {
 
 ChessboardDistanceMap::ChessboardDistanceMap(
     double origin_x, double origin_y, double origin_z,
@@ -55,4 +55,4 @@ int ChessboardDistanceMap::distance(const Cell& n, const Cell& s)
     return dx * dx + dy * dy + dz * dz + s.dist_new;
 }
 
-} // namespace sbpl
+} // namespace smpl

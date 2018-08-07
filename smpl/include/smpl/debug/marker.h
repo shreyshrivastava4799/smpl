@@ -8,7 +8,7 @@
 #include <Eigen/Dense>
 #include <boost/variant.hpp>
 
-namespace sbpl {
+namespace smpl {
 namespace visual {
 
 struct Empty { };
@@ -166,6 +166,6 @@ struct Marker
 };
 
 } // namespace visual
-} // namespace sbpl
+} // namespace smpl
 
 #endif

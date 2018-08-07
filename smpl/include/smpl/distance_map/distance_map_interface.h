@@ -42,9 +42,7 @@
 // project includes
 #include <smpl/forward.h>
 
-namespace sbpl {
-
-SBPL_CLASS_FORWARD(DistanceMapInterface)
+namespace smpl {
 
 /// Abstract base class for Distance Map implementations. This class specifies
 /// methods for returning distances to the nearest occupied cells, both in
@@ -142,6 +140,6 @@ protected:
     double m_res;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -38,7 +38,7 @@
 #include <assert.h>
 #include <limits>
 
-namespace sbpl {
+namespace smpl {
 
 template <class T, class Allocator>
 SparseGrid<T, Allocator>::SparseGrid() :
@@ -616,6 +616,6 @@ void SparseGrid<T, Allocator>::accept_coords(
     }
 }
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

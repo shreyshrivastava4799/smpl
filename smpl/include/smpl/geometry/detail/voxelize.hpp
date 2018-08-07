@@ -32,7 +32,7 @@
 
 #include <smpl/geometry/utils.h>
 
-namespace sbpl {
+namespace smpl {
 namespace geometry {
 
 /// \brief Voxelize a triangle
@@ -182,6 +182,6 @@ void VoxelizeTriangle(
 }
 
 } // namespace geometry
-} // namespace sbpl
+} // namespace smpl
 
 #endif

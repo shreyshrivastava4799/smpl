@@ -12,6 +12,7 @@ find_package(catkin
         leatherman
         roscpp
         smpl
+        smpl_urdf_robot_model
         urdf)
 
 find_package(orocos_kdl REQUIRED)
@@ -24,13 +25,14 @@ catkin_package(
     CATKIN_DEPENDS
         roscpp
         smpl
+        smpl_urdf_robot_model
         urdf
     DEPENDS
         orocos_kdl)
 
+include_directories(include)
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
-include_directories(include)
 
 add_library(sbpl_kdl_robot_model src/kdl_robot_model.cpp)
 
@@ -40,7 +42,7 @@ target_link_libraries(
     ${orocos_kdl_LIBRARIES})
 
 add_executable(test_kdl src/test_kdl_robot_model.cpp)
-target_link_libraries(test_kdl ${catkin_LIBRARIES} sbpl_kdl_robot_model)
+target_link_libraries(test_kdl sbpl_kdl_robot_model ${catkin_LIBRARIES})
 
 install(
     DIRECTORY include/sbpl_kdl_robot_model/

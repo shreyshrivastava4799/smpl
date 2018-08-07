@@ -38,7 +38,7 @@
 // project includes
 #include <smpl/octree/octree.h>
 
-namespace sbpl {
+namespace smpl {
 
 /// This class represents a resizeable three-dimensional array of sparse data.
 /// For space efficiency, the underlying data is stored in compressed octree
@@ -211,7 +211,7 @@ private:
         size_type last_x, size_type last_y, size_type last_z);
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/sparse_grid.hpp"
 

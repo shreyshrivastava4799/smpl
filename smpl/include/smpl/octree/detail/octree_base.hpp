@@ -34,7 +34,7 @@
 
 #include "octree_base.h"
 
-namespace sbpl {
+namespace smpl {
 namespace detail {
 
 template <class T, class Allocator>
@@ -130,6 +130,6 @@ OcTreeBase<T, Allocator>::clear_node(node_type *node)
 }
 
 } // namespace detail
-} // namespace sbpl
+} // namespace smpl
 
 #endif

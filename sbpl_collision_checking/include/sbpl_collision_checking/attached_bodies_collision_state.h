@@ -47,7 +47,7 @@
 #include <sbpl_collision_checking/base_collision_states.h>
 #include <sbpl_collision_checking/robot_collision_state.h>
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 /// Const member functions of this class are not thread-safe but multiple
@@ -423,6 +423,6 @@ int AttachedBodiesCollisionState::attachedBodyTransformVersion(int abidx) const
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl
 
 #endif

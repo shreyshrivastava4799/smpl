@@ -4,7 +4,7 @@
 #include <string>
 #include <ostream>
 
-namespace sbpl {
+namespace smpl {
 namespace console {
 
 namespace codes {
@@ -146,7 +146,7 @@ std::basic_ostream<CharT, Traits>&
 rainbow(std::basic_ostream<CharT, Traits>& o);
 
 } // namespace console
-} // namespace sbpl
+} // namespace smpl
 
 #include "detail/ansi.hpp"
 

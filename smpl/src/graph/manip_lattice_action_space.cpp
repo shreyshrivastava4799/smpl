@@ -42,8 +42,7 @@
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 bool ManipLatticeActionSpace::init(ManipLattice* space)
 {
@@ -509,5 +508,4 @@ bool ManipLatticeActionSpace::mprimActive(
     }
 }
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl

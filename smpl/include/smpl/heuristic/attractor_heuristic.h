@@ -35,11 +35,9 @@
 #ifndef SMPL_ATTRACTOR_HEURISTIC_H
 #define SMPL_ATTRACTOR_HEURISTIC_H
 
-namespace sbpl {
+namespace smpl {
 
 class OccupancyGrid;
-
-namespace motion {
 
 class AttractorHeuristic : public RobotHeuristic
 {
@@ -75,7 +73,6 @@ private:
     RobotState m_attractor;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

@@ -53,13 +53,9 @@
 #include <smpl/graph/robot_planning_space_observer.h>
 #include <smpl/graph/manip_lattice.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
-class RobotPlanningSpace;
-
-SBPL_CLASS_FORWARD(RobotPlanningSpace);
-SBPL_CLASS_FORWARD(ManipLatticeActionSpace);
+class ManipLattice;
 
 class ManipLatticeActionSpace : public ActionSpace
 {
@@ -146,8 +142,7 @@ protected:
         -> std::pair<double, double>;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

@@ -42,7 +42,7 @@
 // project includes
 #include <smpl/debug/visualize.h>
 
-namespace sbpl {
+namespace smpl {
 
 class VisualizerROS : public visual::VisualizerBase
 {
@@ -78,7 +78,7 @@ private:
     visualization_msgs::MarkerArray m_enabled;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif
 

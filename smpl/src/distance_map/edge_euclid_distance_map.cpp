@@ -31,7 +31,7 @@
 
 #include <smpl/distance_map/edge_euclid_distance_map.h>
 
-namespace sbpl {
+namespace smpl {
 
 EdgeEuclidDistanceMap::EdgeEuclidDistanceMap(
     double origin_x, double origin_y, double origin_z,
@@ -73,4 +73,4 @@ int EdgeEuclidDistanceMap::distance(const Cell& n, const Cell& s)
     return dx * dx + dy * dy + dz * dz;
 }
 
-} // namespace sbpl
+} // namespace smpl

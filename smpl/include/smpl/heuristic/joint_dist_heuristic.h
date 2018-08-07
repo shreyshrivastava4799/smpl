@@ -35,8 +35,7 @@
 // project includes
 #include <smpl/heuristic/robot_heuristic.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class JointDistHeuristic : public RobotHeuristic
 {
@@ -71,7 +70,6 @@ private:
     double computeJointDistance(const RobotState &s, const RobotState &t) const;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

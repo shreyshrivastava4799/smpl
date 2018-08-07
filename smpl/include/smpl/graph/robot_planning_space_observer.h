@@ -35,8 +35,9 @@
 // project includes
 #include <smpl/types.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
+
+struct GoalConstraint;
 
 class RobotPlanningSpaceObserver
 {
@@ -48,7 +49,6 @@ public:
     virtual void updateGoal(const GoalConstraint& goal) { }
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

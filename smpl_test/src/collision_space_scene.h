@@ -17,7 +17,7 @@ class CollisionSpaceScene
 {
 public:
 
-    void SetCollisionSpace(sbpl::collision::CollisionSpace* cspace);
+    void SetCollisionSpace(smpl::collision::CollisionSpace* cspace);
 
     bool SetRobotState(const moveit_msgs::RobotState& robot_state);
 
@@ -41,12 +41,12 @@ public:
 private:
 
     std::vector<std::unique_ptr<octomap::OcTree>> m_octrees;
-    std::vector<std::unique_ptr<sbpl::collision::CollisionShape>> m_collision_shapes;
-    std::vector<std::unique_ptr<sbpl::collision::CollisionObject>> m_collision_objects;
-    sbpl::collision::CollisionSpace *m_cspace = nullptr;
+    std::vector<std::unique_ptr<smpl::collision::CollisionShape>> m_collision_shapes;
+    std::vector<std::unique_ptr<smpl::collision::CollisionObject>> m_collision_objects;
+    smpl::collision::CollisionSpace *m_cspace = nullptr;
 
     auto FindCollisionObject(const std::string& id) const
-        -> sbpl::collision::CollisionObject*;
+        -> smpl::collision::CollisionObject*;
 
     bool CheckCollisionObjectSanity(const moveit_msgs::CollisionObject& object) const;
     bool CheckInsertOctomap(const octomap_msgs::OctomapWithPose& octomap) const;

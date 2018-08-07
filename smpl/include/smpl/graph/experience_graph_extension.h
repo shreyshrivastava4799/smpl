@@ -38,8 +38,7 @@
 #include <smpl/extension.h>
 #include <smpl/graph/experience_graph.h>
 
-namespace sbpl {
-namespace motion {
+namespace smpl {
 
 class ExperienceGraphExtension : public virtual Extension
 {
@@ -51,15 +50,9 @@ public:
         int state_id,
         std::vector<ExperienceGraph::node_id>& nodes) = 0;
 
-    virtual bool shortcut(
-        int first_id,
-        int second_id,
-        int& cost) = 0;
+    virtual bool shortcut(int first_id, int second_id, int& cost) = 0;
 
-    virtual bool snap(
-        int first_id,
-        int second_id,
-        int& cost) = 0;
+    virtual bool snap(int first_id, int second_id, int& cost) = 0;
 
     virtual const ExperienceGraph* getExperienceGraph() const = 0;
     virtual ExperienceGraph* getExperienceGraph() = 0;
@@ -67,7 +60,6 @@ public:
     virtual int getStateID(ExperienceGraph::node_id n) const = 0;
 };
 
-} // namespace motion
-} // namespace sbpl
+} // namespace smpl
 
 #endif

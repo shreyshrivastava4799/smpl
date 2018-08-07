@@ -43,23 +43,23 @@
 #include <sbpl/planners/planner.h>
 
 // project includes
-#include <smpl/intrusive_heap.h>
+#include <smpl/heap/intrusive_heap.h>
+#include <smpl/search/fmhastar.h>
 #include <smpl/time.h>
-#include <smpl/search/focal_mhastar.h>
 
-namespace sbpl {
+namespace smpl {
 
-class MetaMultiHeuristicAstarDTS : public SBPLPlanner
+class MetaMHAstarDTS : public SBPLPlanner
 {
 public:
 
-    MetaMultiHeuristicAstarDTS(
+    MetaMHAstarDTS(
         DiscreteSpaceInformation* environment,
         Heuristic* hanchor,
         Heuristic** heurs,
         int hcount);
 
-    ~MetaMultiHeuristicAstarDTS();
+    ~MetaMHAstarDTS();
 
     /// \name Required Functions from SBPLPlanner
     ///@{
@@ -203,6 +203,6 @@ private:
     bool closed_in_any_search(MHASearchState* state) const;
 };
 
-} // namespace sbpl
+} // namespace smpl
 
 #endif

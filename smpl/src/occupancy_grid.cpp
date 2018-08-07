@@ -40,7 +40,7 @@
 #include <smpl/debug/colors.h>
 #include <smpl/distance_map/euclid_distance_map.h>
 
-namespace sbpl {
+namespace smpl {
 
 /// \class OccupancyGrid
 ///
@@ -66,7 +66,7 @@ namespace sbpl {
 ///
 /// An arbitrary distance map implementation may be used with this class. If
 /// none is specified, by calling the verbose constructor, an instance of
-/// sbpl::EuclidDistanceMap is constructed.
+/// smpl::EuclidDistanceMap is constructed.
 
 OccupancyGrid::OccupancyGrid()
 {
@@ -118,7 +118,7 @@ OccupancyGrid::OccupancyGrid(
 /// \param df The distance field
 /// \param ref_counted Whether to reference count cells
 OccupancyGrid::OccupancyGrid(
-    const DistanceMapInterfacePtr& df,
+    const std::shared_ptr<DistanceMapInterface>& df,
     bool ref_counted)
 :
     m_grid(df),
@@ -307,7 +307,7 @@ auto OccupancyGrid::getBoundingBoxVisualization() const -> visual::Marker
     return MakeCubesMarker(
             std::move(points),
             resolution(),
-            sbpl::visual::MakeColorHSV(10.0f),
+            smpl::visual::MakeColorHSV(10.0f),
             getReferenceFrame(),
             "collision_space_bounds");
 }
@@ -473,4 +473,4 @@ void OccupancyGrid::iterateCells(
     }
 }
 
-} // namespace sbpl
+} // namespace smpl

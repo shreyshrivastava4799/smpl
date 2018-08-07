@@ -53,13 +53,13 @@
 #include <sbpl_collision_checking/voxel_operations.h>
 #include "transform_functions.h"
 
-namespace sbpl {
+namespace smpl {
 namespace collision {
 
 static const char* LOG = "robot_model";
 
 auto RobotCollisionModel::Load(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
     -> RobotCollisionModelPtr
 {
@@ -67,7 +67,7 @@ auto RobotCollisionModel::Load(
 }
 
 auto LoadRobotCollisionModel(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
     -> std::unique_ptr<RobotCollisionModel>
 {
@@ -85,7 +85,7 @@ RobotCollisionModel::~RobotCollisionModel()
 }
 
 bool RobotCollisionModel::init(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
 {
     bool success = true;
@@ -100,7 +100,7 @@ bool RobotCollisionModel::init(
 }
 
 bool RobotCollisionModel::initRobotModel(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const WorldJointConfig& config)
 {
     m_name = urdf.getName();
@@ -116,20 +116,20 @@ bool RobotCollisionModel::initRobotModel(
     // TODO: depth-first or post-traversal reordering to keep dependent
     // joints/links next to one another
 
-    urdf::Joint world_joint;
+    ::urdf::Joint world_joint;
     world_joint.child_link_name = root_link->name;
     world_joint.name = config.name;
     world_joint.parent_to_joint_origin_transform.position =
-            urdf::Vector3(0.0, 0.0, 0.0);
+            ::urdf::Vector3(0.0, 0.0, 0.0);
     world_joint.parent_to_joint_origin_transform.rotation =
-            urdf::Rotation(0.0, 0.0, 0.0, 1.0);
-    world_joint.axis = urdf::Vector3(0.0, 0.0, 0.0);
+            ::urdf::Rotation(0.0, 0.0, 0.0, 1.0);
+    world_joint.axis = ::urdf::Vector3(0.0, 0.0, 0.0);
     if (config.type == "floating") {
-        world_joint.type = urdf::Joint::FLOATING;
+        world_joint.type = ::urdf::Joint::FLOATING;
     } else if (config.type == "planar") {
-        world_joint.type = urdf::Joint::PLANAR;
+        world_joint.type = ::urdf::Joint::PLANAR;
     } else if (config.type == "fixed") {
-        world_joint.type = urdf::Joint::FIXED;
+        world_joint.type = ::urdf::Joint::FIXED;
     } else {
         ROS_ERROR("World joint config has invalid type");
         return false;
@@ -140,11 +140,11 @@ bool RobotCollisionModel::initRobotModel(
 
     // breadth-first traversal of all links in the robot
 
-    std::stack<boost::shared_ptr<const urdf::Link>> links;
+    std::stack<boost::shared_ptr<const ::urdf::Link>> links;
     links.push(root_link);
 
     while (!links.empty()) {
-        boost::shared_ptr<const urdf::Link> link;
+        boost::shared_ptr<const ::urdf::Link> link;
         link = links.top();
         links.pop();
 
@@ -268,7 +268,7 @@ bool RobotCollisionModel::initRobotModel(
     return true;
 }
 
-void RobotCollisionModel::addJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addJoint(const ::urdf::Joint& joint)
 {
     m_joint_names.push_back(joint.name);
     m_joint_origins.push_back(
@@ -279,22 +279,22 @@ void RobotCollisionModel::addJoint(const urdf::Joint& joint)
     m_joint_var_indices.emplace_back(m_jvar_names.size(), 0);
 
     switch (joint.type) {
-    case urdf::Joint::FIXED: {
+    case ::urdf::Joint::FIXED: {
         addFixedJoint(joint);
     }   break;
-    case urdf::Joint::REVOLUTE: {
+    case ::urdf::Joint::REVOLUTE: {
         addRevoluteJoint(joint);
     }   break;
-    case urdf::Joint::PRISMATIC: {
+    case ::urdf::Joint::PRISMATIC: {
         addPrismaticJoint(joint);
     }   break;
-    case urdf::Joint::CONTINUOUS: {
+    case ::urdf::Joint::CONTINUOUS: {
         addContinuousJoint(joint);
     }   break;
-    case urdf::Joint::PLANAR: {
+    case ::urdf::Joint::PLANAR: {
         addPlanarJoint(joint);
     }   break;
-    case urdf::Joint::FLOATING: {
+    case ::urdf::Joint::FLOATING: {
         addFloatingJoint(joint);
     }   break;
     default: {
@@ -305,13 +305,13 @@ void RobotCollisionModel::addJoint(const urdf::Joint& joint)
     m_joint_var_indices.back().second = m_jvar_names.size();
 }
 
-void RobotCollisionModel::addFixedJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addFixedJoint(const ::urdf::Joint& joint)
 {
     m_joint_transforms.push_back(ComputeFixedJointTransform);
     m_joint_types.push_back(FIXED);
 }
 
-void RobotCollisionModel::addRevoluteJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addRevoluteJoint(const ::urdf::Joint& joint)
 {
     m_jvar_names.push_back(joint.name);
     m_jvar_continuous.push_back(false);
@@ -329,7 +329,7 @@ void RobotCollisionModel::addRevoluteJoint(const urdf::Joint& joint)
     m_jvar_name_to_index[joint.name] = m_jvar_names.size() - 1;
 
     m_joint_types.push_back(REVOLUTE);
-    const urdf::Vector3& axis = joint.axis;
+    auto& axis = joint.axis;
     if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
         m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
     } else if (axis.x == 0.0 && axis.y == 1.0 && axis.z == 0.0) {
@@ -341,7 +341,7 @@ void RobotCollisionModel::addRevoluteJoint(const urdf::Joint& joint)
     }
 }
 
-void RobotCollisionModel::addPrismaticJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addPrismaticJoint(const ::urdf::Joint& joint)
 {
     m_jvar_names.push_back(joint.name);
     m_jvar_continuous.push_back(false);
@@ -372,7 +372,7 @@ void RobotCollisionModel::addPrismaticJoint(const urdf::Joint& joint)
     }
 }
 
-void RobotCollisionModel::addContinuousJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addContinuousJoint(const ::urdf::Joint& joint)
 {
     m_jvar_names.push_back(joint.name);
     m_jvar_continuous.push_back(true);
@@ -384,7 +384,7 @@ void RobotCollisionModel::addContinuousJoint(const urdf::Joint& joint)
     m_jvar_name_to_index[joint.name] = m_jvar_names.size() - 1;
 
     m_joint_types.push_back(CONTINUOUS);
-    const urdf::Vector3& axis = joint.axis;
+    auto& axis = joint.axis;
     if (axis.x == 1.0 && axis.y == 0.0 && axis.z == 0.0) {
         m_joint_transforms.push_back(ComputeRevoluteJointTransformX);
     }
@@ -399,7 +399,7 @@ void RobotCollisionModel::addContinuousJoint(const urdf::Joint& joint)
     }
 }
 
-void RobotCollisionModel::addPlanarJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addPlanarJoint(const ::urdf::Joint& joint)
 {
     // NOTE: local joint variable names follow moveit conventions
     std::string var_name;
@@ -435,7 +435,7 @@ void RobotCollisionModel::addPlanarJoint(const urdf::Joint& joint)
     m_joint_transforms.push_back(ComputePlanarJointTransform);
 }
 
-void RobotCollisionModel::addFloatingJoint(const urdf::Joint& joint)
+void RobotCollisionModel::addFloatingJoint(const ::urdf::Joint& joint)
 {
     // NOTE: local joint variable names follow moveit conventions
     std::string var_name;
@@ -508,7 +508,7 @@ void RobotCollisionModel::addFloatingJoint(const urdf::Joint& joint)
 }
 
 bool RobotCollisionModel::initCollisionModel(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const CollisionModelConfig& config)
 {
     if (!checkCollisionModelConfig(config)) {
@@ -631,7 +631,7 @@ bool RobotCollisionModel::initCollisionModel(
     return true;
 }
 
-bool RobotCollisionModel::initCollisionShapes(const urdf::ModelInterface& urdf)
+bool RobotCollisionModel::initCollisionShapes(const ::urdf::ModelInterface& urdf)
 {
     // create all collision shapes
     for (auto& link_with_name : urdf.links_) {
@@ -661,19 +661,19 @@ bool RobotCollisionModel::initCollisionShapes(const urdf::ModelInterface& urdf)
             for (auto& collision : link->collision_array) {
                 CollisionShape* shape = nullptr;
                 switch (collision->geometry->type) {
-                case urdf::Geometry::BOX:
+                case ::urdf::Geometry::BOX:
                     shape = &m_box_shapes[box_index];
                     box_index++;
                     break;
-                case urdf::Geometry::CYLINDER:
+                case ::urdf::Geometry::CYLINDER:
                     shape = &m_cylinder_shapes[cylinder_index];
                     cylinder_index++;
                     break;
-                case urdf::Geometry::MESH:
+                case ::urdf::Geometry::MESH:
                     shape = &m_mesh_shapes[mesh_index];
                     mesh_index++;
                     break;
-                case urdf::Geometry::SPHERE:
+                case ::urdf::Geometry::SPHERE:
                     shape = &m_sphere_shapes[sphere_index];
                     sphere_index++;
                     break;
@@ -694,19 +694,19 @@ bool RobotCollisionModel::initCollisionShapes(const urdf::ModelInterface& urdf)
         } else if (link->collision) {
             CollisionShape* shape = nullptr;
             switch (link->collision->geometry->type) {
-            case urdf::Geometry::BOX:
+            case ::urdf::Geometry::BOX:
                 shape = &m_box_shapes[box_index];
                 box_index++;
                 break;
-            case urdf::Geometry::CYLINDER:
+            case ::urdf::Geometry::CYLINDER:
                 shape = &m_cylinder_shapes[cylinder_index];
                 cylinder_index++;
                 break;
-            case urdf::Geometry::MESH:
+            case ::urdf::Geometry::MESH:
                 shape = &m_mesh_shapes[mesh_index];
                 mesh_index++;
                 break;
-            case urdf::Geometry::SPHERE:
+            case ::urdf::Geometry::SPHERE:
                 shape = &m_sphere_shapes[sphere_index];
                 sphere_index++;
                 break;
@@ -729,26 +729,26 @@ bool RobotCollisionModel::initCollisionShapes(const urdf::ModelInterface& urdf)
     return true;
 }
 
-bool RobotCollisionModel::createCollisionShape(const urdf::Collision& collision)
+bool RobotCollisionModel::createCollisionShape(const ::urdf::Collision& collision)
 {
     switch (collision.geometry->type) {
-    case urdf::Geometry::BOX:
+    case ::urdf::Geometry::BOX:
     {
-        auto& box = static_cast<urdf::Box&>(*collision.geometry);
+        auto& box = static_cast<::urdf::Box&>(*collision.geometry);
         BoxShape box_shape(box.dim.x, box.dim.y, box.dim.z);
         m_box_shapes.push_back(box_shape);
         break;
     }
-    case urdf::Geometry::CYLINDER:
+    case ::urdf::Geometry::CYLINDER:
     {
-        auto& cylinder = static_cast<urdf::Cylinder&>(*collision.geometry);
+        auto& cylinder = static_cast<::urdf::Cylinder&>(*collision.geometry);
         CylinderShape cylinder_shape(cylinder.radius, cylinder.length);
         m_cylinder_shapes.push_back(cylinder_shape);
         break;
     }
-    case urdf::Geometry::MESH:
+    case ::urdf::Geometry::MESH:
     {
-        auto& mesh = static_cast<urdf::Mesh&>(*collision.geometry);
+        auto& mesh = static_cast<::urdf::Mesh&>(*collision.geometry);
 
         std::vector<double> vertex_data;
         std::vector<std::uint32_t> index_data;
@@ -775,9 +775,9 @@ bool RobotCollisionModel::createCollisionShape(const urdf::Collision& collision)
 
         break;
     }
-    case urdf::Geometry::SPHERE:
+    case ::urdf::Geometry::SPHERE:
     {
-        auto& sphere = static_cast<urdf::Sphere&>(*collision.geometry);
+        auto& sphere = static_cast<::urdf::Sphere&>(*collision.geometry);
         SphereShape sphere_shape(sphere.radius);
         m_sphere_shapes.push_back(sphere_shape);
         break;
@@ -1079,7 +1079,7 @@ bool RobotCollisionModel::checkCollisionModelReferences() const
     return true;
 }
 
-Eigen::Affine3d RobotCollisionModel::poseUrdfToEigen(const urdf::Pose& p) const
+Eigen::Affine3d RobotCollisionModel::poseUrdfToEigen(const ::urdf::Pose& p) const
 {
     return Eigen::Translation3d(p.position.x, p.position.y, p.position.z) *
             Eigen::Quaterniond(
@@ -1087,7 +1087,7 @@ Eigen::Affine3d RobotCollisionModel::poseUrdfToEigen(const urdf::Pose& p) const
 }
 
 bool RobotCollisionModel::voxelizeLink(
-    const urdf::ModelInterface& urdf,
+    const ::urdf::ModelInterface& urdf,
     const std::string& link_name,
     CollisionVoxelsModel& model) const
 {
@@ -1131,7 +1131,7 @@ bool RobotCollisionModel::voxelizeLink(
 }
 
 bool RobotCollisionModel::voxelizeCollisionElement(
-    const urdf::Collision& collision,
+    const ::urdf::Collision& collision,
     double res,
     std::vector<Eigen::Vector3d>& voxels) const
 {
@@ -1155,15 +1155,15 @@ bool RobotCollisionModel::voxelizeCollisionElement(
 }
 
 bool RobotCollisionModel::voxelizeGeometry(
-    const urdf::Geometry& geom,
+    const ::urdf::Geometry& geom,
     const Eigen::Affine3d& pose,
     double res,
     std::vector<Eigen::Vector3d>& voxels) const
 {
-    if (geom.type == urdf::Geometry::MESH) {
+    if (geom.type == ::urdf::Geometry::MESH) {
         std::vector<Eigen::Vector3d> vertices;
         std::vector<std::uint32_t> triangles;
-        urdf::Mesh* mesh = (urdf::Mesh*)&geom;
+        ::urdf::Mesh* mesh = (::urdf::Mesh*)&geom;
         if (!leatherman::getMeshComponentsFromResource(
                 mesh->filename, Eigen::Vector3d::Ones(), triangles, vertices))
         {
@@ -1176,20 +1176,20 @@ bool RobotCollisionModel::voxelizeGeometry(
         geometry::VoxelizeMesh(vertices, triangles, pose, res, voxels, false);
         ROS_DEBUG_NAMED(LOG, " -> voxels: %zu", voxels.size());
     }
-    else if (geom.type == urdf::Geometry::BOX) {
-        urdf::Box* box = (urdf::Box*)&geom;
+    else if (geom.type == ::urdf::Geometry::BOX) {
+        ::urdf::Box* box = (::urdf::Box*)&geom;
         ROS_DEBUG_NAMED(LOG, "box: { dims: %0.3f, %0.3f, %0.3f }", box->dim.x, box->dim.y, box->dim.z);
         geometry::VoxelizeBox(box->dim.x, box->dim.y, box->dim.z, pose, res, voxels, false);
         ROS_DEBUG_NAMED(LOG, " -> voxels: %zu", voxels.size());
     }
-    else if (geom.type == urdf::Geometry::CYLINDER) {
-        urdf::Cylinder* cyl = (urdf::Cylinder*)&geom;
+    else if (geom.type == ::urdf::Geometry::CYLINDER) {
+        ::urdf::Cylinder* cyl = (::urdf::Cylinder*)&geom;
         ROS_DEBUG_NAMED(LOG, "cylinder: { radius: %0.3f, length: %0.3f }", cyl->radius, cyl->length);
         geometry::VoxelizeCylinder(cyl->radius, cyl->length, pose, res, voxels, false);
         ROS_DEBUG_NAMED(LOG, " -> voxels: %zu", voxels.size());
     }
-    else if (geom.type == urdf::Geometry::SPHERE) {
-        urdf::Sphere* sph = (urdf::Sphere*)&geom;
+    else if (geom.type == ::urdf::Geometry::SPHERE) {
+        ::urdf::Sphere* sph = (::urdf::Sphere*)&geom;
         ROS_DEBUG_NAMED(LOG, "sphere: { radius: %0.3f }", sph->radius);
         geometry::VoxelizeSphere(sph->radius, pose, res, voxels, false);
         ROS_DEBUG_NAMED(LOG, " -> voxels: %zu", voxels.size());
@@ -1203,4 +1203,4 @@ bool RobotCollisionModel::voxelizeGeometry(
 }
 
 } // namespace collision
-} // namespace sbpl
+} // namespace smpl

@@ -13,8 +13,6 @@
 #include <smpl/heuristic/attractor_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 
-namespace smpl = sbpl::motion;
-
 template <class CharT, class Traits = std::char_traits<CharT>>
 auto donothing(std::basic_ostream<CharT, Traits>& o)
     -> std::basic_ostream<CharT, Traits>&
@@ -86,7 +84,7 @@ class GridCollisionChecker : public smpl::CollisionChecker
 {
 public:
 
-    GridCollisionChecker(sbpl::OccupancyGrid* grid) :
+    GridCollisionChecker(smpl::OccupancyGrid* grid) :
         Extension(), m_grid(grid)
     { }
 
@@ -119,7 +117,7 @@ public:
 private:
 
     // a bit heavy-weight for this, since it overlays a distance transform
-    sbpl::OccupancyGrid* m_grid;
+    smpl::OccupancyGrid* m_grid;
 };
 
 bool GridCollisionChecker::isStateValid(
@@ -185,7 +183,7 @@ bool GridCollisionChecker::interpolatePath(
 }
 
 /// Add a simple box obstacle in the center of the grid
-void SetupOccupancyGrid(sbpl::OccupancyGrid& grid)
+void SetupOccupancyGrid(smpl::OccupancyGrid& grid)
 {
     const int x_count = grid.numCellsX();
     const int y_count = grid.numCellsY();
@@ -210,43 +208,43 @@ void SetupOccupancyGrid(sbpl::OccupancyGrid& grid)
     grid.addPointsToField(points);
 }
 
-void PrintGrid(std::ostream& o, sbpl::OccupancyGrid& grid)
+void PrintGrid(std::ostream& o, smpl::OccupancyGrid& grid)
 {
-    COLOR(o, sbpl::console::yellow);
+    COLOR(o, smpl::console::yellow);
     o << '+';
     for (int x = 0; x < grid.numCellsX(); ++x) {
         o << '-';
     }
     o << '+';
-    COLOR(o, sbpl::console::reset);
+    COLOR(o, smpl::console::reset);
     o << '\n';
 
     for (int y = grid.numCellsY() - 1; y >= 0; --y) {
-        COLOR(o, sbpl::console::yellow);
+        COLOR(o, smpl::console::yellow);
         o << '|';
-        COLOR(o, sbpl::console::reset);
+        COLOR(o, smpl::console::reset);
         for (int x = 0; x < grid.numCellsX(); ++x) {
             if (grid.getDistance(x, y, 0) <= 0) {
-                COLOR(o, sbpl::console::red);
+                COLOR(o, smpl::console::red);
                 o << "X";
-                COLOR(o, sbpl::console::reset);
+                COLOR(o, smpl::console::reset);
             } else {
                 o << " ";
             }
         }
-        COLOR(o, sbpl::console::yellow);
+        COLOR(o, smpl::console::yellow);
         o << '|';
-        COLOR(o, sbpl::console::reset);
+        COLOR(o, smpl::console::reset);
         o << '\n';
     }
 
-    COLOR(o, sbpl::console::yellow);
+    COLOR(o, smpl::console::yellow);
     o << '+';
     for (int x = 0; x < grid.numCellsX(); ++x) {
         o << '-';
     }
     o << '+';
-    COLOR(o, sbpl::console::reset);
+    COLOR(o, smpl::console::reset);
     o << '\n';
 }
 
@@ -259,20 +257,20 @@ void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
     }
     for (auto ait = aspace.begin(); ait != aspace.end(); ++ait) {
         SMPL_INFO("  type: %s", to_cstring(ait->type));
-        if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_RPY) {
-            SMPL_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_RPY));
+        if (ait->type == smpl::MotionPrimitive::SNAP_TO_RPY) {
+            SMPL_INFO("    enabled: %s", aspace.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY));
         }
-        else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) {
-            SMPL_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ));
+        else if (ait->type == smpl::MotionPrimitive::SNAP_TO_XYZ) {
+            SMPL_INFO("    enabled: %s", aspace.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ));
         }
-        else if (ait->type == sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) {
-            SMPL_INFO("    enabled: %s", aspace.useAmp(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(sbpl::motion::MotionPrimitive::SNAP_TO_XYZ_RPY));
+        else if (ait->type == smpl::MotionPrimitive::SNAP_TO_XYZ_RPY) {
+            SMPL_INFO("    enabled: %s", aspace.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
+            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY));
         }
-        else if (ait->type == sbpl::motion::MotionPrimitive::LONG_DISTANCE ||
-                ait->type == sbpl::motion::MotionPrimitive::SHORT_DISTANCE)
+        else if (ait->type == smpl::MotionPrimitive::LONG_DISTANCE ||
+                ait->type == smpl::MotionPrimitive::SHORT_DISTANCE)
         {
             SMPL_INFO_STREAM("    action: " << ait->action);
         }
@@ -281,7 +279,7 @@ void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
 
 void PrintSolution(
     std::ostream& o,
-    const sbpl::OccupancyGrid& grid,
+    const smpl::OccupancyGrid& grid,
     const std::vector<smpl::RobotState>& path)
 {
     std::vector<std::pair<int, int>> discrete_states;
@@ -291,48 +289,48 @@ void PrintSolution(
         discrete_states.push_back(std::make_pair(dx, dy));
     }
 
-    COLOR(o, sbpl::console::yellow);
+    COLOR(o, smpl::console::yellow);
     o << '+';
     for (int x = 0; x < grid.numCellsX(); ++x) {
         o << '-';
     }
     o << '+';
-    COLOR(o, sbpl::console::reset);
+    COLOR(o, smpl::console::reset);
     o << '\n';
 
     for (int y = grid.numCellsY() - 1; y >= 0; --y) {
-        COLOR(o, sbpl::console::yellow);
+        COLOR(o, smpl::console::yellow);
         o << '|';
-        COLOR(o, sbpl::console::reset);
+        COLOR(o, smpl::console::reset);
         for (int x = 0; x < grid.numCellsX(); ++x) {
             auto it = std::find(begin(discrete_states), end(discrete_states), std::make_pair(x, y));
             if (it != end(discrete_states)) {
-                COLOR(o, sbpl::console::cyan);
+                COLOR(o, smpl::console::cyan);
                 o << 'P';
-                COLOR(o, sbpl::console::reset);
+                COLOR(o, smpl::console::reset);
             } else {
                 if (grid.getDistance(x, y, 0) <= 0) {
-                    COLOR(o, sbpl::console::red);
+                    COLOR(o, smpl::console::red);
                     o << 'X';
-                    COLOR(o, sbpl::console::reset);
+                    COLOR(o, smpl::console::reset);
                 } else {
                     o << " ";
                 }
             }
         }
-        COLOR(o, sbpl::console::yellow);
+        COLOR(o, smpl::console::yellow);
         o << '|';
-        COLOR(o, sbpl::console::reset);
+        COLOR(o, smpl::console::reset);
         o << '\n';
     }
 
-    COLOR(o, sbpl::console::yellow);
+    COLOR(o, smpl::console::yellow);
     o << '+';
     for (int x = 0; x < grid.numCellsX(); ++x) {
         o << '-';
     }
     o << '+';
-    COLOR(o, sbpl::console::reset);
+    COLOR(o, smpl::console::reset);
     o << '\n';
 }
 
@@ -361,7 +359,7 @@ int main(int argc, char* argv[])
     const double world_origin_z = 0.0;
     const double max_distance_m = 4.0;
     const bool ref_count = false;
-    sbpl::OccupancyGrid grid(
+    smpl::OccupancyGrid grid(
             world_size_x, world_size_y, world_size_z,
             grid_res,
             world_origin_x, world_origin_y, world_origin_z,
@@ -419,7 +417,7 @@ int main(int argc, char* argv[])
     space.insertHeuristic(&h);
 
     // 11. Create Search, associated with the planning space and heuristic
-    sbpl::ARAStar search(&space, &h);
+    smpl::ARAStar search(&space, &h);
 
     // 12. Configure Search Behavior
     const double epsilon = 5.0;
