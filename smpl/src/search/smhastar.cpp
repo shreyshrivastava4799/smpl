@@ -40,6 +40,7 @@
 #include <sbpl/utils/key.h>
 
 #include <smpl/console/console.h>
+#include <smpl/time.h>
 
 namespace smpl {
 
@@ -49,7 +50,7 @@ static const char* SLOG = "search.smhastar.successors";
 
 static double GetTime()
 {
-    return (double)clock() / (double)CLOCKS_PER_SEC;
+    return to_seconds(clock::now().time_since_epoch());
 }
 
 SMHAStar::SMHAStar() : SBPLPlanner()
