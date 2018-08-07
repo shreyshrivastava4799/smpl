@@ -86,13 +86,7 @@ endif()
 
 add_definitions(-DSV_PACKAGE_NAME="smpl")
 
-<<<<<<< HEAD
 set(SMPL_LIBRARY_SOURCES
-    src/bfs3d.cpp
-=======
-add_library(
-    smpl
->>>>>>> master
     src/csv_parser.cpp
     src/collision_checker.cpp
     src/console/ansi.cpp
@@ -147,7 +141,6 @@ add_library(
     src/search/smhastar.cpp
     src/search/awastar.cpp
     src/unicycle/unicycle.cpp)
-<<<<<<< HEAD
 
 set(CMAKE_DEBUG_POSTFIX "_d")
 
@@ -160,12 +153,6 @@ if(SMPL_CONSOLE_ROS)
 endif()
 if(SMPL_SV_VISUALIZATION_MSGS)
     list(APPEND PUBLIC_HEADERS ${visualization_msgs_INCLUDE_DIRS})
-=======
-target_compile_definitions(smpl PRIVATE -DROMAN)
-target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
-if(SMPL_ROS_BUILD)
-    target_link_libraries(smpl ${catkin_LIBRARIES})
->>>>>>> master
 endif()
 
 list(APPEND PUBLIC_HEADERS ${EIGEN3_INCLUDE_DIR})
