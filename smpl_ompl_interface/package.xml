@@ -8,6 +8,7 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
+    <depend>eigen</depend>
     <depend>ompl</depend>
     <depend>smpl</depend>
 </package>

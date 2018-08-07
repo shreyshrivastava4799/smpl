@@ -5,8 +5,8 @@ project(smpl)
 # overall build mode and features #
 ###################################
 
-set(SMPL_CONSOLE_ROS OFF CACHE BOOL "Replace smpl log macros with rosconsole macros")
-set(SMPL_SV_VISUALIZATION_MSGS OFF CACHE BOOL "Include visualization_msgs in visualizer interface")
+set(SMPL_CONSOLE_ROS ON CACHE BOOL "Replace smpl log macros with rosconsole macros")
+set(SMPL_SV_VISUALIZATION_MSGS ON CACHE BOOL "Include visualization_msgs in visualizer interface")
 set(SMPL_BUILD_SHARED ON CACHE BOOL "Build smpl as a shared library")
 set(SMPL_BUILD_STATIC ON CACHE BOOL "Build smpl as a static library")
 
@@ -171,31 +171,53 @@ if(SMPL_CONSOLE_ROS)
 endif()
 list(APPEND PUBLIC_LIBRARIES ${SBPL_LIBRARIES})
 
+macro(include_common_directories name)
+    target_include_directories(${name} PRIVATE ${PRIVATE_HEADERS})
+    target_include_directories(${name} SYSTEM PUBLIC ${PUBLIC_HEADERS})
+    target_include_directories(${name} INTERFACE ${INTERFACE_HEADERS})
+endmacro()
+macro(link_common_libraries name)
+    target_link_libraries(${name} PRIVATE ${PRIVATE_LIBRARIES})
+    target_link_libraries(${name} PUBLIC ${PUBLIC_LIBRARIES})
+    if(NOT Boost_USE_STATIC_LIBS)
+        target_compile_definitions(${name} PRIVATE -DBOOST_ALL_DYN_LINK)
+    endif()
+
+    if(MSVC)
+        target_compile_definitions(${name} PRIVATE -DBOOST_ALL_NO_LIB)
+    endif()
+endmacro()
+macro(add_common_compile_definitions name)
+    if(NOT Boost_USE_STATIC_LIBS)
+        target_compile_definitions(${name} PRIVATE -DBOOST_ALL_DYN_LINK)
+    endif()
+
+    if(MSVC)
+        target_compile_definitions(${name} PRIVATE -DBOOST_ALL_NO_LIB)
+    endif()
+endmacro()
+
+add_library(smpl-objects OBJECT ${SMPL_LIBRARY_SOURCES})
+set_target_properties(smpl-objects PROPERTIES POSITION_INDEPENDENT_CODE 1)
+include_common_directories(smpl-objects)
+add_common_compile_definitions(smpl-objects)
+
 ####################################
 # Build the shared library version #
 ####################################
 
 if(SMPL_BUILD_SHARED)
-    add_library(smpl SHARED ${SMPL_LIBRARY_SOURCES})
+#    add_library(smpl SHARED ${SMPL_LIBRARY_SOURCES})
+    add_library(smpl SHARED $<TARGET_OBJECTS:smpl-objects>)
     set_target_properties(
         smpl
         PROPERTIES
             VERSION ${SMPL_VERSION}
             SOVERSION ${SMPL_MAJOR_VERSION}.${SMPL_MINOR_VERSION})
 
-    target_include_directories(smpl PRIVATE ${PRIVATE_HEADERS})
-    target_include_directories(smpl SYSTEM PUBLIC ${PUBLIC_HEADERS})
-    target_include_directories(smpl INTERFACE ${INTERFACE_HEADERS})
-
-    target_link_libraries(smpl PRIVATE ${PRIVATE_LIBRARIES})
-    target_link_libraries(smpl PUBLIC ${PUBLIC_LIBRARIES})
-    if(NOT Boost_USE_STATIC_LIBS)
-        target_compile_definitions(smpl PRIVATE -DBOOST_ALL_DYN_LINK)
-    endif()
-
-    if(MSVC)
-        target_compile_definitions(smpl PRIVATE -DBOOST_ALL_NO_LIB)
-    endif()
+    include_common_directories(smpl)
+    link_common_libraries(smpl)
+    add_common_compile_definitions(smpl)
 endif()
 
 ####################################
@@ -203,25 +225,17 @@ endif()
 ####################################
 
 if(SMPL_BUILD_STATIC)
-    add_library(smpl-static STATIC ${SMPL_LIBRARY_SOURCES})
+#    add_library(smpl-static STATIC ${SMPL_LIBRARY_SOURCES})
+    add_library(smpl-static STATIC $<TARGET_OBJECTS:smpl-objects>)
 
     set_target_properties(smpl-static PROPERTIES OUTPUT_NAME smpl)
     if(MSVC)
         set_target_properties(smpl-static PROPERTIES PREFIX lib)
     endif()
 
-    target_include_directories(smpl-static PRIVATE ${PRIVATE_HEADERS})
-    target_include_directories(smpl-static SYSTEM PUBLIC ${PUBLIC_HEADERS})
-    target_include_directories(smpl-static INTERFACE ${INTERFACE_HEADERS})
-
-    target_link_libraries(smpl-static INTERFACE ${PRIVATE_LIBRARIES})
-    target_link_libraries(smpl-static INTERFACE ${PUBLIC_LIBRARIES})
-    if(NOT Boost_USE_STATIC_LIBS)
-        target_compile_definitions(smpl-static PRIVATE -DBOOST_ALL_DYN_LINK)
-    endif()
-    if(MSVC)
-        target_compile_definitions(smpl-static PRIVATE -DBOOST_ALL_NO_LIB)
-    endif()
+    include_common_directories(smpl-static)
+    link_common_libraries(smpl-static)
+    add_common_compile_definitions(smpl-static)
 endif()
 
 ################

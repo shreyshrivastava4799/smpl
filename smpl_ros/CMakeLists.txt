@@ -21,9 +21,10 @@ find_package(
         moveit_core
         moveit_msgs
         roscpp
-        smpl
         trajectory_msgs
         visualization_msgs)
+
+find_package(smpl REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS
@@ -35,12 +36,12 @@ catkin_package(
         moveit_core
         moveit_msgs
         roscpp
-        smpl
         trajectory_msgs
         visualization_msgs
     DEPENDS
         Boost
-        sbpl)
+        sbpl
+        smpl)
 
 add_definitions(-DSV_PACKAGE_NAME="smpl_ros")
 
@@ -57,7 +58,9 @@ add_library(
     src/ros/planner_interface.cpp
     src/ros/propagation_distance_field.cpp)
 
-target_link_libraries(smpl_ros ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(smpl_ros ${Boost_LIBRARIES})
+target_link_libraries(smpl_ros ${catkin_LIBRARIES})
+target_link_libraries(smpl_ros smpl::smpl)
 
 install(
     DIRECTORY include/smpl/

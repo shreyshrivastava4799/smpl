@@ -32,7 +32,6 @@ find_package(
         moveit_ros_planning
         roscpp
         rviz
-        smpl
         smpl_ros
         sbpl_collision_checking
         sensor_msgs
@@ -45,16 +44,18 @@ catkin_package(
     CATKIN_DEPENDS
         eigen_conversions
         geometric_shapes
-        smpl
         smpl_ros
         sbpl_collision_checking
         roscpp
-    DEPENDS)
+    DEPENDS
+        smpl)
 
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
-include_directories(include)
+find_package(smpl REQUIRED)
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(include)
+include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 add_library(smpl_moveit_robot_model src/planner/moveit_robot_model.cpp)
 
@@ -95,7 +96,8 @@ add_library(
 target_link_libraries(
     move_group_command_panel_plugin
     ${MOVE_GROUP_COMMAND_PANEL_QT_LIBRARIES}
-    ${catkin_LIBRARIES})
+    ${catkin_LIBRARIES}
+    smpl::smpl)
 
 # Ad-hoc handling of API differences between indigo and kinetic distributions
 if("$ENV{ROS_DISTRO}" STREQUAL "kinetic")
@@ -124,7 +126,7 @@ target_compile_definitions(
     PRIVATE
     -DCOLLISION_DETECTION_SBPL_ROS_VERSION=${COLLISION_DETECTION_SBPL_ROS_VERSION})
 
-target_link_libraries(collision_detection_sbpl ${catkin_LIBRARIES})
+target_link_libraries(collision_detection_sbpl ${catkin_LIBRARIES} smpl::smpl)
 
 ###########################################
 # Build moveit_sbpl_planner_plugin plugin #
@@ -146,9 +148,10 @@ target_include_directories(moveit_sbpl_planner_plugin PRIVATE src)
 
 target_link_libraries(
     moveit_sbpl_planner_plugin
-    ${catkin_LIBRARIES}
     collision_detection_sbpl
-    smpl_moveit_robot_model)
+    smpl_moveit_robot_model
+    ${catkin_LIBRARIES}
+    smpl::smpl)
 
 ###########
 # Install #

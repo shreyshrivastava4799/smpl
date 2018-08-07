@@ -59,7 +59,6 @@ include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 include_directories(SYSTEM ${OCTOMAP_INCLUDE_DIRS})
-include_directories(SYSTEM ${smpl_INCLUDE_DIRS})
 
 add_library(
     sbpl_collision_checking
@@ -80,7 +79,7 @@ add_library(
     src/voxel_operations.cpp
     src/world_collision_detector.cpp
     src/world_collision_model.cpp)
-target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES} ${smpl_LIBRARIES})
+target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES} smpl::smpl)
 
 install(
     DIRECTORY include/sbpl_collision_checking/

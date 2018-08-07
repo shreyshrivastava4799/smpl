@@ -32,12 +32,12 @@
 #include <sbpl_pr2_robot_model/pr2_kdl_robot_model.h>
 
 // system includes
+#include <eigen_conversions/eigen_kdl.h>
 #include <kdl/tree.hpp>
 #include <leatherman/print.h>
 #include <leatherman/utils.h>
 #include <ros/console.h>
 #include <smpl/angles.h>
-#include <eigen_conversions/eigen_kdl.h>
 
 namespace smpl {
 

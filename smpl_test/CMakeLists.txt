@@ -16,7 +16,6 @@ find_package(catkin
         moveit_msgs
         moveit_ros_planning
         roscpp
-        smpl
         sbpl_collision_checking
         sbpl_kdl_robot_model
         smpl_ompl_interface
@@ -24,6 +23,7 @@ find_package(catkin
 
 find_package(orocos_kdl REQUIRED)
 find_package(OMPL REQUIRED)
+find_package(smpl REQUIRED)
 
 catkin_package()
 
@@ -35,44 +35,44 @@ include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
 
 add_executable(callPlanner src/call_planner.cpp src/collision_space_scene.cpp)
-target_link_libraries(callPlanner ${catkin_LIBRARIES})
+target_link_libraries(callPlanner ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
 target_include_directories(call_ompl_planner SYSTEM PRIVATE ${OMPL_INCLUDE_DIRS})
-target_link_libraries(call_ompl_planner ${catkin_LIBRARIES} ${OMPL_LIBRARIES})
+target_link_libraries(call_ompl_planner ${catkin_LIBRARIES} ${OMPL_LIBRARIES} smpl::smpl)
 
 add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)
-target_link_libraries(occupancy_grid_test ${catkin_LIBRARIES})
+target_link_libraries(occupancy_grid_test ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(visualizer_test src/visualizer_test.cpp)
-target_link_libraries(visualizer_test ${catkin_LIBRARIES})
+target_link_libraries(visualizer_test ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(csv_parser_test src/csv_parser_test.cpp)
-target_link_libraries(csv_parser_test ${catkin_LIBRARIES})
+target_link_libraries(csv_parser_test ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(heap_test src/heap_test.cpp)
-target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(heap_test ${Boost_LIBRARIES} ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(egraph_test src/egraph_test.cpp)
-target_link_libraries(egraph_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(egraph_test ${Boost_LIBRARIES} ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(octree_test src/octree_tests.cpp)
-target_link_libraries(octree_test ${Boost_LIBRARIES})
+target_link_libraries(octree_test ${Boost_LIBRARIES} smpl::smpl)
 
 add_executable(sparse_grid_test src/sparse_grid_test.cpp)
-target_link_libraries(sparse_grid_test ${Boost_LIBRARIES})
+target_link_libraries(sparse_grid_test ${Boost_LIBRARIES} smpl::smpl)
 
 add_executable(sparse_binary_grid_test src/sparse_binary_grid_test.cpp)
-target_link_libraries(sparse_binary_grid_test ${Boost_LIBRARIES})
+target_link_libraries(sparse_binary_grid_test ${Boost_LIBRARIES} smpl::smpl)
 
 add_executable(xytheta src/xytheta.cpp)
-target_link_libraries(xytheta ${catkin_LIBRARIES})
+target_link_libraries(xytheta smpl::smpl)
 
 add_executable(debug_vis_demo src/debug_vis_demo.cpp)
-target_link_libraries(debug_vis_demo ${catkin_LIBRARIES})
+target_link_libraries(debug_vis_demo ${catkin_LIBRARIES} smpl::smpl)
 
 add_executable(distance_map_test src/distance_map_test.cpp)
-target_link_libraries(distance_map_test ${Boost_LIBRARIES} ${catkin_LIBRARIES})
+target_link_libraries(distance_map_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} smpl::smpl)
 
 install(
     TARGETS callPlanner
