@@ -139,7 +139,7 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
     }
     case GoalType::USER_GOAL_CONSTRAINT_FN:
     default:
-        ROS_ERROR("Unsupported goal type in BFS Heuristic");
+        SMPL_ERROR("Unsupported goal type in BFS Heuristic");
         break;
     }
 }
