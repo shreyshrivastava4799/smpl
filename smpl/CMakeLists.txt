@@ -5,8 +5,8 @@ project(smpl)
 # overall build mode and features #
 ###################################
 
-set(SMPL_ROS_BUILD ON CACHE BOOL "Build smpl as a catkin package")
-set(SMPL_CONSOLE_ROS ${SMPL_ROS_BUILD} CACHE BOOL "Replace smpl log macros with rosconsole macros")
+set(SMPL_CONSOLE_ROS OFF CACHE BOOL "Replace smpl log macros with rosconsole macros")
+set(SMPL_SV_VISUALIZATION_MSGS OFF CACHE BOOL "Include visualization_msgs in visualizer interface")
 set(SMPL_BUILD_SHARED ON CACHE BOOL "Build smpl as a shared library")
 set(SMPL_BUILD_STATIC ON CACHE BOOL "Build smpl as a static library")
 
@@ -27,18 +27,16 @@ set(SMPL_VERSION ${SMPL_MAJOR_VERSION}.${SMPL_MINOR_VERSION}.${SMPL_PATCH_VERSIO
 # allow overriding install directories for system install #
 ###########################################################
 
-if(NOT SMPL_ROS_BUILD)
-    set(SMPL_INSTALL_LIB_DIR     lib             CACHE PATH "Installation directory for libraries")
-    set(SMPL_INSTALL_INCLUDE_DIR include         CACHE PATH "Installation directory for header files")
-    set(SMPL_INSTALL_CMAKE_DIR   lib/cmake/smpl  CACHE PATH "Installation directory for CMake files")
-    set(SMPL_INSTALL_BIN_DIR     bin             CACHE PATH "Installation directory for executables")
-    foreach(path LIB INCLUDE CMAKE BIN)
-        set(var SMPL_INSTALL_${path}_DIR)
-        if(NOT IS_ABSOLUTE "${${var}}")
-            set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
-        endif()
-    endforeach()
-endif()
+set(SMPL_INSTALL_LIB_DIR     lib             CACHE PATH "Installation directory for libraries")
+set(SMPL_INSTALL_INCLUDE_DIR include         CACHE PATH "Installation directory for header files")
+set(SMPL_INSTALL_CMAKE_DIR   lib/cmake/smpl  CACHE PATH "Installation directory for CMake files")
+set(SMPL_INSTALL_BIN_DIR     bin             CACHE PATH "Installation directory for executables")
+foreach(path LIB INCLUDE CMAKE BIN)
+    set(var SMPL_INSTALL_${path}_DIR)
+    if(NOT IS_ABSOLUTE "${${var}}")
+        set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+    endif()
+endforeach()
 
 ########################
 # resolve dependencies #
@@ -47,52 +45,28 @@ endif()
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 find_package(Eigen3 REQUIRED)
 find_package(sbpl REQUIRED)
-if(SMPL_ROS_BUILD)
-    find_package(catkin REQUIRED COMPONENTS roscpp visualization_msgs)
+if(SMPL_CONSOLE_ROS)
+    find_package(roscpp REQUIRED)
 endif()
-
-#####################################
-# export package for catkin install #
-#####################################
-
-if(SMPL_ROS_BUILD)
-    catkin_package(
-        INCLUDE_DIRS
-            ${CMAKE_CURRENT_BINARY_DIR}/include
-            include
-            ${EIGEN3_INCLUDE_DIR}
-            ${SBPL_INCLUDE_DIRS}
-        LIBRARIES
-            smpl
-            ${SBPL_LIBRARIES}
-        CATKIN_DEPENDS
-            roscpp
-            visualization_msgs
-        DEPENDS
-            Boost)
+if(SMPL_SV_VISUALIZATION_MSGS)
+    find_package(visualization_msgs REQUIRED)
 endif()
 
 ####################################################
 # generate our own .cmake files for system install #
 ####################################################
 
-if(NOT SMPL_ROS_BUILD)
-    file(RELATIVE_PATH REL_INCLUDE_DIR "${SMPL_INSTALL_CMAKE_DIR}" "${SMPL_INSTALL_INCLUDE_DIR}")
-    set(CONF_INCLUDE_DIRS "\${SMPL_CMAKE_DIR}/${REL_INCLUDE_DIR}")
+file(RELATIVE_PATH REL_INCLUDE_DIR "${SMPL_INSTALL_CMAKE_DIR}" "${SMPL_INSTALL_INCLUDE_DIR}")
+set(CONF_INCLUDE_DIRS "\${SMPL_CMAKE_DIR}/${REL_INCLUDE_DIR}")
 
-    configure_file(smpl-config.cmake.in "${PROJECT_BINARY_DIR}/smpl-config.cmake" @ONLY)
-    configure_file(smpl-config-version.cmake.in "${PROJECT_BINARY_DIR}/smpl-config-version.cmake" @ONLY)
-endif()
+configure_file(smpl-config.cmake.in "${PROJECT_BINARY_DIR}/smpl-config.cmake" @ONLY)
+configure_file(smpl-config-version.cmake.in "${PROJECT_BINARY_DIR}/smpl-config-version.cmake" @ONLY)
 
 #################################
 # generate configuration header #
 #################################
 
 set(SMPL_CLOCK_API SMPL_CLOCK_CHRONO_HIGH_RESOLUTION)
-
-if(SMPL_ROS_BUILD)
-    set(SMPL_SV_VISUALIZATION_MSGS ON)
-endif()
 
 configure_file(
     ${PROJECT_SOURCE_DIR}/include/smpl/config.h.in
@@ -106,13 +80,8 @@ if(NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
-if(SMPL_ROS_BUILD AND SMPL_CONSOLE_ROS)
+if(SMPL_CONSOLE_ROS)
     add_definitions(-DSMPL_CONSOLE_ROS)
-else()
-    # configure printf backend
-    add_definitions(-DSMPL_CONSOLE_COLORIZE_OUTPUT=1)
-    add_definitions(-DSMPL_CONSOLE_UNBUFFERED=1)
-    add_definitions(-DSMPL_LOG_FILE_AND_LINE=1)
 endif()
 
 add_definitions(-DSV_PACKAGE_NAME="smpl")
@@ -175,9 +144,13 @@ set(CMAKE_DEBUG_POSTFIX "_d")
 list(APPEND PRIVATE_HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include)
 list(APPEND PRIVATE_HEADERS include)
 
-if(SMPL_ROS_BUILD)
-    list(APPEND PUBLIC_HEADERS ${catkin_INCLUDE_DIRS})
+if(SMPL_CONSOLE_ROS)
+    list(APPEND PUBLIC_HEADERS ${roscpp_INCLUDE_DIRS})
 endif()
+if(SMPL_SV_VISUALIZATION_MSGS)
+    list(APPEND PUBLIC_HEADERS ${visualization_msgs_INCLUDE_DIRS})
+endif()
+
 list(APPEND PUBLIC_HEADERS ${EIGEN3_INCLUDE_DIR})
 list(APPEND PUBLIC_HEADERS ${Boost_INCLUDE_DIRS})
 list(APPEND PUBLIC_HEADERS ${SBPL_INCLUDE_DIRS})
@@ -189,8 +162,8 @@ list(APPEND PRIVATE_LIBRARIES ${Boost_FILESYSTEM_LIBRARY})
 list(APPEND PRIVATE_LIBRARIES ${Boost_PROGRAM_OPTIONS_LIBRARY})
 list(APPEND PRIVATE_LIBRARIES ${Boost_SYSTEM_LIBRARY})
 
-if(SMPL_ROS_BUILD)
-    list(APPEND PUBLIC_LIBRARIES ${catkin_LIBRARIES})
+if(SMPL_CONSOLE_ROS)
+    list(APPEND PUBLIC_LIBRARIES ${roscpp_LIBRARIES})
 endif()
 list(APPEND PUBLIC_LIBRARIES ${SBPL_LIBRARIES})
 
@@ -251,17 +224,10 @@ endif()
 # Installation #
 ################
 
-if(SMPL_ROS_BUILD)
-    set(SMPL_INCLUDE_DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
-    set(SMPL_ARCHIVE_DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-    set(SMPL_LIBRARY_DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-    set(SMPL_RUNTIME_DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-else()
-    set(SMPL_INCLUDE_DESTINATION ${SMPL_INSTALL_INCLUDE_DIR}/smpl)
-    set(SMPL_ARCHIVE_DESTINATION ${SMPL_INSTALL_LIB_DIR})
-    set(SMPL_LIBRARY_DESTINATION ${SMPL_INSTALL_LIB_DIR})
-    set(SMPL_RUNTIME_DESTINATION ${SMPL_INSTALL_BIN_DIR})
-endif()
+set(SMPL_INCLUDE_DESTINATION ${SMPL_INSTALL_INCLUDE_DIR}/smpl)
+set(SMPL_ARCHIVE_DESTINATION ${SMPL_INSTALL_LIB_DIR})
+set(SMPL_LIBRARY_DESTINATION ${SMPL_INSTALL_LIB_DIR})
+set(SMPL_RUNTIME_DESTINATION ${SMPL_INSTALL_BIN_DIR})
 
 install(
     DIRECTORY include/smpl/
@@ -287,17 +253,14 @@ install(
     LIBRARY DESTINATION ${SMPL_LIBRARY_DESTINATION}
     RUNTIME DESTINATION ${SMPL_RUNTIME_DESTINATION})
 
-if(NOT SMPL_ROS_BUILD)
-    install(
-        EXPORT smpl-targets
-        DESTINATION ${SMPL_INSTALL_CMAKE_DIR}
-        NAMESPACE smpl::
-        COMPONENT dev)
-    install(
-        FILES
-            "${PROJECT_BINARY_DIR}/smpl-config.cmake"
-            "${PROJECT_BINARY_DIR}/smpl-config-version.cmake"
-        DESTINATION ${SMPL_INSTALL_CMAKE_DIR}
-        COMPONENT dev)
-endif()
-
+install(
+    EXPORT smpl-targets
+    DESTINATION ${SMPL_INSTALL_CMAKE_DIR}
+    NAMESPACE smpl::
+    COMPONENT dev)
+install(
+    FILES
+        "${PROJECT_BINARY_DIR}/smpl-config.cmake"
+        "${PROJECT_BINARY_DIR}/smpl-config-version.cmake"
+    DESTINATION ${SMPL_INSTALL_CMAKE_DIR}
+    COMPONENT dev)
