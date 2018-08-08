@@ -43,10 +43,9 @@ namespace smpl {
 bool WorkspaceLatticeBase::init(
     RobotModel* _robot,
     CollisionChecker* checker,
-    const PlanningParams* pp,
     const Params& _params)
 {
-    if (!RobotPlanningSpace::init(_robot, checker, pp)) {
+    if (!RobotPlanningSpace::init(_robot, checker)) {
         return false;
     }
 

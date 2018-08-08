@@ -101,7 +101,6 @@ public:
     bool init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* params,
         const std::vector<double>& resolutions,
         ActionSpace* actions);
 

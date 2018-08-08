@@ -41,6 +41,14 @@
 // system includes
 #include <boost/variant.hpp>
 
+#define GRAPH_LOG "graph"
+#define GRAPH_EXPANSIONS_LOG GRAPH_OG ".expansions"
+#define GRAPH_SUCCESSORS_LOG GRAPH_LOG ".successors"
+#define HEUR_LOG "heuristic"
+#define SEARCH_LOG "search"
+#define SEARCH_EXPANSIONS_LOG SEARCH_LOG ".expansions"
+#define SEARCH_SUCCESSORS_LOG SEARCH_LOG ".successors"
+
 namespace smpl {
 
 enum ShortcutType
@@ -73,15 +81,6 @@ public:
     static const bool DefaultInterpolatePath = false;
     static const ShortcutType DefaultShortcutType = ShortcutType::JOINT_SPACE;
 
-    // logging parameters
-    static const std::string DefaultRobotModelLog;
-    static const std::string DefaultGraphLog;
-    static const std::string DefaultHeuristicLog;
-    static const std::string DefaultExpandsLog;
-    static const std::string DefaultPostProcessingLog;
-    static const std::string DefaultSolutionLog;
-    static const std::string DefaultSuccessorsLog;
-
     // TODO: visualization parameters
 
     PlanningParams();
@@ -101,14 +100,6 @@ public:
     /// \name Logging
     ///@{
     std::string plan_output_dir;
-
-    std::string graph_log;
-    std::string heuristic_log;
-    std::string expands_log;
-    std::string successors_log;
-    std::string robot_log;
-    std::string post_processing_log;
-    std::string solution_log;
     ///@}
 
     void addParam(const std::string& name, bool val);

@@ -255,9 +255,6 @@ struct PlannerImpl
     RobotModel model;
     CollisionChecker checker;
 
-    // params
-    smpl::PlanningParams params;
-
     // graph
     std::string mprim_filename;
     smpl::ManipLattice space;
@@ -470,7 +467,6 @@ PlannerImpl::PlannerImpl(
     if (!this->space.init(
             &this->model,
             &this->checker,
-            &this->params,
             resolutions,
             &this->actions))
     {

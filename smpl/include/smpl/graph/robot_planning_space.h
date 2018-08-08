@@ -61,10 +61,7 @@ public:
 
     virtual ~RobotPlanningSpace();
 
-    virtual bool init(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params);
+    virtual bool init(RobotModel* robot, CollisionChecker* checker);
 
     virtual bool setStart(const RobotState& state);
     virtual bool setGoal(const GoalConstraint& goal);
@@ -85,8 +82,6 @@ public:
 
     CollisionChecker* collisionChecker() { return m_checker; }
     const CollisionChecker* collisionChecker() const { return m_checker; }
-
-    const PlanningParams* params() const { return m_params; }
 
     const RobotState& startState() const { return m_start; }
     const GoalConstraint& goal() const { return m_goal; }
@@ -139,7 +134,6 @@ private:
 
     RobotModel* m_robot             = nullptr;
     CollisionChecker* m_checker     = nullptr;
-    const PlanningParams* m_params  = nullptr;
 
     RobotState m_start;
     GoalConstraint m_goal;

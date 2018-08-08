@@ -42,7 +42,6 @@
 
 // project includes
 #include <smpl/collision_checker.h>
-#include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/time.h>
 #include <smpl/types.h>
@@ -94,7 +93,6 @@ struct WorkspaceLattice :
     bool init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* pp,
         const Params& params,
         WorkspaceLatticeActionSpace* actions);
     ///@}
