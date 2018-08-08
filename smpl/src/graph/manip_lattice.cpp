@@ -852,17 +852,30 @@ void ManipLattice::setVisualizationFrameId(const std::string& frame_id)
     m_viz_frame_id = frame_id;
 }
 
-const std::string& ManipLattice::visualizationFrameId() const
+auto ManipLattice::visualizationFrameId() const -> const std::string&
 {
     return m_viz_frame_id;
 }
 
-RobotState ManipLattice::getDiscreteCenter(const RobotState& state) const {
+auto ManipLattice::getDiscreteCenter(const RobotState& state) const -> RobotState
+{
     RobotCoord coord(robot()->jointVariableCount());
     RobotState center(robot()->jointVariableCount());
     stateToCoord(state, coord);
     coordToState(coord, center);
     return center;
+}
+
+void ManipLattice::clearStates()
+{
+    for (auto& state : m_states) {
+        delete state;
+    }
+    m_states.clear();
+    m_state_to_id.clear();
+    m_states.shrink_to_fit();
+
+    m_goal_state_id = reserveHashEntry();
 }
 
 bool ManipLattice::extractPath(
