@@ -38,6 +38,8 @@ find_package(
         pluginlib
         visualization_msgs)
 
+find_package(smpl REQUIRED)
+
 catkin_package(
     INCLUDE_DIRS include
     LIBRARIES smpl_moveit_robot_model move_group_command_panel_plugin
@@ -49,8 +51,6 @@ catkin_package(
         roscpp
     DEPENDS
         smpl)
-
-find_package(smpl REQUIRED)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(include)
