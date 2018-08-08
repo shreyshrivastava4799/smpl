@@ -54,7 +54,7 @@ bool ManipLatticeEgraph::extractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
 {
-    SMPL_DEBUG_STREAM_NAMED("graph", "State ID Path: " << idpath);
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "State ID Path: " << idpath);
     if (idpath.empty()) {
         return true;
     }
@@ -67,14 +67,14 @@ bool ManipLatticeEgraph::extractPath(
         if (state_id == getGoalStateID()) {
             auto* entry = getHashEntry(getStartStateID());
             if (!entry) {
-                SMPL_ERROR_NAMED("graph", "Failed to get state entry for state %d", getStartStateID());
+                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", getStartStateID());
                 return false;
             }
             path.push_back(entry->state);
         } else {
             auto* entry = getHashEntry(state_id);
             if (!entry) {
-                SMPL_ERROR_NAMED("graph", "Failed to get state entry for state %d", state_id);
+                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", state_id);
                 return false;
             }
             path.push_back(entry->state);
@@ -86,7 +86,7 @@ bool ManipLatticeEgraph::extractPath(
     }
 
     if (idpath[0] == getGoalStateID()) {
-        SMPL_ERROR_NAMED("graph", "Cannot extract a non-trivial path starting from the goal state");
+        SMPL_ERROR_NAMED(G_LOG, "Cannot extract a non-trivial path starting from the goal state");
         return false;
     }
 
@@ -96,7 +96,7 @@ bool ManipLatticeEgraph::extractPath(
     {
         auto* entry = getHashEntry(idpath[0]);
         if (!entry) {
-            SMPL_ERROR_NAMED("graph", "Failed to get state entry for state %d", idpath[0]);
+            SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", idpath[0]);
             return false;
         }
         opath.push_back(entry->state);
@@ -106,10 +106,10 @@ bool ManipLatticeEgraph::extractPath(
     for (size_t i = 1; i < idpath.size(); ++i) {
         auto prev_id = idpath[i - 1];
         auto curr_id = idpath[i];
-        SMPL_DEBUG_NAMED("graph", "Extract motion from state %d to state %d", prev_id, curr_id);
+        SMPL_DEBUG_NAMED(G_LOG, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == getGoalStateID()) {
-            SMPL_ERROR_NAMED("graph", "Cannot determine goal state predecessor state during path extraction");
+            SMPL_ERROR_NAMED(G_LOG, "Cannot determine goal state predecessor state during path extraction");
             return false;
         }
 
@@ -120,11 +120,11 @@ bool ManipLatticeEgraph::extractPath(
 
         std::vector<Action> actions;
         if (!actionSpace()->apply(prev_state, actions)) {
-            SMPL_ERROR_NAMED("graph", "Failed to get actions while extracting the path");
+            SMPL_ERROR_NAMED(G_LOG, "Failed to get actions while extracting the path");
             return false;
         }
 
-        SMPL_DEBUG_NAMED("graph", "Check for transition via normal successors");
+        SMPL_DEBUG_NAMED(G_LOG, "Check for transition via normal successors");
         ManipLatticeState* best_state = nullptr;
         RobotCoord succ_coord(robot()->jointVariableCount());
         int best_cost = std::numeric_limits<int>::max();
@@ -135,7 +135,7 @@ bool ManipLatticeEgraph::extractPath(
             }
 
             if (curr_id == getGoalStateID()) {
-                SMPL_DEBUG_NAMED("graph", "Search for transition to goal state");
+                SMPL_DEBUG_NAMED(G_LOG, "Search for transition to goal state");
 
                 // skip non-goal states
                 if (!isGoal(action.back())) {
@@ -170,7 +170,7 @@ bool ManipLatticeEgraph::extractPath(
         }
 
         if (best_state) {
-            SMPL_DEBUG_STREAM_NAMED("graph", "Extract successor state " << best_state->state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "Extract successor state " << best_state->state);
             opath.push_back(best_state->state);
             continue;
         }
@@ -205,7 +205,7 @@ bool ManipLatticeEgraph::extractPath(
         }
 
         // check for snap transition
-        SMPL_DEBUG_NAMED("graph", "Check for snap successor");
+        SMPL_DEBUG_NAMED(G_LOG, "Check for snap successor");
         int cost;
         if (snap(prev_id, curr_id, cost)) {
             SMPL_ERROR("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
@@ -215,7 +215,7 @@ bool ManipLatticeEgraph::extractPath(
             continue;
         }
 
-        SMPL_ERROR_NAMED("graph", "Failed to find valid goal successor during path extraction");
+        SMPL_ERROR_NAMED(G_LOG, "Failed to find valid goal successor during path extraction");
         return false;
     }
 

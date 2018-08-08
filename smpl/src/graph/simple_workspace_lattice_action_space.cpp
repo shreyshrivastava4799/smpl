@@ -85,7 +85,7 @@ void SimpleWorkspaceLatticeActionSpace::apply(
     WorkspaceState cont_state;
     space->stateCoordToWorkspace(state.coord, cont_state);
 
-    SMPL_DEBUG_STREAM_NAMED("graph.expands", "  create actions for workspace state: " << cont_state);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  create actions for workspace state: " << cont_state);
 
     for (auto& prim : m_prims) {
         WorkspaceAction action;

@@ -41,13 +41,13 @@
 // system includes
 #include <boost/variant.hpp>
 
-#define GRAPH_LOG "graph"
-#define GRAPH_EXPANSIONS_LOG GRAPH_OG ".expansions"
-#define GRAPH_SUCCESSORS_LOG GRAPH_LOG ".successors"
-#define HEUR_LOG "heuristic"
-#define SEARCH_LOG "search"
-#define SEARCH_EXPANSIONS_LOG SEARCH_LOG ".expansions"
-#define SEARCH_SUCCESSORS_LOG SEARCH_LOG ".successors"
+#define G_LOG "graph"
+#define G_EXPANSIONS_LOG G_LOG ".expansions"
+#define G_SUCCESSORS_LOG G_LOG ".successors"
+#define H_LOG "heuristic"
+#define S_LOG "search"
+#define S_EXPANSIONS_LOG SEARCH_LOG ".expansions"
+#define S_SUCCESSORS_LOG SEARCH_LOG ".successors"
 
 namespace smpl {
 

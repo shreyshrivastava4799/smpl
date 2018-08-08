@@ -257,14 +257,14 @@ void WorkspaceLatticeEGraph::GetSuccs(
     succs->clear();
     costs->clear();
 
-    SMPL_DEBUG_NAMED("graph.expands", "Expand state %d", state_id);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
 
     auto* parent_entry = getState(state_id);
     assert(parent_entry != NULL);
     assert(parent_entry->coord.size() == this->dofCount());
 
-    SMPL_DEBUG_STREAM_NAMED("graph.expands", "  workspace coord: " << parent_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED("graph.expands", "      robot state: " << parent_entry->state);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << parent_entry->state);
 
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
@@ -279,7 +279,7 @@ void WorkspaceLatticeEGraph::GetSuccs(
         }
     }
 
-    SMPL_DEBUG_NAMED("graph.expands", "  egraph state: %s", is_egraph_node ? "true" : "false");
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  egraph state: %s", is_egraph_node ? "true" : "false");
 
     if (is_egraph_node) { // expanding an egraph node
         auto& egraph_state = this->egraph.state(egraph_node);
@@ -306,7 +306,7 @@ void WorkspaceLatticeEGraph::GetSuccs(
                 auto* succ_state = getState(succ_id);
                 succ_state->state = robot_state;
 
-                SMPL_INFO_NAMED("graph.expands", "  bridge edge to %d", succ_id);
+                SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  bridge edge to %d", succ_id);
 
                 if (!unique && this->isGoal(workspace_state, robot_state)) {
                     succs->push_back(this->getGoalStateID());
@@ -316,13 +316,13 @@ void WorkspaceLatticeEGraph::GetSuccs(
 
                 costs->push_back(this->computeCost(*parent_entry, *succ_state));
             } else {
-                SMPL_INFO_NAMED("graph.expands", "  bridge edge failed");
+                SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  bridge edge failed");
             }
         }
 
         // E_demo from V_demo
         auto adj = this->egraph.adjacent_nodes(egraph_node);
-        SMPL_INFO_NAMED("graph.expands", "  %td adjacent experience graph edges", std::distance(adj.first, adj.second));
+        SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  %td adjacent experience graph edges", std::distance(adj.first, adj.second));
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             auto& adj_egraph_state = this->egraph.state(*ait);
             WorkspaceState workspace_state;
@@ -341,7 +341,7 @@ void WorkspaceLatticeEGraph::GetSuccs(
     std::vector<WorkspaceAction> actions;
     m_actions->apply(*parent_entry, actions);
 
-    SMPL_DEBUG_NAMED("graph.expands", "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
     // e-graph nodes within psi tolerance, for E_z
     std::vector<ExperienceGraph::node_id> parent_nearby_nodes;
@@ -362,7 +362,7 @@ void WorkspaceLatticeEGraph::GetSuccs(
     // E_bridge from V_orig
     auto it = coord_to_egraph_nodes.find(parent_entry->coord);
     if (it != end(coord_to_egraph_nodes)) {
-        SMPL_INFO_NAMED("graph.expands", "  bridge to %zu e-graph nodes", it->second.size());
+        SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  bridge to %zu e-graph nodes", it->second.size());
         for (auto node : it->second) {
             auto succ_id = this->egraph_node_to_state[node];
             auto& egraph_state = this->egraph.state(node);
@@ -381,8 +381,8 @@ void WorkspaceLatticeEGraph::GetSuccs(
     for (size_t i = 0; i < actions.size(); ++i) {
         auto& action = actions[i];
 
-        SMPL_DEBUG_NAMED("graph.expands", "    action %zu", i);
-        SMPL_DEBUG_NAMED("graph.expands", "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
 
         RobotState final_robot_state;
         if (!checkAction(parent_entry->state, action, &final_robot_state)) {
@@ -410,10 +410,10 @@ void WorkspaceLatticeEGraph::GetSuccs(
             auto edge_cost = computeCost(*parent_entry, *succ_state);
             costs->push_back(edge_cost);
 
-            SMPL_DEBUG_NAMED("graph.expands",        "      succ: %d", succ_id);
-            SMPL_DEBUG_STREAM_NAMED("graph.expands", "        coord: " << succ_state->coord);
-            SMPL_DEBUG_STREAM_NAMED("graph.expands", "        state: " << succ_state->state);
-            SMPL_DEBUG_NAMED("graph.expands",        "        cost: %5d", edge_cost);
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "      succ: %d", succ_id);
+            SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+            SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        cost: %5d", edge_cost);
         }
 
         // E_z from V_orig
@@ -456,7 +456,7 @@ bool WorkspaceLatticeEGraph::extractPath(
     const std::vector<int>& ids,
     std::vector<RobotState>& path)
 {
-    SMPL_DEBUG_STREAM_NAMED("graph", "State ID Path: " << ids);
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "State ID Path: " << ids);
 
     if (ids.empty()) return true;
 
@@ -468,14 +468,14 @@ bool WorkspaceLatticeEGraph::extractPath(
         if (state_id == this->getGoalStateID()) {
             auto* entry = this->getState(getStartStateID());
             if (!entry) {
-                SMPL_ERROR_NAMED("graph", "Failed to get state entry for state %d", this->getStartStateID());
+                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", this->getStartStateID());
                 return false;
             }
             path.push_back(entry->state);
         } else {
             auto* entry = this->getState(state_id);
             if (!entry) {
-                SMPL_ERROR_NAMED("graph", "Failed to get state entry for state %d", state_id);
+                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", state_id);
                 return false;
             }
             path.push_back(entry->state);
@@ -487,7 +487,7 @@ bool WorkspaceLatticeEGraph::extractPath(
     }
 
     if (ids[0] == this->getGoalStateID()) {
-        SMPL_ERROR_NAMED("graph", "Cannot extract a non-trivial path starting from the goal state");
+        SMPL_ERROR_NAMED(G_LOG, "Cannot extract a non-trivial path starting from the goal state");
         return false;
     }
 
@@ -497,7 +497,7 @@ bool WorkspaceLatticeEGraph::extractPath(
     {
         auto* entry = this->getState(ids[0]);
         if (!entry) {
-            SMPL_ERROR_NAMED("graph", "Failed to get state entry for state %d", ids[0]);
+            SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", ids[0]);
             return false;
         }
         opath.push_back(entry->state);
@@ -507,10 +507,10 @@ bool WorkspaceLatticeEGraph::extractPath(
     for (size_t i = 1; i < ids.size(); ++i) {
         auto prev_id = ids[i - 1];
         auto curr_id = ids[i];
-        SMPL_DEBUG_NAMED("graph", "Extract motion from state %d to state %d", prev_id, curr_id);
+        SMPL_DEBUG_NAMED(G_LOG, "Extract motion from state %d to state %d", prev_id, curr_id);
 
         if (prev_id == this->getGoalStateID()) {
-            SMPL_ERROR_NAMED("graph", "Cannot determine goal state predecessor state during path extraction");
+            SMPL_ERROR_NAMED(G_LOG, "Cannot determine goal state predecessor state during path extraction");
             return false;
         }
 
@@ -541,12 +541,12 @@ bool WorkspaceLatticeEGraph::extractPath(
         }
 
         if (best_state != NULL) {
-            SMPL_DEBUG_STREAM_NAMED("graph", "Extract successor state " << best_state->state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "Extract successor state " << best_state->state);
             opath.push_back(best_state->state);
             continue;
         }
 
-        SMPL_DEBUG_NAMED("graph", "Check for shortcut successor");
+        SMPL_DEBUG_NAMED(G_LOG, "Check for shortcut successor");
 
         auto found = false;
         // check for shortcut transition
@@ -576,7 +576,7 @@ bool WorkspaceLatticeEGraph::extractPath(
         if (found) continue;
 
         // check for snap transition
-        SMPL_DEBUG_NAMED("graph", "Check for snap successor");
+        SMPL_DEBUG_NAMED(G_LOG, "Check for snap successor");
         int cost;
         if (snap(prev_id, curr_id, cost)) {
             SMPL_DEBUG("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
@@ -592,7 +592,7 @@ bool WorkspaceLatticeEGraph::extractPath(
 
 
 
-        SMPL_ERROR_NAMED("graph", "Failed to find valid successor during path extraction");
+        SMPL_ERROR_NAMED(G_LOG, "Failed to find valid successor during path extraction");
 //        return false;
         {
             auto* giveup = this->getState(curr_id);

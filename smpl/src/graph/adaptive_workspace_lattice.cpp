@@ -112,7 +112,7 @@ bool AdaptiveWorkspaceLattice::init(
 
     m_goal_state_id = reserveHashEntry(true);
     m_goal_state = getHashEntry(m_goal_state_id);
-    SMPL_DEBUG_NAMED("graph", " goal state has state ID %d", m_goal_state_id);
+    SMPL_DEBUG_NAMED(G_LOG, " goal state has state ID %d", m_goal_state_id);
 
     if (!initMotionPrimitives()) {
         return false;
@@ -152,14 +152,14 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
     Eigen::Vector3i gp;
 
     if (state_id == m_goal_state_id) {
-        SMPL_INFO_NAMED("graph", "Skip adding high-dimensional region around goal");
+        SMPL_INFO_NAMED(G_LOG, "Skip adding high-dimensional region around goal");
         m_grid->worldToGrid(
                 goal().pose.translation()[0],
                 goal().pose.translation()[1],
                 goal().pose.translation()[2],
                 gp.x(), gp.y(), gp.z());
     } else if (state->hid) {
-        SMPL_INFO_NAMED("graph", "Grow high-dimensional region around hi state %d", state_id);
+        SMPL_INFO_NAMED(G_LOG, "Grow high-dimensional region around hi state %d", state_id);
         AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
         WorkspaceState work_state;
         stateCoordToWorkspace(hi_state->coord, work_state);
@@ -167,22 +167,22 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
                 work_state[0], work_state[1], work_state[2],
                 gp.x(), gp.y(), gp.z());
     } else {
-        SMPL_INFO_NAMED("graph", "Add high-dimensional region around lo state %d", state_id);
+        SMPL_INFO_NAMED(G_LOG, "Add high-dimensional region around lo state %d", state_id);
         // add/grow hd region around ld state
         AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
         m_grid->worldToGrid(lo_state->x, lo_state->y, lo_state->z, gp.x(), gp.y(), gp.z());
     }
 
-    SMPL_INFO_NAMED("graph", "Region center: (%d, %d, %d)", gp.x(), gp.y(), gp.z());
+    SMPL_INFO_NAMED(G_LOG, "Region center: (%d, %d, %d)", gp.x(), gp.y(), gp.z());
 
     if (!m_grid->isInBounds(gp.x(), gp.y(), gp.z())) {
-        SMPL_INFO_NAMED("graph", " -> out of bounds");
+        SMPL_INFO_NAMED(G_LOG, " -> out of bounds");
         return false;
     }
 
     ++m_dim_grid(gp.x(), gp.y(), gp.z()).grow_count;
     const int radius = m_region_radius * m_dim_grid(gp.x(), gp.y(), gp.z()).grow_count;
-    SMPL_INFO_NAMED("graph", "  radius: %d", radius);
+    SMPL_INFO_NAMED(G_LOG, "  radius: %d", radius);
 
     // TODO: mark cells as in high-dimensional region
     int marked = 0;
@@ -198,7 +198,7 @@ bool AdaptiveWorkspaceLattice::addHighDimRegion(int state_id)
     }
     }
 
-    SMPL_INFO_NAMED("graph", "Marked %d cells as high-dimensional", marked);
+    SMPL_INFO_NAMED(G_LOG, "Marked %d cells as high-dimensional", marked);
 
     return true;
 }
@@ -240,7 +240,7 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
         m_grid->worldToGrid(px, py, pz, gx, gy, gz);
 
         if (!m_grid->isInBounds(gx, gy, gz)) {
-            SMPL_ERROR_NAMED("graph", "Failed to create tunnel. State (%d, %d, %d) out of bounds", gx, gy, gz);
+            SMPL_ERROR_NAMED(G_LOG, "Failed to create tunnel. State (%d, %d, %d) out of bounds", gx, gy, gz);
             return false;
         }
 
@@ -265,7 +265,7 @@ bool AdaptiveWorkspaceLattice::setTunnel(const std::vector<int>& states)
         }
         }
     }
-    SMPL_INFO_NAMED("graph", "Marked %d cells as tunnel cells", marked);
+    SMPL_INFO_NAMED(G_LOG, "Marked %d cells as tunnel cells", marked);
 
     return true;
 }
@@ -321,7 +321,7 @@ bool AdaptiveWorkspaceLattice::extractPath(
 
     AdaptiveWorkspaceState* start_state = getHiHashEntry(ids[0]);
     if (!start_state) {
-        SMPL_ERROR_NAMED("graph", "Start state is not high-dimensional");
+        SMPL_ERROR_NAMED(G_LOG, "Start state is not high-dimensional");
         return false;
     }
 
@@ -332,14 +332,14 @@ bool AdaptiveWorkspaceLattice::extractPath(
         const int curr_id = ids[i];
 
         if (prev_id == getGoalStateID()) {
-            SMPL_ERROR_NAMED("graph", "Cannot determine goal state successors during path extraction");
+            SMPL_ERROR_NAMED(G_LOG, "Cannot determine goal state successors during path extraction");
             return false;
         }
 
         if (curr_id == getGoalStateID()) {
             AdaptiveWorkspaceState* prev_state = getHiHashEntry(prev_id);
             if (!prev_state) {
-                SMPL_ERROR_NAMED("graph", "Intermediate state is not high-dimensional");
+                SMPL_ERROR_NAMED(G_LOG, "Intermediate state is not high-dimensional");
                 return false;
             }
 
@@ -366,13 +366,13 @@ bool AdaptiveWorkspaceLattice::extractPath(
 
                 int goal_id = getHiHashEntry(goal_coord);
                 if (goal_id < 0) {
-                    SMPL_WARN_NAMED("graph", "Successor state for goal transition was not generated");
+                    SMPL_WARN_NAMED(G_LOG, "Successor state for goal transition was not generated");
                     continue;
                 }
 
                 AdaptiveWorkspaceState* goal_state = getHiHashEntry(goal_id);
                 if (!goal_state) {
-                    SMPL_ERROR_NAMED("graph", "Target goal state is not high-dimensional");
+                    SMPL_ERROR_NAMED(G_LOG, "Target goal state is not high-dimensional");
                     return false;
                 }
 
@@ -381,7 +381,7 @@ bool AdaptiveWorkspaceLattice::extractPath(
             }
 
             if (!best_goal_state) {
-                SMPL_ERROR_NAMED("graph", "Failed to find valid goal successor during path extraction");
+                SMPL_ERROR_NAMED(G_LOG, "Failed to find valid goal successor during path extraction");
                 return false;
             }
 
@@ -389,7 +389,7 @@ bool AdaptiveWorkspaceLattice::extractPath(
         } else {
             AdaptiveWorkspaceState* state = getHiHashEntry(curr_id);
             if (!state) {
-                SMPL_ERROR_NAMED("graph", "Intermediate state is not high-dimensional");
+                SMPL_ERROR_NAMED(G_LOG, "Intermediate state is not high-dimensional");
                 return false;
             }
             path.push_back(state->state);
@@ -402,20 +402,20 @@ bool AdaptiveWorkspaceLattice::extractPath(
 bool AdaptiveWorkspaceLattice::setStart(const RobotState& state)
 {
     if (!initialized()) {
-        SMPL_ERROR_NAMED("graph", "cannot set start state on uninitialized lattice");
+        SMPL_ERROR_NAMED(G_LOG, "cannot set start state on uninitialized lattice");
         return false;
     }
 
-    SMPL_DEBUG_NAMED("graph", "set the start state");
+    SMPL_DEBUG_NAMED(G_LOG, "set the start state");
     if (state.size() < robot()->jointVariableCount()) {
-        SMPL_ERROR_NAMED("graph", "start state contains insufficient coordinate positions");
+        SMPL_ERROR_NAMED(G_LOG, "start state contains insufficient coordinate positions");
         return false;
     }
 
-    SMPL_DEBUG_STREAM_NAMED("graph", "  angles: " << state);
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  angles: " << state);
 
     if (!robot()->checkJointLimits(state)) {
-        SMPL_ERROR_NAMED("graph", "start state violates joint limits");
+        SMPL_ERROR_NAMED(G_LOG, "start state violates joint limits");
         return false;
     }
 
@@ -471,7 +471,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 {
     assert(state_id >= 0 && state_id < (int)m_states.size());
 
-    SMPL_DEBUG_NAMED("graph.expands", "Expand state %d", state_id);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
 
     if (state_id == m_goal_state_id) {
         return;
@@ -485,7 +485,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
         AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
         GetSuccs(*lo_state, succs, costs);
     }
-    SMPL_DEBUG_NAMED("graph.expands", " -> %zu successors", succs->size());
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, " -> %zu successors", succs->size());
 }
 
 void AdaptiveWorkspaceLattice::GetPreds(
@@ -516,9 +516,9 @@ void AdaptiveWorkspaceLattice::PrintState(
     }
 
     if (f == stdout) {
-        SMPL_DEBUG_NAMED("graph", "%s", ss.str().c_str());
+        SMPL_DEBUG_NAMED(G_LOG, "%s", ss.str().c_str());
     } else if (f == stderr) {
-        SMPL_WARN_NAMED("graph", "%s", ss.str().c_str());
+        SMPL_WARN_NAMED(G_LOG, "%s", ss.str().c_str());
     } else {
         fprintf(f, "%s\n", ss.str().c_str());
     }
@@ -589,7 +589,7 @@ bool AdaptiveWorkspaceLattice::initMotionPrimitives()
 bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
 {
     if (!initialized()) {
-        SMPL_ERROR_NAMED("graph", "cannot set goal pose on uninitialized lattice");
+        SMPL_ERROR_NAMED(G_LOG, "cannot set goal pose on uninitialized lattice");
         return false;
     }
 
@@ -597,7 +597,7 @@ bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
     SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(
             goal.pose, m_grid->getReferenceFrame(), vis_name));
 
-    SMPL_DEBUG_NAMED("graph", "set the goal state");
+    SMPL_DEBUG_NAMED(G_LOG, "set the goal state");
 
     // check if an IK solution exists for the goal pose before we do
     // the search we plan even if there is no solution
@@ -607,12 +607,12 @@ bool AdaptiveWorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         SMPL_WARN("No valid IK solution for the goal pose.");
     }
 
-    SMPL_DEBUG_NAMED("graph", "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
-    SMPL_DEBUG_NAMED("graph", "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
     double yaw, pitch, roll;
     angles::get_euler_zyx(goal.pose.rotation(), yaw, pitch, roll);
-    SMPL_DEBUG_NAMED("graph", "  rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
-    SMPL_DEBUG_NAMED("graph", "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
+    SMPL_DEBUG_NAMED(G_LOG, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
 
     m_near_goal = false;
     m_t_start = clock::now();
@@ -625,7 +625,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    SMPL_DEBUG_NAMED("graph.expands", "  coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f)", state.gx, state.gy, state.gz, state.x, state.y, state.z);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f)", state.gx, state.gy, state.gz, state.x, state.y, state.z);
 
     auto* vis_name = "expansion_lo";
     auto m = visual::MakeSphereMarker(
@@ -638,11 +638,11 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 
     SV_SHOW_INFO_NAMED(vis_name, m);
 
-    SMPL_DEBUG_NAMED("graph.successors", "  actions: %zu", m_lo_prims.size());
+    SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "  actions: %zu", m_lo_prims.size());
     for (size_t aidx = 0; aidx < m_lo_prims.size(); ++aidx) {
         const Eigen::Vector3d& dx = m_lo_prims[aidx];
 
-        SMPL_DEBUG_NAMED("graph.successors", "    action %zu", aidx);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "    action %zu", aidx);
 
         double succ_pos[3] =
         {
@@ -657,18 +657,18 @@ void AdaptiveWorkspaceLattice::GetSuccs(
                 tgx, tgy, tgz);
 
         if (!m_grid->isInBounds(tgx, tgy, tgz)) {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> out of bounds (%d, %d, %d)", tgx, tgy, tgz);
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> out of bounds (%d, %d, %d)", tgx, tgy, tgz);
             continue;
         }
 
         const double sphere_radius = 0.02;
         if (m_grid->getDistance(tgx, tgy, tgz) < sphere_radius) {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> in collision (%d, %d, %d)", tgx, tgy, tgz);
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> in collision (%d, %d, %d)", tgx, tgy, tgz);
             continue;
         }
 
         if (isHighDimensional(tgx, tgy, tgz)) {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> high-dimensional");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> high-dimensional");
             // TODO: high-dimensional transitions
             // sample roll, pitch, yaw, and free angles
 
@@ -713,7 +713,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             }
             }
         } else {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> low-dimensional");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> low-dimensional");
 
             int succ_coord[3];
             posWorkspaceToCoord(succ_pos, succ_coord);
@@ -731,7 +731,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
                 succs->push_back(succ_id);
             }
             costs->push_back(30);
-            SMPL_DEBUG_NAMED("graph.successors", "          succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], succ_pos[0], succ_pos[1], succ_pos[2], costs->back());
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "          succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], succ_pos[0], succ_pos[1], succ_pos[2], costs->back());
         }
     }
 }
@@ -741,20 +741,20 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    SMPL_DEBUG_STREAM_NAMED("graph.expands", "  coord: " << state.coord);
-    SMPL_DEBUG_STREAM_NAMED("graph.expands", "  state: " << state.state);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state.coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  state: " << state.state);
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(state.state, vis_name));
 
     std::vector<Action> actions;
     getActions(state, actions);
 
-    SMPL_DEBUG_NAMED("graph.successors", "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "  actions: %zu", actions.size());
     for (std::size_t i = 0; i < actions.size(); ++i) {
         const Action& action = actions[i];
 
-        SMPL_DEBUG_NAMED("graph.successors", "    action %zu", i);
-        SMPL_DEBUG_NAMED("graph.successors", "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      waypoints: %zu", action.size());
 
         RobotState final_rstate;
         if (!checkAction(state.state, action, &final_rstate)) {
@@ -769,14 +769,14 @@ void AdaptiveWorkspaceLattice::GetSuccs(
                 final_state[0], final_state[1], final_state[2], gx, gy, gz);
 
         if (!m_grid->isInBounds(gx, gy, gz)) {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> out of bounds (%d, %d, %d)", gx, gy, gz);
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> out of bounds (%d, %d, %d)", gx, gy, gz);
             continue;
         }
 
         WorkspaceCoord succ_coord;
         stateWorkspaceToCoord(final_state, succ_coord);
         if (isHighDimensional(gx, gy, gz)) {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> high-dimensional");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> high-dimensional");
             int succ_id = getHiHashEntry(succ_coord);
             if (succ_id < 0) {
                 succ_id = createHiState(succ_coord, final_rstate);
@@ -790,9 +790,9 @@ void AdaptiveWorkspaceLattice::GetSuccs(
             }
             costs->push_back(120);
 
-            SMPL_DEBUG_STREAM_NAMED("graph.successors", "         succ: { id: " << succs->back() << ", coord: " << succ_coord << ", state: " << final_rstate << ", cost: " << costs->back() << " }");
+            SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "         succ: { id: " << succs->back() << ", coord: " << succ_coord << ", state: " << final_rstate << ", cost: " << costs->back() << " }");
         } else if (m_plan_mode) {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> low-dimensional");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> low-dimensional");
             int succ_id = getLoHashEntry(succ_coord[0], succ_coord[1], succ_coord[2]);
             if (succ_id < 0) {
                 succ_id = createLoState(
@@ -805,9 +805,9 @@ void AdaptiveWorkspaceLattice::GetSuccs(
                 succs->push_back(succ_id);
             }
             costs->push_back(120);
-            SMPL_DEBUG_NAMED("graph.successors", "         succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], final_state[0], final_state[1], final_state[2], costs->back());
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "         succ: { id: %d, coord: (%d, %d, %d), state: (%0.3f, %0.3f, %0.3f), cost: %d }", succs->back(), succ_coord[0], succ_coord[1], succ_coord[2], final_state[0], final_state[1], final_state[2], costs->back());
         } else {
-            SMPL_DEBUG_NAMED("graph.successors", "      -> outside tunnel");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> outside tunnel");
         }
     }
 }
@@ -935,7 +935,7 @@ void AdaptiveWorkspaceLattice::getActions(
     WorkspaceState cont_state;
     stateCoordToWorkspace(state.coord, cont_state);
 
-    SMPL_DEBUG_STREAM_NAMED("graph.successors", "Create actions for state: " << cont_state);
+    SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "Create actions for state: " << cont_state);
 
     for (std::size_t pidx = 0; pidx < m_hi_prims.size(); ++pidx) {
         const auto& prim = m_hi_prims[pidx];
@@ -988,11 +988,11 @@ bool AdaptiveWorkspaceLattice::checkAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         const WorkspaceState& istate = action[widx];
 
-        SMPL_DEBUG_STREAM_NAMED("graph.successors", "        " << widx << ": " << istate);
+        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        " << widx << ": " << istate);
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
-            SMPL_DEBUG_NAMED("graph.successors", "         -> failed to find ik solution");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "         -> failed to find ik solution");
             violation_mask |= 0x00000001;
             break;
         }
@@ -1000,7 +1000,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
         wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
-            SMPL_DEBUG_NAMED("graph.successors", "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> violates joint limits");
             violation_mask |= 0x00000002;
             break;
         }
@@ -1014,7 +1014,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
     assert(wptraj.size() == action.size());
 
     if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
-        SMPL_DEBUG_NAMED("graph.successors", "        -> path to first waypoint in collision");
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> path to first waypoint in collision");
         violation_mask |= 0x00000004;
     }
 
@@ -1026,7 +1026,7 @@ bool AdaptiveWorkspaceLattice::checkAction(
         const RobotState& prev_istate = wptraj[widx - 1];
         const RobotState& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
-            SMPL_DEBUG_NAMED("graph.successors", "        -> path between waypoints in collision");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> path between waypoints in collision");
             violation_mask |= 0x00000008;
             break;
         }
