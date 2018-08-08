@@ -15,20 +15,18 @@ find_package(catkin
         geometric_shapes
         geometry_msgs
         leatherman
-        message_filters
         moveit_core
         moveit_msgs
         octomap_msgs
         roscpp
-        smpl
         smpl_ros
         sensor_msgs
         shape_msgs
-        tf_conversions
         urdf
         visualization_msgs)
 
 find_package(octomap REQUIRED)
+find_package(smpl REQUIRED)
 
 catkin_package(
     INCLUDE_DIRS
@@ -40,21 +38,19 @@ catkin_package(
         geometric_shapes
         geometry_msgs
         leatherman
-        message_filters
         moveit_core
         moveit_msgs
         octomap_msgs
         roscpp
-        smpl
         smpl_ros
         sensor_msgs
         shape_msgs
-        tf_conversions
         urdf
         visualization_msgs
     DEPENDS
         Boost
-        OCTOMAP)
+        OCTOMAP
+        smpl)
 
 add_definitions(-DROSCONSOLE_MIN_SEVERITY=ROSCONSOLE_SEVERITY_INFO)
 
@@ -63,6 +59,7 @@ include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 include_directories(SYSTEM ${OCTOMAP_INCLUDE_DIRS})
+include_directories(SYSTEM ${smpl_INCLUDE_DIRS})
 
 add_library(
     sbpl_collision_checking
@@ -83,7 +80,7 @@ add_library(
     src/voxel_operations.cpp
     src/world_collision_detector.cpp
     src/world_collision_model.cpp)
-target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES})
+target_link_libraries(sbpl_collision_checking ${catkin_LIBRARIES} ${smpl_LIBRARIES})
 
 install(
     DIRECTORY include/sbpl_collision_checking/
