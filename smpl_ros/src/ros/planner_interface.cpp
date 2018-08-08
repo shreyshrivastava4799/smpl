@@ -56,6 +56,7 @@
 
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/stl/memory.h>
 
 #include <smpl/graph/adaptive_workspace_lattice.h>
 #include <smpl/graph/manip_lattice.h>
@@ -79,11 +80,6 @@
 #include <smpl/search/awastar.h>
 
 namespace smpl {
-
-template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T> {
-    return std::unique_ptr<T>(new T(args...));
-}
 
 const char* PI_LOGGER = "simple";
 

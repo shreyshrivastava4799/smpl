@@ -3,6 +3,7 @@
 // system includes
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/conversions.h>
+#include <smpl/stl/memory.h>
 
 #include "sbpl_planning_context.h"
 
@@ -36,11 +37,6 @@ namespace sbpl_interface {
 
 // pp = planning plugin
 static const char* PP_LOGGER = "planning";
-
-template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T> {
-    return std::unique_ptr<T>(new T(args...));
-}
 
 SBPLPlannerManager::SBPLPlannerManager() :
     Base(),
@@ -678,7 +674,7 @@ auto SBPLPlannerManager::getModelForGroup(const std::string& group_name)
 {
     auto it = m_sbpl_models.find(group_name);
     if (it == end(m_sbpl_models)) {
-        auto model = make_unique<MoveItRobotModel>();
+        auto model = smpl::make_unique<MoveItRobotModel>();
         if (!model->init(m_robot_model, group_name)) {
             ROS_WARN_NAMED(PP_LOGGER, "Failed to initialize SBPL Robot Model");
             return NULL;

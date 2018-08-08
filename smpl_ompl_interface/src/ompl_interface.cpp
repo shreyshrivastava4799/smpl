@@ -27,6 +27,7 @@
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/robot_model.h>
 #include <smpl/search/arastar.h>
+#include <smpl/stl/memory.h>
 
 namespace smpl {
 namespace detail {
@@ -53,12 +54,6 @@ CallOnDestruct<Callable> MakeCallOnDestruct(Callable c) {
 // create an obscurely named CallOnDestruct with an anonymous lambda that
 // executes the given statement sequence
 #define DEFER(fun) auto MAKE_LINE_IDENT(tmp_call_on_destruct_) = ::smpl::detail::MakeCallOnDestruct([&](){ fun; })
-
-template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T>
-{
-    return std::unique_ptr<T>(new T(args...));
-}
 
 ///////////////////////////////
 // RobotModel Implementation //
@@ -990,8 +985,8 @@ OMPLPlanner::OMPLPlanner(
     OccupancyGrid* grid)
 :
     Planner(si, "smpl_planner"),
-    m_impl(detail::make_unique<smpl::detail::PlannerImpl>(
-                this, si.get(), planner_id, grid))
+    m_impl(make_unique<smpl::detail::PlannerImpl>(
+            this, si.get(), planner_id, grid))
 {
 }
 
