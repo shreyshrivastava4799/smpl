@@ -728,22 +728,6 @@ bool ManipLattice::isGoal(const RobotState& state)
                 goal().pose,
                 goal().xyz_tolerance,
                 goal().rpy_tolerance);
-        if (!m_near_goal && near.first) {
-            using namespace std::chrono;
-            auto time_to_goal_region = clock::now() - m_t_start;
-            auto time_to_goal_s =
-                    duration_cast<duration<double>>(time_to_goal_region);
-            m_near_goal = true;
-            SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "Search is at %0.2f %0.2f %0.2f, within %0.3fm of the goal (%0.2f %0.2f %0.2f) after %0.4f sec.",
-                    pose.translation()[0],
-                    pose.translation()[1],
-                    pose.translation()[2],
-                    goal().xyz_tolerance[0],
-                    goal().pose.translation()[0],
-                    goal().pose.translation()[1],
-                    goal().pose.translation()[2],
-                    time_to_goal_s.count());
-        }
         return near.first & near.second;
     }
     case GoalType::MULTIPLE_POSE_GOAL:
@@ -1068,7 +1052,6 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
     SMPL_DEBUG_NAMED(G_LOG, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
     SMPL_DEBUG_NAMED(G_LOG, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
 
-    startNewSearch();
 
     // set the (modified) goal
     return RobotPlanningSpace::setGoal(gc);
@@ -1096,23 +1079,13 @@ bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
     SMPL_INFO_STREAM_NAMED(G_LOG, "  config: " << goal.angles);
     SMPL_INFO_STREAM_NAMED(G_LOG, "  tolerance: " << goal.angle_tolerances);
 
-    startNewSearch();
-
     // notify observers of updated goal
     return RobotPlanningSpace::setGoal(goal);
 }
 
 bool ManipLattice::setUserGoal(const GoalConstraint& goal)
 {
-    startNewSearch();
     return RobotPlanningSpace::setGoal(goal);
-}
-
-// Reset any variables that should be set just before a new search is started.
-void ManipLattice::startNewSearch()
-{
-    m_near_goal = false;
-    m_t_start = clock::now();
 }
 
 } // namespace smpl
