@@ -33,10 +33,10 @@
 #include <cmath>
 #include <cstdlib>
 #include <algorithm>
-#include <iostream>
 #include <utility>
 
 // project includes
+#include <smpl/console/console.h>
 #include <smpl/geometry/intersect.h>
 #include <smpl/geometry/mesh_utils.h>
 #include <smpl/geometry/triangle.h>
@@ -160,7 +160,7 @@ void VoxelizeMeshNaive(
         Eigen::Vector3d tri_min;
         Eigen::Vector3d tri_max;
         if (!ComputeAxisAlignedBoundingBox(triPointV, tri_min, tri_max)) {
-            std::cerr << "Failed to compute AABB of triangle" << std::endl;
+            SMPL_ERROR("Failed to compute AABB of triangle");
             continue; // just skip this triangle; it's bogus
         }
 
@@ -670,14 +670,14 @@ void VoxelizeMesh(
     bool fill)
 {
     if (((int)indices.size()) % 3 != 0) {
-        std::cerr << "Incorrect indexed triangles format" << std::endl;
+        SMPL_ERROR("Incorrect indexed triangles format");
         return;
     }
 
     Eigen::Vector3d min;
     Eigen::Vector3d max;
     if (!ComputeAxisAlignedBoundingBox(vertices, min, max)) {
-        std::cerr << "Failed to compute AABB of mesh vertices" << std::endl;
+        SMPL_ERROR("Failed to compute AABB of mesh vertices");
         return;
     }
 
@@ -721,7 +721,7 @@ void VoxelizeMesh(
     Eigen::Vector3d min;
     Eigen::Vector3d max;
     if (!ComputeAxisAlignedBoundingBox(vertices, min, max)) {
-        std::cerr << "Failed to compute AABB of mesh vertices" << std::endl;
+        SMPL_ERROR("Failed to compute AABB of mesh vertices");
         return;
     }
 
