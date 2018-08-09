@@ -9,7 +9,7 @@
 
 auto MakeCubeMarker(double t) -> smpl::visual::Marker
 {
-    ROS_INFO("make cube marker");
+    ROS_DEBUG("make cube marker");
     auto marker = smpl::visual::Marker{ };
 
     marker.pose.position = Eigen::Vector3d(std::sin(t), 0.0, 0.0);
@@ -24,7 +24,7 @@ auto MakeCubeMarker(double t) -> smpl::visual::Marker
 
 auto MakeSphereMarker(double t) -> smpl::visual::Marker
 {
-    ROS_INFO("make sphere marker");
+    ROS_DEBUG("make sphere marker");
     auto marker = smpl::visual::Marker{ };
 
     marker.pose.position = Eigen::Vector3d(0.0, std::sin(t), 0.0);
@@ -39,7 +39,7 @@ auto MakeSphereMarker(double t) -> smpl::visual::Marker
 
 auto MakeCylinderMarker(double t) -> smpl::visual::Marker
 {
-    ROS_INFO("make cylinder marker");
+    ROS_DEBUG("make cylinder marker");
     auto marker = smpl::visual::Marker{ };
     marker.pose.position = Eigen::Vector3d(0.0, 0.0, std::sin(t));
     marker.pose.orientation = Eigen::Quaterniond::Identity();
