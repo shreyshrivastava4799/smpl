@@ -45,13 +45,11 @@
 #include <boost/algorithm/string.hpp>
 
 // project includes
-#include <smpl/forward.h>
+#include <smpl/graph/action_space.h>
+#include <smpl/graph/manip_lattice.h>
+#include <smpl/graph/motion_primitive.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
-#include <smpl/graph/action_space.h>
-#include <smpl/graph/motion_primitive.h>
-#include <smpl/graph/robot_planning_space_observer.h>
-#include <smpl/graph/manip_lattice.h>
 
 namespace smpl {
 
@@ -93,12 +91,6 @@ public:
     /// \name Required Public Functions from ActionSpace
     ///@{
     bool apply(const RobotState& parent, std::vector<Action>& actions) override;
-    ///@}
-
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
-    ///@{
-    virtual void updateStart(const RobotState& start) override;
-    virtual void updateGoal(const GoalConstraint& goal) override;
     ///@}
 
 protected:

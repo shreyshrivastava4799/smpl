@@ -756,6 +756,8 @@ auto PlannerImpl::solve(
             SMPL_WARN("Failed to set start state");
             return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_START);
         }
+
+        this->heuristic->updateStart(start_state);
     }
 
     ////////////////////////
@@ -826,6 +828,8 @@ auto PlannerImpl::solve(
             SMPL_WARN("Failed to set goal");
             return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);
         }
+
+        this->heuristic->updateGoal(goal_condition);
     }
 
     auto* bfs_heuristic = dynamic_cast<BfsHeuristic*>(this->heuristic.get());

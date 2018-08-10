@@ -50,18 +50,18 @@ BfsHeuristic::~BfsHeuristic()
 
 bool BfsHeuristic::init(RobotPlanningSpace* space, const OccupancyGrid* grid)
 {
-    if (!grid) {
+    if (!RobotHeuristic::init(space)) {
         return false;
     }
 
-    if (!RobotHeuristic::init(space)) {
+    if (grid == NULL) {
         return false;
     }
 
     m_grid = grid;
 
     m_pp = space->getExtension<PointProjectionExtension>();
-    if (m_pp) {
+    if (m_pp != NULL) {
         SMPL_INFO_NAMED(LOG, "Got Point Projection Extension!");
     }
     syncGridAndBfs();
@@ -86,8 +86,10 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
     case GoalType::XYZ_RPY_GOAL:
     case GoalType::JOINT_STATE_GOAL:
     {
-        // TODO: this assumes goal.pose is initialized, regardless of what kind of
-        // goal this is.
+        // TODO: This assumes goal.pose is initialized, regardless of what kind
+        // of goal this is. For joint state goals, we should project the start
+        // state to a goal position, since we can't reliably expect goal.pose
+        // to be valid.
         int gx, gy, gz;
         grid()->worldToGrid(
                 goal.pose.translation()[0],

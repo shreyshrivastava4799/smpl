@@ -1064,6 +1064,10 @@ bool PlannerInterface::setGoal(const GoalConstraints& v_goal_constraints)
         return false;
     }
 
+    for (auto& h : m_heuristics) {
+        h.second->updateGoal(goal);
+    }
+
     // set planner goal
     auto goal_id = m_pspace->getGoalStateID();
     if (goal_id == -1) {
@@ -1138,6 +1142,10 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     if (start_id == -1) {
         SMPL_ERROR("No start state has been set");
         return false;
+    }
+
+    for (auto& h : m_heuristics) {
+        h.second->updateStart(initial_positions);
     }
 
     if (m_planner->set_start(start_id) == 0) {

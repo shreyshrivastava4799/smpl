@@ -809,25 +809,39 @@ bool ManipLattice::setStart(const RobotState& state)
 
     m_start_state_id = getOrCreateState(start_coord, state);
 
+    m_actions->updateStart(state);
+
     // notify observers of updated start state
     return RobotPlanningSpace::setStart(state);
 }
 
 bool ManipLattice::setGoal(const GoalConstraint& goal)
 {
+    auto success = false;
+
     switch (goal.type) {
     case GoalType::XYZ_GOAL:
     case GoalType::XYZ_RPY_GOAL:
-        return setGoalPose(goal);
+        success = setGoalPose(goal);
+        break;
     case GoalType::MULTIPLE_POSE_GOAL:
-        return setGoalPoses(goal);
+        success = setGoalPoses(goal);
+        break;
     case GoalType::JOINT_STATE_GOAL:
-        return setGoalConfiguration(goal);
+        success = setGoalConfiguration(goal);
+        break;
     case GoalType::USER_GOAL_CONSTRAINT_FN:
-        return setUserGoal(goal);
+        success = setUserGoal(goal);
+        break;
     default:
         return false;
     }
+
+    if (success) {
+        m_actions->updateGoal(goal);
+    }
+
+    return success;
 }
 
 void ManipLattice::setVisualizationFrameId(const std::string& frame_id)

@@ -302,16 +302,6 @@ void ManipLatticeActionSpace::ampThresh(
     }
 }
 
-void ManipLatticeActionSpace::updateStart(const RobotState& start)
-{
-    RobotPlanningSpaceObserver::updateStart(start);
-}
-
-void ManipLatticeActionSpace::updateGoal(const GoalConstraint& goal)
-{
-    RobotPlanningSpaceObserver::updateGoal(goal);
-}
-
 auto ManipLatticeActionSpace::getStartGoalDistances(const RobotState& state)
     -> std::pair<double, double>
 {
