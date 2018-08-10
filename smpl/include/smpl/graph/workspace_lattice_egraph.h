@@ -1,3 +1,6 @@
+#ifndef SMPL_WORKSPACE_LATTICE_EGRAPH_H
+#define SMPL_WORKSPACE_LATTICE_EGRAPH_H
+
 #include <smpl/types.h>
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/graph/experience_graph_extension.h>
@@ -86,4 +89,6 @@ bool FindShortestExperienceGraphPath(
     std::vector<ExperienceGraph::node_id>& path);
 
 } // namespace smpl
+
+#endif
 
