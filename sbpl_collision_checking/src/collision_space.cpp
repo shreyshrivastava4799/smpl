@@ -242,12 +242,16 @@ auto CollisionSpace::getCollisionWorldVisualization() const
 /// \brief Return a visualization of the current collision robot state
 ///
 /// The visualization is of the robot bounding geometry
-auto CollisionSpace::getCollisionRobotVisualization() const
+auto CollisionSpace::getCollisionRobotVisualization()
     -> visualization_msgs::MarkerArray
 {
-    auto markers = m_rcs->getVisualization();
+    // update the spheres within the group
+    for (int ssidx : m_rcs->groupSpheresStateIndices(m_gidx)) {
+        m_rcs->updateSphereStates(ssidx);
+    }
+    auto markers = m_rcs->getVisualization(m_gidx);
     for (auto& m : markers.markers) {
-        m.header.frame_id = getReferenceFrame();
+        m.header.frame_id = m_grid->getReferenceFrame();
     }
     return markers;
 }

@@ -150,7 +150,7 @@ public:
 
     auto getCollisionWorldVisualization() const
         -> visualization_msgs::MarkerArray;
-    auto getCollisionRobotVisualization() const
+    auto getCollisionRobotVisualization()
         -> visualization_msgs::MarkerArray;
     auto getCollisionRobotVisualization(const std::vector<double>& vals)
         -> visualization_msgs::MarkerArray;
