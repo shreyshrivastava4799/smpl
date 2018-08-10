@@ -101,11 +101,10 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
 
         if (!m_bfs->inBounds(gx, gy, gz)) {
             SMPL_ERROR_NAMED(LOG, "Heuristic goal is out of BFS bounds");
+            break;
         }
 
-        m_goal_x = gx;
-        m_goal_y = gy;
-        m_goal_z = gz;
+        m_goal_cells.emplace_back(gx, gy, gz);
 
         m_bfs->run(gx, gy, gz);
         break;
@@ -132,9 +131,7 @@ void BfsHeuristic::updateGoal(const GoalConstraint& goal)
             cell_coords.push_back(gy);
             cell_coords.push_back(gz);
 
-            m_goal_x = gx;
-            m_goal_y = gy;
-            m_goal_z = gz;
+            m_goal_cells.emplace_back(gx, gy, gz);
         }
         m_bfs->run(begin(cell_coords), end(cell_coords));
         break;
@@ -193,7 +190,7 @@ Extension* BfsHeuristic::getExtension(size_t class_code)
 
 int BfsHeuristic::GetGoalHeuristic(int state_id)
 {
-    if (!m_pp) {
+    if (m_pp == NULL) {
         return 0;
     }
 
@@ -261,11 +258,16 @@ auto BfsHeuristic::getWallsVisualization() const -> visual::Marker
 
 auto BfsHeuristic::getValuesVisualization() -> visual::Marker
 {
-    if (m_goal_x < 0 || m_goal_y < 0 || m_goal_z < 0) {
-        return visual::MakeEmptyMarker();
+    bool all_invalid = true;
+    for (auto& cell : m_goal_cells) {
+        if (!m_bfs->isWall(cell.x, cell.y, cell.z)) {
+            all_invalid = false;
+            break;
+        }
     }
 
-    if (m_bfs->isWall(m_goal_x, m_goal_y, m_goal_z)) {
+    // no goal cells or all invalid => all invalid
+    if (all_invalid) {
         return visual::MakeEmptyMarker();
     }
 
@@ -299,8 +301,12 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
     };
     std::queue<CostCell> cells;
     Grid3<bool> visited(grid()->numCellsX(), grid()->numCellsY(), grid()->numCellsZ(), false);
-    visited(m_goal_x, m_goal_y, m_goal_z) = true;
-    cells.push({m_goal_x, m_goal_y, m_goal_z, 0});
+    for (auto& cell : m_goal_cells) {
+        if (!m_bfs->isWall(cell.x, cell.y, cell.z)) {
+            visited(cell.x, cell.y, cell.z) = true;
+            cells.push({ cell.x, cell.y, cell.z, 0 });
+        }
+    }
     while (!cells.empty()) {
         CostCell c = cells.front();
         cells.pop();
