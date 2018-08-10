@@ -340,8 +340,8 @@ bool ManipLatticeEgraph::snap(
     int second_id,
     int& cost)
 {
-    ManipLatticeState* first_entry = getHashEntry(first_id);
-    ManipLatticeState* second_entry = getHashEntry(second_id);
+    auto* first_entry = getHashEntry(first_id);
+    auto* second_entry = getHashEntry(second_id);
     if (!first_entry | !second_entry) {
         SMPL_WARN("No state entries for state %d or state %d", first_id, second_id);
         return false;

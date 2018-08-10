@@ -79,5 +79,11 @@ struct WorkspaceLatticeEGraph :
     auto getExtension(size_t class_code) -> Extension* override;
 };
 
+bool FindShortestExperienceGraphPath(
+    const ExperienceGraph& egraph,
+    ExperienceGraph::node_id start_node,
+    ExperienceGraph::node_id goal_node,
+    std::vector<ExperienceGraph::node_id>& path);
+
 } // namespace smpl
 
