@@ -41,26 +41,24 @@
 
 // project includes
 #include <smpl/extension.h>
-#include <smpl/forward.h>
-#include <smpl/graph/robot_planning_space_observer.h>
 #include <smpl/graph/robot_planning_space.h>
 
 namespace smpl {
 
-class RobotHeuristic :
-    public Heuristic,
-    public RobotPlanningSpaceObserver,
-    public virtual Extension
+class RobotHeuristic : public Heuristic, public virtual Extension
 {
 public:
 
+    static const int Infinity = std::numeric_limits<int16_t>::max();
+
     RobotHeuristic() : Heuristic(nullptr) { }
 
-    static const int Infinity = std::numeric_limits<int16_t>::max();
+    virtual ~RobotHeuristic();
 
     bool init(RobotPlanningSpace* space);
 
-    virtual ~RobotHeuristic();
+    auto planningSpace() -> RobotPlanningSpace* { return m_space; }
+    auto planningSpace() const -> const RobotPlanningSpace* { return m_space; }
 
     /// \brief Return the heuristic distance of the planning link to the start.
     ///
@@ -74,10 +72,8 @@ public:
     /// to activate context-aware actions.
     virtual double getMetricGoalDistance(double x, double y, double z) = 0;
 
-    virtual bool setGoal(const GoalConstraint& goal);
-
-    auto planningSpace() -> RobotPlanningSpace* { return m_space; }
-    auto planningSpace() const -> const RobotPlanningSpace* { return m_space; }
+    virtual void updateStart(const RobotState& state) { }
+    virtual void updateGoal(const GoalConstraint& goal) { }
 
     /// \name Restate Required Public Functions from Heuristic
     ///@{

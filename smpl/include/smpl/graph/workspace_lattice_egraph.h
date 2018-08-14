@@ -1,3 +1,6 @@
+#ifndef SMPL_WORKSPACE_LATTICE_EGRAPH_H
+#define SMPL_WORKSPACE_LATTICE_EGRAPH_H
+
 #include <smpl/types.h>
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/graph/experience_graph_extension.h>
@@ -79,5 +82,13 @@ struct WorkspaceLatticeEGraph :
     auto getExtension(size_t class_code) -> Extension* override;
 };
 
+bool FindShortestExperienceGraphPath(
+    const ExperienceGraph& egraph,
+    ExperienceGraph::node_id start_node,
+    ExperienceGraph::node_id goal_node,
+    std::vector<ExperienceGraph::node_id>& path);
+
 } // namespace smpl
+
+#endif
 

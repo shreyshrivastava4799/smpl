@@ -43,20 +43,11 @@ bool RobotHeuristic::init(RobotPlanningSpace* space)
     }
 
     m_space = space;
-    m_space->insertObserver(this);
     return true;
 }
 
 RobotHeuristic::~RobotHeuristic()
 {
-    if (m_space) {
-        m_space->eraseObserver(this);
-    }
-}
-
-bool RobotHeuristic::setGoal(const GoalConstraint& goal)
-{
-    return true;
 }
 
 } // namespace smpl

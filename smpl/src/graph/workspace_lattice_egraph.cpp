@@ -17,82 +17,6 @@
 
 namespace smpl {
 
-static
-bool GetSnapMotion(
-    WorkspaceLatticeEGraph* graph,
-    int src_id,
-    int dst_id,
-    std::vector<RobotState>& path)
-{
-    auto* src_state = graph->getState(src_id);
-    auto* dst_state = graph->getState(dst_id);
-
-    WorkspaceState start_state;
-    WorkspaceState finish_state;
-    graph->stateCoordToWorkspace(src_state->coord, start_state);
-    graph->stateCoordToWorkspace(dst_state->coord, finish_state);
-    int num_waypoints = 10;
-    for (int i = 0; i < num_waypoints; ++i) {
-        WorkspaceState interm_workspace_state;
-        interm_workspace_state.resize(graph->dofCount());
-
-        // x, y, z, R, P, Y, FA1 same as start
-        interm_workspace_state[0] = finish_state[0];
-        interm_workspace_state[1] = finish_state[1];
-        interm_workspace_state[2] = finish_state[2];
-        interm_workspace_state[3] = finish_state[3];
-        interm_workspace_state[4] = finish_state[4];
-        interm_workspace_state[5] = finish_state[5];
-        interm_workspace_state[6] = finish_state[6];
-
-        auto interp = [](double a, double b, double t) {
-            return (1.0 - t) * a + t * b;
-        };
-
-        auto t = (double)i / (double)(num_waypoints - 1);
-        // interpolate torso, theta, x, y
-        interm_workspace_state[7] = interp(start_state[7], finish_state[7], t);
-        interm_workspace_state[8] = interp(start_state[8], finish_state[8], t);
-        interm_workspace_state[9] = interp(start_state[9], finish_state[9], t);
-        interm_workspace_state[10] = interp(start_state[10], finish_state[10], t);
-
-        // hinge kept the same
-        interm_workspace_state[11] = finish_state[11];
-
-        auto stateWorkspaceToRobotPermissive = [&](
-            const WorkspaceState& state,
-            RobotState& ostate)
-        {
-            RobotState seed = src_state->state; //(graph->robot()->jointVariableCount(), 0);
-            for (size_t fai = 0; fai < graph->freeAngleCount(); ++fai) {
-                seed[graph->m_fangle_indices[fai]] = state[6 + fai];
-            }
-
-            Eigen::Affine3d pose =
-                    Eigen::Translation3d(state[0], state[1], state[2]) *
-                    Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX());
-
-//            ostate = seed;
-//            return graph->m_ik_iface->computeIK(pose, dst_state->state, ostate);
-            return graph->m_ik_iface->computeIK(pose, seed, ostate);
-        };
-
-        RobotState robot_state;
-        // TODO: this should be permissive and allow moving the redundant angles
-        if (!stateWorkspaceToRobotPermissive(interm_workspace_state, robot_state)) {
-            SMPL_WARN("Failed to find ik solution for interpolated state");
-            return false;
-        }
-
-        path.push_back(std::move(robot_state));
-    }
-
-    return true;
-}
-
-static
 bool FindShortestExperienceGraphPath(
     const ExperienceGraph& egraph,
     ExperienceGraph::node_id start_node,
@@ -132,7 +56,7 @@ bool FindShortestExperienceGraphPath(
         min->closed = true;
 
         if (min == &search_nodes[goal_node]) {
-            SMPL_DEBUG("Found shortest experience graph path");
+            SMPL_DEBUG_NAMED(G_LOG, "Found shortest experience graph path");
             ExperienceGraphSearchNode* ps = nullptr;
             for (ExperienceGraphSearchNode* s = &search_nodes[goal_node];
                 s; s = s->bp)
@@ -168,7 +92,7 @@ bool FindShortestExperienceGraphPath(
         }
     }
 
-    SMPL_DEBUG("Expanded %d nodes looking for shortcut", exp_count);
+    SMPL_DEBUG_NAMED(G_LOG, "Expanded %d nodes looking for shortcut", exp_count);
     return false;
 }
 
@@ -184,7 +108,7 @@ bool ParseExperienceGraphFile(
         return false;
     }
 
-    SMPL_DEBUG("Parse experience graph at '%s'", filepath.c_str());
+    SMPL_DEBUG_NAMED(G_LOG, "Parse experience graph at '%s'", filepath.c_str());
 
     CSVParser parser;
     auto with_header = true;
@@ -193,10 +117,10 @@ bool ParseExperienceGraphFile(
         return false;
     }
 
-    SMPL_DEBUG("Parsed experience graph file");
-    SMPL_DEBUG("  Has Header: %s", parser.hasHeader() ? "true" : "false");
-    SMPL_DEBUG("  %zu records", parser.recordCount());
-    SMPL_DEBUG("  %zu fields", parser.fieldCount());
+    SMPL_DEBUG_NAMED(G_LOG, "Parsed experience graph file");
+    SMPL_DEBUG_NAMED(G_LOG, "  Has Header: %s", parser.hasHeader() ? "true" : "false");
+    SMPL_DEBUG_NAMED(G_LOG, "  %zu records", parser.recordCount());
+    SMPL_DEBUG_NAMED(G_LOG, "  %zu fields", parser.fieldCount());
 
     auto jvar_count = robot_model->getPlanningJoints().size();
     if (parser.fieldCount() < jvar_count) {
@@ -224,7 +148,7 @@ bool ParseExperienceGraphFile(
         egraph_states.push_back(std::move(state));
     }
 
-    SMPL_DEBUG("Read %zu states from experience graph file", egraph_states.size());
+    SMPL_DEBUG_NAMED(G_LOG, "Read %zu states from experience graph file", egraph_states.size());
     return true;
 }
 
@@ -436,7 +360,7 @@ void WorkspaceLatticeEGraph::GetSuccs(
                             auto succ_id = createState(succ_coord);
                             auto* succ_state = getState(succ_id);
                             succ_state->state = this_final_robot_state;
-                            SMPL_DEBUG("Return Z-EDGE z = %f", z);
+                            SMPL_DEBUG_NAMED(G_LOG, "Return Z-EDGE z = %f", z);
                             if (!unique && this->isGoal(this_final_state, this_final_robot_state)) {
                                 succs->push_back(this->getGoalStateID());
                             } else {
@@ -559,7 +483,7 @@ bool WorkspaceLatticeEGraph::extractPath(
             auto prev_node = std::distance(begin(this->egraph_node_to_state), pnit);
             auto curr_node = std::distance(begin(this->egraph_node_to_state), cnit);
 
-            SMPL_DEBUG("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, prev_node, curr_node);
+            SMPL_DEBUG_NAMED(G_LOG, "Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, prev_node, curr_node);
 
             std::vector<ExperienceGraph::node_id> node_path;
             found = FindShortestExperienceGraphPath(this->egraph, prev_node, curr_node, node_path);
@@ -579,31 +503,20 @@ bool WorkspaceLatticeEGraph::extractPath(
         SMPL_DEBUG_NAMED(G_LOG, "Check for snap successor");
         int cost;
         if (snap(prev_id, curr_id, cost)) {
-            SMPL_DEBUG("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
-            if (!GetSnapMotion(this, prev_id, curr_id, opath)) {
-
-            }
-
-//            auto* entry = this->getState(curr_id);
-//            assert(entry);
-//            opath.push_back(entry->state);
+            SMPL_DEBUG_NAMED(G_LOG, "Snap from %d to %d with cost %d", prev_id, curr_id, cost);
+            auto* curr_state = getState(curr_id);
+            opath.push_back(curr_state->state);
             continue;
         }
 
-
-
         SMPL_ERROR_NAMED(G_LOG, "Failed to find valid successor during path extraction");
-//        return false;
-        {
-            auto* giveup = this->getState(curr_id);
-            opath.push_back(giveup->state);
-        }
+        return false;
     }
 
     // we made it!
     path = std::move(opath);
 
-    SMPL_DEBUG("Final path:");
+    SMPL_DEBUG_NAMED(G_LOG, "Final path:");
     for (auto& point : path) {
         SMPL_INFO_STREAM("  " << point);
     }
@@ -640,87 +553,94 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
             continue;
         }
 
-        if (egraph_states.empty()) continue;
+        if (egraph_states.empty()) {
+            SMPL_WARN("No experience graph states contained in file");
+            continue;
+        }
 
-        SMPL_DEBUG("Create hash entries for experience graph states");
+        SMPL_DEBUG_NAMED(G_LOG, "Create hash entries for experience graph states");
 
-        // create the first state
-        // 1. insert continuous state into the ExperienceGraph
-        // 2. map from discrete coordinate to ExperienceGraph node id
-        // 3. create entry in the state table for this state
-        // 4. assign the discrete coordinates to the state
-        // 5. map from ExperienceGraph node id to state id
-        // 6. map from state id to ExperienceGraph node id
-        auto& prev_pt = egraph_states.front();
-        WorkspaceCoord prev_disc_pt(this->dofCount());
-        this->stateRobotToCoord(prev_pt, prev_disc_pt);
+        // Create an experience graph state for the first state
 
-        auto prev_node_id = this->egraph.insert_node(prev_pt);
+        auto& first_egraph_state = egraph_states.front();
+
+        auto prev_node_id = this->egraph.insert_node(first_egraph_state);
+
         {
-            SMPL_DEBUG("xyz = %d, %d, %d, %d, %d, %d",
-                    prev_disc_pt[0],
-                    prev_disc_pt[1],
-                    prev_disc_pt[2],
-                    prev_disc_pt[3],
-                    prev_disc_pt[4],
-                    prev_disc_pt[5]);
-            this->psi_to_egraph_nodes[GetPoseCoord(prev_disc_pt)].push_back(prev_node_id);
-            this->coord_to_egraph_nodes[prev_disc_pt].push_back(prev_node_id);
+            // map discrete egraph state -> egraph node
+            WorkspaceCoord disc_egraph_state(this->dofCount());
+            this->stateRobotToCoord(first_egraph_state, disc_egraph_state);
+            this->coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
 
+            // map psi(discrete egraph state) -> egraph node
+            auto psi_state = GetPoseCoord(disc_egraph_state);
+            this->psi_to_egraph_nodes[psi_state].push_back(prev_node_id);
+
+            // reserve a graph state for this state
             auto state_id = this->reserveHashEntry();
             auto* state = getState(state_id);
-            state->coord = prev_disc_pt;
-            state->state = prev_pt;
+            state->coord = disc_egraph_state;
+            state->state = first_egraph_state;
 
-            // map egraph node <-> egraph state
+            // map egraph node -> graph state
             this->egraph_node_to_state.resize(prev_node_id + 1, -1);
             this->egraph_node_to_state[prev_node_id] = state_id;
+
+            // map graph state -> egraph node
             this->state_to_egraph_node[state_id] = prev_node_id;
+
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << first_egraph_state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  psi(disc state) = " << psi_state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
         }
 
         // Walk through the demonstration and create a unique e-graph state
-        // every time the discrete state changes. Intermediately encountered
+        // for each state. Intermediately encountered
         // states that span between two discrete states become the edges in
         // the e-graph.
-        std::vector<RobotState> edge_data;
         for (size_t i = 1; i < egraph_states.size(); ++i) {
-            auto& robot_state = egraph_states[i];
+            auto& egraph_state = egraph_states[i];
 
-            WorkspaceCoord disc_pt(this->dofCount());
-            this->stateRobotToCoord(robot_state, disc_pt);
+            auto node_id = this->egraph.insert_node(egraph_state);
 
-            if (disc_pt != prev_disc_pt) {
-                auto node_id = this->egraph.insert_node(robot_state);
-            SMPL_DEBUG("xyz = %d, %d, %d, %d, %d, %d",
-                    disc_pt[0],
-                    disc_pt[1],
-                    disc_pt[2],
-                    disc_pt[3],
-                    disc_pt[4],
-                    disc_pt[5]);
-                this->psi_to_egraph_nodes[GetPoseCoord(disc_pt)].push_back(node_id);
-                this->coord_to_egraph_nodes[disc_pt].push_back(prev_node_id);
+            // map discrete egraph state -> egraph node
+            WorkspaceCoord disc_egraph_state(this->dofCount());
+            this->stateRobotToCoord(egraph_state, disc_egraph_state);
+            this->coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
 
-                auto state_id = this->reserveHashEntry();
-                auto* state = this->getState(state_id);
-                state->coord = disc_pt;
-                state->state = robot_state;
+            // map psi(discrete egraph state) -> egraph node
+            auto psi_state = GetPoseCoord(disc_egraph_state);
+            this->psi_to_egraph_nodes[psi_state].push_back(node_id);
 
-                this->egraph_node_to_state.resize(node_id + 1, -1);
-                this->egraph_node_to_state[node_id] = state_id;
-                this->state_to_egraph_node[state_id] = node_id;
-                this->egraph.insert_edge(prev_node_id, node_id, edge_data);
+            // reserve a graph state for this state
+            auto state_id = this->reserveHashEntry();
+            auto* state = this->getState(state_id);
+            state->coord = disc_egraph_state;
+            state->state = egraph_state;
 
-                prev_disc_pt = disc_pt;
-                prev_node_id = node_id;
-                edge_data.clear();
-            } else {
-                edge_data.push_back(robot_state);
-            }
+            // map egraph node -> graph state
+            this->egraph_node_to_state.resize(node_id + 1, -1);
+            this->egraph_node_to_state[node_id] = state_id;
+
+            // map graph state -> egraph node
+            this->state_to_egraph_node[state_id] = node_id;
+
+            // add edge from previous node
+            this->egraph.insert_edge(prev_node_id, node_id, { });
+
+            prev_node_id = node_id;
+
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << egraph_state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  psi(disc state) = " << psi_state);
+            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
         }
     }
 
-    SMPL_DEBUG("Experience graph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
+    SMPL_DEBUG_NAMED(G_LOG, "Experience graph contains %zu nodes and %zu edges", this->egraph.num_nodes(), this->egraph.num_edges());
     return true;
 }
 
@@ -745,7 +665,7 @@ bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(src_state->state, "shortcut_from"));
     SV_SHOW_INFO_NAMED(vis_name, this->getStateVisualization(dst_state->state, "shortcut_to"));
 
-    SMPL_DEBUG("  shortcut %d -> %d!", src_id, dst_id);
+    SMPL_DEBUG_NAMED(G_LOG, "  shortcut %d -> %d!", src_id, dst_id);
     cost = 10;
     return true;
 }
@@ -754,101 +674,25 @@ bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
 {
     auto* src_state = this->getState(src_id);
     auto* dst_state = this->getState(dst_id);
-    assert(src_state != NULL && dst_state != NULL);
+    if (src_state == NULL | dst_state == NULL) {
+        SMPL_WARN("No state entries for state %d or state %d", src_id, dst_id);
+        return false;
+    }
 
     SMPL_DEBUG_STREAM("Snap " << src_state->coord << " -> " << dst_state->coord);
     auto* vis_name = "snap";
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(src_state->state, "snap_from"));
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(dst_state->state, "snap_to"));
 
-    // interpolate between the src and the destination, maintaining the
-    // end effector position
-
-    auto dx = dst_state->state[0] - src_state->state[0];
-    auto dy = dst_state->state[1] - src_state->state[1];
-    if (std::fabs(dx) > 1e-6 || std::fabs(dy) > 1e-6) {
-        auto heading = atan2(dy, dx);
-        auto alt_heading = heading + M_PI;
-        if (angles::shortest_angle_dist(heading, src_state->state[2]) >
-                angles::to_radians(10.0) &&
-            angles::shortest_angle_dist(alt_heading, src_state->state[2]) >
-                angles::to_radians(10.0))
-        {
-            SMPL_DEBUG("SKIP SNAP MOTION");
-//            return false;
-        }
-    }
-
-#if 1
-    WorkspaceState start_state;
-    WorkspaceState finish_state;
-    this->stateCoordToWorkspace(src_state->coord, start_state);
-    this->stateCoordToWorkspace(dst_state->coord, finish_state);
-    int num_waypoints = 10;
-    for (int i = 0; i < num_waypoints; ++i) {
-        WorkspaceState interm_workspace_state;
-        interm_workspace_state.resize(this->dofCount());
-
-        // x, y, z, R, P, Y, FA1 same as start
-        interm_workspace_state[0] = finish_state[0];
-        interm_workspace_state[1] = finish_state[1];
-        interm_workspace_state[2] = finish_state[2];
-        interm_workspace_state[3] = finish_state[3];
-        interm_workspace_state[4] = finish_state[4];
-        interm_workspace_state[5] = finish_state[5];
-        interm_workspace_state[6] = finish_state[6];
-
-        auto interp = [](double a, double b, double t) {
-            return (1.0 - t) * a + t * b;
-        };
-
-        auto t = (double)i / (double)(num_waypoints - 1);
-        // interpolate torso, theta, x, y
-        interm_workspace_state[7] = interp(start_state[7], finish_state[7], t);
-        interm_workspace_state[8] = interp(start_state[8], finish_state[8], t);
-        interm_workspace_state[9] = interp(start_state[9], finish_state[9], t);
-        interm_workspace_state[10] = interp(start_state[10], finish_state[10], t);
-
-        // hinge kept the same
-        interm_workspace_state[11] = finish_state[11];
-
-        auto stateWorkspaceToRobotPermissive = [&](
-            const WorkspaceState& state,
-            RobotState& ostate)
-        {
-            RobotState seed = src_state->state; //(robot()->jointVariableCount(), 0);
-            for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
-                seed[m_fangle_indices[fai]] = state[6 + fai];
-            }
-
-            Eigen::Affine3d pose =
-                    Eigen::Translation3d(state[0], state[1], state[2]) *
-                    Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX());
-
-//            return m_ik_iface->computeIK(pose, dst_state->state, ostate);
-            return m_ik_iface->computeIK(pose, seed, ostate);
-        };
-
-        RobotState robot_state;
-        // TODO: this should be permissive and allow moving the redundant angles
-        if (!stateWorkspaceToRobotPermissive(interm_workspace_state, robot_state)) {
-            SMPL_WARN("Failed to find ik solution for interpolated state");
-            return false;
-        }
-    }
-#endif
-
-    if (!this->collisionChecker()->isStateToStateValid(
+    if (!collisionChecker()->isStateToStateValid(
             src_state->state, dst_state->state))
     {
         SMPL_WARN("Failed snap!");
         return false;
     }
 
-    SMPL_DEBUG("  Snap %d -> %d!", src_id, dst_id);
-    cost = 10;
+    SMPL_DEBUG_NAMED(G_LOG, "  Snap %d -> %d!", src_id, dst_id);
+    cost = 1000;
     return true;
 }
 
