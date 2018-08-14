@@ -91,7 +91,11 @@ bool InitRobotModel(
     // Initialize link properties //
     ////////////////////////////////
 
-    // ...init basic link properties
+    // Create a corresponding link for each link in the URDF, initialized with
+    // basic link properties such as its name. For each collision and visual
+    // element that is part of the link, create a unique instance of the
+    // collision/visual geometry.
+
     for (auto& e : urdf->links_) {
         Link link;
         link.name = e.first;
@@ -176,18 +180,22 @@ bool InitRobotModel(
         return NULL;
     };
 
-    // ...another pass to hook up link visual/collision geometry
+    // Now that the collisin/visual geometry arrays are stable, perform another
+    // pass through the links to tie links to their dependent collision/visual
+    // geometries and vice versa.
+
     auto sphere_index = 0;
     auto box_index = 0;
     auto cylinder_index = 0;
     auto mesh_index = 0;
+
+    // offset into the collision/visual geometry arrays for the next link
     auto* prev_collision = robot_model.collisions.data();
     auto* prev_visual = robot_model.visuals.data();
+
     for (auto& e : urdf->links_) {
         auto* link = get_link(&robot_model, e.first);
 
-        auto* c = prev_collision;
-        auto* v = prev_visual;
         auto next_shape = [&](const ::urdf::Geometry* geom) -> Shape*
         {
             switch (geom->type) {
@@ -204,28 +212,31 @@ bool InitRobotModel(
 
         // ...assign shapes and parenting links to all collision/visual instances
 
+        auto* c = prev_collision;
+        auto* v = prev_visual;
+
         if (!e.second->collision_array.empty()) {
             for (auto& collision : e.second->collision_array) {
                 c->shape = next_shape(collision->geometry.get());
-                ++c;
                 c->link = link;
+                ++c;
             }
         } else if (e.second->collision) {
             c->shape = next_shape(e.second->collision->geometry.get());
-            ++c;
             c->link = link;
+            ++c;
         }
 
         if (!e.second->visual_array.empty()) {
-            for (auto& collision : e.second->visual_array) {
-                v->shape = next_shape(collision->geometry.get());
-                ++v;
+            for (auto& visual : e.second->visual_array) {
+                v->shape = next_shape(visual->geometry.get());
                 v->link = link;
+                ++v;
             }
-        } else if (e.second->collision) {
-            v->shape = next_shape(e.second->collision->geometry.get());
-            ++v;
+        } else if (e.second->visual) {
+            v->shape = next_shape(e.second->visual->geometry.get());
             v->link = link;
+            ++v;
         }
 
         // ...assign range of collision/visual instances to each link
