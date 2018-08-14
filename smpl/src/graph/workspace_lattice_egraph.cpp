@@ -160,14 +160,134 @@ void WorkspaceLatticeEGraph::GetSuccs(
     return GetSuccs(state_id, succs, costs, false);
 }
 
-auto GetPoseCoord(const WorkspaceCoord& coord) -> std::vector<int>
+void GetEGraphStateSuccs(
+    WorkspaceLatticeEGraph* graph,
+    WorkspaceLatticeState* state,
+    ExperienceGraph::node_id egraph_node,
+    std::vector<int>* succs,
+    std::vector<int>* costs,
+    bool unique)
 {
-    std::vector<int> pose(4);
-    pose[0] = coord[0];
-    pose[1] = coord[1];
-    pose[2] = coord[2];
-    pose[3] = coord[5];
-    return pose;
+    auto& egraph_state = graph->egraph.state(egraph_node);
+
+    // E_bridge from V_demo
+    {
+        // egraph robot state -> workspace state
+        WorkspaceState workspace_state;
+        graph->stateRobotToWorkspace(egraph_state, workspace_state);
+
+        // discrete successor state
+        WorkspaceCoord workspace_coord;
+        graph->stateWorkspaceToCoord(workspace_state, workspace_coord);
+
+        // successor robot state
+        RobotState robot_state;
+        if (graph->stateWorkspaceToRobot(workspace_state, egraph_state, robot_state)) {
+            // inherit the exact z value from the e-graph state
+//            robot_state.back() = egraph_state.back();
+
+            // TODO: check action
+
+            auto succ_id = graph->createState(workspace_coord);
+            auto* succ_state = graph->getState(succ_id);
+            succ_state->state = robot_state;
+
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge edge to %d", succ_id);
+
+            if (!unique && graph->isGoal(workspace_state, robot_state)) {
+                succs->push_back(graph->getGoalStateID());
+            } else {
+                succs->push_back(succ_id);
+            }
+
+            costs->push_back(graph->computeCost(*state, *succ_state));
+        } else {
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge edge failed");
+        }
+    }
+
+    // E_demo from V_demo
+    auto adj = graph->egraph.adjacent_nodes(egraph_node);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  %td adjacent experience graph edges", std::distance(adj.first, adj.second));
+    for (auto ait = adj.first; ait != adj.second; ++ait) {
+        auto& adj_egraph_state = graph->egraph.state(*ait);
+        WorkspaceState workspace_state;
+        graph->stateRobotToWorkspace(adj_egraph_state, workspace_state);
+        if (!unique && graph->isGoal(workspace_state, adj_egraph_state)) {
+            succs->push_back(graph->m_goal_state_id);
+        } else {
+            succs->push_back(graph->egraph_node_to_state[*ait]);
+        }
+        costs->push_back(10);
+    }
+}
+
+void GetNonEGraphStateSuccs(
+    WorkspaceLatticeEGraph* graph,
+    smpl::WorkspaceLatticeState* state,
+    std::vector<int>* succs,
+    std::vector<int>* costs,
+    bool unique)
+{
+    // E_bridge from V_orig
+    auto it = graph->coord_to_egraph_nodes.find(state->coord);
+    if (it != end(graph->coord_to_egraph_nodes)) {
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge to %zu e-graph nodes", it->second.size());
+        for (auto node : it->second) {
+            auto succ_id = graph->egraph_node_to_state[node];
+            auto& egraph_state = graph->egraph.state(node);
+            smpl::WorkspaceState workspace_state;
+            graph->stateRobotToWorkspace(egraph_state, workspace_state);
+            if (!unique && graph->isGoal(workspace_state, egraph_state)) {
+                succs->push_back(graph->getGoalStateID());
+            } else {
+                succs->push_back(succ_id);
+            }
+            costs->push_back(30);
+        }
+    }
+
+    std::vector<smpl::WorkspaceAction> actions;
+    graph->m_actions->apply(*state, actions);
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
+
+    // iterate through successors of source state
+    for (size_t i = 0; i < actions.size(); ++i) {
+        auto& action = actions[i];
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+
+        smpl::RobotState final_robot_state;
+        if (!graph->checkAction(state->state, action, &final_robot_state)) {
+            continue;
+        }
+
+        auto& final_state = action.back();
+        smpl::WorkspaceCoord succ_coord;
+        graph->stateWorkspaceToCoord(final_state, succ_coord);
+
+        // check if hash entry already exists, if not then create one
+        auto succ_id = graph->createState(succ_coord);
+        auto* succ_state = graph->getState(succ_id);
+        succ_state->state = final_robot_state;
+
+        // put successor on successor list with the proper cost
+        if (!unique && graph->isGoal(final_state, final_robot_state)) {
+            succs->push_back(graph->m_goal_state_id);
+        } else {
+            succs->push_back(succ_id);
+        }
+
+        auto edge_cost = graph->computeCost(*state, *succ_state);
+        costs->push_back(edge_cost);
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "      succ: %d", succ_id);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        cost: %5d", edge_cost);
+    }
 }
 
 void WorkspaceLatticeEGraph::GetSuccs(
@@ -176,16 +296,9 @@ void WorkspaceLatticeEGraph::GetSuccs(
     std::vector<int>* costs,
     bool unique)
 {
-    assert(state_id >= 0 && state_id < m_states.size());
-
-    succs->clear();
-    costs->clear();
-
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
 
     auto* parent_entry = getState(state_id);
-    assert(parent_entry != NULL);
-    assert(parent_entry->coord.size() == this->dofCount());
 
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << parent_entry->coord);
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << parent_entry->state);
@@ -206,173 +319,9 @@ void WorkspaceLatticeEGraph::GetSuccs(
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  egraph state: %s", is_egraph_node ? "true" : "false");
 
     if (is_egraph_node) { // expanding an egraph node
-        auto& egraph_state = this->egraph.state(egraph_node);
-
-        // E_bridge from V_demo
-        {
-            // egraph robot state -> workspace state
-            WorkspaceState workspace_state;
-            this->stateRobotToWorkspace(egraph_state, workspace_state);
-
-            // discrete successor state
-            WorkspaceCoord workspace_coord;
-            this->stateWorkspaceToCoord(workspace_state, workspace_coord);
-
-            // successor robot state
-            RobotState robot_state;
-            if (this->stateWorkspaceToRobot(workspace_state, egraph_state, robot_state)) {
-                // inherit the exact z value from the e-graph state
-                robot_state.back() = egraph_state.back();
-
-                // TODO: check action
-
-                auto succ_id = createState(workspace_coord);
-                auto* succ_state = getState(succ_id);
-                succ_state->state = robot_state;
-
-                SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  bridge edge to %d", succ_id);
-
-                if (!unique && this->isGoal(workspace_state, robot_state)) {
-                    succs->push_back(this->getGoalStateID());
-                } else {
-                    succs->push_back(succ_id);
-                }
-
-                costs->push_back(this->computeCost(*parent_entry, *succ_state));
-            } else {
-                SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  bridge edge failed");
-            }
-        }
-
-        // E_demo from V_demo
-        auto adj = this->egraph.adjacent_nodes(egraph_node);
-        SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  %td adjacent experience graph edges", std::distance(adj.first, adj.second));
-        for (auto ait = adj.first; ait != adj.second; ++ait) {
-            auto& adj_egraph_state = this->egraph.state(*ait);
-            WorkspaceState workspace_state;
-            this->stateRobotToWorkspace(adj_egraph_state, workspace_state);
-            if (!unique && this->isGoal(workspace_state, adj_egraph_state)) {
-                succs->push_back(this->m_goal_state_id);
-            } else {
-                succs->push_back(this->egraph_node_to_state[*ait]);
-            }
-            costs->push_back(10);
-        }
-
-        return;
-    }
-
-    std::vector<WorkspaceAction> actions;
-    m_actions->apply(*parent_entry, actions);
-
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
-
-    // e-graph nodes within psi tolerance, for E_z
-    std::vector<ExperienceGraph::node_id> parent_nearby_nodes;
-    {
-        auto pose_coord = GetPoseCoord(parent_entry->coord);
-        SMPL_DEBUG_STREAM("parent pose coord = " << pose_coord);
-        auto it = this->psi_to_egraph_nodes.find(pose_coord);
-        if (it != end(this->psi_to_egraph_nodes)) {
-            for (auto node : it->second) {
-                auto z = this->egraph.state(node).back();
-                if (z == parent_entry->state.back()) {
-                    parent_nearby_nodes.push_back(node);
-                }
-            }
-        }
-    }
-
-    // E_bridge from V_orig
-    auto it = coord_to_egraph_nodes.find(parent_entry->coord);
-    if (it != end(coord_to_egraph_nodes)) {
-        SMPL_INFO_NAMED(G_EXPANSIONS_LOG, "  bridge to %zu e-graph nodes", it->second.size());
-        for (auto node : it->second) {
-            auto succ_id = this->egraph_node_to_state[node];
-            auto& egraph_state = this->egraph.state(node);
-            WorkspaceState workspace_state;
-            this->stateRobotToWorkspace(egraph_state, workspace_state);
-            if (!unique && this->isGoal(workspace_state, egraph_state)) {
-                succs->push_back(this->getGoalStateID());
-            } else {
-                succs->push_back(succ_id);
-            }
-            costs->push_back(30);
-        }
-    }
-
-    // iterate through successors of source state
-    for (size_t i = 0; i < actions.size(); ++i) {
-        auto& action = actions[i];
-
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
-
-        RobotState final_robot_state;
-        if (!checkAction(parent_entry->state, action, &final_robot_state)) {
-            continue;
-        }
-
-        auto& final_state = action.back();
-        WorkspaceCoord succ_coord;
-        stateWorkspaceToCoord(final_state, succ_coord);
-
-        // E_orig from V_orig
-        {
-            // check if hash entry already exists, if not then create one
-            auto succ_id = createState(succ_coord);
-            auto* succ_state = getState(succ_id);
-            succ_state->state = final_robot_state;
-
-            // put successor on successor list with the proper cost
-            if (!unique && this->isGoal(final_state, final_robot_state)) {
-                succs->push_back(m_goal_state_id);
-            } else {
-                succs->push_back(succ_id);
-            }
-
-            auto edge_cost = computeCost(*parent_entry, *succ_state);
-            costs->push_back(edge_cost);
-
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "      succ: %d", succ_id);
-            SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
-            SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        cost: %5d", edge_cost);
-        }
-
-        // E_z from V_orig
-        if (!parent_nearby_nodes.empty()) {
-            auto pose_coord = GetPoseCoord(succ_coord);
-            auto it = this->psi_to_egraph_nodes.find(pose_coord);
-            if (it != end(this->psi_to_egraph_nodes)) {
-                // for each experience graph node within error...
-                for (auto node : it->second) {
-                    // if node in the adjacent list of any nearby node...
-                    for (auto nn : parent_nearby_nodes) {
-                        if (this->egraph.edge(nn, node)) {
-                            auto z = this->egraph.state(node).back();
-                            auto this_final_state = final_state;
-                            auto this_final_robot_state = final_robot_state;
-                            this_final_state.back() = z;
-                            this_final_robot_state.back() = z;
-                            WorkspaceCoord succ_coord;
-                            this->stateWorkspaceToCoord(this_final_state, succ_coord);
-                            auto succ_id = createState(succ_coord);
-                            auto* succ_state = getState(succ_id);
-                            succ_state->state = this_final_robot_state;
-                            SMPL_DEBUG_NAMED(G_LOG, "Return Z-EDGE z = %f", z);
-                            if (!unique && this->isGoal(this_final_state, this_final_robot_state)) {
-                                succs->push_back(this->getGoalStateID());
-                            } else {
-                                succs->push_back(succ_id);
-                            }
-                            auto edge_cost = computeCost(*parent_entry, *succ_state);
-                            costs->push_back(edge_cost);
-                        }
-                    }
-                }
-            }
-        }
+        return GetEGraphStateSuccs(this, parent_entry, egraph_node, succs, costs, unique);
+    } else {
+        return GetNonEGraphStateSuccs(this, parent_entry, succs, costs, unique);
     }
 }
 
@@ -491,7 +440,6 @@ bool WorkspaceLatticeEGraph::extractPath(
                 for (auto n : node_path) {
                     auto state_id = this->egraph_node_to_state[n];
                     auto* entry = this->getState(state_id);
-                    assert(entry);
                     opath.push_back(entry->state);
                 }
             }
@@ -568,13 +516,12 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
 
         {
             // map discrete egraph state -> egraph node
-            WorkspaceCoord disc_egraph_state(this->dofCount());
-            this->stateRobotToCoord(first_egraph_state, disc_egraph_state);
-            this->coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
+            WorkspaceState tmp;
+            this->stateRobotToWorkspace(first_egraph_state, tmp);
 
-            // map psi(discrete egraph state) -> egraph node
-            auto psi_state = GetPoseCoord(disc_egraph_state);
-            this->psi_to_egraph_nodes[psi_state].push_back(prev_node_id);
+            WorkspaceCoord disc_egraph_state(this->dofCount());
+            this->stateWorkspaceToCoord(tmp, disc_egraph_state);
+            this->coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
 
             // reserve a graph state for this state
             auto state_id = this->reserveHashEntry();
@@ -592,7 +539,6 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << first_egraph_state);
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  psi(disc state) = " << psi_state);
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
         }
 
@@ -605,14 +551,13 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
 
             auto node_id = this->egraph.insert_node(egraph_state);
 
+            WorkspaceState tmp;
+            this->stateRobotToWorkspace(egraph_state, tmp);
+
             // map discrete egraph state -> egraph node
             WorkspaceCoord disc_egraph_state(this->dofCount());
-            this->stateRobotToCoord(egraph_state, disc_egraph_state);
+            this->stateWorkspaceToCoord(tmp, disc_egraph_state);
             this->coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
-
-            // map psi(discrete egraph state) -> egraph node
-            auto psi_state = GetPoseCoord(disc_egraph_state);
-            this->psi_to_egraph_nodes[psi_state].push_back(node_id);
 
             // reserve a graph state for this state
             auto state_id = this->reserveHashEntry();
@@ -635,7 +580,6 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << egraph_state);
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  psi(disc state) = " << psi_state);
             SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
         }
     }
@@ -658,7 +602,6 @@ bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
 {
     auto* src_state = this->getState(src_id);
     auto* dst_state = this->getState(dst_id);
-    assert(src_state != NULL && dst_state != NULL);
 
     SMPL_INFO_STREAM("Shortcut " << src_state->coord << " -> " << dst_state->coord);
     auto* vis_name = "shortcut";
