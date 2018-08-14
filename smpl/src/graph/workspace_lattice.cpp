@@ -778,7 +778,7 @@ bool WorkspaceLattice::checkAction(
         }
     }
 
-    if (final_rstate) {
+    if (final_rstate != NULL) {
         *final_rstate = wptraj.back();
     }
     return true;

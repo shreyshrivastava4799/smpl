@@ -447,8 +447,8 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         return true;
     }
 
-    const size_t num_joints = path.front().size();
-    for (const auto& pt : path) {
+    auto num_joints = path.front().size();
+    for (auto& pt : path) {
         if (pt.size() != num_joints) {
             SMPL_ERROR("Failed to interpolate trajectory. Input trajectory is malformed");
             return false;
@@ -461,22 +461,22 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
     opath.push_back(path.front());
 
     // iterate over path segments
-    for (size_t i = 0; i < path.size() - 1; ++i) {
-        const RobotState& start = path[i];
-        const RobotState& end = path[i + 1];
+    for (auto i = size_t(0); i < path.size() - 1; ++i) {
+        auto& curr = path[i];
+        auto& next = path[i + 1];
 
-        SMPL_DEBUG_STREAM("Interpolating between " << start << " and " << end);
+        SMPL_DEBUG_STREAM("Interpolating between " << curr << " and " << next);
 
         std::vector<RobotState> ipath;
-        if (!cc.interpolatePath(start, end, ipath)) {
+        if (!cc.interpolatePath(curr, next, ipath)) {
             SMPL_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;
         }
 
         // check the interpolated path for collisions, as the interpolator may
         // take a slightly different
-        bool collision = false;
-        for (const auto& point : ipath) {
+        auto collision = false;
+        for (auto& point : ipath) {
             if (!cc.isStateValid(point, false)) {
                 collision = true;
                 break;
@@ -485,14 +485,14 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
 
         if (collision) {
             SMPL_ERROR("Interpolated path collides. Resorting to original waypoints");
-            opath.push_back(end);
+            opath.push_back(next);
             continue;
         }
 
         if (!ipath.empty()) {
             // concatenate current path and the intermediate path (we already
             // have the first waypoint in the path from last iteration)
-            opath.insert(opath.end(), std::next(ipath.begin()), ipath.end());
+            opath.insert(end(opath), std::next(begin(ipath)), end(ipath));
         }
 
         SMPL_DEBUG("[%zu] path length: %zu", i, opath.size());

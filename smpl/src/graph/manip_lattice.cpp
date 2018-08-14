@@ -491,7 +491,7 @@ void ManipLattice::stateToCoord(
 
     for (size_t i = 0; i < state.size(); ++i) {
         if (m_continuous[i]) {
-            double pos_angle = angles::normalize_angle_positive(state[i]);
+            auto pos_angle = angles::normalize_angle_positive(state[i]);
 
             coord[i] = (int)((pos_angle + m_coord_deltas[i] * 0.5) / m_coord_deltas[i]);
 
