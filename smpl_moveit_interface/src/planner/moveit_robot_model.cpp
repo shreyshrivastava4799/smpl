@@ -828,9 +828,7 @@ bool MoveItRobotModel::computeUnrestrictedIK(
         // TODO: roll extraction into this loop
     }
 
-    if (!m_robot_state->satisfiesBounds(m_joint_group)) {
-        ROS_ERROR("KDL Returned invalid joint angles?");
-    }
+    ROS_ERROR_COND(!m_robot_state->satisfiesBounds(m_ik_group), "IK Solver returned invalid joint angles");
 
     // extract solution from robot state
     solution.resize(m_active_var_names.size());
