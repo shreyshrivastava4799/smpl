@@ -76,7 +76,6 @@ public:
     virtual bool init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* pp,
         const Params& params);
 
     virtual bool initialized() const;

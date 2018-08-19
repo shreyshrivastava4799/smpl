@@ -12,6 +12,7 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/ros/propagation_distance_field.h>
+#include <smpl/stl/memory.h>
 #include <sbpl_collision_checking/world_collision_model.h>
 #include <sbpl_collision_checking/voxelize_world_object.h>
 
@@ -90,11 +91,6 @@ auto to_cstring(moveit_msgs::MoveItErrorCodes code) -> const char*
 } // namespace moveit_msgs
 
 namespace sbpl_interface {
-
-template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T> {
-    return std::unique_ptr<T>(new T(args...));
-}
 
 static
 bool InitPlanningParams(
@@ -358,7 +354,7 @@ bool SBPLPlanningContext::updatePlanner(
     // Update the collision checker interface to use the complete start state
     // as the reference state
     ROS_DEBUG_NAMED(PP_LOGGER, " -> Initialize collision checker interface");
-    m_collision_checker = make_unique<MoveItCollisionChecker>();
+    m_collision_checker = smpl::make_unique<MoveItCollisionChecker>();
     if (!m_collision_checker->init(m_robot_model, start_state, scene)) {
         ROS_WARN_NAMED(PP_LOGGER, "Failed to initialize collision checker interface");
         return false;
@@ -378,7 +374,7 @@ bool SBPLPlanningContext::updatePlanner(
     }
 
     ROS_DEBUG_NAMED(PP_LOGGER, " -> Initialize planner interface");
-    m_planner = make_unique<smpl::PlannerInterface>(
+    m_planner = smpl::make_unique<smpl::PlannerInterface>(
             m_robot_model, m_collision_checker.get(), m_grid.get());
     if (!m_planner->init(m_pp)) {
         ROS_WARN_NAMED(PP_LOGGER, "Failed to initialize planner interface");
@@ -770,7 +766,7 @@ auto CreateHeuristicGrid(
             CopyDistanceField(*df, *hdf);
 
             ROS_INFO_NAMED(PP_LOGGER, "Successfully initialized heuristic grid from sbpl collision checker");
-            auto grid = make_unique<smpl::OccupancyGrid>(hdf);
+            auto grid = smpl::make_unique<smpl::OccupancyGrid>(hdf);
             grid->setReferenceFrame(scene.getPlanningFrame());
             return grid;
         } else {
@@ -786,7 +782,7 @@ auto CreateHeuristicGrid(
     // instantiating a full cspace here and using available voxels state
     // information for a more accurate heuristic
 
-    auto grid = make_unique<smpl::OccupancyGrid>(hdf);
+    auto grid = smpl::make_unique<smpl::OccupancyGrid>(hdf);
     grid->setReferenceFrame(scene.getPlanningFrame());
 
     // temporary storage for collision shapes/objects

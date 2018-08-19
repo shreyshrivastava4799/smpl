@@ -101,20 +101,21 @@ public:
     bool init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* params,
         const std::vector<double>& resolutions,
         ActionSpace* actions);
 
-    const std::vector<double>& resolutions() const { return m_coord_deltas; }
-    ActionSpace* actionSpace() { return m_actions; }
-    const ActionSpace* actionSpace() const { return m_actions; }
+    auto resolutions() const -> const std::vector<double>& { return m_coord_deltas; }
+    auto actionSpace() -> ActionSpace* { return m_actions; }
+    auto actionSpace() const -> const ActionSpace* { return m_actions; }
 
-    RobotState getStartConfiguration() const;
+    auto getStartConfiguration() const -> RobotState;
 
     void setVisualizationFrameId(const std::string& frame_id);
-    const std::string& visualizationFrameId() const;
+    auto visualizationFrameId() const -> const std::string&;
 
-    RobotState getDiscreteCenter(const RobotState& state) const;
+    auto getDiscreteCenter(const RobotState& state) const -> RobotState;
+
+    void clearStates();
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace
     ///@{
@@ -128,7 +129,7 @@ public:
 
     /// \name Required Public Functions from ExtractRobotStateExtension
     ///@{
-    const RobotState& extractState(int state_id) override;
+    auto extractState(int state_id) -> const RobotState& override;
     ///@}
 
     /// \name Required Public Functions from PoseProjectionExtension
@@ -219,9 +220,6 @@ private:
 
     // maps from stateID to coords
     std::vector<ManipLatticeState*> m_states;
-
-    bool m_near_goal = false;
-    clock::time_point m_t_start;
 
     std::string m_viz_frame_id;
 

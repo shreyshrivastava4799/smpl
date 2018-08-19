@@ -43,10 +43,9 @@ namespace smpl {
 bool WorkspaceLatticeBase::init(
     RobotModel* _robot,
     CollisionChecker* checker,
-    const PlanningParams* pp,
     const Params& _params)
 {
-    if (!RobotPlanningSpace::init(_robot, checker, pp)) {
+    if (!RobotPlanningSpace::init(_robot, checker)) {
         return false;
     }
 
@@ -74,12 +73,20 @@ bool WorkspaceLatticeBase::init(
     m_fangle_bounded.resize(m_rm_iface->redundantVariableCount());
     m_fangle_continuous.resize(m_rm_iface->redundantVariableCount());
 
+    SMPL_DEBUG_NAMED(G_LOG, "%zu free angles", m_fangle_indices.size());
     for (size_t i = 0; i < m_fangle_indices.size(); ++i) {
         m_fangle_indices[i] = m_rm_iface->redundantVariableIndex(i);
         m_fangle_min_limits[i] = _robot->minPosLimit(m_fangle_indices[i]);
         m_fangle_max_limits[i] = _robot->maxPosLimit(m_fangle_indices[i]);
         m_fangle_bounded[i] = _robot->hasPosLimit(m_fangle_indices[i]);
         m_fangle_continuous[i] = _robot->isContinuous(m_fangle_indices[i]);
+        SMPL_DEBUG_NAMED(G_LOG, "  name = %s, index = %zu, min = %f, max = %f, bounded = %d, continuous = %d",
+                m_rm_iface->getPlanningJoints()[m_fangle_indices[i]].c_str(),
+                m_fangle_indices[i],
+                m_fangle_min_limits[i],
+                m_fangle_max_limits[i],
+                (int)m_fangle_bounded[i],
+                (int)m_fangle_continuous[i]);
     }
 
     m_dof_count = 6 + m_fangle_indices.size();
@@ -109,7 +116,7 @@ bool WorkspaceLatticeBase::init(
     m_res[2] = _params.res_z;
     // TODO: limit these ranges and handle discretization appropriately
     m_res[3] = 2.0 * M_PI / _params.R_count;
-    m_res[4] = M_PI       / _params.P_count;
+    m_res[4] = M_PI       / (_params.P_count - 1);
     m_res[5] = 2.0 * M_PI / _params.Y_count;
 
     for (int i = 0; i < m_fangle_indices.size(); ++i) {

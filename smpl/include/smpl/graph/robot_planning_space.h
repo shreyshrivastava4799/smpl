@@ -47,7 +47,6 @@
 #include <smpl/robot_model.h>
 #include <smpl/types.h>
 #include <smpl/graph/goal_constraint.h>
-#include <smpl/graph/robot_planning_space_observer.h>
 
 namespace smpl {
 
@@ -61,10 +60,7 @@ public:
 
     virtual ~RobotPlanningSpace();
 
-    virtual bool init(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const PlanningParams* params);
+    virtual bool init(RobotModel* robot, CollisionChecker* checker);
 
     virtual bool setStart(const RobotState& state);
     virtual bool setGoal(const GoalConstraint& goal);
@@ -86,18 +82,12 @@ public:
     CollisionChecker* collisionChecker() { return m_checker; }
     const CollisionChecker* collisionChecker() const { return m_checker; }
 
-    const PlanningParams* params() const { return m_params; }
-
     const RobotState& startState() const { return m_start; }
     const GoalConstraint& goal() const { return m_goal; }
 
     size_t numHeuristics() const;
     RobotHeuristic* heuristic(size_t i);
     const RobotHeuristic* heuristic(size_t i) const;
-
-    void insertObserver(RobotPlanningSpaceObserver* obs);
-    void eraseObserver(RobotPlanningSpaceObserver* obs);
-    bool hasObserver(RobotPlanningSpaceObserver* obs) const;
 
     void notifyStartChanged(const RobotState& state);
     void notifyGoalChanged(const GoalConstraint& goal);
@@ -139,14 +129,11 @@ private:
 
     RobotModel* m_robot             = nullptr;
     CollisionChecker* m_checker     = nullptr;
-    const PlanningParams* m_params  = nullptr;
 
     RobotState m_start;
     GoalConstraint m_goal;
 
     std::vector<RobotHeuristic*> m_heuristics;
-
-    std::vector<RobotPlanningSpaceObserver*> m_obs;
 
     // Make all attempts to hide the set of useless functions from
     // DiscreteSpaceInformation

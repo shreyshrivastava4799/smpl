@@ -128,7 +128,6 @@ public:
     bool init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const PlanningParams* pp,
         const Params& params,
         const OccupancyGrid* grid);
     ///@}

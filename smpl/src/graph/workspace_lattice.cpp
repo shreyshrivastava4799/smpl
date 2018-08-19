@@ -95,11 +95,10 @@ const std::string& WorkspaceLattice::visualizationFrameId() const
 bool WorkspaceLattice::init(
     RobotModel* _robot,
     CollisionChecker* checker,
-    const PlanningParams* pp,
     const Params& _params,
     WorkspaceLatticeActionSpace* actions)
 {
-    if (!WorkspaceLatticeBase::init(_robot, checker, pp, _params)) {
+    if (!WorkspaceLatticeBase::init(_robot, checker, _params)) {
         return false;
     }
 
@@ -108,9 +107,9 @@ bool WorkspaceLattice::init(
     WorkspaceCoord fake_coord;
     m_goal_state_id = createState(fake_coord);
     m_goal_entry = getState(m_goal_state_id);
-    SMPL_DEBUG_NAMED(pp->graph_log, "  goal state has id %d", m_goal_state_id);
+    SMPL_DEBUG_NAMED(G_LOG, "  goal state has id %d", m_goal_state_id);
 
-    SMPL_DEBUG_NAMED(pp->graph_log, "initialize environment");
+    SMPL_DEBUG_NAMED(G_LOG, "initialize environment");
 
     m_actions = actions;
     return true;
@@ -138,20 +137,20 @@ bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
 bool WorkspaceLattice::setStart(const RobotState& state)
 {
     if (!initialized()) {
-        SMPL_ERROR_NAMED(params()->graph_log, "cannot set start state on uninitialized lattice");
+        SMPL_ERROR_NAMED(G_LOG, "cannot set start state on uninitialized lattice");
         return false;
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "set the start state");
+    SMPL_DEBUG_NAMED(G_LOG, "set the start state");
     if (state.size() < robot()->jointVariableCount()) {
-        SMPL_ERROR_NAMED(params()->graph_log, "start state contains insufficient coordinate positions");
+        SMPL_ERROR_NAMED(G_LOG, "start state contains insufficient coordinate positions");
         return false;
     }
 
-    SMPL_DEBUG_STREAM_NAMED(params()->graph_log, "  angles: " << state);
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  angles: " << state);
 
     if (!robot()->checkJointLimits(state)) {
-        SMPL_ERROR_NAMED(params()->graph_log, "start state violates joint limits");
+        SMPL_ERROR_NAMED(G_LOG, "start state violates joint limits");
         return false;
     }
 
@@ -224,14 +223,14 @@ bool WorkspaceLattice::extractPath(
         if (state_id == getGoalStateID()) {
             auto* state = getState(m_start_state_id);
             if (!state) {
-                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state state for state %d", m_start_state_id);
+                SMPL_ERROR_NAMED(G_LOG, "Failed to get state state for state %d", m_start_state_id);
                 return false;
             }
             path.push_back(state->state);
         } else {
             auto* state = getState(state_id);
             if (!state) {
-                SMPL_ERROR_NAMED(params()->graph_log, "Failed to get state entry for state %d", state_id);
+                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", state_id);
                 return false;
             }
             path.push_back(state->state);
@@ -252,7 +251,7 @@ bool WorkspaceLattice::extractPath(
         auto curr_id = ids[i];
 
         if (prev_id == getGoalStateID()) {
-            SMPL_ERROR_NAMED(params()->graph_log, "cannot determine goal state successors during path extraction");
+            SMPL_ERROR_NAMED(G_LOG, "cannot determine goal state successors during path extraction");
             return false;
         }
 
@@ -294,7 +293,7 @@ bool WorkspaceLattice::extractPath(
             }
 
             if (!best_goal_entry) {
-                SMPL_ERROR_NAMED(params()->graph_log, "failed to find valid goal successor during path extraction");
+                SMPL_ERROR_NAMED(G_LOG, "failed to find valid goal successor during path extraction");
                 return false;
             }
 
@@ -337,7 +336,7 @@ void WorkspaceLattice::GetSuccs(
     succs->clear();
     costs->clear();
 
-    SMPL_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -349,8 +348,8 @@ void WorkspaceLattice::GetSuccs(
     assert(parent_entry);
     assert(parent_entry->coord.size() == m_dof_count);
 
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  workspace coord: " << parent_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "      robot state: " << parent_entry->state);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << parent_entry->state);
 
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
@@ -358,14 +357,14 @@ void WorkspaceLattice::GetSuccs(
     std::vector<WorkspaceAction> actions;
     m_actions->apply(*parent_entry, actions);
 
-    SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
     // iterate through successors of source state
     for (size_t i = 0; i < actions.size(); ++i) {
         auto& action = actions[i];
 
-        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
-        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
 
         RobotState final_rstate;
         if (!checkAction(parent_entry->state, action, &final_rstate)) {
@@ -394,10 +393,10 @@ void WorkspaceLattice::GetSuccs(
         auto edge_cost = computeCost(*parent_entry, *succ_state);
         costs->push_back(edge_cost);
 
-        SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_state->coord);
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_state->state);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      succ: %d", succ_id);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        cost: %5d", edge_cost);
     }
 }
 
@@ -421,9 +420,9 @@ void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
     ss << *state;
 
     if (fout == stdout) {
-        SMPL_DEBUG_NAMED(params()->graph_log, "%s", ss.str().c_str());
+        SMPL_DEBUG_NAMED(G_LOG, "%s", ss.str().c_str());
     } else if (fout == stderr) {
-        SMPL_WARN_NAMED(params()->graph_log, "%s", ss.str().c_str());
+        SMPL_WARN_NAMED(G_LOG, "%s", ss.str().c_str());
     } else {
         fprintf(fout, "%s\n", ss.str().c_str());
     }
@@ -440,7 +439,7 @@ void WorkspaceLattice::GetLazySuccs(
     succs->clear();
     costs->clear();
 
-    SMPL_DEBUG_NAMED(params()->expands_log, "Expand state %d", state_id);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
 
     // goal state should be absorbing
     if (state_id == m_goal_state_id) {
@@ -452,8 +451,8 @@ void WorkspaceLattice::GetLazySuccs(
     assert(state_entry);
     assert(state_entry->coord.size() == m_dof_count);
 
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  coord: " << state_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "  state: " << state_entry->state);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  state: " << state_entry->state);
 
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(state_entry->state, vis_name));
@@ -461,13 +460,13 @@ void WorkspaceLattice::GetLazySuccs(
     std::vector<WorkspaceAction> actions;
     m_actions->apply(*state_entry, actions);
 
-    SMPL_DEBUG_NAMED(params()->expands_log, "  actions: %zu", actions.size());
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
     for (size_t i = 0; i < actions.size(); ++i) {
         auto& action = actions[i];
 
-        SMPL_DEBUG_NAMED(params()->expands_log, "    action %zu", i);
-        SMPL_DEBUG_NAMED(params()->expands_log, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
 
         RobotState final_rstate;
         if (!checkLazyAction(state_entry->state, action, &final_rstate)) {
@@ -498,16 +497,16 @@ void WorkspaceLattice::GetLazySuccs(
 
         true_costs->push_back(false);
 
-        SMPL_DEBUG_NAMED(params()->expands_log, "      succ: %d", succ_id);
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        coord: " << succ_state->coord);
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        state: " << succ_state->state);
-        SMPL_DEBUG_NAMED(params()->expands_log, "        cost: %5d", edge_cost);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      succ: %d", succ_id);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        cost: %5d", edge_cost);
     }
 }
 
 int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
 {
-    SMPL_DEBUG_NAMED(params()->expands_log, "Evaluate cost of transition %d -> %d", parent_id, child_id);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Evaluate cost of transition %d -> %d", parent_id, child_id);
 
     assert(parent_id >= 0 && parent_id < (int)m_states.size());
     assert(child_id >= 0 && child_id < (int)m_states.size());
@@ -560,14 +559,14 @@ int WorkspaceLattice::GetTrueCost(int parent_id, int child_id)
 bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
 {
     if (!initialized()) {
-        SMPL_ERROR_NAMED(params()->graph_log, "cannot set goal pose on uninitialized lattice");
+        SMPL_ERROR_NAMED(G_LOG, "cannot set goal pose on uninitialized lattice");
         return false;
     }
 
     auto* vis_name = "goal_pose";
     SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal.pose, m_viz_frame_id, vis_name));
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "set the goal state");
+    SMPL_DEBUG_NAMED(G_LOG, "set the goal state");
 
     // check if an IK solution exists for the goal pose before we do
     // the search we plan even if there is no solution
@@ -577,12 +576,12 @@ bool WorkspaceLattice::setGoalPose(const GoalConstraint& goal)
         SMPL_WARN("No valid IK solution for the goal pose.");
     }
 
-    SMPL_DEBUG_NAMED(params()->graph_log, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
-    SMPL_DEBUG_NAMED(params()->graph_log, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  tol (meters): (%0.3f, %0.3f, %0.3f)", goal.xyz_tolerance[0], goal.xyz_tolerance[1], goal.xyz_tolerance[2]);
     double y, p, r;
     angles::get_euler_zyx(goal.pose.rotation(), y, p, r);
-    SMPL_DEBUG_NAMED(params()->graph_log, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", r, p, y);
-    SMPL_DEBUG_NAMED(params()->graph_log, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  rpy (radians): (%0.2f, %0.2f, %0.2f)", r, p, y);
+    SMPL_DEBUG_NAMED(G_LOG, "  tol (radians): (%0.3f, %0.3f, %0.3f)", goal.rpy_tolerance[0], goal.rpy_tolerance[1], goal.rpy_tolerance[2]);
 
     m_near_goal = false;
     m_t_start = clock::now();
@@ -741,7 +740,7 @@ bool WorkspaceLattice::checkAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         auto& istate = action[widx];
 
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        " << widx << ": " << istate);
 
         RobotState irstate;
         RobotState seed = state;
@@ -750,12 +749,12 @@ bool WorkspaceLattice::checkAction(
             seed[this->m_fangle_indices[i]] = istate[6 + i];
         }
         if (!stateWorkspaceToRobot(istate, seed, irstate)) {
-            SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "         -> failed to find ik solution");
             return false;
         }
 
         if (!robot()->checkJointLimits(irstate)) {
-            SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> violates joint limits");
             return false;
         }
 
@@ -766,7 +765,7 @@ bool WorkspaceLattice::checkAction(
     assert(wptraj.size() == action.size());
 
     if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
-        SMPL_DEBUG_NAMED(params()->expands_log, "        -> path to first waypoint in collision");
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> path to first waypoint in collision");
         return false;
     }
 
@@ -774,12 +773,12 @@ bool WorkspaceLattice::checkAction(
         auto& prev_istate = wptraj[widx - 1];
         auto& curr_istate = wptraj[widx];
         if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
-            SMPL_DEBUG_NAMED(params()->expands_log, "        -> path between waypoints in collision");
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> path between waypoints in collision");
             return false;
         }
     }
 
-    if (final_rstate) {
+    if (final_rstate != NULL) {
         *final_rstate = wptraj.back();
     }
     return true;
@@ -804,18 +803,18 @@ bool WorkspaceLattice::checkLazyAction(
     for (size_t widx = 0; widx < action.size(); ++widx) {
         auto& istate = action[widx];
 
-        SMPL_DEBUG_STREAM_NAMED(params()->expands_log, "        " << widx << ": " << istate);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        " << widx << ": " << istate);
 
         RobotState irstate;
         if (!stateWorkspaceToRobot(istate, state, irstate)) {
-            SMPL_DEBUG_NAMED(params()->expands_log, "         -> failed to find ik solution");
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "         -> failed to find ik solution");
             return false;
         }
 
         wptraj.push_back(irstate);
 
         if (!robot()->checkJointLimits(irstate)) {
-            SMPL_DEBUG_NAMED(params()->expands_log, "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> violates joint limits");
             return false;
         }
     }

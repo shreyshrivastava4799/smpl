@@ -94,9 +94,13 @@ private:
     double m_inflation_radius = 0.0;
     int m_cost_per_cell = 1;
 
-    int m_goal_x = -1;
-    int m_goal_y = -1;
-    int m_goal_z = -1;
+    struct CellCoord
+    {
+        int x, y, z;
+        CellCoord() = default;
+        CellCoord(int x, int y, int z) : x(x), y(y), z(z) { }
+    };
+    std::vector<CellCoord> m_goal_cells;
 
     void syncGridAndBfs();
     int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;

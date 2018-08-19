@@ -32,20 +32,24 @@
 #ifndef SMPL_ACTION_SPACE_H
 #define SMPL_ACTION_SPACE_H
 
-#include <smpl/forward.h>
-#include <smpl/graph/robot_planning_space_observer.h>
+// project includes
+#include <smpl/types.h>
 
 namespace smpl {
 
 class RobotPlanningSpace;
+struct GoalConstraint;
 
-class ActionSpace : public RobotPlanningSpaceObserver
+class ActionSpace
 {
 public:
 
     virtual ~ActionSpace();
 
-    virtual bool init(RobotPlanningSpace* space);
+    bool init(RobotPlanningSpace* space);
+
+    auto planningSpace() -> RobotPlanningSpace* { return m_space; }
+    auto planningSpace() const -> const RobotPlanningSpace* { return m_space; }
 
     /// \brief Return the set of actions available from a state.
     ///
@@ -56,8 +60,8 @@ public:
     /// CollisionChecker's isStateToStateValid function during a search.
     virtual bool apply(const RobotState& parent, std::vector<Action>& actions) = 0;
 
-    RobotPlanningSpace* planningSpace() { return m_space; }
-    const RobotPlanningSpace* planningSpace() const { return m_space; }
+    virtual void updateStart(const RobotState& state) { }
+    virtual void updateGoal(const GoalConstraint& goal) { }
 
 private:
 

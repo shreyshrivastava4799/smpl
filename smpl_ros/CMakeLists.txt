@@ -55,6 +55,7 @@ add_library(
     smpl_ros
     src/debug/visualizer_ros.cpp
     src/debug/marker_conversions.cpp
+    src/ros/factories.cpp
     src/ros/planner_interface.cpp
     src/ros/propagation_distance_field.cpp)
 

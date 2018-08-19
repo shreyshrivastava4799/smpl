@@ -171,7 +171,8 @@ namespace viz = visual;
 #define SV_SHOW_ONCE(level, name, markers) \
     do { \
         static bool hit = false; \
-        if (!hit) { \
+        SV_SHOW_DEFINE_LOCATION(!hit, level, name); \
+        if (__sv_define_location__enabled) { \
             hit = true; \
             ::smpl::visual::visualize(level, markers); \
         } \
@@ -184,7 +185,8 @@ namespace viz = visual;
                 ::std::chrono::duration_cast<::smpl::clock::duration>( \
                         ::std::chrono::duration<double>(1.0 / (double)rate)); \
         auto now = ::smpl::clock::now(); \
-        if (last_hit + rate_dur <= now) { \
+        SV_SHOW_DEFINE_LOCATION(last_hit + rate_dur <= now, level, name); \
+        if (__sv_define_location__enabled) { \
             last_hit = now; \
             ::smpl::visual::visualize(level, markers); \
         } \

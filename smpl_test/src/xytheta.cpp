@@ -371,9 +371,6 @@ int main(int argc, char* argv[])
     // 3. Create Collision Checker
     GridCollisionChecker cc(&grid);
 
-    // 4. Define Parameters
-    smpl::PlanningParams params;
-
     // 5. Create Action Space
     smpl::ManipLatticeActionSpace actions;
 
@@ -381,9 +378,9 @@ int main(int argc, char* argv[])
     smpl::ManipLattice space;
 
     // 7. Initialize Manipulation Lattice with RobotModel, CollisionChecker,
-    // PlanningParams, variable resolutions, and ActionSpace
+    // variable resolutions, and ActionSpace
     std::vector<double> resolutions = { res, res };
-    if (!space.init(&robot_model, &cc, &params, resolutions, &actions)) {
+    if (!space.init(&robot_model, &cc, resolutions, &actions)) {
         SMPL_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }

@@ -38,9 +38,6 @@ namespace smpl {
 
 ActionSpace::~ActionSpace()
 {
-    if (m_space) {
-        m_space->eraseObserver(this);
-    }
 }
 
 bool ActionSpace::init(RobotPlanningSpace* space)
@@ -50,7 +47,6 @@ bool ActionSpace::init(RobotPlanningSpace* space)
     }
 
     m_space = space;
-    m_space->insertObserver(this);
     return true;
 }
 

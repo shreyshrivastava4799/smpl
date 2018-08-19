@@ -46,7 +46,6 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/RobotState.h>
 #include <moveit_msgs/RobotTrajectory.h>
-#include <ros/ros.h>
 #include <sbpl/headers.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -61,25 +60,24 @@
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/heuristic/robot_heuristic.h>
 
-SBPL_CLASS_FORWARD(SBPLPlanner);
+class SBPLPlanner;
 
 namespace smpl {
 
 using PlanningSpaceFactory = std::function<
         std::unique_ptr<RobotPlanningSpace>(
-                RobotModel*, CollisionChecker*, PlanningParams*)>;
+                RobotModel*, CollisionChecker*, const PlanningParams&)>;
 
 using HeuristicFactory = std::function<
         std::unique_ptr<RobotHeuristic>(
-                RobotPlanningSpace*)>;
+                RobotPlanningSpace*, const PlanningParams&)>;
 
 using PlannerFactory = std::function<
         std::unique_ptr<SBPLPlanner>(
-                RobotPlanningSpace*, RobotHeuristic*)>;
+                RobotPlanningSpace*, RobotHeuristic*, const PlanningParams&)>;
 
 using GoalConstraints = std::vector<moveit_msgs::Constraints>;
 
-SBPL_CLASS_FORWARD(PlannerInterface);
 class PlannerInterface
 {
 public:
@@ -169,13 +167,6 @@ protected:
 
     std::string m_planner_id;
 
-    bool checkConstructionArgs() const;
-
-    // Initialize the SBPL planner and the smpl environment
-    bool initializePlannerAndEnvironment();
-
-    bool checkParams(const PlanningParams& params) const;
-
     // Set start configuration
     bool setGoal(const GoalConstraints& v_goal_constraints);
     bool setStart(const moveit_msgs::RobotState& state);
@@ -183,32 +174,15 @@ protected:
     // Retrieve plan from sbpl
     bool plan(double allowed_time, std::vector<RobotState>& path);
 
-    void clearMotionPlanResponse(
-        const moveit_msgs::MotionPlanRequest& req,
-        moveit_msgs::MotionPlanResponse& res) const;
-
     bool parsePlannerID(
         const std::string& planner_id,
         std::string& space_name,
         std::string& heuristic_name,
         std::string& search_name) const;
 
-    void clearGraphStateToPlannerStateMap();
     bool reinitPlanner(const std::string& planner_id);
 
-    bool isPathValid(const std::vector<RobotState>& path) const;
     void postProcessPath(std::vector<RobotState>& path) const;
-    void convertJointVariablePathToJointTrajectory(
-        const std::vector<RobotState>& path,
-        const std::string& joint_state_frame,
-        const std::string& multi_dof_joint_state_frame,
-        moveit_msgs::RobotTrajectory& traj) const;
-    void profilePath(trajectory_msgs::JointTrajectory& traj) const;
-    void removeZeroDurationSegments(trajectory_msgs::JointTrajectory& traj) const;
-
-    bool writePath(
-        const moveit_msgs::RobotState& ref,
-        const moveit_msgs::RobotTrajectory& traj) const;
 };
 
 } // namespace smpl

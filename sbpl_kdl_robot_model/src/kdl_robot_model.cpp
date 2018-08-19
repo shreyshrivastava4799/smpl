@@ -41,13 +41,9 @@
 #include <ros/console.h>
 #include <smpl/angles.h>
 #include <smpl/time.h>
+#include <smpl/stl/memory.h>
 
 namespace smpl {
-
-template <class T, class... Args>
-auto make_unique(Args&&... args) -> std::unique_ptr<T> {
-    return std::unique_ptr<T>(new T(args...));
-}
 
 static
 bool getCount(int& count, int max_count, int min_count)
