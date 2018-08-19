@@ -9,7 +9,7 @@
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
-#ifdef SMPL_SV_VISUALIZATION_MSGS
+#ifdef SMPL_HAS_VISUALIZATION_MSGS
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #endif
@@ -414,7 +414,7 @@ void NotifyLevelsChanged()
 // Default VisualizerBase Implementation //
 ///////////////////////////////////////////
 
-#ifdef SMPL_SV_VISUALIZATION_MSGS
+#ifdef SMPL_HAS_VISUALIZATION_MSGS
 void VisualizerBase::visualize(
     Level level,
     const visualization_msgs::Marker& mm)
@@ -494,7 +494,7 @@ void visualize(Level level, const std::vector<visual::Marker>& markers)
     g_visualizer->visualize(level, markers);
 }
 
-#ifdef SMPL_SV_VISUALIZATION_MSGS
+#ifdef SMPL_HAS_VISUALIZATION_MSGS
 void visualize(Level level, const visualization_msgs::Marker& marker)
 {
     std::unique_lock<std::mutex> lock(g_viz_mutex);
