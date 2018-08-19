@@ -60,9 +60,9 @@ void CreateNeighborUpdateList(
             }
             if (edge) {
                 if (
-                    !(((tx == -1 && sx == 1) || (tx == 1 & sx == -1)) ||
-                    ((ty == -1 && sy == 1) || (ty == 1 & sy == -1)) ||
-                    ((tz == -1 && sz == 1) || (tz == 1 & sz == -1))))
+                    !(((tx == -1 && sx == 1) || (tx == 1 && sx == -1)) ||
+                    ((ty == -1 && sy == 1) || (ty == 1 && sy == -1)) ||
+                    ((tz == -1 && sz == 1) || (tz == 1 && sz == -1))))
                 {
                     indices[i++] = dirnum(tx, ty, tz);
                 }

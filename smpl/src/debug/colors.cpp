@@ -14,20 +14,19 @@ Color MakeColorHSV(float h, float s, float v, float a)
 template <class T>
 void hsv_to_rgb(T* r, T* g, T* b, T h, T s, T v)
 {
-    int i;
-    T f, p, q, t;
     if (s == T(0)) {
         // achromatic (grey)
         *r = *g = *b = v;
         return;
     }
+
     h /= 60.0;      // sector 0 to 5
-    i = floor(h);
-    f = h - i;      // factorial part of h
-    p = v * (T(1.0) - s);
-    q = v * (T(1.0) - s * f);
-    t = v * (T(1.0) - s * (T(1.0) - f));
-    switch (i) {
+    auto i = floor(h);
+    T f = h - i;      // factorial part of h
+    T p = v * (T(1.0) - s);
+    T q = v * (T(1.0) - s * f);
+    T t = v * (T(1.0) - s * (T(1.0) - f));
+    switch ((int)i) {
     case 0:
         *r = v;
         *g = t;
