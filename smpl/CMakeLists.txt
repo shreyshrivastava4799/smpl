@@ -7,8 +7,15 @@ project(smpl)
 
 set(SMPL_CONSOLE_ROS ON CACHE BOOL "Replace smpl log macros with rosconsole macros")
 set(SMPL_SV_VISUALIZATION_MSGS ON CACHE BOOL "Include visualization_msgs in visualizer interface")
-set(SMPL_BUILD_SHARED ON CACHE BOOL "Build smpl as a shared library")
-set(SMPL_BUILD_STATIC ON CACHE BOOL "Build smpl as a static library")
+
+# Seed options using the default behavior of BUILD_SHARED_LIBS
+if(BUILD_SHARED_LIBS)
+    option(SMPL_BUILD_SHARED "Build smpl as a shared library" ON)
+    option(SMPL_BUILD_STATIC "Build smpl as a static library" OFF)
+else()
+    option(SMPL_BUILD_SHARED "Build smpl as a shared library" OFF)
+    option(SMPL_BUILD_STATIC "Build smpl as a static library" ON)
+endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -213,18 +220,12 @@ macro(add_common_compile_definitions name)
     endif()
 endmacro()
 
-add_library(smpl-objects OBJECT ${SMPL_LIBRARY_SOURCES})
-set_target_properties(smpl-objects PROPERTIES POSITION_INDEPENDENT_CODE 1)
-include_common_directories(smpl-objects)
-add_common_compile_definitions(smpl-objects)
-
 ####################################
 # Build the shared library version #
 ####################################
 
 if(SMPL_BUILD_SHARED)
-#    add_library(smpl SHARED ${SMPL_LIBRARY_SOURCES})
-    add_library(smpl SHARED $<TARGET_OBJECTS:smpl-objects>)
+    add_library(smpl SHARED ${SMPL_LIBRARY_SOURCES})
     set_target_properties(
         smpl
         PROPERTIES
@@ -241,8 +242,7 @@ endif()
 ####################################
 
 if(SMPL_BUILD_STATIC)
-#    add_library(smpl-static STATIC ${SMPL_LIBRARY_SOURCES})
-    add_library(smpl-static STATIC $<TARGET_OBJECTS:smpl-objects>)
+    add_library(smpl-static STATIC ${SMPL_LIBRARY_SOURCES})
 
     set_target_properties(smpl-static PROPERTIES OUTPUT_NAME smpl)
     if(MSVC)
