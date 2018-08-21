@@ -164,7 +164,7 @@ struct WorkspaceLattice :
     bool checkAction(
         const RobotState& state,
         const WorkspaceAction& action,
-        RobotState* final_rstate = nullptr);
+        RobotState* final_rstate = NULL);
 
     int computeCost(
         const WorkspaceLatticeState& src,

@@ -79,7 +79,6 @@ bool MoveItRobotModel::init(
     std::string real_ik_group_name;
     if (ik_group_name.empty()) {
         real_ik_group_name = group_name;
-        // already know valid existence
     } else {
         real_ik_group_name = ik_group_name;
         if (!robot_model->hasJointModelGroup(real_ik_group_name)) {
@@ -759,7 +758,7 @@ bool MoveItRobotModel::computeUnrestrictedIK(
     }
     auto& T_model_link = T_planning_link; // rebrand
 
-    ROS_DEBUG_STREAM("start: " << start);
+    ROS_DEBUG_STREAM_NAMED(LOG, "start: " << start);
     for (size_t sind = 0; sind < start.size(); ++sind) {
         int avind = m_active_var_indices[sind];
         m_robot_state->setVariablePosition(avind, start[sind]);
@@ -787,7 +786,7 @@ bool MoveItRobotModel::computeUnrestrictedIK(
             ops))
     {
         Eigen::Quaterniond q(T_model_link.rotation());
-        ROS_DEBUG("Failed to set from ik to pose (%f, %f, %f, %f, %f, %f, %f)",
+        ROS_DEBUG_NAMED(LOG, "Failed to set from ik to pose (%f, %f, %f, %f, %f, %f, %f)",
                 T_model_link.translation().x(),
                 T_model_link.translation().y(),
                 T_model_link.translation().z(),
@@ -837,7 +836,7 @@ bool MoveItRobotModel::computeUnrestrictedIK(
         solution[avind] = m_robot_state->getVariablePosition(vind);
     }
 
-    ROS_DEBUG_STREAM("IK Succeeded with solution " << solution);
+    ROS_DEBUG_STREAM_NAMED(LOG, "IK Succeeded with solution " << solution);
     return true;
 }
 
