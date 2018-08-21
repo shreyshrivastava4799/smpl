@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.8)
 project(sbpl_pr2_robot_model)
 
-set(CMAKE_BUILD_TYPE Release)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 #list(APPEND CMAKE_CXX_FLAGS "-std=c++11")
 
