@@ -1,6 +1,7 @@
 #include "planner_family_manager.h"
 
 #include <ros/ros.h>
+#include <smpl/stl/memory.h>
 
 namespace sbpl_interface {
 
@@ -45,8 +46,8 @@ bool PlannerFamilyManager::initialize(
     }
 
     try {
-        m_planner_plugin_loader.reset(new PlannerManagerLoader(
-                "moveit_core", "planning_interface::PlannerManager"));
+        m_planner_plugin_loader = smpl::make_unique<PlannerManagerLoader>(
+                "moveit_core", "planning_interface::PlannerManager");
     }
     catch (pluginlib::PluginlibException& ex) {
         ROS_FATAL_STREAM("Exception while creating planning plugin loader " << ex.what());
