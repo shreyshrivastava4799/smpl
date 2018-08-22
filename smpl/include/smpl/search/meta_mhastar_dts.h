@@ -38,13 +38,12 @@
 #include <random>
 
 // system includes
-#include <boost/math/distributions/beta.hpp>
 #include <sbpl/heuristics/heuristic.h>
 #include <sbpl/planners/planner.h>
 
 // project includes
 #include <smpl/heap/intrusive_heap.h>
-#include <smpl/search/fmhastar.h>
+#include <smpl/search/mhastar_base.h> // for MHASearchState declaration
 #include <smpl/time.h>
 
 namespace smpl {

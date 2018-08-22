@@ -38,6 +38,7 @@
 #include <algorithm>
 
 // system includes
+#include <boost/math/distributions/beta.hpp>
 #include <sbpl/utils/key.h>
 
 // project includes
