@@ -130,15 +130,15 @@ bool WorkspaceLatticeBase::init(
         }
     }
 
-    SMPL_INFO("discretization of workspace lattice:");
-    SMPL_INFO("  x: { res: %f, count: %d }", m_res[0], m_val_count[0]);
-    SMPL_INFO("  y: { res: %f, count: %d }", m_res[1], m_val_count[1]);
-    SMPL_INFO("  z: { res: %f, count: %d }", m_res[2], m_val_count[2]);
-    SMPL_INFO("  R: { res: %f, count: %d }", m_res[3], m_val_count[3]);
-    SMPL_INFO("  P: { res: %f, count: %d }", m_res[4], m_val_count[4]);
-    SMPL_INFO("  Y: { res: %f, count: %d }", m_res[5], m_val_count[5]);
+    SMPL_DEBUG_NAMED(G_LOG, "discretization of workspace lattice:");
+    SMPL_DEBUG_NAMED(G_LOG, "  x: { res: %f, count: %d }", m_res[0], m_val_count[0]);
+    SMPL_DEBUG_NAMED(G_LOG, "  y: { res: %f, count: %d }", m_res[1], m_val_count[1]);
+    SMPL_DEBUG_NAMED(G_LOG, "  z: { res: %f, count: %d }", m_res[2], m_val_count[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  R: { res: %f, count: %d }", m_res[3], m_val_count[3]);
+    SMPL_DEBUG_NAMED(G_LOG, "  P: { res: %f, count: %d }", m_res[4], m_val_count[4]);
+    SMPL_DEBUG_NAMED(G_LOG, "  Y: { res: %f, count: %d }", m_res[5], m_val_count[5]);
     for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        SMPL_INFO("  J%d: { res: %f, count: %d }", i, m_res[6 + i], m_val_count[6 + i]);
+        SMPL_DEBUG_NAMED(G_LOG, "  J%d: { res: %f, count: %d }", i, m_res[6 + i], m_val_count[6 + i]);
     }
 
     return true;
@@ -159,7 +159,9 @@ void WorkspaceLatticeBase::stateRobotToWorkspace(
     ostate[0] = pose.translation().x();
     ostate[1] = pose.translation().y();
     ostate[2] = pose.translation().z();
-    angles::get_euler_zyx(pose.rotation(), ostate[5], ostate[4], ostate[3]);
+
+    get_euler_zyx(pose.rotation(), ostate[5], ostate[4], ostate[3]);
+
     for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
         ostate[6 + fai] = state[m_fangle_indices[fai]];
     }

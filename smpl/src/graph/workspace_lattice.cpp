@@ -731,30 +731,31 @@ auto WorkspaceLattice::getStateVisualization(
 bool WorkspaceLattice::checkAction(
     const RobotState& state,
     const WorkspaceAction& action,
-    RobotState* final_rstate)
+    RobotState* final_robot_state)
 {
     std::vector<RobotState> wptraj;
     wptraj.reserve(action.size());
 
     // check waypoints for ik solutions and joint limits
     for (size_t widx = 0; widx < action.size(); ++widx) {
-        auto& istate = action[widx];
+        auto& waypoint = action[widx];
 
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        " << widx << ": " << istate);
+        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        " << widx << ": " << waypoint);
 
-        RobotState irstate;
         RobotState seed = state;
         // copy over seed angles from the intermediate state
         for (int i = 0; i < this->freeAngleCount(); ++i) {
-            seed[this->m_fangle_indices[i]] = istate[6 + i];
+            seed[this->m_fangle_indices[i]] = waypoint[6 + i];
         }
-        if (!stateWorkspaceToRobot(istate, seed, irstate)) {
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "         -> failed to find ik solution");
+
+        RobotState irstate;
+        if (!stateWorkspaceToRobot(waypoint, seed, irstate)) {
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "         -> failed to find ik solution");
             return false;
         }
 
         if (!robot()->checkJointLimits(irstate)) {
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> violates joint limits");
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> violates joint limits");
             return false;
         }
 
@@ -765,22 +766,23 @@ bool WorkspaceLattice::checkAction(
     assert(wptraj.size() == action.size());
 
     if (!collisionChecker()->isStateToStateValid(state, wptraj[0])) {
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> path to first waypoint in collision");
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> path to first waypoint in collision");
         return false;
     }
 
     for (size_t widx = 1; widx < wptraj.size(); ++widx) {
-        auto& prev_istate = wptraj[widx - 1];
-        auto& curr_istate = wptraj[widx];
-        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate)) {
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> path between waypoints in collision");
+        auto& prev_wp = wptraj[widx - 1];
+        auto& curr_wp = wptraj[widx];
+        if (!collisionChecker()->isStateToStateValid(prev_wp, curr_wp)) {
+            SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> path between waypoints in collision");
             return false;
         }
     }
 
-    if (final_rstate != NULL) {
-        *final_rstate = wptraj.back();
+    if (final_robot_state != NULL) {
+        *final_robot_state = wptraj.back();
     }
+
     return true;
 }
 

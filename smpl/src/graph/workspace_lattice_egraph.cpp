@@ -184,7 +184,6 @@ void GetEGraphStateSuccs(
         RobotState robot_state;
         if (graph->stateWorkspaceToRobot(workspace_state, egraph_state, robot_state)) {
             // inherit the exact z value from the e-graph state
-//            robot_state.back() = egraph_state.back();
 
             // TODO: check action
 
@@ -256,17 +255,17 @@ void GetNonEGraphStateSuccs(
     for (size_t i = 0; i < actions.size(); ++i) {
         auto& action = actions[i];
 
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      waypoints: %zu", action.size());
 
-        smpl::RobotState final_robot_state;
+        RobotState final_robot_state;
         if (!graph->checkAction(state->state, action, &final_robot_state)) {
             continue;
         }
 
-        auto& final_state = action.back();
+        auto& final_workspace_state = action.back();
         smpl::WorkspaceCoord succ_coord;
-        graph->stateWorkspaceToCoord(final_state, succ_coord);
+        graph->stateWorkspaceToCoord(final_workspace_state, succ_coord);
 
         // check if hash entry already exists, if not then create one
         auto succ_id = graph->createState(succ_coord);
@@ -274,7 +273,7 @@ void GetNonEGraphStateSuccs(
         succ_state->state = final_robot_state;
 
         // put successor on successor list with the proper cost
-        if (!unique && graph->isGoal(final_state, final_robot_state)) {
+        if (!unique && graph->isGoal(final_workspace_state, final_robot_state)) {
             succs->push_back(graph->m_goal_state_id);
         } else {
             succs->push_back(succ_id);
@@ -283,10 +282,10 @@ void GetNonEGraphStateSuccs(
         auto edge_cost = graph->computeCost(*state, *succ_state);
         costs->push_back(edge_cost);
 
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "      succ: %d", succ_id);
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        cost: %5d", edge_cost);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG,        "      succ: %d", succ_id);
+        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG,        "        cost: %5d", edge_cost);
     }
 }
 

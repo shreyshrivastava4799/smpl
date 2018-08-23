@@ -5,7 +5,6 @@
 #include <map>
 
 // system includes
-#include <boost/scoped_ptr.hpp>
 #include <moveit/planning_interface/planning_interface.h>
 #include <pluginlib/class_loader.h>
 
@@ -47,10 +46,8 @@ public:
 
 private:
 
-    typedef pluginlib::ClassLoader<planning_interface::PlannerManager>
-            PlannerManagerLoader;
-    typedef boost::scoped_ptr<PlannerManagerLoader> PlannerPluginLoaderPtr;
-    PlannerPluginLoaderPtr m_planner_plugin_loader;
+    using PlannerManagerLoader = pluginlib::ClassLoader<planning_interface::PlannerManager>;
+    std::unique_ptr<PlannerManagerLoader> m_planner_plugin_loader;
 
     std::map<std::string, planning_interface::PlannerManagerPtr> m_planner_plugins;
 
