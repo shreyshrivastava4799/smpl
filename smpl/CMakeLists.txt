@@ -30,9 +30,9 @@ set(SMPL_MINOR_VERSION 0)
 set(SMPL_PATCH_VERSION 0)
 set(SMPL_VERSION ${SMPL_MAJOR_VERSION}.${SMPL_MINOR_VERSION}.${SMPL_PATCH_VERSION})
 
-###########################################################
-# allow overriding install directories for system install #
-###########################################################
+####################################################
+# allow overriding install directories for install #
+####################################################
 
 set(SMPL_INSTALL_LIB_DIR     lib             CACHE PATH "Installation directory for libraries")
 set(SMPL_INSTALL_INCLUDE_DIR include         CACHE PATH "Installation directory for header files")
@@ -75,9 +75,9 @@ else()
     set(SMPL_HAS_VISUALIZATION_MSGS 0)
 endif()
 
-####################################################
-# generate our own .cmake files for system install #
-####################################################
+#####################################
+# generate .cmake files for install #
+#####################################
 
 file(RELATIVE_PATH REL_INCLUDE_DIR "${SMPL_INSTALL_CMAKE_DIR}" "${SMPL_INSTALL_INCLUDE_DIR}")
 set(CONF_INCLUDE_DIRS "\${SMPL_CMAKE_DIR}/${REL_INCLUDE_DIR}")

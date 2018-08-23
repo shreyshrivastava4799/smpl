@@ -4,7 +4,6 @@ project(sbpl_pr2_robot_model)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(
     catkin
@@ -29,19 +28,19 @@ catkin_package(
         pr2_arm_kinematics
         sbpl_kdl_robot_model)
 
-include_directories(include)
-include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
-include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
-
 add_library(
     sbpl_pr2_robot_model
     src/sbpl_math.cpp
     src/orientation_solver.cpp
     src/pr2_kdl_robot_model.cpp
     src/ubr1_kdl_robot_model.cpp)
+target_include_directories(sbpl_pr2_robot_model PUBLIC include)
+target_include_directories(sbpl_pr2_robot_model SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
+target_include_directories(sbpl_pr2_robot_model SYSTEM PUBLIC ${orocos_kdl_INCLUDE_DIRS})
 target_link_libraries(sbpl_pr2_robot_model ${catkin_LIBRARIES})
 target_link_libraries(sbpl_pr2_robot_model ${orocos_kdl_LIBRARIES})
 target_link_libraries(sbpl_pr2_robot_model smpl::smpl)
+target_compile_options(sbpl_pr2_robot_model PUBLIC -std=c++11)
 
 install(
     DIRECTORY include/sbpl_pr2_robot_model/

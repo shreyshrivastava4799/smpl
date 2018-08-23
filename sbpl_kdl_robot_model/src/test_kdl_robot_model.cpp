@@ -50,8 +50,6 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "test_kdl_robot_model");
     ros::NodeHandle nh;
     ros::NodeHandle ph("~");
-    sleep(1);
-    ros::spinOnce();
 
     smpl::KDLRobotModel rm;
 
@@ -70,8 +68,6 @@ int main(int argc, char* argv[])
     planning_joints.push_back("r_forearm_roll_joint");
     planning_joints.push_back("r_wrist_roll_joint");
 
-    const size_t num_planning_joints = planning_joints.size();
-
     std::string base_link = "torso_lift_link";
     std::string tip_link = "r_gripper_palm_link";
 
@@ -83,7 +79,7 @@ int main(int argc, char* argv[])
     ROS_WARN("Robot Model Information");
     rm.printRobotModelInformation();
 
-    smpl::RobotState fka(num_planning_joints, 0.0);
+    smpl::RobotState fka(planning_joints.size(), 0.0);
     fka[0] = -0.5;
     fka[1] = -0.3;
     fka[2] =  0.0;
@@ -98,8 +94,8 @@ int main(int argc, char* argv[])
             Eigen::Translation3d(0.766268, -0.188, 0.790675) *
             Eigen::AngleAxisd(0.5, Eigen::Vector3d::UnitX());
 
-    smpl::RobotState seed(num_planning_joints, 0.0);
-    smpl::RobotState ika(num_planning_joints, 0.0);
+    smpl::RobotState seed(planning_joints.size(), 0.0);
+    smpl::RobotState ika(planning_joints.size(), 0.0);
     if (!rm.computeIK(pose, seed, ika)) {
         ROS_ERROR("Failed to compute fK");
         return 0;
