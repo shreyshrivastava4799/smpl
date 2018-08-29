@@ -147,7 +147,7 @@ bool WorkspaceLattice::setStart(const RobotState& state)
         return false;
     }
 
-    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  angles: " << state);
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state: " << state);
 
     if (!robot()->checkJointLimits(state)) {
         SMPL_ERROR_NAMED(G_LOG, "start state violates joint limits");
@@ -165,6 +165,8 @@ bool WorkspaceLattice::setStart(const RobotState& state)
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(state, vis_name));
     WorkspaceCoord start_coord;
     stateRobotToCoord(state, start_coord);
+
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  coord: " << start_coord);
 
     m_start_state_id = createState(start_coord);
     m_start_entry = getState(m_start_state_id);
