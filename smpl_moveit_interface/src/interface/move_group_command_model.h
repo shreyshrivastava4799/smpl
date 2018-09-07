@@ -50,6 +50,8 @@ public:
     MoveGroupCommandModel();
     ~MoveGroupCommandModel();
 
+    void Init();
+
     /// \brief Load a robot into the command model.
     ///
     /// If the robot model fails load from the given robot_description, the
@@ -68,11 +70,10 @@ public:
     /// \brief Return the state of the phantom robot used for commanding.
     auto robotState() const -> const moveit::core::RobotState*;
 
-    boost::tribool robotStateValidity() const { return m_validity; }
+    auto robotStateValidity() const -> boost::tribool { return m_validity; }
 
-    auto contacts() const
-        -> const std::vector<moveit_msgs::ContactInformation>&
-    { return m_contacts; }
+    using Contacts = std::vector<moveit_msgs::ContactInformation>;
+    auto contacts() const -> const Contacts&;
 
     bool readyToPlan() const;
 
@@ -90,30 +91,35 @@ public:
 
     /// \name General/Robot Settings
     ///@{
-    const std::string robotDescription() const;
+
+    // Return the URDF string of the loaded robot, or empty if no robot is
+    // loaded.
+    auto robotDescription() const -> const std::string&;
+
     ///@}
 
     /// \name Planner Settings
     ///@{
-    const std::string plannerName() const;
-    const std::string plannerID() const;
-    int numPlanningAttempts() const;
-    double allowedPlanningTime() const;
+    auto plannerName() const -> const std::string;
+    auto plannerID() const -> const std::string;
+    int  numPlanningAttempts() const;
+    auto allowedPlanningTime() const -> double;
     ///@}
 
     /// \name Goal Constraints Settings
     ///@{
     auto planningJointGroupName() const -> const std::string&;
-    double goalJointTolerance() const;
-    double goalPositionTolerance() const;
-    double goalOrientationTolerance() const;
+    auto goalJointTolerance() const -> double;
+    auto goalPositionTolerance() const -> double;
+    auto goalOrientationTolerance() const -> double;
     auto workspace() const -> const moveit_msgs::WorkspaceParameters&;
     ///@}
 
     void load(const rviz::Config& config);
     void save(rviz::Config config) const;
 
-    RobotCommandModel* getRobotCommandModel() { return &m_robot_command_model; }
+    auto getRobotCommandModel() -> RobotCommandModel*
+    { return &m_robot_command_model; }
 
 public Q_SLOTS:
 
@@ -159,6 +165,8 @@ private:
 
     RobotCommandModel m_robot_command_model;
 
+    std::string m_empty_string;
+
     // assertions:
     // * robot_loaded:
     //     m_scene_monitor ^ !robotDescription().empty() ^
@@ -176,43 +184,39 @@ private:
     //   for the workspace
     planning_scene_monitor::PlanningSceneMonitorPtr m_scene_monitor;
 
-    boost::tribool m_validity;
-    std::vector<moveit_msgs::ContactInformation> m_contacts;
+    boost::tribool m_validity = boost::indeterminate;
+    Contacts m_contacts;
 
     /// \name move_group commands
     ///@{
     std::unique_ptr<ros::ServiceClient> m_check_state_validity_client;
     std::unique_ptr<ros::ServiceClient> m_query_planner_interface_client;
 
-    typedef actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction> MoveGroupActionClient;
+    using MoveGroupActionClient = actionlib::SimpleActionClient<moveit_msgs::MoveGroupAction>;
     std::unique_ptr<MoveGroupActionClient> m_move_group_client;
     ///@}
 
     std::vector<moveit_msgs::PlannerInterfaceDescription> m_planner_interfaces;
-    int m_curr_planner_idx;
-    int m_curr_planner_id_idx;
+    int m_curr_planner_idx = -1;
+    int m_curr_planner_id_idx = -1;
 
     std::vector<std::string> m_available_frames;
 
     /// \name MotionPlanRequest settings
     ///@{
-    double m_joint_tol_rad;
-    double m_pos_tol_m;
-    double m_rot_tol_rad;
+    double m_joint_tol_rad = 0.0;
+    double m_pos_tol_m = 0.0;
+    double m_rot_tol_rad = 0.0;
 
     moveit_msgs::WorkspaceParameters m_workspace;
 
-    int m_num_planning_attempts;
-    double m_allowed_planning_time_s;
+    int m_num_planning_attempts = 0;
+    double m_allowed_planning_time_s = 0.0;
 
     std::string m_curr_joint_group_name;
     ///@}
 
     void reinitCheckStateValidityService();
-    void reinitQueryPlannerInterfaceService();
-
-    void logPlanningSceneMonitor(
-        const planning_scene_monitor::PlanningSceneMonitor& monitor) const;
 
     void updateRobotStateValidity();
 
