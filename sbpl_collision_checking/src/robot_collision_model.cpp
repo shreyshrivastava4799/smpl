@@ -529,6 +529,11 @@ bool RobotCollisionModel::initCollisionModel(
     // initialize spheres models
     m_spheres_models.reserve(config.spheres_models.size());
     for (auto& spheres_config : config.spheres_models) {
+        if (!hasLink(spheres_config.link_name)) {
+            ROS_WARN("Missing link '%s' for spheres configuration", spheres_config.link_name.c_str());
+            continue;
+        }
+
         std::vector<CollisionSphereModel> sphere_models;
         if (spheres_config.autogenerate) {
             std::vector<CollisionSphereModel> auto_spheres;
@@ -811,9 +816,19 @@ bool RobotCollisionModel::expandGroups(
 
     for (size_t gidx = 0; gidx < groups.size(); ++gidx) {
         auto& g = groups[gidx];
-        for (const auto& chain : g.chains) {
+        for (auto& chain : g.chains) {
             auto& base = std::get<0>(chain);
             auto& tip = std::get<1>(chain);
+
+            if (!hasLink(base)) {
+                ROS_WARN("Missing base link of chain (%s, %s)", base.c_str(), tip.c_str());
+                continue;
+            }
+
+            if (!hasLink(tip)) {
+                ROS_WARN("Missing tip link of chain (%s, %s)", base.c_str(), tip.c_str());
+                continue;
+            }
 
             std::vector<std::string> chain_links;
 
@@ -1017,26 +1032,27 @@ bool RobotCollisionModel::checkCollisionModelConfig(
     const CollisionModelConfig& config)
 {
     // TODO:: report the more fine-grained sources of errors
+    // NOTE: Policy here changed from reporting errors to reporting warnings.
+    // This is primarily to support different versions of a a robot model with
+    // modified or missing/added links while maintaining a single configuration
+    // format for both.
 
-    for (const auto& spheres_config : config.spheres_models) {
+    for (auto& spheres_config : config.spheres_models) {
         if (!hasLink(spheres_config.link_name)) {
-            ROS_ERROR("No link '%s' found in robot model", spheres_config.link_name.c_str());
-            return false;
+            ROS_WARN("No link '%s' found in robot model", spheres_config.link_name.c_str());
         }
     }
 
-    for (const auto& voxels_config : config.voxel_models) {
+    for (auto& voxels_config : config.voxel_models) {
         if (!hasLink(voxels_config.link_name)) {
-            ROS_ERROR("No link '%s' found in robot model", voxels_config.link_name.c_str());
-            return false;
+            ROS_WARN("No link '%s' found in robot model", voxels_config.link_name.c_str());
         }
     }
 
-    for (const auto& group_config : config.groups) {
-        for (const std::string& link_name : group_config.links) {
+    for (auto& group_config : config.groups) {
+        for (auto& link_name : group_config.links) {
             if (!hasLink(link_name)) {
-                ROS_ERROR("No link '%s' found in robot model", link_name.c_str());
-                return false;
+                ROS_WARN("No link '%s' found in robot model", link_name.c_str());
             }
         }
     }
