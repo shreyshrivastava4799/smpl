@@ -5,29 +5,9 @@
 #include <cstdlib>
 #include <limits>
 
+#include <smpl/unicycle/pose_2d.h>
+
 namespace smpl {
-
-struct Pose2D
-{
-    double data_[3];
-
-    Pose2D() = default;
-
-    Pose2D(double x, double y, double theta)
-    {
-        data_[0] = x;
-        data_[1] = y;
-        data_[2] = theta;
-    }
-
-    double& x() { return data_[0]; }
-    double& y() { return data_[1]; }
-    double& theta() { return data_[2]; }
-
-    double x() const { return data_[0]; }
-    double y() const { return data_[1]; }
-    double theta() const { return data_[2]; }
-};
 
 struct UnicycleMotion
 {
@@ -55,40 +35,10 @@ struct UnicycleMotion
     //     (turn-in-place) is required to meet the final orientation
     bool valid = false;
 
-    auto operator()(double t) const -> Pose2D
-    {
-        return at(t);
-    }
-
-    double length() const {
-        const double arc_len = r * std::fabs(goal.theta() - start.theta()); //w * (1.0 - tl);
-        return std::fabs(l) + std::fabs(arc_len);
-    }
-
-    bool is_valid() const { return valid; }
-
-    auto at(double t) const -> Pose2D
-    {
-        if (t <= tl) {
-            double x = start.x() + v * t * std::cos(start.theta());
-            double y = start.y() + v * t * std::sin(start.theta());
-            double theta = start.theta();
-            return Pose2D{ x, y, theta };
-        } else {
-            double x =
-                    start.x()
-                    + l * std::cos(start.theta())
-                    + r * std::sin(w * (t - tl) + start.theta())
-                    - r * std::sin(start.theta());
-            double y =
-                    start.y()
-                    + l * std::sin(start.theta())
-                    - r * std::cos(w * (t - tl) + start.theta())
-                    + r * std::cos(start.theta());
-            double theta = start.theta() + w * (t - tl);
-            return Pose2D{ x, y, theta };
-        }
-    }
+    auto operator()(double t) const -> Pose2D;
+    auto length() const -> double;
+    bool is_valid() const;
+    auto at(double t) const -> Pose2D;
 };
 
 auto MakeUnicycleMotion(
@@ -97,17 +47,11 @@ auto MakeUnicycleMotion(
     double eps = std::numeric_limits<double>::epsilon())
     -> UnicycleMotion;
 
-inline auto MakeUnicycleMotion(
+auto MakeUnicycleMotion(
     const Pose2D& start,
     const Pose2D& goal,
     double eps = std::numeric_limits<double>::epsilon())
-    -> UnicycleMotion
-{
-    return MakeUnicycleMotion(
-            start.x(), start.y(), start.theta(),
-            goal.x(), goal.y(), goal.theta(),
-            eps);
-}
+    -> UnicycleMotion;
 
 } // namespace smpl
 

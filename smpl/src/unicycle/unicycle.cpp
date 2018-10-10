@@ -9,7 +9,8 @@
 namespace smpl {
 
 // from http://eigen.tuxfamily.org/bz/show_bug.cgi?id=257, specific to 2x2 matrices
-static inline auto pinv(const Eigen::Matrix2d& a, double eps) -> Eigen::Matrix2d
+static
+inline auto pinv(const Eigen::Matrix2d& a, double eps) -> Eigen::Matrix2d
 {
     // see : http://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#The_general_case_and_the_SVD_method
 
@@ -45,6 +46,42 @@ static inline bool AlmostEquals(double lhs, double rhs, double eps)
     return std::fabs(lhs - rhs) < eps;
 }
 
+auto UnicycleMotion::operator()(double t) const -> Pose2D
+{
+    return at(t);
+}
+
+auto UnicycleMotion::length() const -> double
+{
+    auto arc_len = r * std::fabs(goal.theta - start.theta); //w * (1.0 - tl);
+    return std::fabs(l) + std::fabs(arc_len);
+}
+
+bool UnicycleMotion::is_valid() const { return valid; }
+
+auto UnicycleMotion::at(double t) const -> Pose2D
+{
+    if (t <= tl) {
+        auto x = start.x + v * t * std::cos(start.theta);
+        auto y = start.y + v * t * std::sin(start.theta);
+        auto theta = start.theta;
+        return Pose2D{ x, y, theta };
+    } else {
+        auto x =
+                start.x
+                + l * std::cos(start.theta)
+                + r * std::sin(w * (t - tl) + start.theta)
+                - r * std::sin(start.theta);
+        auto y =
+                start.y
+                + l * std::sin(start.theta)
+                - r * std::cos(w * (t - tl) + start.theta)
+                + r * std::cos(start.theta);
+        auto theta = start.theta + w * (t - tl);
+        return Pose2D{ x, y, theta };
+    }
+}
+
 auto MakeUnicycleMotion(
     double start_x, double start_y, double start_theta,
     double goal_x, double goal_y, double goal_theta,
@@ -58,14 +95,14 @@ auto MakeUnicycleMotion(
 
     motion.valid = true;
 
-    const double dx = goal_x - start_x;
-    const double dy = goal_y - start_y;
-    const double dtheta = angles::shortest_angle_diff(goal_theta, start_theta);
+    auto dx = goal_x - start_x;
+    auto dy = goal_y - start_y;
+    auto dtheta = angles::shortest_angle_diff(goal_theta, start_theta);
 
-    const double sstheta = std::sin(start_theta);
-    const double cstheta = std::cos(start_theta);
-    const double sgtheta = std::sin(goal_theta);
-    const double cgtheta = std::cos(goal_theta);
+    auto sstheta = std::sin(start_theta);
+    auto cstheta = std::cos(start_theta);
+    auto sgtheta = std::sin(goal_theta);
+    auto cgtheta = std::cos(goal_theta);
 
     Eigen::Matrix2d R;
     R(0, 0) = cstheta;
@@ -121,6 +158,15 @@ auto MakeUnicycleMotion(
     motion.tl = motion.l / motion.v; // time to arc segment
 
     return motion;
+}
+
+auto MakeUnicycleMotion(const Pose2D& start, const Pose2D& goal, double eps)
+    -> UnicycleMotion
+{
+    return MakeUnicycleMotion(
+            start.x, start.y, start.theta,
+            goal.x, goal.y, goal.theta,
+            eps);
 }
 
 } // namespace smpl
