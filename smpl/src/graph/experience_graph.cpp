@@ -6,15 +6,237 @@
 
 namespace smpl {
 
-ExperienceGraph::ExperienceGraph()
+///////////////////
+// node_iterator //
+///////////////////
+
+auto ExperienceGraph::node_iterator::operator*() const -> const value_type
 {
+    return m_id;
+}
+
+auto ExperienceGraph::node_iterator::operator++(int) -> node_iterator
+{
+    return node_iterator(m_id++);
+}
+
+auto ExperienceGraph::node_iterator::operator++() -> node_iterator&
+{
+    ++m_id;
+    return *this;
+}
+
+auto ExperienceGraph::node_iterator::operator+=(difference_type n)
+    -> node_iterator&
+{
+    m_id += n;
+    return *this;
+}
+
+auto ExperienceGraph::node_iterator::operator-=(difference_type n)
+    -> node_iterator&
+{
+    m_id -= n;
+    return *this;
+}
+
+auto ExperienceGraph::node_iterator::operator-(node_iterator it)
+    -> difference_type
+{
+    return (difference_type)m_id - (difference_type)it.m_id;
+}
+
+bool ExperienceGraph::node_iterator::operator==(node_iterator it) const
+{
+    return m_id == it.m_id;
+}
+
+bool ExperienceGraph::node_iterator::operator!=(node_iterator it) const
+{
+    return m_id != it.m_id;
+}
+
+///////////////////
+// edge_iterator //
+///////////////////
+
+auto ExperienceGraph::edge_iterator::operator*() const -> const value_type
+{
+    return m_id;
+}
+
+auto ExperienceGraph::edge_iterator::operator++(int) -> edge_iterator
+{
+    return edge_iterator(m_id++);
+}
+
+auto ExperienceGraph::edge_iterator::operator++() -> edge_iterator&
+{
+    ++m_id;
+    return *this;
+}
+
+auto ExperienceGraph::edge_iterator::operator+=(difference_type n)
+    -> edge_iterator&
+{
+    m_id += n;
+    return *this;
+}
+
+auto ExperienceGraph::edge_iterator::operator-=(difference_type n)
+    -> edge_iterator&
+{
+    m_id -= n;
+    return *this;
+}
+
+auto ExperienceGraph::edge_iterator::operator-(edge_iterator it)
+    -> difference_type
+{
+    return (difference_type)m_id - (difference_type)it.m_id;
+}
+
+bool ExperienceGraph::edge_iterator::operator==(edge_iterator it) const
+{
+    return m_id == it.m_id;
+}
+
+bool ExperienceGraph::edge_iterator::operator!=(edge_iterator it) const
+{
+    return m_id != it.m_id;
+}
+
+////////////////////////
+// adjacency_iterator //
+////////////////////////
+
+auto ExperienceGraph::adjacency_iterator::operator*() const -> const value_type
+{
+    return m_it->second;
+}
+
+auto ExperienceGraph::adjacency_iterator::operator++(int) -> adjacency_iterator
+{
+    adjacency_iterator it(m_it);
+    ++m_it;
+    return it;
+}
+
+auto ExperienceGraph::adjacency_iterator::operator++() -> adjacency_iterator&
+{
+    ++m_it;
+    return *this;
+}
+
+auto ExperienceGraph::adjacency_iterator::operator+=(difference_type n)
+    -> adjacency_iterator&
+{
+    m_it += n;
+    return *this;
+}
+
+auto ExperienceGraph::adjacency_iterator::operator-=(difference_type n)
+    -> adjacency_iterator&
+{
+    return operator+=(-n);
+}
+
+auto ExperienceGraph::adjacency_iterator::operator-(adjacency_iterator it)
+    -> difference_type
+{
+    return m_it - it.m_it;
+}
+
+bool ExperienceGraph::adjacency_iterator::operator==(
+    adjacency_iterator it) const
+{
+    return it.m_it == m_it;
+}
+
+bool ExperienceGraph::adjacency_iterator::operator!=(
+    adjacency_iterator it) const
+{
+    return it.m_it != m_it;
+}
+
+////////////////////////////
+// incident_edge_iterator //
+////////////////////////////
+
+auto ExperienceGraph::incident_edge_iterator::operator*() const
+    -> const value_type
+{
+    return m_it->first;
+}
+
+auto ExperienceGraph::incident_edge_iterator::operator++(int)
+    -> incident_edge_iterator
+{
+    incident_edge_iterator it(m_it);
+    ++m_it;
+    return it;
+}
+
+auto ExperienceGraph::incident_edge_iterator::operator++()
+    -> incident_edge_iterator&
+{
+    ++m_it;
+    return *this;
+}
+
+auto ExperienceGraph::incident_edge_iterator::operator+=(difference_type n)
+    -> incident_edge_iterator&
+{
+    m_it += n;
+    return *this;
+}
+
+auto ExperienceGraph::incident_edge_iterator::operator-=(difference_type n)
+    -> incident_edge_iterator&
+{
+    return operator+=(-n);
+}
+
+auto ExperienceGraph::incident_edge_iterator::operator-(
+    incident_edge_iterator it)
+    -> difference_type
+{
+    return m_it - it.m_it;
+}
+
+bool ExperienceGraph::incident_edge_iterator::operator==(
+    incident_edge_iterator it) const
+{
+    return it.m_it == m_it;
+}
+
+bool ExperienceGraph::incident_edge_iterator::operator!=(
+    incident_edge_iterator it) const
+{
+    return it.m_it != m_it;
+}
+
+/////////////////////
+// ExperienceGraph //
+/////////////////////
+
+static
+void insert_incident_edge(
+    ExperienceGraph* egraph,
+    ExperienceGraph::edge_id eid,
+    ExperienceGraph::node_id uid,
+    ExperienceGraph::node_id vid)
+{
+    if (vid != uid) {
+        egraph->m_nodes[uid].edges.emplace_back(eid, vid);
+        egraph->m_nodes[vid].edges.emplace_back(eid, uid);
+    } else {
+        egraph->m_nodes[uid].edges.emplace_back(eid, vid);
+    }
 }
 
 /// Return a pair of iterators to the range of nodes in the graph.
-std::pair<
-    ExperienceGraph::node_iterator,
-    ExperienceGraph::node_iterator>
-ExperienceGraph::nodes() const
+auto ExperienceGraph::nodes() const -> std::pair<node_iterator, node_iterator>
 {
     return std::make_pair(
             node_iterator(0),
@@ -22,10 +244,7 @@ ExperienceGraph::nodes() const
 }
 
 /// Return a pair of iterators to the range of edges in the graph.
-std::pair<
-    ExperienceGraph::edge_iterator,
-    ExperienceGraph::edge_iterator>
-ExperienceGraph::edges() const
+auto ExperienceGraph::edges() const -> std::pair<edge_iterator, edge_iterator>
 {
     return std::make_pair(
             edge_iterator(0),
@@ -33,10 +252,8 @@ ExperienceGraph::edges() const
 }
 
 /// Return a pair of iterators to the range of incident edges for a node.
-std::pair<
-    ExperienceGraph::incident_edge_iterator,
-    ExperienceGraph::incident_edge_iterator>
-ExperienceGraph::edges(node_id id) const
+auto ExperienceGraph::edges(node_id id) const
+    -> std::pair<incident_edge_iterator, incident_edge_iterator>
 {
     return std::make_pair(
             incident_edge_iterator(m_nodes[id].edges.begin()),
@@ -44,10 +261,8 @@ ExperienceGraph::edges(node_id id) const
 }
 
 /// Return a pair of iterators to the range of adjacent nodes for a node.
-std::pair<
-    ExperienceGraph::adjacency_iterator,
-    ExperienceGraph::adjacency_iterator>
-ExperienceGraph::adjacent_nodes(node_id id) const
+auto ExperienceGraph::adjacent_nodes(node_id id) const
+    -> std::pair<adjacency_iterator, adjacency_iterator>
 {
     return std::make_pair(
             adjacency_iterator(m_nodes[id].edges.begin()),
@@ -55,19 +270,19 @@ ExperienceGraph::adjacent_nodes(node_id id) const
 }
 
 /// Return the degree (number of incident edges) of a node.
-ExperienceGraph::degree_size_type ExperienceGraph::degree(node_id id) const
+auto ExperienceGraph::degree(node_id id) const -> degree_size_type
 {
     return m_nodes[id].edges.size();
 }
 
 /// Return the id of an edge's source node.
-ExperienceGraph::node_id ExperienceGraph::source(edge_id id) const
+auto ExperienceGraph::source(edge_id id) const -> node_id
 {
     return m_edges[id].snode;
 }
 
 /// Return the id of an edge's target node.
-ExperienceGraph::node_id ExperienceGraph::target(edge_id id) const
+auto ExperienceGraph::target(edge_id id) const -> node_id
 {
     return m_edges[id].tnode;
 }
@@ -80,13 +295,13 @@ bool ExperienceGraph::edge(node_id uid, node_id vid) const
     }
 
     if (m_nodes[uid].edges.size() < m_nodes[vid].edges.size()) {
-        for (const auto& adj : m_nodes[uid].edges) {
+        for (auto& adj : m_nodes[uid].edges) {
             if (adj.second == vid) {
                 return true;
             }
         }
     } else {
-        for (const auto& adj : m_nodes[vid].edges) {
+        for (auto& adj : m_nodes[vid].edges) {
             if (adj.second == uid) {
                 return true;
             }
@@ -96,7 +311,7 @@ bool ExperienceGraph::edge(node_id uid, node_id vid) const
 }
 
 /// Insert a node.
-ExperienceGraph::node_id ExperienceGraph::insert_node(const RobotState& state)
+auto ExperienceGraph::insert_node(const RobotState& state) -> node_id
 {
     m_nodes.emplace_back(state);
     return m_nodes.size() - 1;
@@ -111,7 +326,7 @@ void ExperienceGraph::erase_node(node_id id)
         throw std::out_of_range("ExperienceGraph::erase_node called with invalid node id");
     }
 
-    const Node& rem_node = m_nodes[id];
+    auto& rem_node = m_nodes[id];
 
     // the number of edges to be removed and the smallest id, for updating
     // adjacency edge ids
@@ -186,7 +401,7 @@ void ExperienceGraph::erase_node(node_id id)
 
 /// Insert an edge, allowing parallel edges and self-loops.
 /// \return The ID of the inserted edge
-ExperienceGraph::edge_id ExperienceGraph::insert_edge(node_id uid, node_id vid)
+auto ExperienceGraph::insert_edge(node_id uid, node_id vid) -> edge_id
 {
     if (uid >= m_nodes.size() || vid >= m_nodes.size()) {
         throw std::out_of_range("ExperienceGraph::insert_edge called with invalid node ids");
@@ -194,16 +409,17 @@ ExperienceGraph::edge_id ExperienceGraph::insert_edge(node_id uid, node_id vid)
 
     m_edges.emplace_back(uid, vid);
     ExperienceGraph::edge_id eid = m_edges.size() - 1;
-    insert_incident_edge(eid, uid, vid);
+    insert_incident_edge(this, eid, uid, vid);
     return eid;
 }
 
 /// Insert an edge, allowing parallel edges and self-loops.
 /// \return The ID of the inserted edge
-ExperienceGraph::edge_id ExperienceGraph::insert_edge(
+auto ExperienceGraph::insert_edge(
     node_id uid,
     node_id vid,
     const std::vector<RobotState>& path)
+    -> edge_id
 {
     if (uid >= m_nodes.size() || vid >= m_nodes.size()) {
         throw std::out_of_range("ExperienceGraph::insert_edge called with invalid node ids");
@@ -211,7 +427,7 @@ ExperienceGraph::edge_id ExperienceGraph::insert_edge(
 
     m_edges.emplace_back(path, uid, vid);
     ExperienceGraph::edge_id eid = m_edges.size() - 1;
-    insert_incident_edge(eid, uid, vid);
+    insert_incident_edge(this, eid, uid, vid);
     return eid;
 }
 
@@ -261,7 +477,7 @@ void ExperienceGraph::erase_edge(edge_id id)
         throw std::out_of_range("ExperienceGraph::erase_edge called with invalid edge id");
     }
 
-    const Edge& e = m_edges[id];
+    auto& e = m_edges[id];
 
     // remove incident edge from source node and update edge ids
     assert(e.snode < m_nodes.size());
@@ -298,15 +514,32 @@ void ExperienceGraph::erase_edge(edge_id id)
     m_edges.erase(std::next(m_edges.begin(), id));
 }
 
-inline
-void ExperienceGraph::insert_incident_edge(edge_id eid, node_id uid, node_id vid)
+void ExperienceGraph::clear()
 {
-    if (vid != uid) {
-        m_nodes[uid].edges.emplace_back(eid, vid);
-        m_nodes[vid].edges.emplace_back(eid, uid);
-    } else {
-        m_nodes[uid].edges.emplace_back(eid, vid);
-    }
+    m_nodes.clear();
+    m_edges.clear();
+    m_shift.clear();
+}
+
+auto ExperienceGraph::state(node_id id) const -> const RobotState&
+{
+    return m_nodes[id].state;
+}
+
+auto ExperienceGraph::state(node_id id) -> RobotState&
+{
+    return m_nodes[id].state;
+}
+
+auto ExperienceGraph::waypoints(edge_id id) const
+    -> const std::vector<RobotState>&
+{
+    return m_edges[id].waypoints;
+}
+
+auto ExperienceGraph::waypoints(edge_id id) -> std::vector<RobotState>&
+{
+    return m_edges[id].waypoints;
 }
 
 } // namespace smpl
