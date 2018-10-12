@@ -79,16 +79,16 @@ void LoadCollisionGridConfig(
 
 struct StringPairHash
 {
-    typedef std::pair<std::string, std::string> argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(const argument_type& s) const {
+    using argument_type = std::pair<std::string, std::string>;
+    using result_type = std::size_t;
+    auto operator()(const argument_type& s) const -> result_type {
         const result_type h1 = std::hash<std::string>()(s.first);
         const result_type h2 = std::hash<std::string>()(s.second);
         return h1 ^ (h2 << 1);
     }
 };
 
-typedef std::unordered_set<std::pair<std::string, std::string>, StringPairHash> TouchLinkSet;
+using TouchLinkSet = std::unordered_set<std::pair<std::string, std::string>, StringPairHash>;
 
 // Represents an efficient pipeline for converting RobotStates into
 // RobotCollisionStates for collision checking routines
@@ -158,8 +158,8 @@ private:
     bool updateAttachedBodies(const moveit::core::RobotState& state);
 };
 
-typedef std::shared_ptr<CollisionStateUpdater> CollisionStateUpdaterPtr;
-typedef std::shared_ptr<const CollisionStateUpdater> CollisionStateUpdaterConstPtr;
+using CollisionStateUpdaterPtr = std::shared_ptr<CollisionStateUpdater>;
+using CollisionStateUpdaterConstPtr = std::shared_ptr<const CollisionStateUpdater>;
 
 // proxy class to interface with CollisionSpace
 class AllowedCollisionMatrixInterface :

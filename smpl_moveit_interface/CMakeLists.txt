@@ -51,6 +51,8 @@ catkin_package(
         roscpp
     DEPENDS)
 
+add_definitions(-DSV_PACKAGE_NAME="smpl_moveit_interface")
+
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
 include_directories(include)

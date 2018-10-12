@@ -174,8 +174,8 @@ protected:
 
 private:
 
-    typedef std::shared_ptr<const smpl::collision::CollisionModelConfig>
-    CollisionModelConfigConstPtr;
+    using CollisionModelConfigConstPtr =
+            std::shared_ptr<const smpl::collision::CollisionModelConfig>;
 
     CollisionGridConfig m_scm_config;
 
@@ -208,16 +208,15 @@ private:
 
     bool updateAttachedBodies(const moveit::core::RobotState& state);
 
-    double getSelfCollisionPropagationDistance() const;
+    auto getSelfCollisionPropagationDistance() const -> double;
 
-    smpl::OccupancyGridPtr createGridFor(
-        const CollisionGridConfig& config) const;
+    auto createGridFor(const CollisionGridConfig& config) const
+        -> smpl::OccupancyGridPtr;
 
-    visualization_msgs::MarkerArray
-    getCollisionRobotVisualization(
+    auto getCollisionRobotVisualization(
         smpl::collision::RobotCollisionState& rcs,
         smpl::collision::AttachedBodiesCollisionState& abcs,
-        int gidx) const;
+        int gidx) const -> visualization_msgs::MarkerArray;
 };
 
 } // namespace collision_detection
