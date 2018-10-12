@@ -17,7 +17,6 @@
 
 namespace smpl {
 
-static
 bool ParseExperienceGraphFile(
     const std::string& filepath,
     RobotModel* robot_model,
@@ -250,6 +249,133 @@ void WorkspaceLatticeEGraph::getUniqueSuccs(
     }
 }
 
+void WorkspaceLatticeEGraph::clearExperienceGraph()
+{
+    // delete all reserved states corresponding to e-graph states
+    for (auto state_id : m_egraph_node_to_state) {
+        auto& state = WorkspaceLattice::m_states[state_id];
+        delete state;
+        state = NULL;
+    }
+
+    // remove all e-graph states from the state table
+
+    auto first = (decltype(m_states)::size_type)0;
+    auto last = m_states.size();
+
+    // find the index of the first non-null state
+    while (first != last) {
+        if (m_states[first] == NULL) break;
+        ++first;
+    }
+
+    // shift all non-null states
+    if (first != last) {
+        for (auto i = first; ++i != last;) {
+            if (m_states[i] != NULL) {
+                // remap state to id
+                m_state_to_id[m_states[i]] = first;
+                // shift the state
+                m_states[first] = m_states[i];
+                ++first;
+            }
+        }
+    }
+
+    m_states.resize(first);
+
+    m_egraph.clear();
+    m_coord_to_egraph_nodes.clear();
+    m_egraph_node_to_state.clear();
+    m_state_to_egraph_node.clear();
+}
+
+void WorkspaceLatticeEGraph::insertExperienceGraphPath(
+    const std::vector<smpl::RobotState>& path)
+{
+    if (path.empty()) {
+        SMPL_WARN("No experience graph states contained in file");
+        return;
+    }
+
+    SMPL_DEBUG_NAMED(G_LOG, "Create hash entries for experience graph states");
+
+    // Create an experience graph state for the first state
+
+    auto& first_egraph_state = path.front();
+
+    auto prev_node_id = m_egraph.insert_node(first_egraph_state);
+
+    {
+        // map discrete egraph state -> egraph node
+        WorkspaceState tmp;
+        stateRobotToWorkspace(first_egraph_state, tmp);
+
+        WorkspaceCoord disc_egraph_state(dofCount());
+        stateWorkspaceToCoord(tmp, disc_egraph_state);
+        m_coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
+
+        // reserve a graph state for this state
+        auto state_id = reserveHashEntry();
+        auto* state = getState(state_id);
+        state->coord = disc_egraph_state;
+        state->state = first_egraph_state;
+
+        // map egraph node -> graph state
+        m_egraph_node_to_state.resize(prev_node_id + 1, -1);
+        m_egraph_node_to_state[prev_node_id] = state_id;
+
+        // map graph state -> egraph node
+        m_state_to_egraph_node[state_id] = prev_node_id;
+
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << first_egraph_state);
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
+    }
+
+    // Walk through the demonstration and create a unique e-graph state
+    // for each state. Intermediately encountered
+    // states that span between two discrete states become the edges in
+    // the e-graph.
+    for (size_t i = 1; i < path.size(); ++i) {
+        auto& egraph_state = path[i];
+
+        auto node_id = m_egraph.insert_node(egraph_state);
+
+        WorkspaceState tmp;
+        stateRobotToWorkspace(egraph_state, tmp);
+
+        // map discrete egraph state -> egraph node
+        WorkspaceCoord disc_egraph_state(dofCount());
+        stateWorkspaceToCoord(tmp, disc_egraph_state);
+        m_coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
+
+        // reserve a graph state for this state
+        auto state_id = reserveHashEntry();
+        auto* state = getState(state_id);
+        state->coord = disc_egraph_state;
+        state->state = egraph_state;
+
+        // map egraph node -> graph state
+        m_egraph_node_to_state.resize(node_id + 1, -1);
+        m_egraph_node_to_state[node_id] = state_id;
+
+        // map graph state -> egraph node
+        m_state_to_egraph_node[state_id] = node_id;
+
+        // add edge from previous node
+        m_egraph.insert_edge(prev_node_id, node_id, { });
+
+        prev_node_id = node_id;
+
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << egraph_state);
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
+        SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
+    }
+}
+
 // Load the experience graph from a database of paths:
 // 1. Convert the raw path to an ExperienceGraph, which captures the
 // connectivity of the demonstration (some states are retained as unique nodes
@@ -272,92 +398,12 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
         dit != boost::filesystem::directory_iterator(); ++dit)
     {
         auto& filepath = dit->path().generic_string();
-        std::vector<RobotState> egraph_states;
-        if (!ParseExperienceGraphFile(filepath, robot(), egraph_states)) {
+        std::vector<RobotState> egraph_path;
+        if (!ParseExperienceGraphFile(filepath, robot(), egraph_path)) {
             continue;
         }
 
-        if (egraph_states.empty()) {
-            SMPL_WARN("No experience graph states contained in file");
-            continue;
-        }
-
-        SMPL_DEBUG_NAMED(G_LOG, "Create hash entries for experience graph states");
-
-        // Create an experience graph state for the first state
-
-        auto& first_egraph_state = egraph_states.front();
-
-        auto prev_node_id = m_egraph.insert_node(first_egraph_state);
-
-        {
-            // map discrete egraph state -> egraph node
-            WorkspaceState tmp;
-            stateRobotToWorkspace(first_egraph_state, tmp);
-
-            WorkspaceCoord disc_egraph_state(dofCount());
-            stateWorkspaceToCoord(tmp, disc_egraph_state);
-            m_coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
-
-            // reserve a graph state for this state
-            auto state_id = reserveHashEntry();
-            auto* state = getState(state_id);
-            state->coord = disc_egraph_state;
-            state->state = first_egraph_state;
-
-            // map egraph node -> graph state
-            m_egraph_node_to_state.resize(prev_node_id + 1, -1);
-            m_egraph_node_to_state[prev_node_id] = state_id;
-
-            // map graph state -> egraph node
-            m_state_to_egraph_node[state_id] = prev_node_id;
-
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << first_egraph_state);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
-        }
-
-        // Walk through the demonstration and create a unique e-graph state
-        // for each state. Intermediately encountered
-        // states that span between two discrete states become the edges in
-        // the e-graph.
-        for (size_t i = 1; i < egraph_states.size(); ++i) {
-            auto& egraph_state = egraph_states[i];
-
-            auto node_id = m_egraph.insert_node(egraph_state);
-
-            WorkspaceState tmp;
-            stateRobotToWorkspace(egraph_state, tmp);
-
-            // map discrete egraph state -> egraph node
-            WorkspaceCoord disc_egraph_state(dofCount());
-            stateWorkspaceToCoord(tmp, disc_egraph_state);
-            m_coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
-
-            // reserve a graph state for this state
-            auto state_id = reserveHashEntry();
-            auto* state = getState(state_id);
-            state->coord = disc_egraph_state;
-            state->state = egraph_state;
-
-            // map egraph node -> graph state
-            m_egraph_node_to_state.resize(node_id + 1, -1);
-            m_egraph_node_to_state[node_id] = state_id;
-
-            // map graph state -> egraph node
-            m_state_to_egraph_node[state_id] = node_id;
-
-            // add edge from previous node
-            m_egraph.insert_edge(prev_node_id, node_id, { });
-
-            prev_node_id = node_id;
-
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph state = " << egraph_state);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  egraph node = " << prev_node_id);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  disc state = " << disc_egraph_state);
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state id = " << state_id);
-        }
+        insertExperienceGraphPath(egraph_path);
     }
 
     SMPL_DEBUG_NAMED(G_LOG, "Experience graph contains %zu nodes and %zu edges", m_egraph.num_nodes(), m_egraph.num_edges());
