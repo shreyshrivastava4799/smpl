@@ -68,9 +68,9 @@ struct WorkspaceLattice :
     int m_start_state_id = -1;
 
     // maps state -> id
-    typedef WorkspaceLatticeState StateKey;
-    typedef PointerValueHash<StateKey> StateHash;
-    typedef PointerValueEqual<StateKey> StateEqual;
+    using StateKey = WorkspaceLatticeState;
+    using StateHash = PointerValueHash<StateKey>;
+    using StateEqual = PointerValueEqual<StateKey>;
     hash_map<StateKey*, int, StateHash, StateEqual> m_state_to_id;
 
     // maps id -> state
@@ -118,11 +118,11 @@ struct WorkspaceLattice :
         std::vector<RobotState>& path) override;
     ///@}
 
-    const RobotState& extractState(int state_id) override;
+    auto extractState(int state_id) -> const RobotState& override;
 
     /// \name Required Public Functions from Extension
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    auto getExtension(size_t class_code) -> Extension* override;
     ///@}
 
     /// \name Required Public Functions from DiscreteSpaceInformation

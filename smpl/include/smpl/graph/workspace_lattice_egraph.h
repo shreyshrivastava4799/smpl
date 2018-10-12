@@ -14,6 +14,25 @@ class WorkspaceLatticeEGraph :
 {
 public:
 
+    ExperienceGraph m_egraph;
+
+    // map: [x, y, z, y, p, r, f0, ..., fn] -> [n1, ..., nn]
+    using CoordToEGraphNodesMap = hash_map<
+            WorkspaceCoord,
+            std::vector<ExperienceGraph::node_id>,
+            VectorHash<int>>;
+
+    // map from discrete states to e-graph states lying within the same discrete
+    // bin. This is queried to determine the set of edges E_bridge during
+    // planning.
+    CoordToEGraphNodesMap m_coord_to_egraph_nodes;
+
+    // map from e-graph node id to state id
+    std::vector<int> m_egraph_node_to_state;
+
+    // map from state id back to e-graph node
+    hash_map<int, ExperienceGraph::node_id> m_state_to_egraph_node;
+
     void getUniqueSuccs(
         int state_id,
         std::vector<int>* succs,
@@ -52,6 +71,9 @@ public:
         std::vector<int>* succs,
         std::vector<int>* costs);
 
+    void insertExperienceGraphPath(const std::vector<smpl::RobotState>& path);
+    void clearExperienceGraph();
+
     /// \name ExperienceGraphExtension Interface
     ///@{
     bool loadExperienceGraph(const std::string& path) override;
@@ -89,26 +111,12 @@ public:
     ///@{
     auto getExtension(size_t class_code) -> Extension* override;
     ///@}
-
-    ExperienceGraph m_egraph;
-
-    // map: [x, y, z, y, p, r, f0, ..., fn] -> [n1, ..., nn]
-    using CoordToEGraphNodesMap = hash_map<
-            WorkspaceCoord,
-            std::vector<ExperienceGraph::node_id>,
-            VectorHash<int>>;
-
-    // map from discrete states to e-graph states lying within the same discrete
-    // bin. This is queried to determine the set of edges E_bridge during
-    // planning.
-    CoordToEGraphNodesMap m_coord_to_egraph_nodes;
-
-    // map from e-graph node id to state id
-    std::vector<int> m_egraph_node_to_state;
-
-    // map from state id back to e-graph node
-    hash_map<int, ExperienceGraph::node_id> m_state_to_egraph_node;
 };
+
+bool ParseExperienceGraphFile(
+    const std::string& filepath,
+    RobotModel* robot_model,
+    std::vector<RobotState>& egraph_states);
 
 bool FindShortestExperienceGraphPath(
     const ExperienceGraph& egraph,

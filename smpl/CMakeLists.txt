@@ -119,6 +119,7 @@ add_library(
     src/search/lazy_mhastar.cpp
     src/search/smhastar.cpp
     src/search/awastar.cpp
+    src/unicycle/dubins.cpp
     src/unicycle/unicycle.cpp)
 target_compile_definitions(smpl PRIVATE -DROMAN)
 target_link_libraries(smpl ${Boost_LIBRARIES} ${sbpl_LIBRARIES})
