@@ -51,7 +51,7 @@ CollisionRobotSBPL::CollisionRobotSBPL(
     ros::NodeHandle ph("~");
 
     // search for the robot collision model on the param server
-    const char* robot_collision_model_param = "robot_collision_model";
+    auto robot_collision_model_param = "robot_collision_model";
     std::string rcm_key;
     if (!ph.searchParam(robot_collision_model_param, rcm_key)) {
         std::stringstream ss;
@@ -73,7 +73,7 @@ CollisionRobotSBPL::CollisionRobotSBPL(
     // load the robot collision model configuration
     smpl::collision::CollisionModelConfig cm_config;
     if (!smpl::collision::CollisionModelConfig::Load(rcm_config, cm_config)) {
-        const char* msg = "Failed to load Collision Model Config";
+        auto msg = "Failed to load Collision Model Config";
         ROS_ERROR_STREAM(msg);
         throw std::runtime_error(msg);
     }
@@ -82,18 +82,18 @@ CollisionRobotSBPL::CollisionRobotSBPL(
     auto rcm = smpl::collision::RobotCollisionModel::Load(
             *model->getURDF(), cm_config);
     if (!rcm) {
-        const char* msg = "Failed to build Robot Collision Model from config";
+        auto msg = "Failed to build Robot Collision Model from config";
         ROS_ERROR_STREAM(msg);
         throw std::runtime_error(msg);
     }
 
-    const char* self_collision_model_param = "self_collision_model";
+    auto self_collision_model_param = "self_collision_model";
     LoadCollisionGridConfig(ph, self_collision_model_param, m_scm_config);
 
     LoadJointCollisionGroupMap(ph, m_jcgm_map);
 
     if (!m_updater.init(*model, rcm)) {
-        const char* msg = "Failed to initialize Collision State Updater";
+        auto msg = "Failed to initialize Collision State Updater";
         ROS_ERROR_NAMED(CRP_LOGGER, "%s", msg);
         throw std::runtime_error(msg);
     }
@@ -121,14 +121,14 @@ CollisionRobotSBPL::~CollisionRobotSBPL()
     ROS_INFO_NAMED(CRP_LOGGER, "~CollisionRobotSBPL");
 }
 
-const smpl::collision::RobotCollisionModelConstPtr&
-CollisionRobotSBPL::robotCollisionModel() const
+auto CollisionRobotSBPL::robotCollisionModel() const
+    -> const smpl::collision::RobotCollisionModelConstPtr&
 {
     return m_rcm;
 }
 
-const smpl::collision::RobotMotionCollisionModelConstPtr&
-CollisionRobotSBPL::robotMotionCollisionModel() const
+auto CollisionRobotSBPL::robotMotionCollisionModel() const
+    -> const smpl::collision::RobotMotionCollisionModelConstPtr&
 {
     return m_rmcm;
 }
@@ -316,7 +316,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
 
     // lookup the name of the corresponding collision group
     auto jgcgit = m_jcgm_map.find(req.group_name);
-    const std::string& collision_group_name =
+    auto& collision_group_name =
             jgcgit == m_jcgm_map.end() ? req.group_name : jgcgit->second;
 
     if (!m_rcm->hasGroup(collision_group_name)) {
@@ -334,22 +334,22 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
 
         auto bbm = m_grid->getOccupiedVoxelsVisualization();
         bbm.ns = "self_collision_model_bounds";
-        SV_SHOW_INFO(bbm);
+        SV_SHOW_INFO_NAMED("collision_robot_bounds", bbm);
 
         m_scm = std::make_shared<SelfCollisionModel>(
                 m_grid.get(), m_rcm.get(), m_updater.attachedBodiesCollisionModel().get());
     }
 
-    int gidx = m_rcm->groupIndex(collision_group_name);
+    auto gidx = m_rcm->groupIndex(collision_group_name);
 
-    moveit::core::RobotState state_copy(state);
+    auto state_copy = state;
     state_copy.setJointPositions(
             state_copy.getRobotModel()->getRootJoint(),
             Eigen::Affine3d::Identity());
     m_updater.update(state_copy);
 
     double dist;
-    bool valid = m_scm->checkCollision(
+    auto valid = m_scm->checkCollision(
             *m_updater.collisionState(),
             *m_updater.attachedBodiesCollisionState(),
             AllowedCollisionMatrixAndTouchLinksInterface(
@@ -360,7 +360,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
     ROS_INFO_STREAM_COND_NAMED(req.verbose, CRP_LOGGER, "self valid: " << std::boolalpha << valid << ", dist: " << dist);
     ROS_DEBUG_STREAM_COND_NAMED(!req.verbose, CRP_LOGGER, "self valid: " << std::boolalpha << valid << ", dist: " << dist);
 
-    const bool visualize = req.verbose;
+    auto visualize = req.verbose;
     if (visualize) {
         auto ma = getCollisionRobotVisualization(
                 *m_updater.collisionState(),
@@ -372,7 +372,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
                 m.color.g = m.color.b = 0.0;
             }
         }
-        SV_SHOW_INFO(ma);
+        SV_SHOW_INFO_NAMED("self_collision", ma);
     }
 
     if (!valid) {
@@ -406,7 +406,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
 
     // lookup the name of the corresponding collision group
     auto jgcgit = m_jcgm_map.find(req.group_name);
-    const std::string& collision_group_name =
+    auto& collision_group_name =
             jgcgit == m_jcgm_map.end() ? req.group_name : jgcgit->second;
 
     if (!m_rcm->hasGroup(collision_group_name)) {
@@ -424,16 +424,16 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
 
         auto bbma = m_grid->getOccupiedVoxelsVisualization();
         bbma.ns = "self_collision_model_bounds";
-        SV_SHOW_INFO(bbma);
+        SV_SHOW_INFO_NAMED("collision_robot_bounds", bbma);
 
         m_scm = std::make_shared<SelfCollisionModel>(
                 m_grid.get(), m_rcm.get(), m_updater.attachedBodiesCollisionModel().get());
     }
 
-    int gidx = m_rcm->groupIndex(collision_group_name);
+    auto gidx = m_rcm->groupIndex(collision_group_name);
 
-    moveit::core::RobotState state1_copy(state1);
-    moveit::core::RobotState state2_copy(state2);
+    auto state1_copy = state1;
+    auto state2_copy = state2;
     state1_copy.setJointPositions(
             state1_copy.getRobotModel()->getRootJoint(),
             Eigen::Affine3d::Identity());
@@ -442,10 +442,11 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
             Eigen::Affine3d::Identity());
 //    m_updater.update(state_copy);
 
+    auto startvars = m_updater.getVariablesFor(state1_copy);
+    auto goalvars = m_updater.getVariablesFor(state2_copy);
+
     double dist;
-    const std::vector<double> startvars(m_updater.getVariablesFor(state1_copy));
-    const std::vector<double> goalvars(m_updater.getVariablesFor(state2_copy));
-    bool valid = m_scm->checkMotionCollision(
+    auto valid = m_scm->checkMotionCollision(
             *m_updater.collisionState(),
             *m_updater.attachedBodiesCollisionState(),
             AllowedCollisionMatrixAndTouchLinksInterface(acm, m_updater.touchLinkSet()),
@@ -458,7 +459,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
     ROS_INFO_STREAM_COND_NAMED(req.verbose, CRP_LOGGER, "valid: " << std::boolalpha << valid << ", dist: " << dist);
     ROS_DEBUG_STREAM_COND_NAMED(!req.verbose, CRP_LOGGER, "valid: " << std::boolalpha << valid << ", dist: " << dist);
 
-    const bool visualize = req.verbose;
+    auto visualize = req.verbose;
     if (visualize) {
         auto ma = getCollisionRobotVisualization(
                 *m_updater.collisionState(),
@@ -470,8 +471,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
                 m.color.g = m.color.b = 0.0;
             }
         }
-        SV_SHOW_INFO(m_grid->getOccupiedVoxelsVisualization());
-        SV_SHOW_INFO(ma);
+        SV_SHOW_INFO_NAMED("self_collision", ma);
     }
 
     if (!valid) {
@@ -488,7 +488,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
     }
 }
 
-double CollisionRobotSBPL::getSelfCollisionPropagationDistance() const
+auto CollisionRobotSBPL::getSelfCollisionPropagationDistance() const -> double
 {
     // TODO: include the attached object models when computing the max expansion
     // distance
@@ -496,7 +496,7 @@ double CollisionRobotSBPL::getSelfCollisionPropagationDistance() const
     // resolve the maximum expansion distance. this should be at least the
     // radius of the largest leaf sphere in the collision model but may be
     // overridden by the user to a larger value
-    double cfg_max_distance_m = m_scm_config.max_distance_m;
+    auto cfg_max_distance_m = m_scm_config.max_distance_m;
     if (cfg_max_distance_m > 0.0) {
         // allow the user to set the maximum expansion distance. a value between
         // the max leaf sphere radius and the max sphere radius abandons some
@@ -504,7 +504,7 @@ double CollisionRobotSBPL::getSelfCollisionPropagationDistance() const
         // distance propagations. a value larger than the max sphere radius
         // provides additional cost information about how far the robot is from
         // environment obstacles.
-        const double required_radius = m_rcm->maxLeafSphereRadius() + sqrt(3) * m_scm_config.res_m;
+        auto required_radius = m_rcm->maxLeafSphereRadius() + sqrt(3) * m_scm_config.res_m;
         if (cfg_max_distance_m < required_radius) {
             ROS_WARN_NAMED(CRP_LOGGER, "configured max distance set to %0.3f. overriding to required radius %0.3f", cfg_max_distance_m, required_radius);
         }
@@ -515,8 +515,8 @@ double CollisionRobotSBPL::getSelfCollisionPropagationDistance() const
     }
 }
 
-smpl::OccupancyGridPtr CollisionRobotSBPL::createGridFor(
-    const CollisionGridConfig& config) const
+auto CollisionRobotSBPL::createGridFor(const CollisionGridConfig& config) const
+    -> smpl::OccupancyGridPtr
 {
     ROS_DEBUG_NAMED(CRP_LOGGER, "  Create Distance Field");
     ROS_DEBUG_NAMED(CRP_LOGGER, "    size: (%0.3f, %0.3f, %0.3f)", config.size_x, config.size_y, config.size_z);
@@ -526,8 +526,8 @@ smpl::OccupancyGridPtr CollisionRobotSBPL::createGridFor(
 
     // TODO: this can be substantially smaller since it only has to encompass
     // the range of motion of the robot
-    const bool ref_counted = true;
-    double max_distance = getSelfCollisionPropagationDistance();
+    auto ref_counted = true;
+    auto max_distance = getSelfCollisionPropagationDistance();
     return std::make_shared<smpl::OccupancyGrid>(
             config.size_x,
             config.size_y,
@@ -540,11 +540,11 @@ smpl::OccupancyGridPtr CollisionRobotSBPL::createGridFor(
             ref_counted);
 }
 
-visualization_msgs::MarkerArray
-CollisionRobotSBPL::getCollisionRobotVisualization(
+auto CollisionRobotSBPL::getCollisionRobotVisualization(
     smpl::collision::RobotCollisionState& rcs,
     smpl::collision::AttachedBodiesCollisionState& abcs,
     int gidx) const
+    -> visualization_msgs::MarkerArray
 {
     auto ma = GetCollisionMarkers(rcs, abcs, gidx);
     for (auto& m : ma.markers) {

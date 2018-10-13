@@ -52,6 +52,8 @@ catkin_package(
     DEPENDS
         smpl)
 
+add_definitions(-DSV_PACKAGE_NAME="smpl_moveit_interface")
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(include)
 include_directories(SYSTEM ${catkin_INCLUDE_DIRS})

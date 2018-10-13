@@ -141,7 +141,8 @@ private:
     ros::Publisher m_marker_pub;
 
     /// \brief Setup the baseline GUI for loading robots from URDF parameter
-    void setupGUI();
+    void MakeGUI();
+    void InitPostModel();
 
     QGroupBox* setupGeneralSettingsGroup();
     QGroupBox* setupPlannerSettingsGroup();

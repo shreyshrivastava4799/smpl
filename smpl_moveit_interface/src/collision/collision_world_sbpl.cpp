@@ -83,7 +83,7 @@ CollisionWorldSBPL::CollisionWorldSBPL(
 CollisionWorldSBPL::~CollisionWorldSBPL()
 {
 //    ROS_DEBUG_NAMED(LOG, "~CollisionWorldSBPL()");
-    const WorldPtr& curr_world = getWorld();
+    auto& curr_world = getWorld();
     if (curr_world) {
         curr_world->removeObserver(m_observer_handle);
     }
@@ -236,7 +236,7 @@ void CollisionWorldSBPL::setWorld(const WorldPtr& world)
 {
     // deregister update callback (we should always have a callback registered
     // if we have a world)
-    const WorldPtr& curr_world = getWorld();
+    auto& curr_world = getWorld();
     if (curr_world) {
         curr_world->removeObserver(m_observer_handle);
     }
@@ -251,7 +251,7 @@ void CollisionWorldSBPL::construct()
 {
     ros::NodeHandle ph("~");
 
-    const char* world_collision_model_param = "world_collision_model";
+    auto world_collision_model_param = "world_collision_model";
     LoadCollisionGridConfig(ph, world_collision_model_param, m_wcm_config);
 
     LoadJointCollisionGroupMap(ph, m_jcgm_map);
@@ -266,7 +266,7 @@ void CollisionWorldSBPL::construct()
     ROS_INFO("Done sleeping");
 
     // publish collision world visualizations
-    SV_SHOW_INFO(m_grid->getBoundingBoxVisualization());
+    SV_SHOW_INFO_NAMED("collision_world_bounds", m_grid->getBoundingBoxVisualization());
 }
 
 void CollisionWorldSBPL::copyOnWrite()
@@ -300,8 +300,8 @@ auto CollisionWorldSBPL::FindObjectRepPair(
             begin(m_collision_objects), end(m_collision_objects), has_object);
 }
 
-smpl::OccupancyGridPtr CollisionWorldSBPL::createGridFor(
-    const CollisionGridConfig& config) const
+auto CollisionWorldSBPL::createGridFor(const CollisionGridConfig& config) const
+    -> smpl::OccupancyGridPtr
 {
     ROS_DEBUG_NAMED(LOG, "  Creating Distance Field");
     ROS_DEBUG_NAMED(LOG, "    size: (%0.3f, %0.3f, %0.3f)", config.size_x, config.size_y, config.size_z);
@@ -309,7 +309,7 @@ smpl::OccupancyGridPtr CollisionWorldSBPL::createGridFor(
     ROS_DEBUG_NAMED(LOG, "    resolution: %0.3f", config.res_m);
     ROS_DEBUG_NAMED(LOG, "    max_distance: %0.3f", config.max_distance_m);
 
-    const bool ref_counted = true;
+    auto ref_counted = true;
 
     auto dmap = std::make_shared<smpl::OccupancyGrid>(
             config.size_x,
@@ -325,9 +325,10 @@ smpl::OccupancyGridPtr CollisionWorldSBPL::createGridFor(
     return dmap;
 }
 
-CollisionStateUpdaterPtr CollisionWorldSBPL::getCollisionStateUpdater(
+auto CollisionWorldSBPL::getCollisionStateUpdater(
     const CollisionRobotSBPL& collision_robot,
     const moveit::core::RobotModel& robot_model)
+    -> CollisionStateUpdaterPtr
 {
     // return an existing updater if available
     auto it = m_updaters.find(robot_model.getName());
@@ -397,8 +398,8 @@ void CollisionWorldSBPL::setVacuousCollision(CollisionResult& res) const
     res.distance = 0.0;
 }
 
-moveit_msgs::OrientedBoundingBox CollisionWorldSBPL::computeWorldAABB(
-    const World& world) const
+auto CollisionWorldSBPL::computeWorldAABB(const World& world) const
+    -> moveit_msgs::OrientedBoundingBox
 {
     moveit_msgs::OrientedBoundingBox bb;
     bb.pose.orientation.w = 1.0;
@@ -422,19 +423,17 @@ moveit_msgs::OrientedBoundingBox CollisionWorldSBPL::computeWorldAABB(
     }
 
     for (auto oit = world.begin(); oit != world.end(); ++oit) {
-        const World::Object& object = *oit->second;
-        const std::string& object_id = object.id_;
-        size_t num_shapes = object.shapes_.size();
+        auto& object = *oit->second;
+        auto& object_id = object.id_;
+        auto num_shapes = object.shapes_.size();
         ROS_DEBUG_NAMED(LOG, "%zu shapes in object", num_shapes);
-        for (size_t i = 0; i < num_shapes; ++i) {
-            const Eigen::Affine3d& pose = object.shape_poses_[i];
-            shapes::ShapeConstPtr shape = object.shapes_[i];
-            Eigen::Vector3d extents = shapes::computeShapeExtents(shape.get());
+        for (auto i = (size_t)0; i < num_shapes; ++i) {
+            auto& pose = object.shape_poses_[i];
+            auto shape = object.shapes_[i];
+            auto extents = shapes::computeShapeExtents(shape.get());
 
-            const Eigen::Vector3d shape_min =
-                    Eigen::Vector3d(pose.translation()) - 0.5 * extents;
-            const Eigen::Vector3d shape_max =
-                    Eigen::Vector3d(pose.translation()) + 0.5 * extents;
+            auto shape_min = Eigen::Vector3d(Eigen::Vector3d(pose.translation()) - 0.5 * extents);
+            auto shape_max = Eigen::Vector3d(Eigen::Vector3d(pose.translation()) + 0.5 * extents);
 
             min_pt.x = std::min(min_pt.x, shape_min.x());
             min_pt.y = std::min(min_pt.y, shape_min.y());
@@ -481,8 +480,8 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
     const robot_state::RobotState& state,
     const AllowedCollisionMatrix& acm)
 {
-    const CollisionRobotSBPL& crobot = (const CollisionRobotSBPL&)robot;
-    const auto& rcm = crobot.robotCollisionModel();
+    auto& crobot = (const CollisionRobotSBPL&)robot;
+    auto& rcm = crobot.robotCollisionModel();
     if (state.getRobotModel()->getName() != rcm->name()) {
         ROS_ERROR_NAMED(LOG, "Collision Robot Model does not match Robot Model");
         setVacuousCollision(res);
@@ -497,8 +496,8 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
     }
 
     auto jgcgit = m_jcgm_map.find(req.group_name);
-    auto& collision_group_name = jgcgit == end(m_jcgm_map) ?
-            req.group_name : jgcgit->second;
+    auto& collision_group_name =
+            jgcgit == end(m_jcgm_map) ?  req.group_name : jgcgit->second;
 
     if (!rcm->hasGroup(collision_group_name)) {
         ROS_ERROR_NAMED(LOG, "No group '%s' found in the Robot Collision Model", collision_group_name.c_str());
@@ -506,7 +505,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
         return;
     }
 
-    int gidx = rcm->groupIndex(collision_group_name);
+    auto gidx = rcm->groupIndex(collision_group_name);
 
     gm->update(state);
 
@@ -523,7 +522,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
     smpl::collision::WorldCollisionDetector wcd(rcm.get(), ewcm.get());
 
     double dist;
-    bool valid = wcd.checkCollision(
+    auto valid = wcd.checkCollision(
             *gm->collisionState(),
             *gm->attachedBodiesCollisionState(),
             gidx,
@@ -532,7 +531,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
     ROS_INFO_STREAM_COND_NAMED(req.verbose, LOG, "world valid: " << std::boolalpha << valid << ", dist: " << dist);
     ROS_DEBUG_STREAM_COND_NAMED(!req.verbose, LOG, "world valid: " << std::boolalpha << valid << ", dist: " << dist);
 
-    const bool visualize = req.verbose;
+    auto visualize = req.verbose;
     if (visualize) {
         auto ma = getCollisionRobotVisualization(
                 *gm->collisionState(),
@@ -544,7 +543,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
                 m.color.g = m.color.b = 0.0;
             }
         }
-        SV_SHOW_INFO(ma);
+        SV_SHOW_INFO_NAMED("world_collision", ma);
     }
 
     if (!valid) {
@@ -581,9 +580,9 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
     const robot_state::RobotState& state2,
     const AllowedCollisionMatrix& acm)
 {
-    const CollisionRobotSBPL& crobot = (const CollisionRobotSBPL&)robot;
-    const auto& rcm = crobot.robotCollisionModel();
-    const auto& rmcm = crobot.robotMotionCollisionModel();
+    auto& crobot = (const CollisionRobotSBPL&)robot;
+    auto& rcm = crobot.robotCollisionModel();
+    auto& rmcm = crobot.robotMotionCollisionModel();
 
     assert(state1.getRobotModel()->getName() == rcm->name());
     assert(state2.getRobotModel()->getName() == rcm->name());
@@ -596,7 +595,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
     }
 
     auto jgcgit = m_jcgm_map.find(req.group_name);
-    const std::string& collision_group_name =
+    auto& collision_group_name =
             jgcgit == m_jcgm_map.end() ? req.group_name : jgcgit->second;
 
     if (!rcm->hasGroup(collision_group_name)) {
@@ -623,8 +622,8 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
 
     double dist;
 
-    const std::vector<double> startvars(gm->getVariablesFor(state1));
-    const std::vector<double> goalvars(gm->getVariablesFor(state2));
+    auto startvars = gm->getVariablesFor(state1);
+    auto goalvars = gm->getVariablesFor(state2);
     bool valid = wcd.checkMotionCollision(
         *gm->collisionState(),
         *gm->attachedBodiesCollisionState(),
@@ -634,7 +633,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
         gidx,
         dist);
 
-    const bool visualize = req.verbose;
+    auto visualize = req.verbose;
     if (visualize) {
         auto ma = getCollisionRobotVisualization(
                 *gm->collisionState(),
@@ -646,7 +645,7 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
                 m.color.g = m.color.b = 0.0;
             }
         }
-        SV_SHOW_INFO(ma);
+        SV_SHOW_INFO_NAMED("world_collision", ma);
     }
 
     if (!valid) {
@@ -690,7 +689,7 @@ void CollisionWorldSBPL::processWorldUpdateCreate(
     ConvertObjectToCollisionObjectShallow(object, op.shapes, op.collision_object);
 
     // attempt insertion into the world collision model
-    bool inserted = m_wcm->insertObject(op.collision_object.get());
+    auto inserted = m_wcm->insertObject(op.collision_object.get());
     assert(inserted);
 
     m_collision_objects.push_back(std::move(op));
@@ -707,7 +706,7 @@ void CollisionWorldSBPL::processWorldUpdateDestroy(
         return;
     }
 
-    bool removed = m_wcm->removeObject(it->collision_object.get());
+    auto removed = m_wcm->removeObject(it->collision_object.get());
     assert(removed);
 
     m_collision_objects.erase(it);
@@ -724,7 +723,7 @@ void CollisionWorldSBPL::processWorldUpdateMoveShape(
         return;
     }
 
-    bool res = m_wcm->moveShapes(it->collision_object.get());
+    auto res = m_wcm->moveShapes(it->collision_object.get());
     assert(res);
 }
 
@@ -738,7 +737,7 @@ void CollisionWorldSBPL::processWorldUpdateAddShape(
         return;
     }
 
-    bool res = m_wcm->insertShapes(it->collision_object.get());
+    auto res = m_wcm->insertShapes(it->collision_object.get());
     assert(res);
 }
 
@@ -752,7 +751,7 @@ void CollisionWorldSBPL::processWorldUpdateRemoveShape(
         return;
     }
 
-    bool res = m_wcm->removeShapes(it->collision_object.get());
+    auto res = m_wcm->removeShapes(it->collision_object.get());
     assert(res);
 }
 

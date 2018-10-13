@@ -25,7 +25,12 @@ MoveGroupCommandPanel::MoveGroupCommandPanel(QWidget* parent) :
     m_marker_pub = m_nh.advertise<visualization_msgs::MarkerArray>(
             "visualization_markers", 5);
 
-    setupGUI();
+    // construct model
+    // construct gui
+    // connect gui and model
+    // initialize model -> propagate values to gui
+
+    MakeGUI();
 
     // wait for a robot model to be loaded or for the robot's state to change
     connect(&m_model, SIGNAL(robotLoaded()), this, SLOT(updateRobot()));
@@ -38,6 +43,10 @@ MoveGroupCommandPanel::MoveGroupCommandPanel(QWidget* parent) :
     connect(&m_model, SIGNAL(configChanged()), this, SLOT(syncModelConfig()));
     connect(&m_model, SIGNAL(availableFramesUpdated()),
             this, SLOT(updateTransforms()));
+
+    m_model.Init();
+
+    InitPostModel();
 }
 
 MoveGroupCommandPanel::~MoveGroupCommandPanel()
@@ -82,7 +91,7 @@ void MoveGroupCommandPanel::loadRobot()
 
 void MoveGroupCommandPanel::updateRobot()
 {
-    const auto& robot_description = m_model.robotDescription();
+    auto& robot_description = m_model.robotDescription();
     if (m_robot_description_line_edit->text().toStdString() !=
         robot_description)
     {
@@ -98,7 +107,7 @@ void MoveGroupCommandPanel::updateTransforms()
     QString workspace_frame = m_workspace_frame_combo_box->currentText();
 
     m_workspace_frame_combo_box->clear();
-    for (const std::string& frame : m_model.availableFrames()) {
+    for (auto& frame : m_model.availableFrames()) {
         m_workspace_frame_combo_box->addItem(QString::fromStdString(frame));
     }
 
@@ -147,7 +156,8 @@ void MoveGroupCommandPanel::syncModelConfig()
     Q_EMIT configChanged();
 }
 
-void MoveGroupCommandPanel::setupGUI()
+// Construct and layout widgets, and connect widget signals to model slots.
+void MoveGroupCommandPanel::MakeGUI()
 {
     ROS_INFO("Setting up the baseline GUI");
 
@@ -160,52 +170,7 @@ void MoveGroupCommandPanel::setupGUI()
     QGroupBox* planner_settings_group = setupPlannerSettingsGroup();
     m_goal_constraints_group = setupGoalConstraintsGroup();
 
-    ///////////////////////////////////////////////
-    // Populate GUI with initial property values //
-    ///////////////////////////////////////////////
-
-    // add all planner names as items in the combo box
-    const auto& planner_interfaces = m_model.plannerInterfaces();
-    for (const auto& planner_interface : planner_interfaces) {
-        const std::string& planner_name = planner_interface.name;
-        m_planner_name_combo_box->addItem(QString::fromStdString(planner_name));
-    }
-
-    // add all planner ids part of the current planner as items in the combo box
-    const std::string planner_name = m_model.plannerName();
-    if (planner_name != "UNKNOWN") {
-        size_t pidx;
-        for (pidx = 0; pidx < planner_interfaces.size(); ++pidx) {
-            if (planner_interfaces[pidx].name == planner_name) {
-                break;
-            }
-        }
-
-        for (const auto& planner_id : planner_interfaces[pidx].planner_ids) {
-            m_planner_id_combo_box->addItem(QString::fromStdString(planner_id));
-        }
-    }
-
-//    syncPlannerNameComboBox();
-//    syncPlannerIdComboBox();
-//
-//    syncNumPlanningAttemptsSpinBox();
-//    syncAllowedPlanningTimeSpinBox();
-//
-//    syncGoalJointToleranceSpinBox();
-//    syncGoalPositionToleranceSpinBox();
-//    syncGoalOrientationToleranceSpinBox();
-
-    for (auto& frame : m_model.availableFrames()) {
-        m_workspace_frame_combo_box->addItem(QString::fromStdString(frame));
-    }
-
-//    syncWorkspaceWidgets();
-
-    ////////////////////
-    // End population //
-    ////////////////////
-
+    // Why is the robot model required to not be loaded at this point
     assert(!m_model.isRobotLoaded());
 
     QGroupBox* commands_group_box = setupCommandsGroup();
@@ -275,6 +240,48 @@ void MoveGroupCommandPanel::setupGUI()
             this, SLOT(copyCurrentState()));
 }
 
+// Initialize the GUI after the model has been initialized
+void MoveGroupCommandPanel::InitPostModel()
+{
+    // add all planner names as items in the combo box
+    auto& planner_interfaces = m_model.plannerInterfaces();
+    for (auto& planner_interface : planner_interfaces) {
+        auto& planner_name = planner_interface.name;
+        m_planner_name_combo_box->addItem(QString::fromStdString(planner_name));
+    }
+
+    // add all planner ids part of the current planner as items in the combo box
+    auto planner_name = m_model.plannerName();
+    if (planner_name != "UNKNOWN") {
+        size_t pidx;
+        for (pidx = 0; pidx < planner_interfaces.size(); ++pidx) {
+            if (planner_interfaces[pidx].name == planner_name) {
+                break;
+            }
+        }
+
+        for (auto& planner_id : planner_interfaces[pidx].planner_ids) {
+            m_planner_id_combo_box->addItem(QString::fromStdString(planner_id));
+        }
+    }
+
+//    syncPlannerNameComboBox();
+//    syncPlannerIdComboBox();
+//
+//    syncNumPlanningAttemptsSpinBox();
+//    syncAllowedPlanningTimeSpinBox();
+//
+//    syncGoalJointToleranceSpinBox();
+//    syncGoalPositionToleranceSpinBox();
+//    syncGoalOrientationToleranceSpinBox();
+
+    for (auto& frame : m_model.availableFrames()) {
+        m_workspace_frame_combo_box->addItem(QString::fromStdString(frame));
+    }
+
+//    syncWorkspaceWidgets();
+}
+
 QGroupBox* MoveGroupCommandPanel::setupGeneralSettingsGroup()
 {
     QGroupBox* general_settings_group = new QGroupBox(tr("General Settings"));
@@ -284,10 +291,11 @@ QGroupBox* MoveGroupCommandPanel::setupGeneralSettingsGroup()
     QHBoxLayout* robot_description_layout = new QHBoxLayout;
     m_robot_description_line_edit = new QLineEdit;
     m_load_robot_button = new QPushButton(tr("Load Robot"));
+    robot_description_layout->addWidget(robot_description_label);
     robot_description_layout->addWidget(m_robot_description_line_edit);
     robot_description_layout->addWidget(m_load_robot_button);
 
-    general_settings_layout->addWidget(robot_description_label);
+//    general_settings_layout->addWidget(robot_description_label);
     general_settings_layout->addLayout(robot_description_layout);
     general_settings_group->setLayout(general_settings_layout);
     return general_settings_group;
@@ -856,7 +864,7 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
                 continue;
             }
 
-            const auto& T_model_shape = state.getCollisionBodyTransform(lm, j);
+            auto& T_model_shape = state.getCollisionBodyTransform(lm, j);
             tf::poseEigenToMsg(T_model_shape, m.pose);
 
             ma.markers.push_back(m);
@@ -874,7 +882,7 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
         }
 
         size_t cidx = 0;
-        for (const auto& collision : collisions) {
+        for (auto& collision : collisions) {
             if (collision->geometry->type == urdf::Geometry::MESH) {
                 const urdf::Mesh* mesh = (const urdf::Mesh*)collision->geometry.get();
                 visualization_msgs::Marker m;
@@ -888,7 +896,7 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
                 m.scale.z = mesh->scale.z;
 
                 // Aha! lucky guess
-                const auto& T_model_shape = state.getCollisionBodyTransform(lm, cidx);
+                auto& T_model_shape = state.getCollisionBodyTransform(lm, cidx);
                 tf::poseEigenToMsg(T_model_shape, m.pose);
 
                 ma.markers.push_back(m);

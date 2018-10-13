@@ -191,12 +191,13 @@ private:
     auto FindObjectRepPair(const World::ObjectConstPtr& object)
         -> std::vector<ObjectRepPair>::iterator;
 
-    smpl::OccupancyGridPtr createGridFor(
-        const CollisionGridConfig& config) const;
+    auto createGridFor(const CollisionGridConfig& config) const
+        -> smpl::OccupancyGridPtr;
 
-    CollisionStateUpdaterPtr getCollisionStateUpdater(
+    auto getCollisionStateUpdater(
         const CollisionRobotSBPL& collision_robot,
-        const moveit::core::RobotModel& robot_model);
+        const moveit::core::RobotModel& robot_model)
+        -> CollisionStateUpdaterPtr;
 
     void registerWorldCallback();
     void worldUpdate(const World::ObjectConstPtr& object, World::Action action);
@@ -204,7 +205,8 @@ private:
     void setVacuousCollision(CollisionResult& res) const;
     void clearAllCollisions(CollisionResult& res) const;
 
-    moveit_msgs::OrientedBoundingBox computeWorldAABB(const World& world) const;
+    auto computeWorldAABB(const World& world) const
+        -> moveit_msgs::OrientedBoundingBox;
     bool emptyBoundingBox(const moveit_msgs::OrientedBoundingBox& bb) const;
 
     void checkRobotCollisionMutable(
