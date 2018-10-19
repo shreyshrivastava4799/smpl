@@ -18,11 +18,13 @@ heuristic search algorithms. Includes the following packages:
 
 ## Building
 
-The core `smpl` package supports building with standard cmake or using the catkin
-build system (via either `catkin_make` or `catkin build` commands). The other
-packages only support building using the catkin build system. These
-instructions assume you are building all of the SMPL packages simultaneously
-within a catkin workspace *catkin_ws*.
+The core `smpl` package is built with standard cmake conventions. It can be
+built simultaneously within a catkin workspace using the `catkin_make_isolated`
+or `catkin build` commands.
+
+The other packages are standard catkin packages and can be built with catkin
+build tools. These instructions assume you are building all of the SMPL
+packages simultaneously within a catkin workspace *catkin_ws*.
 
 Required system dependencies for each package can be installed using
 [rosdep](wiki.ros.org/rosdep). System dependencies can be installed via:
