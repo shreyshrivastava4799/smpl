@@ -53,7 +53,7 @@ Once all system and source dependencies are built and installed, (re)build your
 catkin workspace:
 
 ```sh
-cd _catkin\_ws_
+cd catkin_ws
 catkin_make [-j#]
 ```
 
