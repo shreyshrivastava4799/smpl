@@ -226,16 +226,19 @@ endmacro()
 ####################################
 
 if(SMPL_BUILD_SHARED)
-    add_library(smpl SHARED ${SMPL_LIBRARY_SOURCES})
+    add_library(smpl-shared SHARED ${SMPL_LIBRARY_SOURCES})
+
+    set_target_properties(smpl-shared PROPERTIES OUTPUT_NAME smpl)
+
     set_target_properties(
-        smpl
+        smpl-shared
         PROPERTIES
             VERSION ${SMPL_VERSION}
             SOVERSION ${SMPL_MAJOR_VERSION}.${SMPL_MINOR_VERSION})
 
-    include_common_directories(smpl)
-    link_common_libraries(smpl)
-    add_common_compile_definitions(smpl)
+    include_common_directories(smpl-shared)
+    link_common_libraries(smpl-shared)
+    add_common_compile_definitions(smpl-shared)
 endif()
 
 ####################################
@@ -275,7 +278,7 @@ install(
     COMPONENT dev)
 
 if(SMPL_BUILD_SHARED)
-    list(APPEND BUILT_LIBRARIES smpl)
+    list(APPEND BUILT_LIBRARIES smpl-shared)
 endif()
 if(SMPL_BUILD_STATIC)
     list(APPEND BUILT_LIBRARIES smpl-static)
@@ -299,3 +302,4 @@ install(
         "${PROJECT_BINARY_DIR}/smpl-config-version.cmake"
     DESTINATION ${SMPL_INSTALL_CMAKE_DIR}
     COMPONENT dev)
+
