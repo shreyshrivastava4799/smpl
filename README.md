@@ -22,7 +22,7 @@ The core `smpl` package supports building with standard cmake or using the catki
 build system (via either `catkin_make` or `catkin build` commands). The other
 packages only support building using the catkin build system. These
 instructions assume you are building all of the SMPL packages simultaneously
-within a catkin workspace __catkin\_ws__.
+within a catkin workspace _catkin\_ws_.
 
 Required system dependencies for each package can be installed using
 [rosdep](wiki.ros.org/rosdep). System dependencies can be installed via:
@@ -53,7 +53,7 @@ Once all system and source dependencies are built and installed, (re)build your
 catkin workspace:
 
 ```sh
-cd _catkin_ws_
+cd _catkin\_ws_
 catkin_make [-j#]
 ```
 
