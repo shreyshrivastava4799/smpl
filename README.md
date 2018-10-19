@@ -2,46 +2,68 @@
 
 ## Overview
 
-A set of packages implementing generic heuristic search algorithms for robotic motion planning. Includes the following packages:
+SMPL is a set of packages for implementing robotic motion planners using
+heuristic search algorithms. Includes the following packages:
 
-* smpl - Provides a library of discrete graph representations of robot configuration spaces, heuristics defined over those representations, and an interface to cleanly integrate them into the sbpl planning framework. Also provides library interfaces to extend the framework to use arbitrary robot representations and collision checking.
-* smpl_test - Provides self-contained examples to illustrate usage of the interfaces provided in the smpl package.
-* sbpl_collision_checking - Provides a library for collision checking of robot states against themselves and the environment using an approximate model implemented as a hierarchy of bounding spheres. Implements the collision checking interface defined in the smpl package.
-* sbpl_kdl_robot_model - Provides a library for integration of robot models, specified via URDF, with kinematics implemented using the KDL library.
-* sbpl_pr2_robot_model - Provides a library for integration of the PR2 and UBR1 robot models, specified via URDF, with kinematics implemented using custom analytical IK solvers.
+* `smpl` - A library of generic graph representations, heuristics, search algorithms, and many utilities for robotic motion planning.
+* `smpl_test` - Example applications and test cases using SMPL
+* `smpl_ros` - A ROS Interface to the planning algorithms available in SMPL
+* `sbpl_kdl_robot_model` - An implementation of SMPL planning interfaces using the KDL library for kinematics.
+* `sbpl_pr2_robot_model` - An implementation of SMPL planning interfaces for the PR2 and UBR1 robots, using their custom kinematics libraries.
+* `sbpl_collision_checking` - A collision detection library using approximate sphere- and grid-based models for a robot and its environment. Implements the collision checking interface defined in the smpl package.
+* `sbpl_collision_checking_test` - Example application and benchmarking tools for `sbpl_collision_checking`
+* `smpl_moveit_interface` - Plugins to the MoveIt! motion planning framework for planning with SMPL
+* `smpl_ompl_interface` - An implementation of ompl planning interfaces using SMPL algorithms
+* `smpl_urdf_robot_model` - An implementation of SMPL planning interfaces using a URDF model and custom forward kinematics
 
-## Before you begin
+## Building
 
-Install ROS Indigo by following the instructions at www.ros.org and follow the
-tutorials to create a catkin workspace to build smpl within.
+The core `smpl` package supports building with standard cmake or using the catkin
+build system (via either `catkin_make` or `catkin build` commands). The other
+packages only support building using the catkin build system. These
+instructions assume you are building all of the SMPL packages simultaneously
+within a catkin workspace __catkin\_ws__.
 
-## Installation
+Required system dependencies for each package can be installed using
+[rosdep](wiki.ros.org/rosdep). System dependencies can be installed via:
 
-### Install SBPL from Source
+```sh
+rosdep install --from-paths smpl -i -y
+```
 
-SMPL requires the latest SBPL to be installed. Because catkin prefers to find packages in your current and parent workspaces, you may need to remove any binary packages that provide SBPL, e.g. ros-_distro_-sbpl, to prevent catkin from giving it higher priority.
+where `smpl` is the path to the cloned repository, not the `smpl` package.
 
-	git clone https://github.com/sbpl/sbpl
-	cd sbpl && mkdir build && cd build && cmake .. && make && sudo make install
+SMPL requires the latest SBPL to be installed. Because catkin prefers to find
+packages in your current and parent workspaces before searching system
+directories, you may need to remove any binary packages that provide SBPL, e.g.
+ros-_distro_-sbpl, to prevent catkin from giving it higher priority.
 
-### Clone sbpl_manipulation and its source dependencies
+```sh
+git clone https://github.com/sbpl/sbpl
+cd sbpl && mkdir build && cd build && cmake .. && make && sudo make install
+```
 
-	git clone https://github.com/aurone/sbpl_manipulation
-	git clone https://github.com/aurone/leatherman
+Clone additional source dependencies:
 
-### Install additional dependencies via rosdep
+```sh
+git clone https://github.com/aurone/leatherman
+```
 
-	rosdep install -i -y smpl
-	rosdep install -i -y smpl_test
-	rosdep install -i -y sbpl_collision_checking
-	rosdep install -i -y sbpl_collision_checking_test
-	rosdep install -i -y sbpl_kdl_robot_model
-	rosdep install -i -y sbpl_pr2_robot_model
+Once all system and source dependencies are built and installed, (re)build your
+catkin workspace:
 
-### (Re)build your catkin workspace
+```sh
+cd _catkin_ws_
+catkin_make [-j#]
+```
 
-	cd _catkin_ws_
-	catkin_make [-j#]
+if using standard catkin commands, or
+
+```sh
+catkin build
+```
+
+using the `catkin` tool from the `python-catkin-tools` package.
 
 ## Running
 
