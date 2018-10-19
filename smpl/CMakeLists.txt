@@ -9,13 +9,18 @@ set(SMPL_CONSOLE_ROS ON CACHE BOOL "Replace smpl log macros with rosconsole macr
 set(SMPL_SV_VISUALIZATION_MSGS ON CACHE BOOL "Include visualization_msgs in visualizer interface")
 
 # Seed options using the default behavior of BUILD_SHARED_LIBS
-if(BUILD_SHARED_LIBS)
-    option(SMPL_BUILD_SHARED "Build smpl as a shared library" ON)
-    option(SMPL_BUILD_STATIC "Build smpl as a static library" OFF)
-else()
-    option(SMPL_BUILD_SHARED "Build smpl as a shared library" OFF)
-    option(SMPL_BUILD_STATIC "Build smpl as a static library" ON)
-endif()
+#if(BUILD_SHARED_LIBS)
+#    option(SMPL_BUILD_SHARED "Build smpl as a shared library" ON)
+#    option(SMPL_BUILD_STATIC "Build smpl as a static library" OFF)
+#else()
+#    option(SMPL_BUILD_SHARED "Build smpl as a shared library" OFF)
+#    option(SMPL_BUILD_STATIC "Build smpl as a static library" ON)
+#endif()
+
+# Less ideal default behavior, but integrates better with catkin since
+# BUILD_SHARED_LIBS is not automatically passed to non-catkin packages.
+option(SMPL_BUILD_SHARED "Build smpl as a shared library" ON)
+option(SMPL_BUILD_STATIC "Build smpl as a static library" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
