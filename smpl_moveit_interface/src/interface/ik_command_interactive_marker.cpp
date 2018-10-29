@@ -134,6 +134,30 @@ void IKCommandInteractiveMarker::processInteractiveMarkerFeedback(
     }
 }
 
+static
+auto normalized(geometry_msgs::Quaternion q) -> geometry_msgs::Quaternion
+{
+    auto len = std::sqrt(q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z);
+    auto qq = q;
+    qq.w /= len;
+    qq.x /= len;
+    qq.y /= len;
+    qq.z /= len;
+    return qq;
+}
+
+static
+auto MakeNormalizedQuaternion(double w, double x, double y, double z)
+    -> geometry_msgs::Quaternion
+{
+    geometry_msgs::Quaternion q;
+    q.w = w;
+    q.x = x;
+    q.y = y;
+    q.z = z;
+    return normalized(q);
+}
+
 // This gets called whenever the robot model or active joint group changes.
 void IKCommandInteractiveMarker::reinitInteractiveMarkers()
 {
@@ -173,10 +197,8 @@ void IKCommandInteractiveMarker::reinitInteractiveMarkers()
         visualization_msgs::InteractiveMarker tip_marker;
         tip_marker.header.frame_id = robot_model->getModelFrame();
 
-        tip_marker.pose.orientation.w = 1.0;
-        tip_marker.pose.orientation.x = 0.0;
-        tip_marker.pose.orientation.y = 0.0;
-        tip_marker.pose.orientation.z = 0.0;
+        tip_marker.pose.orientation =
+                MakeNormalizedQuaternion(1.0, 0.0, 0.0, 0.0);
         tip_marker.pose.position.x = 0.0;
         tip_marker.pose.position.y = 0.0;
         tip_marker.pose.position.z = 0.0;
@@ -191,10 +213,7 @@ void IKCommandInteractiveMarker::reinitInteractiveMarkers()
         dof_control.always_visible = false;
 //        dof_control.description = "pose_control";
 
-        dof_control.orientation.w = 1.0;
-        dof_control.orientation.x = 1.0;
-        dof_control.orientation.y = 0.0;
-        dof_control.orientation.z = 0.0;
+        dof_control.orientation = MakeNormalizedQuaternion(1.0, 1.0, 0.0, 0.0);
 
         dof_control.name = "rotate_x";
         dof_control.interaction_mode =
@@ -206,10 +225,8 @@ void IKCommandInteractiveMarker::reinitInteractiveMarkers()
                 visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
         tip_marker.controls.push_back(dof_control);
 
-        dof_control.orientation.w = 1.0;
-        dof_control.orientation.x = 0.0;
-        dof_control.orientation.y = 1.0;
-        dof_control.orientation.z = 0.0;
+        dof_control.orientation =
+                MakeNormalizedQuaternion(1.0, 0.0, 1.0, 0.0);
 
         dof_control.name = "rotate_z";
         dof_control.interaction_mode =
@@ -221,10 +238,7 @@ void IKCommandInteractiveMarker::reinitInteractiveMarkers()
                 visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
         tip_marker.controls.push_back(dof_control);
 
-        dof_control.orientation.w = 1.0;
-        dof_control.orientation.x = 0.0;
-        dof_control.orientation.y = 0.0;
-        dof_control.orientation.z = 1.0;
+        dof_control.orientation = MakeNormalizedQuaternion(1.0, 0.0, 0.0, 1.0);
 
         dof_control.name = "rotate_y";
         dof_control.interaction_mode =
