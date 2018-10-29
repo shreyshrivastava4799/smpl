@@ -89,6 +89,7 @@ static auto CreateRealVariableSpinBox(
     spinbox->setDecimals(3);
     spinbox->setSingleStep(step);
     spinbox->setWrapping(false);
+    spinbox->setSuffix("m");
     return spinbox;
 }
 
@@ -101,6 +102,7 @@ static auto CreateRollVariableSpinBox() -> QDoubleSpinBox*
     spinbox->setMaximum(180.0);
     spinbox->setSingleStep(1.0);
     spinbox->setWrapping(true);
+    spinbox->setSuffix(QChar(0260));
     return spinbox;
 }
 
@@ -113,6 +115,7 @@ static auto CreatePitchVariableSpinBox() -> QDoubleSpinBox*
     spinbox->setMaximum(180.0);
     spinbox->setSingleStep(1.0);
     spinbox->setWrapping(true);
+    spinbox->setSuffix(QChar(0260));
     return spinbox;
 }
 
@@ -125,6 +128,7 @@ static auto CreateYawVariableSpinBox() -> QDoubleSpinBox*
     spinbox->setMaximum(180.0);
     spinbox->setSingleStep(1.0);
     spinbox->setWrapping(true);
+    spinbox->setSuffix(QChar(0260));
     return spinbox;
 }
 
@@ -136,6 +140,7 @@ static auto CreateAngleVariableSpinBox() -> QDoubleSpinBox*
     spinbox->setMaximum(359.0);
     spinbox->setSingleStep(1.0);
     spinbox->setWrapping(true);
+    spinbox->setSuffix(QChar(0260));
     return spinbox;
 }
 
@@ -152,6 +157,7 @@ static auto CreateRevoluteVariableSpinBox(
                 smpl::angles::to_degrees(bounds.max_position_));
         spinbox->setSingleStep(1.0);
         spinbox->setWrapping(false);
+        spinbox->setSuffix(QChar(0260));
         return spinbox;
     } else {
         return CreateAngleVariableSpinBox();
