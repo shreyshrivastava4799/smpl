@@ -23,6 +23,11 @@ class RobotCommandModel;
 /// A widget providing spinbox controls for joint variables in a RobotModel.
 /// Upon construction, this widget automatically subscribes to the robotLoaded()
 /// and robotStateChanged() signals from its associated RobotCommandModel.
+///
+/// This widget maintains an active joint group, which is the joint group for
+/// which spinbox variable controls are provided. An active joint group may be
+/// set before a RobotModel is loaded, but after a RobotModel is loaded, the
+/// active joint group must be one of the joint groups within the RobotModel.
 class JointVariableCommandWidget : public QWidget
 {
     Q_OBJECT
@@ -38,6 +43,7 @@ public:
 public Q_SLOTS:
 
     void setActiveJointGroup(const std::string& group_name);
+    void setActiveNamedState(const std::string& state_name);
 
 Q_SIGNALS:
 
@@ -50,6 +56,7 @@ private:
     std::string m_active_joint_group;
 
     QComboBox* m_joint_groups_combo_box;
+    QComboBox* m_joint_group_states_combo_box;
 
     std::vector<QDoubleSpinBox*> m_spinboxes;
     std::vector<QLabel*> m_labels;
@@ -79,6 +86,7 @@ private Q_SLOTS:
 
     // called when the item in the combo box changes
     void setJointGroup(const QString& group_name);
+    void setNamedState(const QString& state_name);
 
     void setJointVariableFromSpinBox(double value);
 };

@@ -13,7 +13,9 @@
 namespace sbpl_interface {
 
 // A wrapper around moveit::core::RobotState to provide a QObject-enabled
-// RobotState that signals state changes
+// RobotState that signals state changes. This class also tracks whether the
+// state of any group was last set using a named state and preserves it until
+// the state is set via any other method.
 class RobotCommandModel : public QObject
 {
     Q_OBJECT
@@ -33,6 +35,9 @@ public:
     /// Return a pointer to the managed RobotState, null if no RobotModel has
     /// been loaded.
     auto getRobotState() const -> const moveit::core::RobotState*;
+
+    auto getGroupStateName(const moveit::core::JointModelGroup* group) const
+        -> const std::string&;
 
     void setVariablePositions(const double* position);
 
@@ -78,10 +83,13 @@ Q_SIGNALS:
     void robotLoaded();
     void robotStateChanged();
 
-private:
+public:
 
     moveit::core::RobotModelConstPtr m_robot_model = nullptr;
     std::unique_ptr<moveit::core::RobotState> m_robot_state;
+
+    std::string m_empty;
+    std::vector<int> m_group_states;
 
     void updateAndNotify();
 };

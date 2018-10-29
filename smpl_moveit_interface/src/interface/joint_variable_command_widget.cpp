@@ -17,6 +17,10 @@ namespace sbpl_interface {
 
 static const char *LOG = "joint_variable_command_widget";
 
+//////////////////////
+// Helper Functions //
+//////////////////////
+
 /// Test if a variable is a single-dof angular variable
 ///
 /// Angle variables are treated differently by displaying their values in
@@ -154,6 +158,10 @@ static auto CreateRevoluteVariableSpinBox(
     }
 }
 
+////////////////////////////////////////
+// JointVariableCommandWidget Methods //
+////////////////////////////////////////
+
 JointVariableCommandWidget::JointVariableCommandWidget(
     RobotCommandModel* model,
     QWidget* parent)
@@ -162,19 +170,28 @@ JointVariableCommandWidget::JointVariableCommandWidget(
     m_model(model),
     m_ignore_sync(false)
 {
-    QGridLayout* glayout = new QGridLayout;
+    auto* glayout = new QGridLayout;
+    setLayout(glayout);
 
     m_joint_groups_combo_box = new QComboBox;
+    m_joint_group_states_combo_box = new QComboBox;
 
-    glayout->addWidget(new QLabel(tr("Joint Group:")), 0, 0);
-    glayout->addWidget(m_joint_groups_combo_box, 0, 1);
-    setLayout(glayout);
+    updateJointGroupControls();
 
     connect(m_model, SIGNAL(robotLoaded()), this, SLOT(updateRobotModel()));
     connect(m_model, SIGNAL(robotStateChanged()), this, SLOT(updateRobotState()));
 
-    connect(m_joint_groups_combo_box, SIGNAL(currentIndexChanged(const QString&)),
-            this, SLOT(setJointGroup(const QString&)));
+    // TODO: lazily connect these signals when we're certain we have a robot
+    // model?
+
+    connect(m_joint_groups_combo_box,
+            SIGNAL(currentIndexChanged(const QString&)),
+            this,
+            SLOT(setJointGroup(const QString&)));
+    connect(m_joint_group_states_combo_box,
+            SIGNAL(currentIndexChanged(const QString&)),
+            this,
+            SLOT(setNamedState(const QString&)));
 }
 
 JointVariableCommandWidget::~JointVariableCommandWidget()
@@ -242,6 +259,17 @@ void JointVariableCommandWidget::updateJointGroupControls()
     glayout->addWidget(m_joint_groups_combo_box, 0, 1);
     m_joint_groups_combo_box->show(); // this gets hidden above
 
+    // Add the named state combo box in if we have named states for this group.
+    if (!jmg->getDefaultStateNames().empty()) {
+        glayout->addWidget(new QLabel(tr("Named State:")), 1, 0);
+        glayout->addWidget(m_joint_group_states_combo_box, 1, 1);
+        m_joint_group_states_combo_box->show();
+    }
+
+    /////////////////////////////////
+    // Add joint variable controls //
+    /////////////////////////////////
+
     ROS_DEBUG_NAMED(LOG, "  Add joint group controls to layout");
 
     // gather (label, spinbox) pairs to be visible in the layout
@@ -306,15 +334,77 @@ void JointVariableCommandWidget::setActiveJointGroup(
 {
     if (m_active_joint_group != group_name) {
         ROS_DEBUG_NAMED(LOG, "Update active joint group '%s' -> '%s'", m_active_joint_group.c_str(), group_name.c_str());
-        m_active_joint_group = group_name;
+        auto& robot_model = m_model->getRobotModel();
+        auto* group = robot_model ?
+                robot_model->getJointModelGroup(group_name) : NULL;
 
-        int idx = m_joint_groups_combo_box->findText(QString::fromStdString(group_name));
+        if (robot_model != NULL && group == NULL) {
+            m_active_joint_group = "";
+        } else {
+            m_active_joint_group = group_name;
+        }
+
+        auto idx = m_joint_groups_combo_box->findText(QString::fromStdString(group_name));
         m_joint_groups_combo_box->setCurrentIndex(idx);
+
+        // Update the named state selection to reflect the state in the command
+        if (group != NULL) {
+            // Disconnect signals here. We don't want to change the robot state
+            // by selecting a named state without the user explicitly selecting
+            // it from the combo box
+            disconnect(
+                    m_joint_group_states_combo_box,
+                    SIGNAL(currentIndexChanged(const QString&)),
+                    this,
+                    SLOT(setNamedState(const QString&)));
+
+            m_joint_group_states_combo_box->clear();
+            for (auto& state_name : group->getDefaultStateNames()) {
+                m_joint_group_states_combo_box->addItem(QString::fromStdString(state_name));
+            }
+
+            auto named_state = m_model->getGroupStateName(group);
+            if (named_state.empty()) {
+                m_joint_group_states_combo_box->setCurrentIndex(-1);
+            } else {
+                auto q_named_state = QString::fromStdString(named_state);
+                auto idx = m_joint_group_states_combo_box->findText(q_named_state);
+                m_joint_group_states_combo_box->setCurrentIndex(idx);
+            }
+
+            connect(m_joint_group_states_combo_box,
+                    SIGNAL(currentIndexChanged(const QString&)),
+                    this,
+                    SLOT(setNamedState(const QString&)));
+        }
 
         updateJointGroupControls();
 
         Q_EMIT updateActiveJointGroup(m_active_joint_group);
     }
+}
+
+void JointVariableCommandWidget::setActiveNamedState(
+    const std::string& state_name)
+{
+    ROS_DEBUG_NAMED(LOG, "Set Active Named State '%s'", state_name.c_str());
+    auto& robot_model = m_model->getRobotModel();
+    if (robot_model == NULL) return;
+
+    auto* group = robot_model->getJointModelGroup(m_active_joint_group);
+    if (group == NULL) return;
+
+    if (m_model->getGroupStateName(group) != state_name) {
+        ROS_DEBUG_NAMED(LOG, "Update named state '%s' -> '%s'", m_model->getGroupStateName(group).c_str(), state_name.c_str());
+
+        if (!state_name.empty()) {
+            m_model->setToDefaultValues(group, state_name);
+        }
+    }
+
+    auto idx = m_joint_group_states_combo_box->findText(QString::fromStdString(m_model->getGroupStateName(group)));
+    ROS_DEBUG_NAMED(LOG, "Set combo box to item '%s' at index %d", m_model->getGroupStateName(group).c_str(), idx);
+    m_joint_group_states_combo_box->setCurrentIndex(idx);
 }
 
 /// Update the spinboxes and group selections for a new robot. Creates a new set
@@ -336,21 +426,13 @@ void JointVariableCommandWidget::updateRobotModel()
     m_spinboxes.clear(); // TODO: disconnect/delete old spinboxes?
     m_labels.clear();
 
-    // don't fire off spurious signals, as the active group index shouldn't
-    // actually change
-    disconnect(
-        m_joint_groups_combo_box, SIGNAL(currentIndexChanged(const QString&)),
-        this, SLOT(setJointGroup(const QString&)));
-
-    // NOTE: update the combo box after the variable spinboxes have been created
-    // since setJointGroup will be called by signals emitted by the combo box
     ROS_DEBUG_NAMED(LOG, "  Remove previous entries from combo box");
     m_joint_groups_combo_box->clear();
 
+    ROS_DEBUG_NAMED(LOG, "  Remove previous named state entries from combo box");
+    m_joint_group_states_combo_box->clear();
+
     if (!robot_model) {
-        connect(m_joint_groups_combo_box, SIGNAL(currentIndexChanged(const QString&)),
-                this, SLOT(setJointGroup(const QString&)));
-        updateJointGroupControls();
         return;
     }
 
@@ -526,19 +608,23 @@ void JointVariableCommandWidget::updateRobotModel()
     }
 
     if (m_active_joint_group.empty()) {
+        ROS_DEBUG_NAMED(LOG, "  No active joint group selected");
         // clear the default selected
         m_joint_groups_combo_box->setCurrentIndex(-1);
-    } else if (robot_model->getJointModelGroup(m_active_joint_group) != NULL) {
-        auto active_joint_group = QString::fromStdString(m_active_joint_group);
-        int ajg_idx = m_joint_groups_combo_box->findText(active_joint_group);
-        m_joint_groups_combo_box->setCurrentIndex(ajg_idx);
+    } else {
+        ROS_DEBUG_NAMED(LOG, "  Attempt to select joint group %s", m_active_joint_group.c_str());
+        auto* group = robot_model->getJointModelGroup(m_active_joint_group);
+        if (group != NULL) {
+            ROS_DEBUG_NAMED(LOG, "  Select joint group %s", m_active_joint_group.c_str());
+            auto active_joint_group = QString::fromStdString(m_active_joint_group);
+            int ajg_idx = m_joint_groups_combo_box->findText(active_joint_group);
+            m_joint_groups_combo_box->setCurrentIndex(ajg_idx);
+        } else {
+            ROS_DEBUG_NAMED(LOG, "  Joint group does not exist");
+            m_active_joint_group = "";
+            m_joint_groups_combo_box->setCurrentIndex(-1);
+        }
     }
-
-    connect(
-        m_joint_groups_combo_box, SIGNAL(currentIndexChanged(const QString&)),
-        this, SLOT(setJointGroup(const QString&)));
-
-    updateJointGroupControls();
 }
 
 // Update all spinbox controls to reflect changes to the command state.
@@ -586,7 +672,13 @@ void JointVariableCommandWidget::updateRobotState()
                     auto* spinbox = m_vind_to_spinbox[vi][0];
                     auto value = robot_state->getVariablePosition(vi);
                     if (value != spinbox->value()) {
+                        disconnect(
+                                spinbox, SIGNAL(valueChanged(double)),
+                                this, SLOT(setJointVariableFromSpinBox(double)));
                         spinbox->setValue(value);
+                        connect(
+                                spinbox, SIGNAL(valueChanged(double)),
+                                this, SLOT(setJointVariableFromSpinBox(double)));
                     }
                 } else if (var_name == "rot_w") {
                     assert(m_vind_to_spinbox[vi].size() == 3);
@@ -674,6 +766,16 @@ void JointVariableCommandWidget::updateRobotState()
             }
         }
     }
+
+    ///////////////////////////////
+    // Update active named state //
+    ///////////////////////////////
+
+    auto* group = m_model->getRobotModel()->getJointModelGroup(m_active_joint_group);
+    if (group != NULL) {
+        this->setActiveNamedState(m_model->getGroupStateName(group));
+    }
+
     ROS_DEBUG_NAMED(LOG, "Finished synchronizing spinboxes");
 }
 
@@ -681,6 +783,12 @@ void JointVariableCommandWidget::setJointGroup(const QString& group_name)
 {
     auto group_name_str = group_name.toStdString();
     setActiveJointGroup(group_name_str);
+}
+
+void JointVariableCommandWidget::setNamedState(const QString& state_name)
+{
+    auto state_name_str = state_name.toStdString();
+    setActiveNamedState(state_name_str);
 }
 
 /// Update the model variable from a spinbox
