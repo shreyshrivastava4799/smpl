@@ -5,15 +5,16 @@
 #include <map>
 #include <vector>
 
-// system includes
 #include <QWidget>
-#include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QLabel>
 
 #ifndef Q_MOC_RUN
 #include <moveit/robot_model/robot_model.h>
 #endif
+
+class QComboBox;
+class QDoubleSpinBox;
+class QLabel;
+class QString;
 
 namespace sbpl_interface {
 
@@ -31,7 +32,8 @@ public:
     JointVariableCommandWidget(RobotCommandModel* model, QWidget* parent = 0);
     ~JointVariableCommandWidget();
 
-    const std::string& activeJointGroup() const { return m_active_joint_group; }
+    auto activeJointGroup() const -> const std::string&
+    { return m_active_joint_group; }
 
 public Q_SLOTS:
 

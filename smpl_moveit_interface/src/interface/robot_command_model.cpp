@@ -13,28 +13,36 @@ RobotCommandModel::~RobotCommandModel() { }
 // robotStateChanged() signal.
 bool RobotCommandModel::load(const moveit::core::RobotModelConstPtr& robot)
 {
-    if (!robot) {
+    if (robot == NULL) {
         return false;
     }
 
     m_robot_model = robot;
+    m_robot_state.reset(new moveit::core::RobotState(robot));
     Q_EMIT robotLoaded();
 
-    m_robot_state.reset(new moveit::core::RobotState(robot));
     m_robot_state->setToDefaultValues();
+
     updateAndNotify();
 
     return true;
 }
 
-// TODO: CHECK FOR STATE CHANGES AND ONLY EMIT ROBOTSTATECHANGED IF IT
-// ACTUALLY DID
+auto RobotCommandModel::getRobotModel() const
+    -> const moveit::core::RobotModelConstPtr&
+{
+    return m_robot_model;
+}
+
+auto RobotCommandModel::getRobotState() const -> const moveit::core::RobotState*
+{
+    return m_robot_state.get();
+}
 
 void RobotCommandModel::setVariablePositions(const double* position)
 {
-    const bool same = std::equal(
-            position,
-            position + m_robot_state->getVariableCount(),
+    auto same = std::equal(
+            position, position + m_robot_state->getVariableCount(),
             m_robot_state->getVariablePositions());
     if (!same) {
         ROS_DEBUG_NAMED(LOG, "Set variable positions from array");
@@ -45,7 +53,7 @@ void RobotCommandModel::setVariablePositions(const double* position)
 
 void RobotCommandModel::setVariablePositions(const std::vector<double>& position)
 {
-    const bool same = std::equal(
+    auto same = std::equal(
             begin(position), end(position),
             m_robot_state->getVariablePositions());
     if (!same) {
@@ -58,13 +66,15 @@ void RobotCommandModel::setVariablePositions(const std::vector<double>& position
 void RobotCommandModel::setVariablePositions(
     const std::map<std::string, double>& variable_map)
 {
-    bool same = true;
+    // detect changes to state
+    auto same = true;
     for (auto& e : variable_map) {
         if (m_robot_state->getVariablePosition(e.first) != e.second) {
             same = false;
             break;
         }
     }
+
     if (!same) {
         ROS_DEBUG_NAMED(LOG, "Set variable positions from map");
         m_robot_state->setVariablePositions(variable_map);
@@ -76,7 +86,7 @@ void RobotCommandModel::setVariablePositions(
     const std::map<std::string, double>& variable_map,
     std::vector<std::string>& missing_variables)
 {
-    // TODO: detect differences
+    // TODO: detect changes to state
     ROS_DEBUG_NAMED(LOG, "Set variable positions from map and report missing");
     m_robot_state->setVariablePositions(variable_map, missing_variables);
     updateAndNotify();
@@ -87,8 +97,8 @@ void RobotCommandModel::setVariablePositions(
     const std::vector<double>& variable_position)
 {
     assert(variable_names.size() == variable_position.size());
-    bool same = true;
-    for (size_t i = 0; i < variable_names.size(); ++i) {
+    auto same = true;
+    for (auto i = 0; i < variable_names.size(); ++i) {
         auto& name = variable_names[i];
         auto& position = variable_position[i];
         if (m_robot_state->getVariablePosition(name) != position) {
@@ -107,7 +117,8 @@ void RobotCommandModel::setVariablePosition(
     const std::string& variable,
     double value)
 {
-    if (m_robot_state->getVariablePosition(variable) != value) {
+    auto index = m_robot_model->getVariableIndex(variable);
+    if (m_robot_state->getVariablePosition(index) != value) {
         ROS_DEBUG_NAMED(LOG, "Set position of variable '%s' to %f", variable.c_str(), value);
         m_robot_state->setVariablePosition(variable, value);
         updateAndNotify();
@@ -131,8 +142,8 @@ bool RobotCommandModel::setFromIK(
     const moveit::core::GroupStateValidityCallbackFn& constraint,
     const kinematics::KinematicsQueryOptions& options)
 {
-    // TODO: detect changes?
-    bool res = m_robot_state->setFromIK(group, pose, attempts, timeout, constraint, options);
+    // TODO: detect changes to state
+    auto res = m_robot_state->setFromIK(group, pose, attempts, timeout, constraint, options);
     if (res) {
         ROS_DEBUG_NAMED(LOG, "Set positions of joint group '%s' via IK", group->getName().c_str());
         updateAndNotify();
@@ -157,7 +168,7 @@ void RobotCommandModel::setJointPositions(
     const moveit::core::JointModel* joint,
     const Eigen::Affine3d& joint_transform)
 {
-    // TODO: detect changes?
+    // TODO: detect changes to state
     m_robot_state->setJointPositions(joint, joint_transform);
     updateAndNotify();
 }
@@ -166,7 +177,7 @@ void RobotCommandModel::setJointGroupPositions(
     const moveit::core::JointModelGroup* group,
     const std::vector<double>& positions)
 {
-    // TODO: detect changes?
+    // TODO: detect changes to state
     ROS_DEBUG_NAMED(LOG, "Set positions of joint group '%s'", group->getName().c_str());
     m_robot_state->setJointGroupPositions(group, positions);
     updateAndNotify();

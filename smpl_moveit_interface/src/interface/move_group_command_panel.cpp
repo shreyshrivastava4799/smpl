@@ -1,8 +1,16 @@
 #include "move_group_command_panel.h"
 
 // system includes
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLineEdit>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QScrollArea>
+#include <QSpinBox>
+#include <QVBoxLayout>
 #include <eigen_conversions/eigen_msg.h>
 #include <geometric_shapes/shape_operations.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -161,19 +169,19 @@ void MoveGroupCommandPanel::MakeGUI()
 {
     ROS_INFO("Setting up the baseline GUI");
 
-    QVBoxLayout* parent_layout = new QVBoxLayout;
-    QScrollArea* scroll_area = new QScrollArea;
-    QWidget* scroll_area_widget = new QWidget;
-    QVBoxLayout* main_layout = new QVBoxLayout;
+    auto* parent_layout = new QVBoxLayout;
+    auto* scroll_area = new QScrollArea;
+    auto* scroll_area_widget = new QWidget;
+    auto* main_layout = new QVBoxLayout;
 
-    QGroupBox* general_settings_group = setupGeneralSettingsGroup();
-    QGroupBox* planner_settings_group = setupPlannerSettingsGroup();
+    auto* general_settings_group = setupGeneralSettingsGroup();
+    auto* planner_settings_group = setupPlannerSettingsGroup();
     m_goal_constraints_group = setupGoalConstraintsGroup();
 
     // Why is the robot model required to not be loaded at this point
     assert(!m_model.isRobotLoaded());
 
-    QGroupBox* commands_group_box = setupCommandsGroup();
+    auto* commands_group_box = setupCommandsGroup();
 
     // Put it all together
     main_layout->addWidget(general_settings_group);
@@ -340,12 +348,12 @@ QGroupBox* MoveGroupCommandPanel::setupPlannerSettingsGroup()
 
 QGroupBox* MoveGroupCommandPanel::setupGoalConstraintsGroup()
 {
-    QGroupBox* goal_constraints_group = new QGroupBox(tr("Goal Constraints"));
-    QGridLayout* goal_constraints_layout = new QGridLayout;
+    auto* goal_constraints_group = new QGroupBox(tr("Goal Constraints"));
+    auto* goal_constraints_layout = new QGridLayout;
 
     // Tolerance Group
-    QGroupBox* tolerance_group = new QGroupBox(tr("Tolerances"));
-    QGridLayout* tolerance_layout = new QGridLayout;
+    auto* tolerance_group = new QGroupBox(tr("Tolerances"));
+    auto* tolerance_layout = new QGridLayout;
 
     m_joint_tol_spinbox = new QDoubleSpinBox;
     m_joint_tol_spinbox->setMinimum(-180.0);
@@ -376,8 +384,8 @@ QGroupBox* MoveGroupCommandPanel::setupGoalConstraintsGroup()
     // End Tolerance Group
 
     // Workspace Group
-    QGroupBox* workspace_group = new QGroupBox(tr("Workspace Parameters"));
-    QGridLayout* workspace_layout = new QGridLayout;
+    auto* workspace_group = new QGroupBox(tr("Workspace Parameters"));
+    auto* workspace_layout = new QGridLayout;
 
     m_workspace_frame_combo_box = new QComboBox;
 
@@ -432,8 +440,8 @@ QGroupBox* MoveGroupCommandPanel::setupGoalConstraintsGroup()
     // End Workspace Group
 
     // Goal Command Group
-    QGroupBox* command_group = new QGroupBox(tr("Position Command"));
-    QVBoxLayout* command_layout = new QVBoxLayout;
+    auto* command_group = new QGroupBox(tr("Position Command"));
+    auto* command_layout = new QVBoxLayout;
     m_var_cmd_widget = new JointVariableCommandWidget(m_model.getRobotCommandModel());
     command_layout->addWidget(m_var_cmd_widget);
     command_group->setLayout(command_layout);

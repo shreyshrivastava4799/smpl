@@ -7,13 +7,6 @@
 #include <string>
 
 // system includes
-#include <QLineEdit>
-#include <QPushButton>
-#include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QSpinBox>
-#include <QGroupBox>
-#include <QVBoxLayout>
 #ifndef Q_MOC_RUN
 #include <moveit/robot_model/robot_model.h>
 #include <ros/ros.h>
@@ -25,6 +18,16 @@
 #include <smpl_moveit_interface/interface/teleop_command.h>
 
 #include "move_group_command_model.h"
+
+class QComboBox;
+class QDoubleSpinBox;
+class QGroupBox;
+class QLineEdit;
+class QPushButton;
+class QSpinBox;
+class QString;
+class QVBoxLayout;
+class QWidget;
 
 namespace sbpl_interface {
 
@@ -122,7 +125,6 @@ private:
 
     /// \name Goal Constraints Widgets - Robot Required
     ///@{
-    QComboBox* m_joint_groups_combo_box             = nullptr;
     JointVariableCommandWidget* m_var_cmd_widget    = nullptr;
 
     IKCommandInteractiveMarker  m_ik_cmd_marker;

@@ -28,15 +28,11 @@ public:
     bool load(const moveit::core::RobotModelConstPtr& robot);
 
     /// Returns the loaded RobotModel, null if no RobotModel has been loaded.
-    auto getRobotModel() const -> const moveit::core::RobotModelConstPtr& {
-        return m_robot_model;
-    }
+    auto getRobotModel() const -> const moveit::core::RobotModelConstPtr&;
 
     /// Return a pointer to the managed RobotState, null if no RobotModel has
     /// been loaded.
-    auto getRobotState() const -> const moveit::core::RobotState* {
-        return m_robot_state.get();
-    }
+    auto getRobotState() const -> const moveit::core::RobotState*;
 
     void setVariablePositions(const double* position);
 
