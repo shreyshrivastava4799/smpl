@@ -29,8 +29,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef collision_detection_collision_common_sbpl_h
-#define collision_detection_collision_common_sbpl_h
+#ifndef SMPL_MOVEIT_INTERFACE_COLLISION_COMMON_SBPL_H
+#define SMPL_MOVEIT_INTERFACE_COLLISION_COMMON_SBPL_H
 
 // standard includes
 #include <memory>
@@ -104,28 +104,35 @@ public:
 
     void update(const moveit::core::RobotState& state);
 
-    const std::vector<double>& getVariablesFor(
-        const moveit::core::RobotState& state);
+    auto getVariablesFor(const moveit::core::RobotState& state)
+        -> const std::vector<double>&;
 
-    const smpl::collision::RobotCollisionStatePtr&
-    collisionState() { return m_rcs; }
+    auto collisionState()
+        -> const smpl::collision::RobotCollisionStatePtr&
+    { return m_rcs; }
 
-    smpl::collision::RobotCollisionStateConstPtr
-    collisionState() const { return m_rcs; }
+    auto collisionState() const
+        -> smpl::collision::RobotCollisionStatePtr
+    { return m_rcs; }
 
-    const smpl::collision::AttachedBodiesCollisionModelPtr&
-    attachedBodiesCollisionModel() { return m_ab_model; }
+    auto attachedBodiesCollisionModel()
+        -> const smpl::collision::AttachedBodiesCollisionModelPtr&
+    { return m_ab_model; }
 
-    smpl::collision::AttachedBodiesCollisionModelConstPtr
-    attachedBodiesCollisionModel() const { return m_ab_model; }
+    auto attachedBodiesCollisionModel() const
+        -> smpl::collision::AttachedBodiesCollisionModelConstPtr
+    { return m_ab_model; }
 
     const smpl::collision::AttachedBodiesCollisionStatePtr&
     attachedBodiesCollisionState() { return m_ab_state; }
 
-    smpl::collision::AttachedBodiesCollisionStateConstPtr
-    attachedBodiesCollisionState() const { return m_ab_state; }
+    auto attachedBodiesCollisionState() const
+        -> smpl::collision::AttachedBodiesCollisionStateConstPtr
+    { return m_ab_state; }
 
-    const TouchLinkSet& touchLinkSet() const { return m_touch_link_map; }
+    auto touchLinkSet() const
+        -> const TouchLinkSet&
+    { return m_touch_link_map; }
 
 private:
 

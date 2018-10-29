@@ -40,6 +40,62 @@ namespace collision_detection {
 // crp = collision robot plugin
 static const char* CRP_LOGGER = "self_collisions";
 
+static
+auto MakeCollisionRobotVisualization(
+    smpl::collision::RobotCollisionState* rcs,
+    smpl::collision::AttachedBodiesCollisionState* abcs,
+    int gidx,
+    const std_msgs::ColorRGBA* color,
+    const std::string* frame_id,
+    const std::string* ns)
+    -> visualization_msgs::MarkerArray
+{
+    auto ma = GetCollisionMarkers(*rcs, *abcs, gidx);
+    for (auto& m : ma.markers) {
+        m.ns = *ns;
+        m.header.frame_id = *frame_id;
+        m.color = *color;
+    }
+    return ma;
+}
+
+static
+auto MakeCollisionRobotVisualization(
+    const CollisionRobotSBPL* crobot,
+    smpl::collision::RobotCollisionState* rcs,
+    smpl::collision::AttachedBodiesCollisionState* abcs,
+    int gidx,
+    const std_msgs::ColorRGBA* color)
+    -> visualization_msgs::MarkerArray
+{
+    auto* frame_id = &crobot->m_rcm->modelFrame();
+    std::string ns("self_collision");
+    return MakeCollisionRobotVisualization(
+            rcs, abcs, gidx, color, frame_id, &ns);
+}
+
+static
+auto MakeCollisionRobotValidityVisualization(
+    const CollisionRobotSBPL* crobot,
+    smpl::collision::RobotCollisionState* rcs,
+    smpl::collision::AttachedBodiesCollisionState* abcs,
+    int gidx,
+    bool valid)
+    -> visualization_msgs::MarkerArray
+{
+    std_msgs::ColorRGBA color;
+    if (valid) {
+        color.g = 1.0;
+        color.r = color.b = 0.0;
+        color.a = 1.0;
+    } else {
+        color.r = 1.0;
+        color.g = color.b = 0.0;
+        color.a = 1.0;
+    }
+    return MakeCollisionRobotVisualization(crobot, rcs, abcs, gidx, &color);
+}
+
 CollisionRobotSBPL::CollisionRobotSBPL(
     const robot_model::RobotModelConstPtr& model,
     double padding,
@@ -360,24 +416,16 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
     ROS_INFO_STREAM_COND_NAMED(req.verbose, CRP_LOGGER, "self valid: " << std::boolalpha << valid << ", dist: " << dist);
     ROS_DEBUG_STREAM_COND_NAMED(!req.verbose, CRP_LOGGER, "self valid: " << std::boolalpha << valid << ", dist: " << dist);
 
-    auto visualize = req.verbose;
-    if (visualize) {
-        auto ma = getCollisionRobotVisualization(
-                *m_updater.collisionState(),
-                *m_updater.attachedBodiesCollisionState(),
-                gidx);
-        if (!valid) {
-            for (auto& m : ma.markers) {
-                m.color.r = 1.0;
-                m.color.g = m.color.b = 0.0;
-            }
-        }
-        SV_SHOW_INFO_NAMED("self_collision", ma);
-    }
+    SV_SHOW_DEBUG_NAMED(
+            "self_collision",
+            MakeCollisionRobotValidityVisualization(
+                    this,
+                    m_updater.collisionState().get(),
+                    m_updater.attachedBodiesCollisionState().get(),
+                    gidx,
+                    valid));
 
-    if (!valid) {
-        res.collision = true;
-    }
+    res.collision = !valid;
     if (req.distance) {
         res.distance = std::min(res.distance, dist);
     }
@@ -459,24 +507,16 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
     ROS_INFO_STREAM_COND_NAMED(req.verbose, CRP_LOGGER, "valid: " << std::boolalpha << valid << ", dist: " << dist);
     ROS_DEBUG_STREAM_COND_NAMED(!req.verbose, CRP_LOGGER, "valid: " << std::boolalpha << valid << ", dist: " << dist);
 
-    auto visualize = req.verbose;
-    if (visualize) {
-        auto ma = getCollisionRobotVisualization(
-                *m_updater.collisionState(),
-                *m_updater.attachedBodiesCollisionState(),
-                gidx);
-        if (!valid) {
-            for (auto& m : ma.markers) {
-                m.color.r = 1.0;
-                m.color.g = m.color.b = 0.0;
-            }
-        }
-        SV_SHOW_INFO_NAMED("self_collision", ma);
-    }
+    SV_SHOW_DEBUG_NAMED(
+            "self_collision",
+            MakeCollisionRobotValidityVisualization(
+                    this,
+                    m_updater.collisionState().get(),
+                    m_updater.attachedBodiesCollisionState().get(),
+                    gidx,
+                    valid));
 
-    if (!valid) {
-        res.collision = true;
-    }
+    res.collision = !valid;
     if (req.distance) {
         res.distance = std::min(res.distance, dist);
     }
@@ -538,20 +578,6 @@ auto CollisionRobotSBPL::createGridFor(const CollisionGridConfig& config) const
             config.origin_z,
             max_distance,
             ref_counted);
-}
-
-auto CollisionRobotSBPL::getCollisionRobotVisualization(
-    smpl::collision::RobotCollisionState& rcs,
-    smpl::collision::AttachedBodiesCollisionState& abcs,
-    int gidx) const
-    -> visualization_msgs::MarkerArray
-{
-    auto ma = GetCollisionMarkers(rcs, abcs, gidx);
-    for (auto& m : ma.markers) {
-        m.ns = "self_collision";
-        m.header.frame_id = m_rcm->modelFrame();
-    }
-    return ma;
 }
 
 } // namespace collision_detection

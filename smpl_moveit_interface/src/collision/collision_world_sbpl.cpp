@@ -153,7 +153,7 @@ auto MakeCollisionRobotVisualization(
 
 static
 auto MakeCollisionRobotVisualization(
-    CollisionWorldSBPL* cworld,
+    const CollisionWorldSBPL* cworld,
     smpl::collision::RobotCollisionState* rcs,
     smpl::collision::AttachedBodiesCollisionState* abcs,
     int gidx,
@@ -169,12 +169,7 @@ auto MakeCollisionRobotVisualization(
 
     std::string ns("world_collision");
     return MakeCollisionRobotVisualization(
-            rcs,
-            abcs,
-            gidx,
-            color,
-            frame_id,
-            &ns);
+            rcs, abcs, gidx, color, frame_id, &ns);
 }
 
 static

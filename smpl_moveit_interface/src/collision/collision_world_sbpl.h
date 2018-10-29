@@ -29,8 +29,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef collision_detection_collision_world_sbpl_h
-#define collision_detection_collision_world_sbpl_h
+#ifndef SMPL_MOVEIT_INTERFACE_COLLISION_WORLD_SBPL_H
+#define SMPL_MOVEIT_INTERFACE_COLLISION_WORLD_SBPL_H
 
 // standard includes
 #include <memory>

@@ -29,8 +29,8 @@
 // POSSIBILITY OF SUCH DAMAGE.
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef collision_detection_CollisionRobotSBPL_h
-#define collision_detection_CollisionRobotSBPL_h
+#ifndef SMPL_MOVEIT_INTERFACE_COLLISION_ROBOT_SBPL_H
+#define SMPL_MOVEIT_INTERFACE_COLLISION_ROBOT_SBPL_H
 
 // system includes
 #include <moveit/collision_detection/collision_robot.h>
@@ -172,7 +172,7 @@ protected:
     void updatedPaddingOrScaling(const std::vector<std::string>& links) override;
     ///@}
 
-private:
+public:
 
     using CollisionModelConfigConstPtr =
             std::shared_ptr<const smpl::collision::CollisionModelConfig>;
@@ -212,11 +212,6 @@ private:
 
     auto createGridFor(const CollisionGridConfig& config) const
         -> smpl::OccupancyGridPtr;
-
-    auto getCollisionRobotVisualization(
-        smpl::collision::RobotCollisionState& rcs,
-        smpl::collision::AttachedBodiesCollisionState& abcs,
-        int gidx) const -> visualization_msgs::MarkerArray;
 };
 
 } // namespace collision_detection
