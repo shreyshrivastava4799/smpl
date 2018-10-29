@@ -150,7 +150,7 @@ public:
     void setWorld(const WorldPtr& world) override;
     ///@}
 
-private:
+public:
 
     CollisionGridConfig m_wcm_config;
 
@@ -191,9 +191,6 @@ private:
     auto FindObjectRepPair(const World::ObjectConstPtr& object)
         -> std::vector<ObjectRepPair>::iterator;
 
-    auto createGridFor(const CollisionGridConfig& config) const
-        -> smpl::OccupancyGridPtr;
-
     auto getCollisionStateUpdater(
         const CollisionRobotSBPL& collision_robot,
         const moveit::core::RobotModel& robot_model)
@@ -204,10 +201,6 @@ private:
 
     void setVacuousCollision(CollisionResult& res) const;
     void clearAllCollisions(CollisionResult& res) const;
-
-    auto computeWorldAABB(const World& world) const
-        -> moveit_msgs::OrientedBoundingBox;
-    bool emptyBoundingBox(const moveit_msgs::OrientedBoundingBox& bb) const;
 
     void checkRobotCollisionMutable(
         const CollisionRequest& req,
@@ -243,12 +236,6 @@ private:
     void processWorldUpdateMoveShape(const World::ObjectConstPtr& object);
     void processWorldUpdateAddShape(const World::ObjectConstPtr& object);
     void processWorldUpdateRemoveShape(const World::ObjectConstPtr& object);
-
-    auto getCollisionRobotVisualization(
-        smpl::collision::RobotCollisionState& rcs,
-        smpl::collision::AttachedBodiesCollisionState& abcs,
-        int gidx) const
-        -> visualization_msgs::MarkerArray;
 };
 
 } // namespace collision_detection
