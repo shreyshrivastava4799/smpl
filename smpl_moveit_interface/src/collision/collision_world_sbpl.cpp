@@ -594,8 +594,8 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
             "world_collision",
             MakeCollisionRobotValidityVisualization(
                     this,
-                    gm->collisionState().get(),
-                    gm->attachedBodiesCollisionState().get(),
+                    gm->collisionState(),
+                    gm->attachedBodiesCollisionState(),
                     gidx,
                     valid));
 
@@ -681,8 +681,8 @@ void CollisionWorldSBPL::checkRobotCollisionMutable(
             "world_collision",
             MakeCollisionRobotValidityVisualization(
                     this,
-                    gm->collisionState().get(),
-                    gm->attachedBodiesCollisionState().get(),
+                    gm->collisionState(),
+                    gm->attachedBodiesCollisionState(),
                     gidx,
                     valid));
 

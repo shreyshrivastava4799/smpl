@@ -393,7 +393,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
         SV_SHOW_INFO_NAMED("collision_robot_bounds", bbm);
 
         m_scm = std::make_shared<SelfCollisionModel>(
-                m_grid.get(), m_rcm.get(), m_updater.attachedBodiesCollisionModel().get());
+                m_grid.get(), m_rcm.get(), m_updater.attachedBodiesCollisionModel());
     }
 
     auto gidx = m_rcm->groupIndex(collision_group_name);
@@ -420,8 +420,8 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
             "self_collision",
             MakeCollisionRobotValidityVisualization(
                     this,
-                    m_updater.collisionState().get(),
-                    m_updater.attachedBodiesCollisionState().get(),
+                    m_updater.collisionState(),
+                    m_updater.attachedBodiesCollisionState(),
                     gidx,
                     valid));
 
@@ -475,7 +475,7 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
         SV_SHOW_INFO_NAMED("collision_robot_bounds", bbma);
 
         m_scm = std::make_shared<SelfCollisionModel>(
-                m_grid.get(), m_rcm.get(), m_updater.attachedBodiesCollisionModel().get());
+                m_grid.get(), m_rcm.get(), m_updater.attachedBodiesCollisionModel());
     }
 
     auto gidx = m_rcm->groupIndex(collision_group_name);
@@ -511,8 +511,8 @@ void CollisionRobotSBPL::checkSelfCollisionMutable(
             "self_collision",
             MakeCollisionRobotValidityVisualization(
                     this,
-                    m_updater.collisionState().get(),
-                    m_updater.attachedBodiesCollisionState().get(),
+                    m_updater.collisionState(),
+                    m_updater.attachedBodiesCollisionState(),
                     gidx,
                     valid));
 

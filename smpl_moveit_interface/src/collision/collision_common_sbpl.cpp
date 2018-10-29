@@ -71,7 +71,7 @@ bool CollisionStateUpdater::init(
     m_rcm_vars.assign(robot.getVariableCount(), 0.0);
 
     m_inorder = true;
-    for (size_t i = 1; i < m_rcm_var_indices.size(); ++i) {
+    for (auto i = 1; i < m_rcm_var_indices.size(); ++i) {
         if (m_rcm_var_indices[i] != m_rcm_var_indices[i - 1] + 1) {
             m_inorder = false;
             ROS_INFO("Joint variables not in order:");
@@ -90,8 +90,9 @@ void CollisionStateUpdater::update(const moveit::core::RobotState& state)
     updateAttachedBodies(state);
 }
 
-const std::vector<double>& CollisionStateUpdater::getVariablesFor(
+auto CollisionStateUpdater::getVariablesFor(
     const moveit::core::RobotState& state)
+    -> const std::vector<double>&
 {
     if (m_inorder) {
         std::copy(
@@ -99,7 +100,7 @@ const std::vector<double>& CollisionStateUpdater::getVariablesFor(
                 state.getVariablePositions() + state.getVariableCount(),
                 m_rcm_vars.begin());
     } else {
-        for (size_t vidx = 0; vidx < state.getVariableCount(); ++vidx) {
+        for (auto vidx = 0; vidx < state.getVariableCount(); ++vidx) {
             int rcmvidx = m_rcm_var_indices[vidx];
             m_rcm_vars[rcmvidx] = state.getVariablePosition(vidx);
         }
@@ -113,9 +114,13 @@ bool CollisionStateUpdater::getRobotCollisionModelJointIndices(
     std::vector<int>& rcm_joint_indices)
 {
     // check for joint existence
-    for (const std::string& joint_name : joint_names) {
+    for (auto& joint_name : joint_names) {
         if (!rcm.hasJointVar(joint_name)) {
             ROS_ERROR("Joint variable '%s' not found in Robot Collision Model", joint_name.c_str());
+            ROS_ERROR("Joint names:");
+            for (auto i = 0; i < rcm.jointVarCount(); ++i) {
+                ROS_ERROR("%s", rcm.jointVarName(i).c_str());
+            }
             return false;
         }
     }
@@ -123,9 +128,9 @@ bool CollisionStateUpdater::getRobotCollisionModelJointIndices(
     // map planning joint indices to collision model indices
     rcm_joint_indices.resize(joint_names.size(), -1);
 
-    for (size_t i = 0; i < joint_names.size(); ++i) {
-        const std::string& joint_name = joint_names[i];;
-        int jidx = rcm.jointVarIndex(joint_name);
+    for (auto i = 0; i < joint_names.size(); ++i) {
+        auto& joint_name = joint_names[i];;
+        auto jidx = rcm.jointVarIndex(joint_name);
 
         rcm_joint_indices[i] = jidx;
     }
@@ -142,12 +147,12 @@ bool CollisionStateUpdater::updateAttachedBodies(
     bool updated = false;
 
     // add bodies not in the attached body model
-    for (const moveit::core::AttachedBody* ab : attached_bodies) {
+    for (auto* ab : attached_bodies) {
         if (!m_ab_model->hasAttachedBody(ab->getName())) {
             updated = true;
             ROS_DEBUG("Attach body '%s' from Robot Collision Model", ab->getName().c_str());
             m_ab_model->attachBody(ab->getName(), ab->getShapes(), ab->getFixedTransforms(), ab->getAttachedLinkName());
-            for (const auto& touch_link : ab->getTouchLinks()) {
+            for (auto& touch_link : ab->getTouchLinks()) {
                 m_touch_link_map.insert(std::make_pair(ab->getName(), touch_link));
                 m_touch_link_map.insert(std::make_pair(touch_link, ab->getName()));
             }
@@ -159,7 +164,7 @@ bool CollisionStateUpdater::updateAttachedBodies(
         updated = true;
         std::vector<int> abindices;
         m_ab_model->attachedBodyIndices(abindices);
-        for (int abidx : abindices) {
+        for (auto abidx : abindices) {
             const std::string& ab_name = m_ab_model->attachedBodyName(abidx);
             auto it = std::find_if(
                     attached_bodies.begin(), attached_bodies.end(),
@@ -231,7 +236,7 @@ void LoadCollisionGridConfig(
         std::stringstream ss;
         ss << "'" << param_name << "' param is malformed";
         ROS_ERROR_STREAM(ss.str());
-        for (const auto& field : required_fields) {
+        for (auto& field : required_fields) {
             ROS_ERROR_STREAM("has " << field << " member: " << std::boolalpha << cm_config.hasMember(field));
         }
         throw std::runtime_error(ss.str());
@@ -312,9 +317,9 @@ bool WorldObjectToCollisionObjectMsgFull(
     obj_msg.id = object.id_;
 
     assert(object.shape_poses_.size() == object.shapes_.size());
-    for (size_t sind = 0; sind < object.shapes_.size(); ++sind) {
-        const Eigen::Affine3d& shape_transform = object.shape_poses_[sind];
-        const shapes::ShapeConstPtr& shape = object.shapes_[sind];
+    for (auto sind = 0; sind < object.shapes_.size(); ++sind) {
+        auto& shape_transform = object.shape_poses_[sind];
+        auto& shape = object.shapes_[sind];
 
         // convert shape to corresponding shape_msgs type
         switch (shape->type) {
@@ -325,8 +330,7 @@ bool WorldObjectToCollisionObjectMsgFull(
         }   break;
         case shapes::SPHERE:
         {
-            const shapes::Sphere* sphere =
-                    dynamic_cast<const shapes::Sphere*>(shape.get());
+            auto* sphere = dynamic_cast<const shapes::Sphere*>(shape.get());
 
             shape_msgs::SolidPrimitive prim;
             prim.type = shape_msgs::SolidPrimitive::SPHERE;
@@ -340,8 +344,7 @@ bool WorldObjectToCollisionObjectMsgFull(
         }   break;
         case shapes::CYLINDER:
         {
-            const shapes::Cylinder* cylinder =
-                    dynamic_cast<const shapes::Cylinder*>(shape.get());
+            auto* cylinder = dynamic_cast<const shapes::Cylinder*>(shape.get());
 
             shape_msgs::SolidPrimitive prim;
             prim.type = shape_msgs::SolidPrimitive::CYLINDER;
@@ -360,8 +363,7 @@ bool WorldObjectToCollisionObjectMsgFull(
         }   break;
         case shapes::BOX:
         {
-            const shapes::Box* box =
-                    dynamic_cast<const shapes::Box*>(shape.get());
+            auto* box = dynamic_cast<const shapes::Box*>(shape.get());
 
             shape_msgs::SolidPrimitive prim;
             prim.type = shape_msgs::SolidPrimitive::BOX;
@@ -381,22 +383,21 @@ bool WorldObjectToCollisionObjectMsgFull(
         }   break;
         case shapes::MESH:
         {
-            const shapes::Mesh* mesh =
-                    dynamic_cast<const shapes::Mesh*>(shape.get());
+            auto* mesh = dynamic_cast<const shapes::Mesh*>(shape.get());
 
             obj_msg.meshes.push_back(shape_msgs::Mesh());
             shape_msgs::Mesh& mesh_msg = obj_msg.meshes.back();
 
             // convert shapes::Mesh to shape_msgs::Mesh
             mesh_msg.vertices.resize(mesh->vertex_count);
-            for (int i = 0; i < mesh->vertex_count; ++i) {
+            for (auto i = 0; i < mesh->vertex_count; ++i) {
                 mesh_msg.vertices[i].x = mesh->vertices[3 * i + 0];
                 mesh_msg.vertices[i].y = mesh->vertices[3 * i + 1];
                 mesh_msg.vertices[i].z = mesh->vertices[3 * i + 2];
             }
 
             mesh_msg.triangles.resize(mesh->triangle_count);
-            for (int i = 0; i < mesh->triangle_count; ++i) {
+            for (auto i = 0; i < mesh->triangle_count; ++i) {
                 mesh_msg.triangles[i].vertex_indices[0] = mesh->triangles[3 * i + 0];
                 mesh_msg.triangles[i].vertex_indices[1] = mesh->triangles[3 * i + 1];
                 mesh_msg.triangles[i].vertex_indices[2] = mesh->triangles[3 * i + 2];
@@ -528,7 +529,7 @@ auto GetCollisionMarkers(smpl::collision::RobotCollisionState& rcs, int gidx)
     -> visualization_msgs::MarkerArray
 {
     // update the spheres within the group
-    for (int ssidx : rcs.groupSpheresStateIndices(gidx)) {
+    for (auto ssidx : rcs.groupSpheresStateIndices(gidx)) {
         rcs.updateSphereStates(ssidx);
     }
     auto ma = rcs.getVisualization(gidx);
@@ -540,7 +541,7 @@ auto GetCollisionMarkers(
     int gidx)
     -> visualization_msgs::MarkerArray
 {
-    for (int ssidx : abcs.groupSpheresStateIndices(gidx)) {
+    for (auto ssidx : abcs.groupSpheresStateIndices(gidx)) {
         abcs.updateSphereStates(ssidx);
     }
     return abcs.getVisualization(gidx);

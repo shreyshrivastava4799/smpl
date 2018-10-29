@@ -107,28 +107,27 @@ public:
     auto getVariablesFor(const moveit::core::RobotState& state)
         -> const std::vector<double>&;
 
-    auto collisionState()
-        -> const smpl::collision::RobotCollisionStatePtr&
-    { return m_rcs; }
+    auto collisionState() -> smpl::collision::RobotCollisionState*
+    { return m_rcs.get(); }
 
-    auto collisionState() const
-        -> smpl::collision::RobotCollisionStatePtr
-    { return m_rcs; }
+    auto collisionState() const -> const smpl::collision::RobotCollisionState*
+    { return m_rcs.get(); }
 
     auto attachedBodiesCollisionModel()
-        -> const smpl::collision::AttachedBodiesCollisionModelPtr&
-    { return m_ab_model; }
+        -> smpl::collision::AttachedBodiesCollisionModel*
+    { return m_ab_model.get(); }
 
     auto attachedBodiesCollisionModel() const
-        -> smpl::collision::AttachedBodiesCollisionModelConstPtr
-    { return m_ab_model; }
+        -> const smpl::collision::AttachedBodiesCollisionModel*
+    { return m_ab_model.get(); }
 
-    const smpl::collision::AttachedBodiesCollisionStatePtr&
-    attachedBodiesCollisionState() { return m_ab_state; }
+    auto attachedBodiesCollisionState()
+        -> smpl::collision::AttachedBodiesCollisionState*
+    { return m_ab_state.get(); }
 
     auto attachedBodiesCollisionState() const
-        -> smpl::collision::AttachedBodiesCollisionStateConstPtr
-    { return m_ab_state; }
+        -> const smpl::collision::AttachedBodiesCollisionState*
+    { return m_ab_state.get(); }
 
     auto touchLinkSet() const
         -> const TouchLinkSet&
