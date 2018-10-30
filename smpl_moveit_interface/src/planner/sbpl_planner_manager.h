@@ -72,8 +72,6 @@ private:
     planning_interface::PlannerConfigurationMap map;
 
     void logPlanningScene(const planning_scene::PlanningScene& scene) const;
-    void logMotionPlanRequest(
-        const planning_interface::MotionPlanRequest& req) const;
 
     /// \name Parameter Loading
     ///@{

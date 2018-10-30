@@ -115,7 +115,7 @@ auto MakeManipLattice(
     // Parameters //
     ////////////////
 
-    std::vector<double> resolutions(robot->jointVariableCount());
+    auto resolutions = std::vector<double>(robot->jointVariableCount());
 
     std::string disc_string;
     if (!params.getParam("discretization", disc_string)) {

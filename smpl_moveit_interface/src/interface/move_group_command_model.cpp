@@ -891,6 +891,13 @@ bool MoveGroupCommandModel::fillPoseGoalConstraints(
     return true;
 }
 
+static bool ends_with(const std::string& s, const std::string& suffix)
+{
+    auto pos = s.rfind(suffix, std::string::npos);
+    if (pos == std::string::npos) return false;
+    else return pos + suffix.size() == s.size();
+}
+
 bool MoveGroupCommandModel::fillConfigurationGoalConstraints(
     const ros::Time& now,
     const std::string& group_name,
@@ -951,7 +958,23 @@ bool MoveGroupCommandModel::fillConfigurationGoalConstraints(
         }
         case moveit::core::JointModel::JointType::FLOATING:
         {
-            ROS_WARN("Skipping floating joint '%s' in joint group '%s'", jm->getName().c_str(), group_name.c_str());
+            for (auto& var_name : jm->getVariableNames()) {
+                moveit_msgs::JointConstraint joint_constraint;
+                joint_constraint.joint_name = var_name;
+                joint_constraint.position = robot_state->getVariablePosition(var_name);
+                if (ends_with(var_name, "trans_x") ||
+                    ends_with(var_name, "trans_y") ||
+                    ends_with(var_name, "trans_z"))
+                {
+                    joint_constraint.tolerance_above = m_pos_tol_m;
+                    joint_constraint.tolerance_below = m_pos_tol_m;
+                } else {
+                    joint_constraint.tolerance_above = m_joint_tol_rad;
+                    joint_constraint.tolerance_below = m_joint_tol_rad;
+                }
+                joint_constraint.weight = 1.0;
+                constraints.joint_constraints.push_back(joint_constraint);
+            }
             break;
         }
         default:

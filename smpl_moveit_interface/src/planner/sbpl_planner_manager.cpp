@@ -38,6 +38,125 @@ namespace sbpl_interface {
 // pp = planning plugin
 static const char* PP_LOGGER = "planning";
 
+void LogMotionPlanRequest(const planning_interface::MotionPlanRequest& req)
+{
+    ROS_DEBUG_NAMED(PP_LOGGER, "Motion Plan Request");
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "  workspace_parameters");
+    ROS_DEBUG_NAMED(PP_LOGGER, "    header");
+    ROS_DEBUG_NAMED(PP_LOGGER, "      seq: %u", req.workspace_parameters.header.seq);
+    ROS_DEBUG_STREAM_NAMED(PP_LOGGER, "      stamp: " << req.workspace_parameters.header.stamp);
+    ROS_DEBUG_NAMED(PP_LOGGER, "      frame_id: \"%s\"", req.workspace_parameters.header.frame_id.c_str());
+    ROS_DEBUG_NAMED(PP_LOGGER, "    min_corner");
+    ROS_DEBUG_NAMED(PP_LOGGER, "      x: %f", req.workspace_parameters.min_corner.x);
+    ROS_DEBUG_NAMED(PP_LOGGER, "      y: %f", req.workspace_parameters.min_corner.y);
+    ROS_DEBUG_NAMED(PP_LOGGER, "      z: %f", req.workspace_parameters.min_corner.z);
+    ROS_DEBUG_NAMED(PP_LOGGER, "    max_corner");
+    ROS_DEBUG_NAMED(PP_LOGGER, "      x: %f", req.workspace_parameters.max_corner.x);
+    ROS_DEBUG_NAMED(PP_LOGGER, "      y: %f", req.workspace_parameters.max_corner.y);
+    ROS_DEBUG_NAMED(PP_LOGGER, "      z: %f", req.workspace_parameters.max_corner.z);
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "  start_state");
+    ROS_DEBUG_NAMED(PP_LOGGER, "    joint_state:");
+    auto& joint_state = req.start_state.joint_state;
+    for (size_t jidx = 0; jidx < joint_state.name.size(); ++jidx) {
+        ROS_DEBUG_NAMED(PP_LOGGER, "      { name: %s, position: %0.3f }", joint_state.name[jidx].c_str(), joint_state.position[jidx]);
+    }
+    ROS_DEBUG_NAMED(PP_LOGGER, "    multi_dof_joint_state");
+    auto& multi_dof_joint_state = req.start_state.multi_dof_joint_state;
+    ROS_DEBUG_NAMED(PP_LOGGER, "      header: { seq: %d, stamp: %0.3f, frame_id: \"%s\" }",
+            multi_dof_joint_state.header.seq,
+            multi_dof_joint_state.header.stamp.toSec(),
+            multi_dof_joint_state.header.frame_id.c_str());
+    for (size_t jidx = 0; jidx < multi_dof_joint_state.joint_names.size(); ++jidx) {
+        auto& joint_name = multi_dof_joint_state.joint_names[jidx];
+        auto& transform = multi_dof_joint_state.transforms[jidx];
+        ROS_DEBUG_NAMED(PP_LOGGER, "      { joint_names: %s, transform: (%f, %f, %f, %f, %f, %f, %f) }",
+                joint_name.c_str(),
+                transform.translation.x,
+                transform.translation.y,
+                transform.translation.z,
+                transform.rotation.x,
+                transform.rotation.y,
+                transform.rotation.z,
+                transform.rotation.w);
+    }
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "    attached_collision_objects: %zu", req.start_state.attached_collision_objects.size());
+    ROS_DEBUG_NAMED(PP_LOGGER, "    is_diff: %s", req.start_state.is_diff ? "true" : "false");
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "  goal_constraints: %zu", req.goal_constraints.size());
+    for (size_t cind = 0; cind < req.goal_constraints.size(); ++cind) {
+        auto& constraints = req.goal_constraints[cind];
+
+        // joint constraints
+        ROS_DEBUG_NAMED(PP_LOGGER, "    joint_constraints: %zu", constraints.joint_constraints.size());
+        for (size_t jcind = 0; jcind < constraints.joint_constraints.size(); ++jcind) {
+            auto& joint_constraint = constraints.joint_constraints[jcind];
+            ROS_DEBUG_NAMED(PP_LOGGER, "      joint_name: %s, position: %0.3f, tolerance_above: %0.3f, tolerance_below: %0.3f, weight: %0.3f",
+                    joint_constraint.joint_name.c_str(),
+                    joint_constraint.position,
+                    joint_constraint.tolerance_above,
+                    joint_constraint.tolerance_below,
+                    joint_constraint.weight);
+        }
+
+        // position constraints
+        ROS_DEBUG_NAMED(PP_LOGGER, "    position_constraints: %zu", constraints.position_constraints.size());
+        for (size_t pcind = 0; pcind < constraints.position_constraints.size(); ++pcind) {
+            auto& pos_constraint = constraints.position_constraints[pcind];
+            ROS_DEBUG_NAMED(PP_LOGGER, "      header: { frame_id: %s, seq: %u, stamp: %0.3f }", pos_constraint.header.frame_id.c_str(), pos_constraint.header.seq, pos_constraint.header.stamp.toSec());
+            ROS_DEBUG_NAMED(PP_LOGGER, "      link_name: %s", pos_constraint.link_name.c_str());
+            ROS_DEBUG_NAMED(PP_LOGGER, "      target_point_offset: (%0.3f, %0.3f, %0.3f)", pos_constraint.target_point_offset.x, pos_constraint.target_point_offset.y, pos_constraint.target_point_offset.z);
+            ROS_DEBUG_NAMED(PP_LOGGER, "      constraint_region:");
+            ROS_DEBUG_NAMED(PP_LOGGER, "        primitives: %zu", pos_constraint.constraint_region.primitives.size());
+            for (size_t pind = 0; pind < pos_constraint.constraint_region.primitives.size(); ++pind) {
+                auto& prim = pos_constraint.constraint_region.primitives[pind];
+                auto& pose = pos_constraint.constraint_region.primitive_poses[pind];
+                ROS_DEBUG_NAMED(PP_LOGGER, "          { type: %d, pose: { position: (%0.3f, %0.3f, %0.3f), orientation: (%0.3f, %0.3f, %0.3f, %0.3f) } }", prim.type, pose.position.x, pose.position.y, pose.position.y, pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
+            }
+            ROS_DEBUG_NAMED(PP_LOGGER, "        meshes: %zu", pos_constraint.constraint_region.meshes.size());
+        }
+
+        // orientation constarints
+        ROS_DEBUG_NAMED(PP_LOGGER, "    orientation_constraints: %zu", constraints.orientation_constraints.size());
+        for (size_t ocind = 0; ocind < constraints.orientation_constraints.size(); ++ocind) {
+            auto& rot_constraint = constraints.orientation_constraints[ocind];
+            ROS_DEBUG_NAMED(PP_LOGGER, "      header: { frame_id: %s, seq: %u, stamp: %0.3f }", rot_constraint.header.frame_id.c_str(), rot_constraint.header.seq, rot_constraint.header.stamp.toSec());
+            ROS_DEBUG_NAMED(PP_LOGGER, "      orientation: (%0.3f, %0.3f, %0.3f, %0.3f)", rot_constraint.orientation.w, rot_constraint.orientation.x, rot_constraint.orientation.y, rot_constraint.orientation.z);
+            ROS_DEBUG_NAMED(PP_LOGGER, "      link_name: %s", rot_constraint.link_name.c_str());
+            ROS_DEBUG_NAMED(PP_LOGGER, "      absolute_x_axis_tolerance: %0.3f", rot_constraint.absolute_x_axis_tolerance);
+            ROS_DEBUG_NAMED(PP_LOGGER, "      absolute_y_axis_tolerance: %0.3f", rot_constraint.absolute_y_axis_tolerance);
+            ROS_DEBUG_NAMED(PP_LOGGER, "      absolute_z_axis_tolerance: %0.3f", rot_constraint.absolute_z_axis_tolerance);
+            ROS_DEBUG_NAMED(PP_LOGGER, "      weight: %0.3f", rot_constraint.weight);
+        }
+
+        // visibility constraints
+        ROS_DEBUG_NAMED(PP_LOGGER, "    visibility_constraints: %zu", constraints.visibility_constraints.size());
+    }
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "  path_constraints");
+    ROS_DEBUG_NAMED(PP_LOGGER, "    joint_constraints: %zu", req.path_constraints.joint_constraints.size());
+    ROS_DEBUG_NAMED(PP_LOGGER, "    position_constraints: %zu", req.path_constraints.position_constraints.size());
+    ROS_DEBUG_NAMED(PP_LOGGER, "    orientation_constraints: %zu", req.path_constraints.orientation_constraints.size());
+    ROS_DEBUG_NAMED(PP_LOGGER, "    visibility_constraints: %zu", req.path_constraints.visibility_constraints.size());
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "  trajectory_constraints");
+    for (size_t cind = 0; cind < req.trajectory_constraints.constraints.size(); ++cind) {
+        auto& constraints = req.trajectory_constraints.constraints[cind];
+        ROS_DEBUG_NAMED(PP_LOGGER, "    joint_constraints: %zu", constraints.joint_constraints.size());
+        ROS_DEBUG_NAMED(PP_LOGGER, "    position_constraints: %zu", constraints.position_constraints.size());
+        ROS_DEBUG_NAMED(PP_LOGGER, "    orientation_constraints: %zu", constraints.orientation_constraints.size());
+        ROS_DEBUG_NAMED(PP_LOGGER, "    visibility_constraints: %zu", constraints.visibility_constraints.size());
+    }
+
+    ROS_DEBUG_NAMED(PP_LOGGER, "  planner_id: %s", req.planner_id.c_str());
+    ROS_DEBUG_NAMED(PP_LOGGER, "  group_name: %s", req.group_name.c_str());
+    ROS_DEBUG_NAMED(PP_LOGGER, "  num_planning_attempts: %d", req.num_planning_attempts);
+    ROS_DEBUG_NAMED(PP_LOGGER, "  allowed_planning_time: %f", req.allowed_planning_time);
+    ROS_DEBUG_NAMED(PP_LOGGER, "  max_velocity_scaling_factor: %f", req.max_velocity_scaling_factor);
+}
+
 SBPLPlannerManager::SBPLPlannerManager() :
     Base(),
     m_robot_model(),
@@ -99,6 +218,8 @@ auto SBPLPlannerManager::getPlanningContext(
 {
     ROS_DEBUG_NAMED(PP_LOGGER, "Get SBPL Planning Context");
 
+    LogMotionPlanRequest(req);
+
     planning_interface::PlanningContextPtr null_context;
 
     if (!canServiceRequest(req)) {
@@ -149,7 +270,6 @@ auto SBPLPlannerManager::getPlanningContext(
 #if 0
     logPlanningScene(*planning_scene);
 #endif
-    logMotionPlanRequest(req);
 
     auto sbpl_context = mutable_me->getPlanningContextForPlanner(
             sbpl_model, req.planner_id);
@@ -289,126 +409,6 @@ void SBPLPlannerManager::logPlanningScene(
 
 //    ROS_INFO_NAMED(PP_LOGGER, "Allowed collision matrix");
 //    scene.getAllowedCollisionMatrix().print(std::cout);
-}
-
-void SBPLPlannerManager::logMotionPlanRequest(
-    const planning_interface::MotionPlanRequest& req) const
-{
-    ROS_DEBUG_NAMED(PP_LOGGER, "Motion Plan Request");
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "  workspace_parameters");
-    ROS_DEBUG_NAMED(PP_LOGGER, "    header");
-    ROS_DEBUG_NAMED(PP_LOGGER, "      seq: %u", req.workspace_parameters.header.seq);
-    ROS_DEBUG_STREAM_NAMED(PP_LOGGER, "      stamp: " << req.workspace_parameters.header.stamp);
-    ROS_DEBUG_NAMED(PP_LOGGER, "      frame_id: \"%s\"", req.workspace_parameters.header.frame_id.c_str());
-    ROS_DEBUG_NAMED(PP_LOGGER, "    min_corner");
-    ROS_DEBUG_NAMED(PP_LOGGER, "      x: %f", req.workspace_parameters.min_corner.x);
-    ROS_DEBUG_NAMED(PP_LOGGER, "      y: %f", req.workspace_parameters.min_corner.y);
-    ROS_DEBUG_NAMED(PP_LOGGER, "      z: %f", req.workspace_parameters.min_corner.z);
-    ROS_DEBUG_NAMED(PP_LOGGER, "    max_corner");
-    ROS_DEBUG_NAMED(PP_LOGGER, "      x: %f", req.workspace_parameters.max_corner.x);
-    ROS_DEBUG_NAMED(PP_LOGGER, "      y: %f", req.workspace_parameters.max_corner.y);
-    ROS_DEBUG_NAMED(PP_LOGGER, "      z: %f", req.workspace_parameters.max_corner.z);
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "  start_state");
-    ROS_DEBUG_NAMED(PP_LOGGER, "    joint_state:");
-    auto& joint_state = req.start_state.joint_state;
-    for (size_t jidx = 0; jidx < joint_state.name.size(); ++jidx) {
-        ROS_DEBUG_NAMED(PP_LOGGER, "      { name: %s, position: %0.3f }", joint_state.name[jidx].c_str(), joint_state.position[jidx]);
-    }
-    ROS_DEBUG_NAMED(PP_LOGGER, "    multi_dof_joint_state");
-    auto& multi_dof_joint_state = req.start_state.multi_dof_joint_state;
-    ROS_DEBUG_NAMED(PP_LOGGER, "      header: { seq: %d, stamp: %0.3f, frame_id: \"%s\" }",
-            multi_dof_joint_state.header.seq,
-            multi_dof_joint_state.header.stamp.toSec(),
-            multi_dof_joint_state.header.frame_id.c_str());
-    for (size_t jidx = 0; jidx < multi_dof_joint_state.joint_names.size(); ++jidx) {
-        auto& joint_name = multi_dof_joint_state.joint_names[jidx];
-        auto& transform = multi_dof_joint_state.transforms[jidx];
-        ROS_DEBUG_NAMED(PP_LOGGER, "      { joint_names: %s, transform: (%f, %f, %f, %f, %f, %f, %f) }",
-                joint_name.c_str(),
-                transform.translation.x,
-                transform.translation.y,
-                transform.translation.z,
-                transform.rotation.x,
-                transform.rotation.y,
-                transform.rotation.z,
-                transform.rotation.w);
-    }
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "    attached_collision_objects: %zu", req.start_state.attached_collision_objects.size());
-    ROS_DEBUG_NAMED(PP_LOGGER, "    is_diff: %s", req.start_state.is_diff ? "true" : "false");
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "  goal_constraints: %zu", req.goal_constraints.size());
-    for (size_t cind = 0; cind < req.goal_constraints.size(); ++cind) {
-        auto& constraints = req.goal_constraints[cind];
-
-        // joint constraints
-        ROS_DEBUG_NAMED(PP_LOGGER, "    joint_constraints: %zu", constraints.joint_constraints.size());
-        for (size_t jcind = 0; jcind < constraints.joint_constraints.size(); ++jcind) {
-            auto& joint_constraint = constraints.joint_constraints[jcind];
-            ROS_DEBUG_NAMED(PP_LOGGER, "      joint_name: %s, position: %0.3f, tolerance_above: %0.3f, tolerance_below: %0.3f, weight: %0.3f",
-                    joint_constraint.joint_name.c_str(),
-                    joint_constraint.position,
-                    joint_constraint.tolerance_above,
-                    joint_constraint.tolerance_below,
-                    joint_constraint.weight);
-        }
-
-        // position constraints
-        ROS_DEBUG_NAMED(PP_LOGGER, "    position_constraints: %zu", constraints.position_constraints.size());
-        for (size_t pcind = 0; pcind < constraints.position_constraints.size(); ++pcind) {
-            auto& pos_constraint = constraints.position_constraints[pcind];
-            ROS_DEBUG_NAMED(PP_LOGGER, "      header: { frame_id: %s, seq: %u, stamp: %0.3f }", pos_constraint.header.frame_id.c_str(), pos_constraint.header.seq, pos_constraint.header.stamp.toSec());
-            ROS_DEBUG_NAMED(PP_LOGGER, "      link_name: %s", pos_constraint.link_name.c_str());
-            ROS_DEBUG_NAMED(PP_LOGGER, "      target_point_offset: (%0.3f, %0.3f, %0.3f)", pos_constraint.target_point_offset.x, pos_constraint.target_point_offset.y, pos_constraint.target_point_offset.z);
-            ROS_DEBUG_NAMED(PP_LOGGER, "      constraint_region:");
-            ROS_DEBUG_NAMED(PP_LOGGER, "        primitives: %zu", pos_constraint.constraint_region.primitives.size());
-            for (size_t pind = 0; pind < pos_constraint.constraint_region.primitives.size(); ++pind) {
-                auto& prim = pos_constraint.constraint_region.primitives[pind];
-                auto& pose = pos_constraint.constraint_region.primitive_poses[pind];
-                ROS_DEBUG_NAMED(PP_LOGGER, "          { type: %d, pose: { position: (%0.3f, %0.3f, %0.3f), orientation: (%0.3f, %0.3f, %0.3f, %0.3f) } }", prim.type, pose.position.x, pose.position.y, pose.position.y, pose.orientation.w, pose.orientation.x, pose.orientation.y, pose.orientation.z);
-            }
-            ROS_DEBUG_NAMED(PP_LOGGER, "        meshes: %zu", pos_constraint.constraint_region.meshes.size());
-        }
-
-        // orientation constarints
-        ROS_DEBUG_NAMED(PP_LOGGER, "    orientation_constraints: %zu", constraints.orientation_constraints.size());
-        for (size_t ocind = 0; ocind < constraints.orientation_constraints.size(); ++ocind) {
-            auto& rot_constraint = constraints.orientation_constraints[ocind];
-            ROS_DEBUG_NAMED(PP_LOGGER, "      header: { frame_id: %s, seq: %u, stamp: %0.3f }", rot_constraint.header.frame_id.c_str(), rot_constraint.header.seq, rot_constraint.header.stamp.toSec());
-            ROS_DEBUG_NAMED(PP_LOGGER, "      orientation: (%0.3f, %0.3f, %0.3f, %0.3f)", rot_constraint.orientation.w, rot_constraint.orientation.x, rot_constraint.orientation.y, rot_constraint.orientation.z);
-            ROS_DEBUG_NAMED(PP_LOGGER, "      link_name: %s", rot_constraint.link_name.c_str());
-            ROS_DEBUG_NAMED(PP_LOGGER, "      absolute_x_axis_tolerance: %0.3f", rot_constraint.absolute_x_axis_tolerance);
-            ROS_DEBUG_NAMED(PP_LOGGER, "      absolute_y_axis_tolerance: %0.3f", rot_constraint.absolute_y_axis_tolerance);
-            ROS_DEBUG_NAMED(PP_LOGGER, "      absolute_z_axis_tolerance: %0.3f", rot_constraint.absolute_z_axis_tolerance);
-            ROS_DEBUG_NAMED(PP_LOGGER, "      weight: %0.3f", rot_constraint.weight);
-        }
-
-        // visibility constraints
-        ROS_DEBUG_NAMED(PP_LOGGER, "    visibility_constraints: %zu", constraints.visibility_constraints.size());
-    }
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "  path_constraints");
-    ROS_DEBUG_NAMED(PP_LOGGER, "    joint_constraints: %zu", req.path_constraints.joint_constraints.size());
-    ROS_DEBUG_NAMED(PP_LOGGER, "    position_constraints: %zu", req.path_constraints.position_constraints.size());
-    ROS_DEBUG_NAMED(PP_LOGGER, "    orientation_constraints: %zu", req.path_constraints.orientation_constraints.size());
-    ROS_DEBUG_NAMED(PP_LOGGER, "    visibility_constraints: %zu", req.path_constraints.visibility_constraints.size());
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "  trajectory_constraints");
-    for (size_t cind = 0; cind < req.trajectory_constraints.constraints.size(); ++cind) {
-        auto& constraints = req.trajectory_constraints.constraints[cind];
-        ROS_DEBUG_NAMED(PP_LOGGER, "    joint_constraints: %zu", constraints.joint_constraints.size());
-        ROS_DEBUG_NAMED(PP_LOGGER, "    position_constraints: %zu", constraints.position_constraints.size());
-        ROS_DEBUG_NAMED(PP_LOGGER, "    orientation_constraints: %zu", constraints.orientation_constraints.size());
-        ROS_DEBUG_NAMED(PP_LOGGER, "    visibility_constraints: %zu", constraints.visibility_constraints.size());
-    }
-
-    ROS_DEBUG_NAMED(PP_LOGGER, "  planner_id: %s", req.planner_id.c_str());
-    ROS_DEBUG_NAMED(PP_LOGGER, "  group_name: %s", req.group_name.c_str());
-    ROS_DEBUG_NAMED(PP_LOGGER, "  num_planning_attempts: %d", req.num_planning_attempts);
-    ROS_DEBUG_NAMED(PP_LOGGER, "  allowed_planning_time: %f", req.allowed_planning_time);
-    ROS_DEBUG_NAMED(PP_LOGGER, "  max_velocity_scaling_factor: %f", req.max_velocity_scaling_factor);
 }
 
 /// Load the mapping from planner configuration name to planner configuration

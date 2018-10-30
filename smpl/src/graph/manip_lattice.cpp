@@ -803,7 +803,7 @@ bool ManipLattice::setStart(const RobotState& state)
     SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(state, vis_name));
 
     // get arm position in environment
-    RobotCoord start_coord(robot()->jointVariableCount());
+    auto start_coord = RobotCoord(robot()->jointVariableCount());
     stateToCoord(state, start_coord);
     SMPL_DEBUG_STREAM_NAMED(G_LOG, "  coord: " << start_coord);
 
