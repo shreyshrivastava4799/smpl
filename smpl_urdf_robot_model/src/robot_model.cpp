@@ -78,7 +78,8 @@ void AddFloatingJointVariables(
 bool InitRobotModel(
     RobotModel* out,
     const ::urdf::ModelInterface* urdf,
-    const JointSpec* world_joint)
+    const JointSpec* world_joint,
+    bool use_safety_limits)
 {
     RobotModel robot_model;
 
@@ -335,11 +336,19 @@ bool InitRobotModel(
             JointVariable v;
             v.name = e.first;
             if (e.second->limits) {
-                v.limits.has_position_limits = true;
-                v.limits.min_position = e.second->limits->lower;
-                v.limits.max_position = e.second->limits->upper;
-                v.limits.max_velocity = e.second->limits->velocity;
-                v.limits.max_effort = e.second->limits->effort;
+                if (e.second->safety && use_safety_limits) {
+                    v.limits.has_position_limits = true;
+                    v.limits.min_position = e.second->safety->soft_lower_limit;
+                    v.limits.max_position = e.second->safety->soft_upper_limit;
+                    v.limits.max_velocity = e.second->limits->velocity;
+                    v.limits.max_effort = e.second->limits->effort;
+                } else {
+                    v.limits.has_position_limits = true;
+                    v.limits.min_position = e.second->limits->lower;
+                    v.limits.max_position = e.second->limits->upper;
+                    v.limits.max_velocity = e.second->limits->velocity;
+                    v.limits.max_effort = e.second->limits->effort;
+                }
             } else {
                 v.limits.has_position_limits = false;
                 v.limits.min_position = -std::numeric_limits<double>::infinity();
@@ -824,7 +833,7 @@ auto GetDefaultPosition(const RobotModel* model, const JointVariable* variable)
     case JointType::Revolute:
     case JointType::Prismatic:
         // NOTE: 0 should be fine limitless variables
-        if (variable->limits.min_position <= 0.0 & 0.0 <= variable->limits.max_position) {
+        if ((variable->limits.min_position <= 0.0) & (0.0 <= variable->limits.max_position)) {
             return 0.0;
         } else {
             return 0.5 * (variable->limits.min_position + variable->limits.max_position);

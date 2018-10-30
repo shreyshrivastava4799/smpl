@@ -28,7 +28,8 @@ struct VariableLimits;
 bool InitRobotModel(
     RobotModel* robot_model,
     const ::urdf::ModelInterface* urdf,
-    const JointSpec* world_joint = NULL);
+    const JointSpec* world_joint = NULL,
+    bool use_safety_limits = true);
 
 auto GetName(const RobotModel* model) -> const std::string*;
 
