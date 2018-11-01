@@ -27,27 +27,23 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#ifndef smpl_geometry_triangle_h
-#define smpl_geometry_triangle_h
+#ifndef SMPL_TRIANGLE_H
+#define SMPL_TRIANGLE_H
 
-#include <Eigen/Dense>
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace geometry {
 
 struct Triangle
 {
-    Eigen::Vector3d a;
-    Eigen::Vector3d b;
-    Eigen::Vector3d c;
+    Vector3 a;
+    Vector3 b;
+    Vector3 c;
 
     Triangle() = default;
 
-    Triangle(
-        const Eigen::Vector3d& a,
-        const Eigen::Vector3d& b,
-        const Eigen::Vector3d& c)
-    :
+    Triangle(const Vector3& a, const Vector3& b, const Vector3& c) :
         a(a), b(b), c(c)
     { }
 };

@@ -115,7 +115,7 @@ bool WorkspaceLattice::init(
     return true;
 }
 
-bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
+bool WorkspaceLattice::projectToPose(int state_id, Affine3& pose)
 {
     if (state_id == getGoalStateID()) {
         pose = goal().pose;
@@ -127,10 +127,10 @@ bool WorkspaceLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
     double p[6];
     poseCoordToWorkspace(&state->coord[0], &p[0]);
 
-    pose = Eigen::Translation3d(p[FK_PX], p[FK_PY], p[FK_PZ]) *
-            Eigen::AngleAxisd(p[FK_QZ], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(p[FK_QY], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(p[FK_QX], Eigen::Vector3d::UnitX());
+    pose = Translation3(p[FK_PX], p[FK_PY], p[FK_PZ]) *
+            AngleAxis(p[FK_QZ], Vector3::UnitZ()) *
+            AngleAxis(p[FK_QY], Vector3::UnitY()) *
+            AngleAxis(p[FK_QX], Vector3::UnitX());
     return true;
 }
 
@@ -689,17 +689,17 @@ bool WorkspaceLattice::isGoal(
                 SMPL_INFO("search is at the goal position after %0.3f sec", time_to_goal_region);
             }
 
-            Eigen::Quaterniond qg(goal().pose.rotation());
-            Eigen::Quaterniond q(
-                    Eigen::AngleAxisd(state[FK_QZ], Eigen::Vector3d::UnitZ()) *
-                    Eigen::AngleAxisd(state[FK_QY], Eigen::Vector3d::UnitY()) *
-                    Eigen::AngleAxisd(state[FK_QX], Eigen::Vector3d::UnitX()));
+            Quaternion qg(goal().pose.rotation());
+            Quaternion q(
+                    AngleAxis(state[FK_QZ], Vector3::UnitZ()) *
+                    AngleAxis(state[FK_QY], Vector3::UnitY()) *
+                    AngleAxis(state[FK_QX], Vector3::UnitX()));
 
             if (q.dot(qg) < 0.0) {
-                qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
+                qg = Quaternion(-qg.w(), -qg.x(), -qg.y(), -qg.z());
             }
 
-//            const double theta = angles::normalize_angle(Eigen::AngleAxisd(qg.conjugate() * q).angle());
+//            const double theta = angles::normalize_angle(AngleAxis(qg.conjugate() * q).angle());
             auto theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
             if (theta < goal().rpy_tolerance[0]) {
                 return true;

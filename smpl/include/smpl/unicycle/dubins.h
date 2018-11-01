@@ -5,10 +5,8 @@
 #include <ostream>
 #include <vector>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
+#include <smpl/spatial.h>
 #include <smpl/unicycle/pose_2d.h>
 
 namespace smpl {
@@ -34,11 +32,11 @@ struct DubinsMotion
 
     // Return the point around which the dubins path pivots during the first
     // turn.
-    auto pivot1() const -> Eigen::Vector2d;
+    auto pivot1() const -> Vector2;
 
     // Return the point around which the dubins path pivots during the second
     // turn.
-    auto pivot2() const -> Eigen::Vector2d;
+    auto pivot2() const -> Vector2;
 
     // Return the pose at the start of the straight-line segment.
     auto straight_start() const -> Pose2D;

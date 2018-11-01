@@ -34,32 +34,32 @@
 #include <cstdint>
 #include <vector>
 
-// system includes
-#include <Eigen/Dense>
+// project includes
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace geometry {
 
 void ComputeBoxBoundingSpheres(
     double length, double width, double height,
-    double radius, std::vector<Eigen::Vector3d>& centers);
+    double radius, std::vector<Vector3>& centers);
 
 void ComputeSphereBoundingSpheres(
     double cradius,
-    double radius, std::vector<Eigen::Vector3d>& centers);
+    double radius, std::vector<Vector3>& centers);
 
 void ComputeCylinderBoundingSpheres(
     double cradius, double cheight,
-    double radius, std::vector<Eigen::Vector3d>& centers);
+    double radius, std::vector<Vector3>& centers);
 
 void ComputeConeBoundingSpheres(
     double cradius, double cheight,
-    double radius, std::vector<Eigen::Vector3d>& centers);
+    double radius, std::vector<Vector3>& centers);
 
 void ComputeMeshBoundingSpheres(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
-    double radius, std::vector<Eigen::Vector3d>& centers);
+    double radius, std::vector<Vector3>& centers);
 
 void ComputeMeshBoundingSpheres(
     const double* vertex_data,
@@ -67,13 +67,13 @@ void ComputeMeshBoundingSpheres(
     const std::uint32_t* triangle_data,
     size_t triangle_count,
     double radius,
-    std::vector<Eigen::Vector3d>& centers);
+    std::vector<Vector3>& centers);
 
 void ComputeMeshBoundingSpheres(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
     double radius,
-    std::vector<Eigen::Vector3d>& centers,
+    std::vector<Vector3>& centers,
     std::vector<std::uint32_t>& triangle_indices);
 
 void ComputeMeshBoundingSpheres(
@@ -82,7 +82,7 @@ void ComputeMeshBoundingSpheres(
     const std::uint32_t* triangle_data,
     size_t triangle_count,
     double radius,
-    std::vector<Eigen::Vector3d>& centers,
+    std::vector<Vector3>& centers,
     std::vector<std::uint32_t>& triangle_indices);
 
 } // namespace geometry

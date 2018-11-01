@@ -36,7 +36,6 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <sbpl/discrete_space_information/environment.h>
 
 // project includes
@@ -45,6 +44,7 @@
 #include <smpl/forward.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
+#include <smpl/spatial.h>
 #include <smpl/types.h>
 #include <smpl/graph/goal_constraint.h>
 
@@ -151,7 +151,7 @@ public:
 
     virtual ~PointProjectionExtension() { }
 
-    virtual bool projectToPoint(int state_id, Eigen::Vector3d& pos) = 0;
+    virtual bool projectToPoint(int state_id, Vector3& pos) = 0;
 };
 
 class PoseProjectionExtension : public PointProjectionExtension
@@ -160,9 +160,9 @@ public:
 
     virtual ~PoseProjectionExtension() { }
 
-    bool projectToPoint(int state_id, Eigen::Vector3d& pos) override
+    bool projectToPoint(int state_id, Vector3& pos) override
     {
-        Eigen::Affine3d pose;
+        Affine3 pose;
         if (!projectToPose(state_id, pose)) {
             return false;
         }
@@ -170,7 +170,7 @@ public:
         return true;
     }
 
-    virtual bool projectToPose(int state_id, Eigen::Affine3d& pose) = 0;
+    virtual bool projectToPose(int state_id, Affine3& pose) = 0;
 };
 
 class ExtractRobotStateExtension : public virtual Extension

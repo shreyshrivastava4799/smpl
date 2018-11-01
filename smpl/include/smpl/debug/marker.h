@@ -1,12 +1,16 @@
 #ifndef SMPL_MARKER_H
 #define SMPL_MARKER_H
 
+// standard includes
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include <Eigen/Dense>
+// system includes
 #include <boost/variant.hpp>
+
+// project includes
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace visual {
@@ -17,14 +21,14 @@ struct Cube { double length; double width; double height; };
 struct Sphere { double radius; };
 struct Ellipse { double axis_x; double axis_y; double axis_z; };
 struct Cylinder { double radius; double height; };
-struct LineList { std::vector<Eigen::Vector3d> points; };
-struct LineStrip { std::vector<Eigen::Vector3d> points; };
-struct CubeList { std::vector<Eigen::Vector3d> points; double size; };
-struct PointList { std::vector<Eigen::Vector3d> points; };
-struct SphereList { std::vector<Eigen::Vector3d> points; double radius; };
-struct TriangleList { std::vector<Eigen::Vector3d> vertices; };
+struct LineList { std::vector<Vector3> points; };
+struct LineStrip { std::vector<Vector3> points; };
+struct CubeList { std::vector<Vector3> points; double size; };
+struct PointList { std::vector<Vector3> points; };
+struct SphereList { std::vector<Vector3> points; double radius; };
+struct TriangleList { std::vector<Vector3> vertices; };
 struct BillboardText { std::string text; };
-struct MeshResource { std::string uri; Eigen::Vector3d scale; };
+struct MeshResource { std::string uri; Vector3 scale; };
 
 using Shape = boost::variant<
     Empty,
@@ -109,29 +113,29 @@ struct Marker
     struct Pose {                                   // 64, 32 for float
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-        Eigen::Vector3d position;
-        Eigen::Quaterniond orientation;
+        Vector3 position;
+        Quaternion orientation;
 
         Pose() : position(), orientation() { }
 
-        Pose(const Eigen::Affine3d& T) :
+        Pose(const Affine3& T) :
             position(T.translation()),
             orientation(T.rotation())
         { }
 
-        Pose(const Eigen::Vector3d& position, const Eigen::Quaterniond& orientation) :
+        Pose(const Vector3& position, const Quaternion& orientation) :
             position(position), orientation(orientation)
         { }
 
-        Pose(const Eigen::Vector3d& position) :
-            position(position), orientation(Eigen::Quaterniond::Identity())
+        Pose(const Vector3& position) :
+            position(position), orientation(Quaternion::Identity())
         { }
 
-        Pose(const Eigen::Quaterniond& orientation) :
-            position(Eigen::Vector3d::Zero()), orientation(orientation)
+        Pose(const Quaternion& orientation) :
+            position(Vector3::Zero()), orientation(orientation)
         { }
 
-        Pose& operator=(const Eigen::Affine3d& T) {
+        Pose& operator=(const Affine3& T) {
             position = T.translation();
             orientation = T.rotation();
             return *this;

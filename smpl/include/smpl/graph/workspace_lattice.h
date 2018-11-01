@@ -99,7 +99,7 @@ struct WorkspaceLattice :
 
     /// \name Required Functions from PoseProjectionExtension
     ///@{
-    bool projectToPose(int state_id, Eigen::Affine3d& pose) override;
+    bool projectToPose(int state_id, Affine3& pose) override;
     ///@}
 
     /// \name Reimplemented Public Functions from RobotPlanningSpace

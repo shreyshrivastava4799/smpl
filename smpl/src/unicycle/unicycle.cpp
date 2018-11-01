@@ -1,29 +1,27 @@
 #include <smpl/unicycle/unicycle.h>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <smpl/angles.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
 // from http://eigen.tuxfamily.org/bz/show_bug.cgi?id=257, specific to 2x2 matrices
 static
-inline auto pinv(const Eigen::Matrix2d& a, double eps) -> Eigen::Matrix2d
+inline auto pinv(const Matrix2& a, double eps) -> Matrix2
 {
     // see : http://en.wikipedia.org/wiki/Moore-Penrose_pseudoinverse#The_general_case_and_the_SVD_method
 
     // SVD
-    Eigen::JacobiSVD<Eigen::Matrix2d> svdA(
+    Eigen::JacobiSVD<Matrix2> svdA(
             a,
             Eigen::ComputeFullU | Eigen::ComputeFullV);
-    Eigen::Vector2d vSingular = svdA.singularValues();
+    Vector2 vSingular = svdA.singularValues();
 
     // Build a diagonal matrix with the Inverted Singular values
     // The pseudo inverted singular matrix is easy to compute :
     // is formed by replacing every nonzero entry by its reciprocal (inversing).
-    Eigen::Vector2d vPseudoInvertedSingular(svdA.matrixV().cols(), 1);
+    Vector2 vPseudoInvertedSingular(svdA.matrixV().cols(), 1);
 
     for (int iRow = 0; iRow < vSingular.rows(); iRow++) {
         if (std::fabs(vSingular(iRow)) <= eps) { // TODO : Put epsilon in parameter
@@ -34,7 +32,7 @@ inline auto pinv(const Eigen::Matrix2d& a, double eps) -> Eigen::Matrix2d
     }
 
     // A little optimization here
-    Eigen::Matrix2d mAdjointU = svdA.matrixU().adjoint().block(
+    Matrix2 mAdjointU = svdA.matrixU().adjoint().block(
             0, 0, vSingular.rows(), svdA.matrixU().adjoint().cols());
 
     // Pseudo-Inversion : V * S * U'
@@ -104,15 +102,15 @@ auto MakeUnicycleMotion(
     auto sgtheta = std::sin(goal_theta);
     auto cgtheta = std::cos(goal_theta);
 
-    Eigen::Matrix2d R;
+    Matrix2 R;
     R(0, 0) = cstheta;
     R(0, 1) = -sstheta + sgtheta;
     R(1, 0) = sstheta;
     R(1, 1) = cstheta - cgtheta;
 
-    Eigen::Matrix2d Rpinv = pinv(R, eps);
+    Matrix2 Rpinv = pinv(R, eps);
 
-    Eigen::Vector2d S = Rpinv * Eigen::Vector2d(dx, dy);
+    Vector2 S = Rpinv * Vector2(dx, dy);
 
     motion.l = S(0);
     motion.r = S(1);

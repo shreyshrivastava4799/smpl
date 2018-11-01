@@ -37,7 +37,7 @@
 #include <utility>
 
 // system includes
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 namespace smpl {
 

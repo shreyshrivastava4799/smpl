@@ -7,10 +7,9 @@
 
 // project includes
 #include <smpl/angles.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
-
-using Vector2 = Eigen::Vector2d;
 
 struct Circle2d
 {

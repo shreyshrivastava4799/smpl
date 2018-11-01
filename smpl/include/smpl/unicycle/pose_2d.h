@@ -2,7 +2,7 @@
 #define SMPL_POSE_2D_H
 
 // system includes
-#include <Eigen/Dense>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
@@ -27,7 +27,7 @@ struct Pose2D
         this->theta = theta;
     }
 
-    Pose2D(const Eigen::Vector2d& v, double theta)
+    Pose2D(const Vector2& v, double theta)
     {
         this->x = v.x();
         this->y = v.y();
@@ -35,11 +35,10 @@ struct Pose2D
     }
 };
 
-inline auto pos(Pose2D pose) -> Eigen::Vector2d
+inline auto pos(Pose2D pose) -> Vector2
 {
-    return Eigen::Vector2d(pose.x, pose.y);
+    return Vector2(pose.x, pose.y);
 }
-
 
 } // namespace smpl
 

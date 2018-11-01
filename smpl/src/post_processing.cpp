@@ -36,15 +36,13 @@
 #include <chrono>
 #include <numeric>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <smpl/angles.h>
 #include <smpl/time.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/geometry/shortcut.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
@@ -190,16 +188,16 @@ public:
         auto from_pose = m_fk_iface->computeFK(start);
         auto to_pose = m_fk_iface->computeFK(end);
 
-        Eigen::Vector3d pstart(from_pose.translation());
-        Eigen::Vector3d pend(to_pose.translation());
+        Vector3 pstart(from_pose.translation());
+        Vector3 pend(to_pose.translation());
 
-        Eigen::Quaterniond qstart(from_pose.rotation());
-        Eigen::Quaterniond qend(to_pose.rotation());
+        Quaternion qstart(from_pose.rotation());
+        Quaternion qend(to_pose.rotation());
 
         if (qstart.dot(qend) < 0.0) {
             // negate one end of the quaternion path to ensure interpolation
             // takes the short arc
-            qend = Eigen::Quaterniond(-qend.w(), -qend.x(), -qend.y(), -qend.z());
+            qend = Quaternion(-qend.w(), -qend.x(), -qend.y(), -qend.z());
         }
 
         // compute the number of path waypoints
@@ -220,10 +218,10 @@ public:
         for (int i = 1; i < num_points; ++i) {
             // compute the intermediate pose
             double alpha = (double)i / (double)(num_points - 1);
-            Eigen::Vector3d ppos = (1.0 - alpha) * pstart + alpha * pend;
-            Eigen::Quaterniond prot = qstart.slerp(alpha, qend);
+            Vector3 ppos = (1.0 - alpha) * pstart + alpha * pend;
+            Quaternion prot = qstart.slerp(alpha, qend);
 
-            const Eigen::Affine3d ptrans = Eigen::Translation3d(ppos) * prot;
+            const Affine3 ptrans = Translation3(ppos) * prot;
 
             // run inverse kinematics with the previous pose as the seed state
             const RobotState& prev_wp = cpath.back();

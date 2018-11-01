@@ -31,12 +31,10 @@
 
 #include <smpl/graph/workspace_lattice_base.h>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
@@ -185,11 +183,11 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
         seed[m_fangle_indices[fai]] = state[6 + fai];
     }
 
-    Eigen::Affine3d pose =
-            Eigen::Translation3d(state[0], state[1], state[2]) *
-            Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX());
+    Affine3 pose =
+            Translation3(state[0], state[1], state[2]) *
+            AngleAxis(state[5], Vector3::UnitZ()) *
+            AngleAxis(state[4], Vector3::UnitY()) *
+            AngleAxis(state[3], Vector3::UnitX());
 
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
@@ -226,11 +224,11 @@ bool WorkspaceLatticeBase::stateWorkspaceToRobot(
     const RobotState& seed,
     RobotState& ostate) const
 {
-    Eigen::Affine3d pose =
-            Eigen::Translation3d(state[0], state[1], state[2]) *
-            Eigen::AngleAxisd(state[5], Eigen::Vector3d::UnitZ()) *
-            Eigen::AngleAxisd(state[4], Eigen::Vector3d::UnitY()) *
-            Eigen::AngleAxisd(state[3], Eigen::Vector3d::UnitX());
+    Affine3 pose =
+            Translation3(state[0], state[1], state[2]) *
+            AngleAxis(state[5], Vector3::UnitZ()) *
+            AngleAxis(state[4], Vector3::UnitY()) *
+            AngleAxis(state[3], Vector3::UnitX());
 
     // TODO: unrestricted variant?
     return m_rm_iface->computeFastIK(pose, seed, ostate);

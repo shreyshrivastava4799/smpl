@@ -36,11 +36,11 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <Eigen/StdVector>
 
 // project includes
 #include <smpl/forward.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
@@ -80,11 +80,11 @@ public:
 
     /// \name Modifiers
     ///@{
-    virtual void addPointsToMap(const std::vector<Eigen::Vector3d>& points) = 0;
-    virtual void removePointsFromMap(const std::vector<Eigen::Vector3d>& points) = 0;
+    virtual void addPointsToMap(const std::vector<Vector3>& points) = 0;
+    virtual void removePointsFromMap(const std::vector<Vector3>& points) = 0;
     virtual void updatePointsInMap(
-            const std::vector<Eigen::Vector3d>& old_points,
-            const std::vector<Eigen::Vector3d>& new_points) = 0;
+            const std::vector<Vector3>& old_points,
+            const std::vector<Vector3>& new_points) = 0;
     virtual void reset() = 0;
     ///@}
 

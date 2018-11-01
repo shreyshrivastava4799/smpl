@@ -40,7 +40,7 @@ namespace geometry {
 template <typename Discretizer>
 void CreateIndexedGridMesh(
     const VoxelGrid<Discretizer>& vg,
-    std::vector<Eigen::Vector3d>& vertices,
+    std::vector<Vector3>& vertices,
     std::vector<int>& indices)
 {
     // create all the vertices
@@ -51,8 +51,8 @@ void CreateIndexedGridMesh(
             for (int iz = 0; iz < vg.sizeZ() + 1; iz++) {
                 MemoryCoord mc(ix, iy, iz);
                 WorldCoord wc(vg.memoryToWorld(mc));
-                Eigen::Vector3d p =
-                        Eigen::Vector3d(wc.x, wc.y, wc.z) - 0.5 * vg.res();
+                Vector3 p =
+                        Vector3(wc.x, wc.y, wc.z) - 0.5 * vg.res();
                 vertices.push_back(p);
             }
         }
@@ -145,9 +145,9 @@ void CreateIndexedGridMesh(
 template <typename Discretizer>
 void CreateGridMesh(
     const VoxelGrid<Discretizer>& vg,
-    std::vector<Eigen::Vector3d>& vertices)
+    std::vector<Vector3>& vertices)
 {
-    std::vector<Eigen::Vector3d> voxel_mesh;
+    std::vector<Vector3> voxel_mesh;
     CreateBoxMesh(vg.res().x(), vg.res().y(), vg.res().z(), voxel_mesh);
 
     vertices.reserve(voxel_mesh.size() * vg.sizeX() * vg.sizeY() * vg.sizeZ());
@@ -158,12 +158,12 @@ void CreateGridMesh(
                 const MemoryCoord mc(x, y, z);
                 const WorldCoord wc(vg.memoryToWorld(mc));
 
-                Eigen::Vector3d wp(wc.x, wc.y, wc.z);
+                Vector3 wp(wc.x, wc.y, wc.z);
 
                 std::printf("%d, %d, %d -> %0.3f, %0.3f, %0.3f\n", x, y, z, wc.x, wc.y, wc.z);
 
                 // translate all triangles by the voxel position
-                for (const Eigen::Vector3d& v : voxel_mesh) {
+                for (const Vector3& v : voxel_mesh) {
                     vertices.push_back(v + wp);
                 }
             }

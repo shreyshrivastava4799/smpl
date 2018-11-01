@@ -108,9 +108,9 @@ void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
 {
     SMPL_DEBUG_NAMED(LOG, "Update goal");
 
-    Eigen::Affine3d offset_pose =
+    Affine3 offset_pose =
             goal.pose *
-            Eigen::Translation3d(m_pos_offset[0], m_pos_offset[1], m_pos_offset[2]);
+            Translation3(m_pos_offset[0], m_pos_offset[1], m_pos_offset[2]);
 
     int ogx, ogy, ogz;
     grid()->worldToGrid(
@@ -148,7 +148,7 @@ double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double
         return 0.0;
     }
 
-    Eigen::Vector3d p;
+    Vector3 p;
     if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
         return 0.0;
     }
@@ -201,7 +201,7 @@ int MultiFrameBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
 
 auto MultiFrameBfsHeuristic::getWallsVisualization() const -> visual::Marker
 {
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     const int dimX = grid()->numCellsX();
     const int dimY = grid()->numCellsY();
     const int dimZ = grid()->numCellsZ();
@@ -209,7 +209,7 @@ auto MultiFrameBfsHeuristic::getWallsVisualization() const -> visual::Marker
     for (int y = 0; y < dimY; y++) {
     for (int x = 0; x < dimX; x++) {
         if (m_bfs->isWall(x, y, z)) {
-            Eigen::Vector3d p;
+            Vector3 p;
             grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             points.push_back(p);
         }
@@ -250,7 +250,7 @@ auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
 
     // ...and this will also flush the bfs...
 
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     std::vector<visual::Color> colors;
     for (int z = 0; z < grid()->numCellsZ(); ++z) {
     for (int y = 0; y < grid()->numCellsY(); ++y) {
@@ -284,7 +284,7 @@ auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
         color.g = clamp(color.g, 0.0f, 1.0f);
         color.b = clamp(color.b, 0.0f, 1.0f);
 
-        Eigen::Vector3d p;
+        Vector3 p;
         grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
         points.push_back(p);
 
@@ -309,7 +309,7 @@ int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
 
     int h_planning_frame = 0;
     if (m_pp) {
-        Eigen::Vector3d p;
+        Vector3 p;
         if (m_pp->projectToPoint(state_id, p)) {
             Eigen::Vector3i dp;
             grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());

@@ -37,7 +37,6 @@
 #include <sstream>
 
 // system includes
-#include <Eigen/Dense>
 #include <sbpl/planners/planner.h>
 
 #include <smpl/angles.h>
@@ -46,6 +45,7 @@
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/marker_utils.h>
+#include <smpl/spatial.h>
 #include "../profiling.h"
 
 auto std::hash<smpl::ManipLatticeState>::operator()(
@@ -159,7 +159,7 @@ void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
         case GoalType::XYZ_GOAL:
         case GoalType::XYZ_RPY_GOAL:
             double y, p, r;
-            angles::get_euler_zyx(goal().pose.rotation(), y, p, r);
+            get_euler_zyx(goal().pose.rotation(), y, p, r);
             ss << "pose: { " <<
                     goal().pose.translation().x() << ", " <<
                     goal().pose.translation().y() << ", " <<
@@ -443,7 +443,7 @@ const RobotState& ManipLattice::extractState(int state_id)
     return m_states[state_id]->state;
 }
 
-bool ManipLattice::projectToPose(int state_id, Eigen::Affine3d& pose)
+bool ManipLattice::projectToPose(int state_id, Affine3& pose)
 {
     if (state_id == getGoalStateID()) {
         pose = goal().pose;
@@ -491,7 +491,7 @@ void ManipLattice::stateToCoord(
 
     for (size_t i = 0; i < state.size(); ++i) {
         if (m_continuous[i]) {
-            auto pos_angle = angles::normalize_angle_positive(state[i]);
+            auto pos_angle = normalize_angle_positive(state[i]);
 
             coord[i] = (int)((pos_angle + m_coord_deltas[i] * 0.5) / m_coord_deltas[i]);
 
@@ -578,7 +578,7 @@ int ManipLattice::reserveHashEntry()
 /// NOTE: const although RobotModel::computeFK used underneath may
 /// not be
 auto ManipLattice::computePlanningFrameFK(const RobotState& state) const
-    -> Eigen::Affine3d
+    -> Affine3
 {
     assert(state.size() == robot()->jointVariableCount());
     assert(m_fk_iface);
@@ -662,8 +662,8 @@ bool ManipLattice::checkAction(const RobotState& state, const Action& action)
 
 static
 bool WithinPositionTolerance(
-    const Eigen::Affine3d& A,
-    const Eigen::Affine3d& B,
+    const Affine3& A,
+    const Affine3& B,
     const double tol[3])
 {
     auto dx = std::fabs(A.translation()[0] - B.translation()[0]);
@@ -674,24 +674,24 @@ bool WithinPositionTolerance(
 
 static
 bool WithinOrientationTolerance(
-    const Eigen::Affine3d& A,
-    const Eigen::Affine3d& B,
+    const Affine3& A,
+    const Affine3& B,
     const double tol[3])
 {
-    Eigen::Quaterniond qg(B.rotation());
-    Eigen::Quaterniond q(A.rotation());
+    Quaternion qg(B.rotation());
+    Quaternion q(A.rotation());
     if (q.dot(qg) < 0.0) {
-        qg = Eigen::Quaterniond(-qg.w(), -qg.x(), -qg.y(), -qg.z());
+        qg = Quaternion(-qg.w(), -qg.x(), -qg.y(), -qg.z());
     }
 
-    auto theta = angles::normalize_angle(2.0 * acos(q.dot(qg)));
+    auto theta = normalize_angle(2.0 * acos(q.dot(qg)));
     return theta < tol[0];
 }
 
 static
 auto WithinTolerance(
-    const Eigen::Affine3d& A,
-    const Eigen::Affine3d& B,
+    const Affine3& A,
+    const Affine3& B,
     const double xyz_tolerance[3],
     const double rpy_tolerance[3])
     -> std::pair<bool, bool>
@@ -1062,7 +1062,7 @@ bool ManipLattice::setGoalPose(const GoalConstraint& gc)
     SMPL_DEBUG_NAMED(G_LOG, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose.translation()[0], gc.pose.translation()[1], gc.pose.translation()[2]);
     SMPL_DEBUG_NAMED(G_LOG, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
     double yaw, pitch, roll;
-    angles::get_euler_zyx(gc.pose.rotation(), yaw, pitch, roll);
+    get_euler_zyx(gc.pose.rotation(), yaw, pitch, roll);
     SMPL_DEBUG_NAMED(G_LOG, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
     SMPL_DEBUG_NAMED(G_LOG, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
 

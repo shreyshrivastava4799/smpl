@@ -39,13 +39,13 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <Eigen/StdVector>
 
 // project includes
 #include <smpl/forward.h>
 #include <smpl/debug/marker.h>
 #include <smpl/distance_map/distance_map_interface.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
@@ -76,12 +76,12 @@ public:
 
     /// \name Modifiers
     ///@{
-    void addPointsToField(const std::vector<Eigen::Vector3d>& points);
-    void removePointsFromField(const std::vector<Eigen::Vector3d>& points);
+    void addPointsToField(const std::vector<Vector3>& points);
+    void removePointsFromField(const std::vector<Vector3>& points);
 
     void updatePointsInField(
-        const std::vector<Eigen::Vector3d>& old_points,
-        const std::vector<Eigen::Vector3d>& new_points);
+        const std::vector<Vector3>& old_points,
+        const std::vector<Vector3>& new_points);
 
     void reset();
     ///@}
@@ -108,19 +108,19 @@ public:
     ///@{
     size_t getOccupiedVoxelCount() const;
 
-    void getOccupiedVoxels(std::vector<Eigen::Vector3d>& voxels) const;
+    void getOccupiedVoxels(std::vector<Vector3>& voxels) const;
 
     void getOccupiedVoxels(
-        const Eigen::Affine3d& pose,
+        const Affine3& pose,
         const std::vector<double>& dim,
-        std::vector<Eigen::Vector3d>& voxels) const;
+        std::vector<Vector3>& voxels) const;
 
     void getOccupiedVoxels(
         double x_center,
         double y_center,
         double z_center,
         double radius,
-        std::vector<Eigen::Vector3d>& voxels) const;
+        std::vector<Vector3>& voxels) const;
     ///@}
 
     /// \name Distance Lookups
