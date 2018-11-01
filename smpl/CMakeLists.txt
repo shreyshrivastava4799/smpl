@@ -168,6 +168,7 @@ set(SMPL_LIBRARY_SOURCES
     src/search/lazy_mhastar.cpp
     src/search/smhastar.cpp
     src/search/awastar.cpp
+    src/steer/steer.cpp
     src/unicycle/dubins.cpp
     src/unicycle/unicycle.cpp)
 
