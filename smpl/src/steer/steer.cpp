@@ -1,6 +1,10 @@
 #include <smpl/steer/steer.h>
 
+// standard includes
 #include <cmath>
+
+// project includes
+#include <smpl/angles.h>
 
 namespace smpl {
 
@@ -77,6 +81,23 @@ static auto Compute_H_s(const Vector2 steer_positions_vf[4]) -> Matrix<double, 8
 }
 
 void ComputeWheelFK(
+    const FourSteerModel* model,
+    const FourSteerState* state,
+    double vx,
+    double vy,
+    double vtheta,
+    Vector2 vcw[4],
+    double tsr[4],
+    double tst[4])
+{
+    ComputeWheelFK(
+            model->rsv, model->d, model->r,
+            state->st, state->sr, state->vst, state->vsr,
+            vx, vy, vtheta,
+            vcw, tsr, tst);
+}
+
+void ComputeWheelFK(
     const Vector2 steer_positions_vf[4],
     const double d,         // offset from steer frame to contact frame
     const double wr,        // radius of the wheels
@@ -112,10 +133,10 @@ void ComputeWheelFK(
     v = H_s * V_s; // + H_c * V_c;
 
     // v -> consistent steer angles
-    tst[0] = atan2(v[1], v[0]);
-    tst[1] = atan2(v[3], v[2]);
-    tst[2] = atan2(v[5], v[4]);
-    tst[3] = atan2(v[7], v[6]);
+    tst[0] = std::atan2(v[1], v[0]);
+    tst[1] = std::atan2(v[3], v[2]);
+    tst[2] = std::atan2(v[5], v[4]);
+    tst[3] = std::atan2(v[7], v[6]);
 
     // target steer angles -> contact_positions[steer]
     Vector2 contact_positions_SF[4];
@@ -153,6 +174,19 @@ void ComputeWheelFK(
             tsr[i] *= -1.0;
         }
     }
+}
+
+void ComputeWheelIK(
+    const FourSteerModel* model,
+    const FourSteerState* state,
+    double* vx,
+    double* vy,
+    double* vtheta)
+{
+    ComputeWheelIK(
+            model->rsv, model->d, model->r,
+            state->state.vtheta, state->st, state->sr, state->vst, state->vsr,
+            vx, vy, vtheta);
 }
 
 void GetContactVelocities_SF(
@@ -313,10 +347,10 @@ void ComputeWheelFK(
     M(0,0) = 1.0; M(0,1) = 0.0;
     M(1,0) = 0.0; M(1,1) = model->L;
 
-    auto alpha = atan2(vtheta * model->L, vx);
+    auto alpha = std::atan2(vtheta * model->L, vx);
 
 //    auto R = vx / vtheta; //model->L * vx / model->W;
-    auto R = model->L / tan(alpha);
+    auto R = model->L / std::tan(alpha);
 
     // radius of curvature for each wheel
     double Rs[4];
@@ -340,11 +374,11 @@ void ComputeWheelFK(
     Vs[3] = Rs[3] * vtheta;
 
     if (R >= 0.0) {
-        tst[0] = atan2(model->L, R - 0.5 * model->W);
-        tst[1] = atan2(model->L, R + 0.5 * model->W);
+        tst[0] = std::atan2(model->L, R - 0.5 * model->W);
+        tst[1] = std::atan2(model->L, R + 0.5 * model->W);
     } else {
-        tst[0] = atan2(-model->L, (0.5 * model->W - R));
-        tst[1] = atan2(-model->L, (-0.5 * model->W - R));
+        tst[0] = std::atan2(-model->L, (0.5 * model->W - R));
+        tst[1] = std::atan2(-model->L, (-0.5 * model->W - R));
     }
     tst[2] = 0.0;
     tst[3] = 0.0;
