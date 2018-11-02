@@ -65,6 +65,40 @@ using Quaternion = Eigen::Quaterniond;
 
 using Eigen::Scaling;
 
+inline auto MakeAffine(double x, double y, double z) -> Affine3
+{
+    return Affine3(Translation3(x, y, z));
+}
+
+inline auto MakeAffine(
+    double x, double y, double z,
+    double Y)
+    -> Affine3
+{
+    return Translation3(x, y, z) * AngleAxis(Y, Vector3::UnitZ());
+}
+
+inline auto MakeAffine(
+    double x, double y, double z,
+    double Y, double P)
+    -> Affine3
+{
+    return Translation3(x, y, z) *
+            AngleAxis(Y, Vector3::UnitZ()) *
+            AngleAxis(P, Vector3::UnitY());
+}
+
+inline auto MakeAffine(
+    double x, double y, double z,
+    double Y, double P, double R)
+    -> Affine3
+{
+    return Translation3(x, y, z) *
+            AngleAxis(Y, Vector3::UnitZ()) *
+            AngleAxis(P, Vector3::UnitY()) *
+            AngleAxis(R, Vector3::UnitX());
+}
+
 } // namespace smpl
 
 #endif
