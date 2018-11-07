@@ -307,7 +307,6 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             const double dth = angles::shortest_angle_dist(
                     finish[fvidx + 2], start[fvidx + 2]);
             dist = std::sqrt(dx * dx + dy * dy);
-            // TODO: check correct upper bound on sphere motion
             motion += dist + dth * (m_mr_centers[jidx].norm() + m_mr_radii[jidx]);
         }   break;
         case JointType::FLOATING: {
@@ -377,11 +376,11 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
     assert(start.size() == variables.size());
 
     double motion = 0.0;
-    for (size_t i = 0; i < start.size(); ++i) {
-        const int vidx = variables[i];
-        const int jidx = m_rcm->jointVarJointIndex(vidx);
+    for (auto i = 0; i < start.size(); ++i) {
+        auto vidx = variables[i];
+        auto jidx = m_rcm->jointVarJointIndex(vidx);
 
-        double dist = 0.0;
+        auto dist = 0.0;
         switch (m_rcm->jointType(jidx)) {
         case JointType::FIXED:
             break;
@@ -398,6 +397,18 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
             motion += dist;
             break;
         case JointType::PLANAR:
+        {
+            auto fvidx = m_rcm->jointVarIndexFirst(jidx);
+            if (vidx == fvidx) {
+                // assume the three variables are stored contiguously
+                auto dx = finish[i] - start[i];
+                auto dy = finish[i + 1] - start[i + 1];
+                auto dth = finish[i + 2] - start[i + 2];
+                auto dist = std::sqrt(dx * dx + dy * dy);
+                motion += dist + dth * (m_mr_centers[jidx].norm() + m_mr_radii[jidx]);
+            }
+            break;
+        }
         case JointType::FLOATING:
             break;
         }
