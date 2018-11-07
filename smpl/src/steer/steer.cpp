@@ -10,6 +10,7 @@ namespace smpl {
 
 // Get the positions of the wheel contact points in their respect steer frames,
 // assuming all 4 wheels are the same distance d away from the steer frames.
+static
 void GetContactPositions_SF(double d, const double st[4], Vector2 r_cs[4])
 {
     // modified from textbook definition
@@ -58,13 +59,13 @@ static auto Compute_H_c(const Vector2 r_cs[4]) -> Matrix<double, 8, 5>
     return H_c;
 }
 
-static auto Compute_H_s(const Vector2 steer_positions_vf[4]) -> Matrix<double, 8, 3>
+static auto Compute_H_s(const Vector2 p_steer_vehicle[4]) -> Matrix<double, 8, 3>
 {
     double x[4];
-    get_xs(steer_positions_vf, x, 4);
+    get_xs(p_steer_vehicle, x, 4);
 
     double y[4];
-    get_ys(steer_positions_vf, y, 4);
+    get_ys(p_steer_vehicle, y, 4);
 
     Matrix<double, 8, 3> H_s;
 
@@ -80,9 +81,35 @@ static auto Compute_H_s(const Vector2 steer_positions_vf[4]) -> Matrix<double, 8
     return H_s;
 }
 
-void ComputeWheelFK(
-    const FourSteerModel* model,
-    const FourSteerState* state,
+auto MakeFourWheelSteerModel(double HL, double HW, double d, double r)
+    -> FourWheelSteerModel
+{
+    FourWheelSteerModel model;
+    model.d = d;
+    model.r = r;
+    model.rsv[Wheel::FrontLeft]    = smpl::Vector2(HL, HW);
+    model.rsv[Wheel::FrontRight]   = smpl::Vector2(HL, -HW);
+    model.rsv[Wheel::BackLeft]     = smpl::Vector2(-HL, HW);
+    model.rsv[Wheel::BackRight]    = smpl::Vector2(-HL, -HW);
+    return model;
+}
+
+// Compute the contact velocities of each wheel wrt the steer frame
+void GetContactVelocities_SF(
+    const double wr,
+    const double st[],
+    const double sr[],
+    const int count,
+    Vector2 vs[])
+{
+    for (auto i = 0; i < count; ++i) {
+        vs[i] = sr[i] * wr * Vector2(std::cos(st[i]), std::sin(st[i]));
+    }
+}
+
+void BodyToWheel(
+    const FourWheelSteerModel* model,
+    const FourWheelSteerState* state,
     double vx,
     double vy,
     double vtheta,
@@ -90,25 +117,23 @@ void ComputeWheelFK(
     double tsr[4],
     double tst[4])
 {
-    ComputeWheelFK(
+    BodyToWheelFWS(
             model->rsv, model->d, model->r,
-            state->st, state->sr, state->vst, state->vsr,
+            state->st, state->vst,
             vx, vy, vtheta,
             vcw, tsr, tst);
 }
 
-void ComputeWheelFK(
-    const Vector2 steer_positions_vf[4],
+void BodyToWheelFWS(
+    const Vector2 p_steer_vehicle[4],
     const double d,         // offset from steer frame to contact frame
     const double wr,        // radius of the wheels
     const double st[4],     // current steer angles
-    const double sr[4],     // current wheel speeds
     const double vst[4],    // current rate of change of each steer angle
-    const double vsr[4],
     const double vx,        // desired body frame x velocity
     const double vy,        // desired body frame y velocity
     const double vtheta,    // desired body frame theta velocity
-    Vector2 vcw[4],           // output contact velocities wrt the world in the vehicle frame
+    Vector2 vcw[4],         // output contact velocities wrt the world in the vehicle frame
     double tsr[4],          // target wheel speeds
     double tst[4])          // target steer angles
 {
@@ -121,11 +146,12 @@ void ComputeWheelFK(
         tst[3] = st[3];
         return;
     }
-    auto H_s = Compute_H_s(steer_positions_vf);
+
+    auto H_s = Compute_H_s(p_steer_vehicle);
 
     auto V_s = Matrix<double, 3, 1>(vx, vy, vtheta);
 
-    Matrix<double, 8, 1> v;
+    auto v = Matrix<double, 8, 1>();
 
     // target contact velocities wrt the world, in the vehicle frame
     // 8x1 = 8x3 * 3x1;
@@ -140,12 +166,13 @@ void ComputeWheelFK(
 
     // target steer angles -> contact_positions[steer]
     Vector2 contact_positions_SF[4];
-    GetContactPositions_SF(d, tst, contact_positions_SF);
+//    GetContactPositions_SF(d, tst, contact_positions_SF); // i'm not sure where i got this idea...
+    GetContactPositions_SF(d, st, contact_positions_SF);
 
     // contact_positions[steer] -> H_c
     auto H_c = Compute_H_c(contact_positions_SF);
 
-    Matrix<double, 5, 1> V_c;
+    auto V_c = Matrix<double, 5, 1>();
     V_c(0) = vtheta;
     V_c(1) = vst[0];
     V_c(2) = vst[1];
@@ -168,70 +195,46 @@ void ComputeWheelFK(
     tsr[3] = vcw[3].norm() / wr;
 
     // 16 possible solutions, take the one with the closest steer angles
+#if 0
     for (auto i = 0; i < 4; ++i) {
         if (smpl::shortest_angle_dist(st[i], tst[i]) > 0.5 * M_PI) {
             tst[i] += M_PI;
             tsr[i] *= -1.0;
         }
     }
+#endif
 }
 
-void ComputeWheelIK(
-    const FourSteerModel* model,
-    const FourSteerState* state,
+void WheelToBody(
+    const FourWheelSteerModel* model,
+    const FourWheelSteerState* state,
     double* vx,
     double* vy,
     double* vtheta)
 {
-    ComputeWheelIK(
+    WheelToBodyFWS(
             model->rsv, model->d, model->r,
-            state->state.vtheta, state->st, state->sr, state->vst, state->vsr,
+            state->vtheta, state->st, state->sr, state->vst,
             vx, vy, vtheta);
 }
 
-void GetContactVelocities_SF(
-    const double wr,
-    const double st[],
-    const double sr[],
-    const int count,
-    Vector2 vs[])
-{
-    for (auto i = 0; i < count; ++i) {
-        vs[i] = sr[i] * wr * Vector2(std::cos(st[i]), std::sin(st[i]));
-    }
-}
-
-// Compute the contact velocities of each wheel wrt the steer frame
-void GetContactVelocities_SF(
-    const double wr,
-    const double st[4],
-    const double sr[4],
-    Vector2 v_cs[4])
-{
-    v_cs[0] = sr[0] * wr * Vector2(std::cos(st[0]), std::sin(st[0]));
-    v_cs[1] = sr[1] * wr * Vector2(std::cos(st[1]), std::sin(st[1]));
-    v_cs[2] = sr[2] * wr * Vector2(std::cos(st[2]), std::sin(st[2]));
-    v_cs[3] = sr[3] * wr * Vector2(std::cos(st[3]), std::sin(st[3]));
-}
-
-void ComputeWheelIK(
-    const Vector2 steer_positions_vf[4],
+void WheelToBodyFWS(
+    const Vector2 p_steer_vehicle[4],
     const double d,
     const double wr,
     const double vt,
     const double st[4],
     const double sr[4],
     const double vst[4],
-    const double vsr[4],
     double* vx,
     double* vy,
     double* vtheta)
 {
     Vector2 v_cs[4]; // velocities of each contact
-    GetContactVelocities_SF(wr, st, sr, v_cs);
+    GetContactVelocities_SF(wr, st, sr, 4, v_cs);
 
     // flatten r_cs to 8x1 matrix
-    Matrix<double, 8, 1> v_c;
+    auto v_c = Matrix<double, 8, 1>();
     v_c(0) = v_cs[0].x();
     v_c(1) = v_cs[0].y();
     v_c(2) = v_cs[1].x();
@@ -241,12 +244,12 @@ void ComputeWheelIK(
     v_c(6) = v_cs[3].x();
     v_c(7) = v_cs[3].y();
 
-    Matrix<double, 5, 1> V_c;
+    auto V_c = Matrix<double, 5, 1>();
     V_c(0) = vt;
-    V_c(1) = vst[0]; //0.0; //sr[0];
-    V_c(2) = vst[1]; //0.0; //sr[1];
-    V_c(3) = vst[2]; //0.0; //sr[2];
-    V_c(4) = vst[3]; //0.0; //sr[3];
+    V_c(1) = vst[0];
+    V_c(2) = vst[1];
+    V_c(3) = vst[2];
+    V_c(4) = vst[3];
 
     // positions of the contact frames, in their respective steer frames
     Vector2 r_cs[4];
@@ -254,18 +257,19 @@ void ComputeWheelIK(
 
     auto H_c = Compute_H_c(r_cs);
 
-    Matrix<double, 8, 1> v_s = v_c - H_c * V_c;
+    auto v_s = Matrix<double, 8, 1>(v_c - H_c * V_c);
 
-    auto H_s = Compute_H_s(steer_positions_vf);
+    auto H_s = Compute_H_s(p_steer_vehicle);
 
     // (3x8 * 8x3)^1 * 3x8 * 8x1 = 3x3
-    Matrix<double, 3, 1> V_s = (H_s.transpose() * H_s).inverse() * H_s.transpose() * v_s;
+    auto V_s = Matrix<double, 3, 1>((H_s.transpose() * H_s).inverse() * H_s.transpose() * v_s);
+
     *vx = V_s(0);
     *vy = V_s(1);
     *vtheta = V_s(2);
 }
 
-void ComputeWheelFK(
+void BodyToWheel(
     const DiffSteerModel* model,
     const DiffSteerState* state,
     double vx,
@@ -275,39 +279,55 @@ void ComputeWheelFK(
     double tsr[2],
     double tst[2])
 {
+    return BodyToWheelDS(model->W, model->r, vx, vtheta, vcw, tsr, tst);
+}
+
+void BodyToWheelDS(
+    double W, double r,
+    double vx, double vtheta,
+    Vector2 vcw[2], double tsr[2], double tst[2])
+{
     auto M = Matrix2();
-    M(0,0) = 1.0; M(0,1) = model->W;
-    M(1,0) = 1.0; M(1,1) = -model->W;
+    M(0,0) = 1.0; M(0,1) = W;
+    M(1,0) = 1.0; M(1,1) = -W;
 
     auto v = Vector2(M * Vector2(vx, vtheta));
 
     vcw[0] = Vector2(v(1), 0.0);
     vcw[1] = Vector2(v(0), 0.0);
 
-    tsr[1] = v(0) / model->r;
-    tsr[0] = v(1) / model->r;
+    tsr[1] = v(0) / r;
+    tsr[0] = v(1) / r;
 
     tst[0] = 0.0;
     tst[1] = 0.0;
 }
 
-void ComputeWheelIK(
+void WheelToBody(
     const DiffSteerModel* model,
     const DiffSteerState* state,
     double* vx,
     double* vy,
     double* vtheta)
 {
+    return WheelToBodyDS(model->W, model->r, state->sr, vx, vy, vtheta);
+}
+
+void WheelToBodyDS(
+    double W, double r,
+    const double sr[2],
+    double* vx, double* vy, double* vtheta)
+{
     auto M = Matrix2();
-    M(0,0) = 0.5;               M(0,1) = 0.5;
-    M(1,0) = 0.5 / model->W;    M(1,1) = -0.5 / model->W;
-    auto v = Vector2(M * model->r * Vector2(state->sr[1], state->sr[0]));
+    M(0,0) = 0.5;       M(0,1) = 0.5;
+    M(1,0) = 0.5 / W;   M(1,1) = -0.5 / W;
+    auto v = Vector2(M * r * Vector2(sr[1], sr[0]));
     *vx = v(0);
     *vy = 0.0;
     *vtheta = v(1);
 }
 
-void ComputeWheelFK(
+void BodyToWheel(
     const AckermanSteerModel* model,
     const AckermanSteerState* state,
     double vx,
@@ -317,23 +337,35 @@ void ComputeWheelFK(
     double tsr[4],
     double tst[4])
 {
+    return BodyToWheelAS(
+            model->L, model->W, model->r,
+            state->st,
+            vx, vtheta,
+            vcw, tsr, tst);
+}
+
+void BodyToWheelAS(
+    double L, double W, double r,
+    const double st[4],
+    double vx, double vtheta,
+    Vector2 vcw[4], double tsr[4], double tst[4])
+{
     if ((vx == 0.0) & (vtheta == 0.0)) {
         vcw[0] = vcw[1] = vcw[2] = vcw[3] = Vector2::Zero();
         tsr[0] = tsr[1] = tsr[2] = tsr[3] = 0.0;
 
         // NOTE: any set of wheel angles will work, but we'll return the current
         // wheel angles as a convenience
-        tst[0] = state->st[0];
-        tst[1] = state->st[1];
-        tst[2] = state->st[2];
-        tst[3] = state->st[3];
-
+        tst[0] = st[0];
+        tst[1] = st[1];
+        tst[2] = st[2];
+        tst[3] = st[3];
         return;
     }
 
     if (vtheta == 0.0) {
         tst[0] = tst[1] = tst[2] = tst[3] = 0.0;
-        tsr[0] = tsr[1] = tsr[2] = tsr[3] = vx / model->r;
+        tsr[0] = tsr[1] = tsr[2] = tsr[3] = vx / r;
 
         vcw[0] = vx * Vector2(std::cos(tst[0]), std::sin(tst[0]));
         vcw[1] = vx * Vector2(std::cos(tst[1]), std::sin(tst[1]));
@@ -345,25 +377,25 @@ void ComputeWheelFK(
 
     auto M = Matrix2();
     M(0,0) = 1.0; M(0,1) = 0.0;
-    M(1,0) = 0.0; M(1,1) = model->L;
+    M(1,0) = 0.0; M(1,1) = L;
 
-    auto alpha = std::atan2(vtheta * model->L, vx);
+    auto alpha = std::atan2(vtheta * L, vx);
 
-//    auto R = vx / vtheta; //model->L * vx / model->W;
-    auto R = model->L / std::tan(alpha);
+//    auto R = vx / vtheta; //L * vx / W;
+    auto R = L / std::tan(alpha);
 
     // radius of curvature for each wheel
     double Rs[4];
     if (R >= 0.0) {
-        Rs[0] = Vector2(model->L, R - 0.5 * model->W).norm();
-        Rs[1] = Vector2(model->L, R + 0.5 * model->W).norm();
-        Rs[2] = R - 0.5 * model->W;
-        Rs[3] = R + 0.5 * model->W;
+        Rs[0] = Vector2(L, R - 0.5 * W).norm();
+        Rs[1] = Vector2(L, R + 0.5 * W).norm();
+        Rs[2] = R - 0.5 * W;
+        Rs[3] = R + 0.5 * W;
     } else {
-        Rs[0] = -Vector2(model->L, 0.5 * model->W - R).norm();
-        Rs[1] = -Vector2(model->L, -0.5 * model->W - R).norm();
-        Rs[2] = -(0.5 * model->W - R);
-        Rs[3] = -(-0.5 * model->W - R);
+        Rs[0] = -Vector2(L, 0.5 * W - R).norm();
+        Rs[1] = -Vector2(L, -0.5 * W - R).norm();
+        Rs[2] = -(0.5 * W - R);
+        Rs[3] = -(-0.5 * W - R);
     }
 
     // speed of each wheel
@@ -374,19 +406,19 @@ void ComputeWheelFK(
     Vs[3] = Rs[3] * vtheta;
 
     if (R >= 0.0) {
-        tst[0] = std::atan2(model->L, R - 0.5 * model->W);
-        tst[1] = std::atan2(model->L, R + 0.5 * model->W);
+        tst[0] = std::atan2(L, R - 0.5 * W);
+        tst[1] = std::atan2(L, R + 0.5 * W);
     } else {
-        tst[0] = std::atan2(-model->L, (0.5 * model->W - R));
-        tst[1] = std::atan2(-model->L, (-0.5 * model->W - R));
+        tst[0] = std::atan2(-L, (0.5 * W - R));
+        tst[1] = std::atan2(-L, (-0.5 * W - R));
     }
     tst[2] = 0.0;
     tst[3] = 0.0;
 
-    tsr[0] = Vs[0] / model->r;
-    tsr[1] = Vs[1] / model->r;
-    tsr[2] = Vs[2] / model->r;
-    tsr[3] = Vs[3] / model->r;
+    tsr[0] = Vs[0] / r;
+    tsr[1] = Vs[1] / r;
+    tsr[2] = Vs[2] / r;
+    tsr[3] = Vs[3] / r;
 
     // NOTE: we don't actually need these, just fill them out for rendering
     vcw[0] = Vs[0] * Vector2(std::cos(tst[0]), std::sin(tst[0]));
@@ -395,32 +427,41 @@ void ComputeWheelFK(
     vcw[3] = Vs[3] * Vector2(std::cos(tst[3]), std::sin(tst[3]));
 }
 
-void ComputeWheelIK(
+void WheelToBody(
     const AckermanSteerModel* model,
     const AckermanSteerState* state,
     double* vx,
     double* vy,
     double* vtheta)
 {
-    Matrix<double, 8, 3> H;
-    H(0,0) = 1; H(0,1) = 0; H(0,2) = -( 0.5 * model->W);
-    H(1,0) = 0; H(1,1) = 1; H(1,2) =  (       model->L);
-    H(2,0) = 1; H(2,1) = 0; H(2,2) = -(-0.5 * model->W);
-    H(3,0) = 0; H(3,1) = 1; H(3,2) =  (       model->L);
-    H(4,0) = 1; H(4,1) = 0; H(4,2) = -( 0.5 * model->W);
+    return WheelToBodyAS(
+            model->L, model->W, model->r, state->st, state->sr, vx, vy, vtheta);
+}
+
+void WheelToBodyAS(
+    double L, double W, double r,
+    const double st[4], const double sr[4],
+    double* vx, double* vy, double* vtheta)
+{
+    auto H = Matrix<double, 8, 3>();
+    H(0,0) = 1; H(0,1) = 0; H(0,2) = -( 0.5 * W);
+    H(1,0) = 0; H(1,1) = 1; H(1,2) =  (       L);
+    H(2,0) = 1; H(2,1) = 0; H(2,2) = -(-0.5 * W);
+    H(3,0) = 0; H(3,1) = 1; H(3,2) =  (       L);
+    H(4,0) = 1; H(4,1) = 0; H(4,2) = -( 0.5 * W);
     H(5,0) = 0; H(5,1) = 1; H(5,2) =  (            0.0);
-    H(6,0) = 1; H(6,1) = 0; H(6,2) = -(-0.5 * model->W);
+    H(6,0) = 1; H(6,1) = 0; H(6,2) = -(-0.5 * W);
     H(7,0) = 0; H(7,1) = 1; H(7,2) =  (            0.0);
 
-    Matrix<double, 8, 1> v;
-    v(0) = model->r * state->sr[0] * std::cos(state->st[0]);
-    v(1) = model->r * state->sr[0] * std::sin(state->st[0]);
-    v(2) = model->r * state->sr[1] * std::cos(state->st[1]);
-    v(3) = model->r * state->sr[1] * std::sin(state->st[1]);
-    v(4) = model->r * state->sr[2] * std::cos(state->st[2]);
-    v(5) = model->r * state->sr[2] * std::sin(state->st[2]);
-    v(6) = model->r * state->sr[3] * std::cos(state->st[3]);
-    v(7) = model->r * state->sr[3] * std::sin(state->st[3]);
+    auto v = Matrix<double, 8, 1>();
+    v(0) = r * sr[0] * std::cos(st[0]);
+    v(1) = r * sr[0] * std::sin(st[0]);
+    v(2) = r * sr[1] * std::cos(st[1]);
+    v(3) = r * sr[1] * std::sin(st[1]);
+    v(4) = r * sr[2] * std::cos(st[2]);
+    v(5) = r * sr[2] * std::sin(st[2]);
+    v(6) = r * sr[3] * std::cos(st[3]);
+    v(7) = r * sr[3] * std::sin(st[3]);
 
     // (3x8 * 8x3)^-1 * 3x8 * 8x1 = 3x1
     auto V = Matrix<double, 3, 1>((H.transpose() * H).inverse() * H.transpose() * v);
