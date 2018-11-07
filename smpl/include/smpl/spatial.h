@@ -65,6 +65,16 @@ using Quaternion = Eigen::Quaterniond;
 
 using Eigen::Scaling;
 
+inline auto MakeAffine2(double x, double y) -> Affine2
+{
+    return Affine2(Translation2(x, y));
+}
+
+inline auto MakeAffine2(double x, double y, double theta) -> Affine2
+{
+    return Affine2(Translation2(x, y) * Rotation2D(theta));
+}
+
 inline auto MakeAffine(double x, double y, double z) -> Affine3
 {
     return Affine3(Translation3(x, y, z));
