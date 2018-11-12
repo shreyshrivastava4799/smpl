@@ -811,10 +811,10 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
 {
     auto urdf = state.getRobotModel()->getURDF();
 
-    ros::Time tm = ros::Time::now();
-    for (std::size_t i = 0; i < link_names.size(); ++i) {
+    auto tm = ros::Time::now();
+    for (auto i = 0; i < link_names.size(); ++i) {
         ROS_DEBUG("Trying to get marker for link '%s'", link_names[i].c_str());
-        const moveit::core::LinkModel* lm = state.getRobotModel()->getLinkModel(link_names[i]);
+        auto* lm = state.getRobotModel()->getLinkModel(link_names[i]);
         auto urdf_link = urdf->getLink(link_names[i]);
 
         if (!lm || !urdf_link) {
@@ -824,9 +824,9 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
         if (include_attached) {
             std::vector<const moveit::core::AttachedBody*> attached_bodies;
             state.getAttachedBodies(attached_bodies);
-            for (const moveit::core::AttachedBody* ab : attached_bodies) {
+            for (auto* ab : attached_bodies) {
                 if (ab->getAttachedLink() == lm) {
-                    for (std::size_t j = 0 ; j < ab->getShapes().size() ; ++j) {
+                    for (auto j = 0 ; j < ab->getShapes().size() ; ++j) {
                         visualization_msgs::Marker att_mark;
                         att_mark.header.frame_id = state.getRobotModel()->getModelFrame();
                         att_mark.header.stamp = tm;
@@ -849,7 +849,7 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
             continue;
         }
 
-        for (std::size_t j = 0 ; j < lm->getShapes().size() ; ++j) {
+        for (auto j = 0 ; j < lm->getShapes().size() ; ++j) {
             auto shape = lm->getShapes()[j];
             // we're going to roll our own markers for meshes later
             if (shape->type == shapes::ShapeType::MESH) {
@@ -884,15 +884,14 @@ void MoveGroupCommandPanel::getRobotCollisionMarkers(
         std::vector<boost::shared_ptr<urdf::Collision>> collisions;
         if (urdf_link->collision) {
             collisions.push_back(urdf_link->collision);
-        }
-        else {
+        } else {
             collisions.assign(urdf_link->collision_array.begin(), urdf_link->collision_array.end());
         }
 
         size_t cidx = 0;
         for (auto& collision : collisions) {
             if (collision->geometry->type == urdf::Geometry::MESH) {
-                const urdf::Mesh* mesh = (const urdf::Mesh*)collision->geometry.get();
+                auto* mesh = (const urdf::Mesh*)collision->geometry.get();
                 visualization_msgs::Marker m;
                 m.header.frame_id = state.getRobotModel()->getModelFrame();
                 m.header.stamp = tm;

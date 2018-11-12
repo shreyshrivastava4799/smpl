@@ -44,6 +44,7 @@ static std::string TipNameFromMarkerName(const std::string& marker_name)
 
 void IKCommandInteractiveMarker::updateRobotModel()
 {
+    m_marker_scale_cache.clear();
     reinitInteractiveMarkers();
 }
 
@@ -59,10 +60,10 @@ void CorrectIKSolution(
     const moveit::core::JointModelGroup* group,
     const moveit::core::RobotState& ref_state)
 {
-    for (size_t gvidx = 0; gvidx < group->getVariableCount(); ++gvidx) {
+    for (auto gvidx = 0; gvidx < group->getVariableCount(); ++gvidx) {
         ROS_DEBUG_NAMED(LOG, "Check variable '%s' for bounded revoluteness", group->getVariableNames()[gvidx].c_str());
 
-        int vidx = group->getVariableIndexList()[gvidx];
+        auto vidx = group->getVariableIndexList()[gvidx];
         auto* joint = state.getRobotModel()->getJointOfVariable(vidx);
         if (joint->getType() != moveit::core::JointModel::REVOLUTE ||
             !joint->getVariableBounds()[0].position_bounded_)
@@ -72,17 +73,17 @@ void CorrectIKSolution(
 
         ROS_DEBUG_NAMED(LOG, "  Normalize variable '%s'", group->getVariableNames()[gvidx].c_str());
 
-        double spos = state.getVariablePosition(vidx);
-        double vdiff = ref_state.getVariablePosition(gvidx) - spos;
-        int twopi_hops = (int)std::abs(vdiff / (2.0 * M_PI));
+        auto spos = state.getVariablePosition(vidx);
+        auto vdiff = ref_state.getVariablePosition(gvidx) - spos;
+        auto twopi_hops = (int)std::abs(vdiff / (2.0 * M_PI));
 
         ROS_DEBUG_NAMED(LOG, " -> seed pos: %f", ref_state.getVariablePosition(gvidx));
         ROS_DEBUG_NAMED(LOG, " ->  sol pos: %f", spos);
         ROS_DEBUG_NAMED(LOG, " ->    vdiff: %f", vdiff);
         ROS_DEBUG_NAMED(LOG, " -> num hops: %d", twopi_hops);
 
-        const double dir = std::copysign(1.0, vdiff);
-        double npos = spos + (2.0 * M_PI) * twopi_hops * dir;
+        auto dir = std::copysign(1.0, vdiff);
+        auto npos = spos + (2.0 * M_PI) * twopi_hops * dir;
         if (std::abs(npos - ref_state.getVariablePosition(gvidx)) > M_PI) {
             npos += 2.0 * M_PI * dir;
         }
@@ -158,6 +159,115 @@ auto MakeNormalizedQuaternion(double w, double x, double y, double z)
     return normalized(q);
 }
 
+static
+auto ComputeMarkerScale(const moveit::core::LinkModel* link) -> float
+{
+    auto sqrd = [](double t) { return t * t; };
+
+    auto scale = 0.0f;
+
+    ROS_INFO_NAMED(LOG, "Scan %zu shapes to determine marker scale", link->getShapes().size());
+
+    for (auto i = 0; i < link->getShapes().size(); ++i) {
+        auto& shape = link->getShapes()[i];
+        auto& origin = link->getCollisionOriginTransforms()[i];
+
+        switch (shape->type) {
+        case shapes::BOX:
+        {
+            auto* box = static_cast<const shapes::Box*>(shape.get());
+
+            double half[3] = { 0.5 * box->size[0], 0.5 * box->size[1], 0.5 * box->size[2] };
+            Eigen::Vector3d corners[8] =
+            {
+                Eigen::Vector3d(-0.5 * half[0], -0.5 * half[1], -0.5 * half[2]),
+                Eigen::Vector3d(-0.5 * half[0], -0.5 * half[1],  0.5 * half[2]),
+                Eigen::Vector3d(-0.5 * half[0],  0.5 * half[1], -0.5 * half[2]),
+                Eigen::Vector3d(-0.5 * half[0],  0.5 * half[1],  0.5 * half[2]),
+                Eigen::Vector3d( 0.5 * half[0], -0.5 * half[1], -0.5 * half[2]),
+                Eigen::Vector3d( 0.5 * half[0], -0.5 * half[1],  0.5 * half[2]),
+                Eigen::Vector3d( 0.5 * half[0],  0.5 * half[1], -0.5 * half[2]),
+                Eigen::Vector3d( 0.5 * half[0],  0.5 * half[1], -0.5 * half[2]),
+            };
+
+            auto s = 0.0;
+            for (auto v = 0; v < 8; ++v) {
+                auto corner = origin * corners[v];
+                s = std::max(s, std::fabs(corner.x()));
+                s = std::max(s, std::fabs(corner.y()));
+                s = std::max(s, std::fabs(corner.z()));
+            }
+
+            scale = std::max(scale, (float)s);
+            break;
+        }
+        case shapes::CONE:
+        {
+            auto* cone = static_cast<const shapes::Cone*>(shape.get());
+            auto s = (float)std::sqrt(sqrd(0.5 * cone->length) * sqrd(0.5 * cone->radius));
+            s += origin.translation().norm();
+            scale = std::max(scale, s);
+            break;
+        }
+        case shapes::CYLINDER:
+        {
+            auto* cylinder = static_cast<const shapes::Cylinder*>(shape.get());
+            auto s = (float)std::sqrt(sqrd(0.5 * cylinder->length) * sqrd(0.5 * cylinder->radius));
+            s += origin.translation().norm();
+            scale = std::max(scale, s);
+            break;
+        }
+        case shapes::MESH:
+        {
+            // NOTE: any chance there are vertices not referenced by the
+            // available triangles that we are counting here? That would be
+            // most unfortunate.
+
+            auto* mesh = static_cast<const shapes::Mesh*>(shape.get());
+
+            auto s = 0.0;
+            for (auto vidx = 0; vidx < mesh->vertex_count; ++vidx) {
+                auto vxi = 3 * vidx + 0;
+                auto vyi = 3 * vidx + 1;
+                auto vzi = 3 * vidx + 2;
+
+                auto v = Eigen::Vector3d(
+                        mesh->vertices[vxi],
+                        mesh->vertices[vyi],
+                        mesh->vertices[vzi]);
+                v = origin * v;
+
+                s = std::max(s, std::fabs(v.x()));
+                s = std::max(s, std::fabs(v.y()));
+                s = std::max(s, std::fabs(v.z()));
+            }
+
+            scale = std::max(scale, (float)s);
+            break;
+        }
+        case shapes::SPHERE:
+        {
+            auto* sphere = static_cast<const shapes::Sphere*>(shape.get());
+            auto s = sphere->radius;
+            s += origin.translation().norm();
+            scale = std::max(scale, (float)s);
+            break;
+        }
+        case shapes::OCTREE:
+        case shapes::PLANE:
+        case shapes::UNKNOWN_SHAPE:
+            ROS_WARN_NAMED(LOG, "Unsupported shape for determining ik marker scale");
+            break;
+        }
+    }
+
+    if (scale == 0.0f) {
+        return 1.0f;
+    } else {
+        return 2.0f * scale;
+    }
+}
+
 // This gets called whenever the robot model or active joint group changes.
 void IKCommandInteractiveMarker::reinitInteractiveMarkers()
 {
@@ -205,7 +315,18 @@ void IKCommandInteractiveMarker::reinitInteractiveMarkers()
 
         tip_marker.name = MarkerNameFromTipName(tip_link->getName());
         tip_marker.description = "ik control of link " + tip_link->getName();
-        tip_marker.scale = 0.20f;
+
+        // determine the size of the marker
+        auto scale = 1.0f;
+        auto it = m_marker_scale_cache.find(tip_link->getName());
+        if (it != end(m_marker_scale_cache)) {
+            scale = it->second;
+        } else {
+            scale = ComputeMarkerScale(tip_link);
+            ROS_INFO_NAMED(LOG, "Marker scale for link '%s' = %f", tip_link->getName().c_str(), scale);
+            m_marker_scale_cache[tip_link->getName()] = scale;
+        }
+        tip_marker.scale = scale;
 
         visualization_msgs::InteractiveMarkerControl dof_control;
         dof_control.orientation_mode =
