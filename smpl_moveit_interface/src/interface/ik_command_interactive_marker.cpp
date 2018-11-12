@@ -159,6 +159,33 @@ auto MakeNormalizedQuaternion(double w, double x, double y, double z)
     return normalized(q);
 }
 
+// Get the largest coordinate (x, y, or z) of the bounding box, posed at $pose.
+static
+auto GetMaxCoordOBB(const Eigen::Affine3d& origin, const double size[3]) -> double
+{
+    double half[3] = { 0.5 * size[0], 0.5 * size[1], 0.5 * size[2] };
+    Eigen::Vector3d corners[8] =
+    {
+        Eigen::Vector3d(-half[0], -half[1], -half[2]),
+        Eigen::Vector3d(-half[0], -half[1],  half[2]),
+        Eigen::Vector3d(-half[0],  half[1], -half[2]),
+        Eigen::Vector3d(-half[0],  half[1],  half[2]),
+        Eigen::Vector3d( half[0], -half[1], -half[2]),
+        Eigen::Vector3d( half[0], -half[1],  half[2]),
+        Eigen::Vector3d( half[0],  half[1], -half[2]),
+        Eigen::Vector3d( half[0],  half[1], -half[2]),
+    };
+
+    auto s = 0.0;
+    for (auto v = 0; v < 8; ++v) {
+        auto corner = Eigen::Vector3d(origin * corners[v]);
+        s = std::max(s, std::fabs(corner.x()));
+        s = std::max(s, std::fabs(corner.y()));
+        s = std::max(s, std::fabs(corner.z()));
+    }
+    return s;
+}
+
 static
 auto ComputeMarkerScale(const moveit::core::LinkModel* link) -> float
 {
@@ -176,45 +203,22 @@ auto ComputeMarkerScale(const moveit::core::LinkModel* link) -> float
         case shapes::BOX:
         {
             auto* box = static_cast<const shapes::Box*>(shape.get());
-
-            double half[3] = { 0.5 * box->size[0], 0.5 * box->size[1], 0.5 * box->size[2] };
-            Eigen::Vector3d corners[8] =
-            {
-                Eigen::Vector3d(-0.5 * half[0], -0.5 * half[1], -0.5 * half[2]),
-                Eigen::Vector3d(-0.5 * half[0], -0.5 * half[1],  0.5 * half[2]),
-                Eigen::Vector3d(-0.5 * half[0],  0.5 * half[1], -0.5 * half[2]),
-                Eigen::Vector3d(-0.5 * half[0],  0.5 * half[1],  0.5 * half[2]),
-                Eigen::Vector3d( 0.5 * half[0], -0.5 * half[1], -0.5 * half[2]),
-                Eigen::Vector3d( 0.5 * half[0], -0.5 * half[1],  0.5 * half[2]),
-                Eigen::Vector3d( 0.5 * half[0],  0.5 * half[1], -0.5 * half[2]),
-                Eigen::Vector3d( 0.5 * half[0],  0.5 * half[1], -0.5 * half[2]),
-            };
-
-            auto s = 0.0;
-            for (auto v = 0; v < 8; ++v) {
-                auto corner = origin * corners[v];
-                s = std::max(s, std::fabs(corner.x()));
-                s = std::max(s, std::fabs(corner.y()));
-                s = std::max(s, std::fabs(corner.z()));
-            }
-
-            scale = std::max(scale, (float)s);
+            scale = std::max(scale, (float)GetMaxCoordOBB(origin, box->size));
             break;
         }
         case shapes::CONE:
         {
             auto* cone = static_cast<const shapes::Cone*>(shape.get());
-            auto s = (float)std::sqrt(sqrd(0.5 * cone->length) * sqrd(0.5 * cone->radius));
-            s += origin.translation().norm();
-            scale = std::max(scale, s);
+            double size[3] = { 2.0 * cone->radius, 2.0 * cone->radius, cone->length };
+            scale = std::max(scale, (float)GetMaxCoordOBB(origin, size));
             break;
         }
         case shapes::CYLINDER:
         {
             auto* cylinder = static_cast<const shapes::Cylinder*>(shape.get());
-            auto s = (float)std::sqrt(sqrd(0.5 * cylinder->length) * sqrd(0.5 * cylinder->radius));
-            s += origin.translation().norm();
-            scale = std::max(scale, s);
+
+            double size[3] = { 2.0 * cylinder->radius, 2.0 * cylinder->radius, cylinder->length };
+            scale = std::max(scale, (float)GetMaxCoordOBB(origin, size));
             break;
         }
         case shapes::MESH:
@@ -249,8 +253,8 @@ auto ComputeMarkerScale(const moveit::core::LinkModel* link) -> float
         {
             auto* sphere = static_cast<const shapes::Sphere*>(shape.get());
             auto s = sphere->radius;
-            s += origin.translation().norm();
-            scale = std::max(scale, (float)s);
+            double size[3] = { 2.0 * s, 2.0 * s, 2.0 * s };
+            scale = std::max(scale, (float)GetMaxCoordOBB(origin, size));
             break;
         }
         case shapes::OCTREE:
