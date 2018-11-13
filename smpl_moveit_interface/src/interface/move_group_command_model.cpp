@@ -2,18 +2,16 @@
 
 // standard includes
 #include <assert.h>
-#include <chrono>
-#include <stack>
 
 // system includes
 #include <eigen_conversions/eigen_msg.h>
-#include <geometric_shapes/shape_operations.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit_msgs/GetStateValidity.h>
-#include <moveit_msgs/PlanningSceneWorld.h>
 #include <moveit_msgs/QueryPlannerInterfaces.h>
 #include <ros/console.h>
 #include <smpl/angles.h>
+#include <smpl/stl/memory.h>
+#include <tf/transform_listener.h>
 
 #include <smpl_moveit_interface/interface/utils.h>
 
@@ -21,9 +19,11 @@ namespace sbpl_interface {
 
 static const char* LOG = "move_group_command_model";
 
+#if 0
 static
-const char* to_cstring(
+auto to_cstring(
     planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType type)
+    -> const char*
 {
     switch (type) {
     case planning_scene_monitor::PlanningSceneMonitor::UPDATE_NONE:
@@ -40,6 +40,7 @@ const char* to_cstring(
         return "<UNKNOWN>";
     }
 }
+#endif
 
 MoveGroupCommandModel::MoveGroupCommandModel() : QObject()
 {
@@ -47,9 +48,8 @@ MoveGroupCommandModel::MoveGroupCommandModel() : QObject()
 
 MoveGroupCommandModel::~MoveGroupCommandModel()
 {
-    if (m_scene_monitor != NULL) {
-        m_scene_monitor->stopSceneMonitor();
-        m_scene_monitor->stopStateMonitor();
+    if (m_state_monitor != NULL) {
+        m_state_monitor->stopStateMonitor();
     }
 }
 
@@ -140,23 +140,19 @@ bool MoveGroupCommandModel::loadRobot(const std::string& robot_description)
 
     ROS_DEBUG_NAMED(LOG, "Load robot model and construct Planning Scene Monitor");
 
-    // load the robot from URDF and construct a scene monitor for it
-    using planning_scene_monitor::PlanningSceneMonitor;
-    planning_scene_monitor::PlanningSceneMonitorPtr scene_monitor;
-    scene_monitor.reset(new PlanningSceneMonitor(
-                robot_description,
-                boost::make_shared<tf::TransformListener>()));
+    using robot_model_loader::RobotModelLoader;
+    auto loader = smpl::make_unique<RobotModelLoader>(robot_description);
 
-    if (scene_monitor == NULL) {
-        ROS_ERROR("Failed to instantiate Planning Scene Monitor");
-        return false;
-    }
-
-    auto robot_model = scene_monitor->getRobotModel();
+    auto robot_model = loader->getModel();
     if (robot_model == NULL) {
-        ROS_ERROR("Planning Scene Monitor failed to parse robot description");
+        ROS_ERROR("Failed to load Robot Model");
         return false;
     }
+
+    // load the robot from URDF and construct a scene monitor for it
+    using planning_scene_monitor::CurrentStateMonitor;
+    auto tf = boost::make_shared<tf::TransformListener>();
+    auto state_monitor = smpl::make_unique<CurrentStateMonitor>(robot_model, tf);
 
     ROS_DEBUG_NAMED(LOG, "Initialize Robot Command Model");
 
@@ -165,45 +161,13 @@ bool MoveGroupCommandModel::loadRobot(const std::string& robot_description)
         return false;
     }
 
-    m_scene_monitor = std::move(scene_monitor);
+    m_robot_description = robot_description;
+    m_loader = std::move(loader);
+    m_robot_model = robot_model;
+    m_state_monitor = std::move(state_monitor);
+    m_state_monitor->startStateMonitor();
 
-    // configure planning scene monitor
-    m_scene_monitor->requestPlanningSceneState();
-    auto update_fn = [this](
-        planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType type)
-    {
-//        ROS_DEBUG_NAMED(LOG, "Process scene update %s", to_cstring(type));
-        switch (type) {
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_NONE:
-            break;
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_STATE:
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_TRANSFORMS:
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_GEOMETRY:
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE:
-            updateAvailableFrames();
-            break;
-        default:
-            break;
-        }
-    };
-    m_scene_monitor->addUpdateCallback(update_fn);
-    m_scene_monitor->startSceneMonitor();
-    m_scene_monitor->startStateMonitor();
-
-    // log planning scene monitor properties
-    ROS_DEBUG("Planning Scene Monitor Name: %s", m_scene_monitor->getName().c_str());
-    ROS_DEBUG("Default Attached Object Padding: %0.3f", m_scene_monitor->getDefaultAttachedObjectPadding());
-    ROS_DEBUG("Default Object Padding: %0.3f", m_scene_monitor->getDefaultObjectPadding());
-    ROS_DEBUG("Default Robot Scale: %0.3f", m_scene_monitor->getDefaultRobotScale());
-    ROS_DEBUG("Last Update Time: %0.3f", m_scene_monitor->getLastUpdateTime().toSec());
-    std::vector<std::string> monitored_topics;
-    m_scene_monitor->getMonitoredTopics(monitored_topics);
-    ROS_DEBUG("Monitored Topics:");
-    for (auto& topic : monitored_topics) {
-        ROS_DEBUG("  %s", topic.c_str());
-    }
-    ROS_DEBUG("Planning Scene Publishing Frequency: %0.3f", m_scene_monitor->getPlanningScenePublishingFrequency());
-    ROS_DEBUG("Robot Model: %s", m_scene_monitor->getRobotModel()->getName().c_str());
+    ROS_DEBUG("Robot Model: %s", robot_model->getName().c_str());
 
     // retain the selected joint group or choose a new one if not available
     if (!robotModel()->hasJointModelGroup(m_curr_joint_group_name)) {
@@ -217,26 +181,26 @@ bool MoveGroupCommandModel::loadRobot(const std::string& robot_description)
 
     Q_EMIT robotLoaded();
 
-    // seed the available transforms using the available links
-    for (auto& link_name : robotModel()->getLinkModelNames()) {
-        m_available_frames.push_back(link_name);
-    }
-    // NOTE: this emission has to come after the robotLoaded() signal has been
+    // NOTE: This emission has to come after the robotLoaded() signal has been
     // emitted above...not sure why this is yet but failure to do so results in
-    // a repeatable crash
-    Q_EMIT availableFramesUpdated();
+    // a repeatable crash. Update: this doesn't appear to be true anymore...
+    updateAvailableFrames();
 
     return true;
 }
 
 bool MoveGroupCommandModel::isRobotLoaded() const
 {
-    return (bool)m_scene_monitor.get();
+    return (bool)m_state_monitor.get();
 }
 
 auto MoveGroupCommandModel::robotModel() const
     -> const moveit::core::RobotModelConstPtr&
 {
+    // TODO: we should be able to use our own robot model, but it looks
+    // like someone is connected to a robotLoaded() signal that then tries
+    // to access our robot model...maybe we should just piggyback entirely
+    // off of robot command model's robot model
     return m_robot_command_model.getRobotModel(); //m_robot_model;
 }
 
@@ -324,20 +288,18 @@ bool MoveGroupCommandModel::moveToGoalConfiguration()
 
 bool MoveGroupCommandModel::copyCurrentState()
 {
-    if (!m_scene_monitor) {
+    if (!m_state_monitor) {
         ROS_WARN("No scene loaded");
         return false;
     }
 
-    planning_scene_monitor::LockedPlanningSceneRO scene(m_scene_monitor);
-
-    if (!m_scene_monitor->getStateMonitor()->haveCompleteState()) {
+    if (!m_state_monitor->haveCompleteState()) {
         ROS_WARN("Missing joint values for robot state");
     }
 
-    auto& curr_state = scene->getCurrentState();
+    auto curr_state = m_state_monitor->getCurrentState();
     m_robot_command_model.setVariablePositions(
-            curr_state.getVariablePositions());
+            curr_state->getVariablePositions());
 
     return true;
 }
@@ -356,11 +318,7 @@ auto MoveGroupCommandModel::availableFrames() const
 
 auto MoveGroupCommandModel::robotDescription() const -> const std::string&
 {
-    if (m_scene_monitor != NULL) {
-        return m_scene_monitor->getRobotDescription();
-    } else {
-        return m_empty_string;
-    }
+    return m_robot_description;
 }
 
 const std::string MoveGroupCommandModel::plannerName() const
@@ -1246,36 +1204,15 @@ bool MoveGroupCommandModel::hasVariable(
 
 bool MoveGroupCommandModel::updateAvailableFrames()
 {
-    auto transformer = m_scene_monitor->getTFClient();
-
-    if (!transformer) {
-        if (m_available_frames.empty()) {
-            return false;
-        } else {
-            m_available_frames.clear();
-            return true;
-        }
-    } else {
-        std::vector<std::string> frames;
-        transformer->getFrameStrings(frames);
-
-        std::sort(frames.begin(), frames.end());
-
-        std::vector<std::string> diff;
-        std::set_symmetric_difference(
-                m_available_frames.begin(), m_available_frames.end(),
-                frames.begin(), frames.end(),
-                std::back_inserter(diff));
-
-        if (!diff.empty()) {
-            ROS_INFO("Transforms Changed %zu -> %zu", m_available_frames.size(), frames.size());
-            m_available_frames = std::move(frames);
-            Q_EMIT availableFramesUpdated();
-            return true;
-        } else {
-            return false;
-        }
+    m_available_frames.clear();
+    if (m_robot_model->getModelFrame() != m_robot_model->getRootLink()->getName()) {
+        m_available_frames.push_back(m_robot_model->getModelFrame());
     }
+    m_available_frames.insert(
+                end(m_available_frames),
+                begin(m_robot_model->getLinkModelNames()),
+               end(m_robot_model->getLinkModelNames()));
+    Q_EMIT availableFramesUpdated();
 }
 
 void MoveGroupCommandModel::notifyCommandStateChanged()
