@@ -90,7 +90,7 @@ void GetTransformVariables(
     }
 }
 
-bool Init(
+bool InitRobotState(
     RobotState* out,
     const RobotModel* model,
     bool with_velocities,

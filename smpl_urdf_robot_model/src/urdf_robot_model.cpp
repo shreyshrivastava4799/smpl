@@ -51,7 +51,7 @@ bool Init(
     model->setPlanningJoints(planning_variables);
     model->robot_model = robot_model;
 
-    if (!Init(&model->robot_state, robot_model)) {
+    if (!InitRobotState(&model->robot_state, robot_model)) {
         return false;
     }
 

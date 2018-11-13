@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
     }
 
     smpl::urdf::RobotState robot_state;
-    Init(&robot_state, &robot_model);
+    InitRobotState(&robot_state, &robot_model);
 
     SetToDefaultValues(&robot_state);
     printf("default robot_state:\n");

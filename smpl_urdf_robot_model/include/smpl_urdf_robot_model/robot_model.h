@@ -4,13 +4,15 @@
 // standard includes
 #include <cstddef>
 
-namespace urdf {
-class ModelInterface;
-} // namespace urdf
+// system includes
+#include <smpl/spatial.h>
 
 // project includes
 #include <smpl_urdf_robot_model/array_range.h>
-#include <smpl_urdf_robot_model/types.h>
+
+namespace urdf {
+class ModelInterface;
+} // namespace urdf
 
 namespace smpl {
 namespace urdf {
