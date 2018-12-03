@@ -31,6 +31,7 @@ class QWidget;
 
 namespace sbpl_interface {
 
+class IKCommandWidget;
 class JointVariableCommandWidget;
 class IKCommandInteractiveMarker;
 
@@ -129,6 +130,8 @@ private:
 
     IKCommandInteractiveMarker  m_ik_cmd_marker;
     TeleopCommand               m_teleop_command;
+
+    IKCommandWidget*            m_ik_widget = 0;
     ///@}
 
     /// \name Command Widgets

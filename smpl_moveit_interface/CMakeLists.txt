@@ -69,6 +69,7 @@ set(MOVE_GROUP_COMMAND_PANEL_MOC_HEADERS
     include/smpl_moveit_interface/interface/joint_variable_command_widget.h
     include/smpl_moveit_interface/interface/robot_command_model.h
     include/smpl_moveit_interface/interface/ik_command_interactive_marker.h
+    include/smpl_moveit_interface/interface/ik_command_widget.h
     include/smpl_moveit_interface/interface/teleop_command.h
     src/interface/move_group_command_model.h
     src/interface/move_group_command_panel.h)
@@ -89,6 +90,7 @@ add_library(
     move_group_command_panel_plugin
     ${MOVE_GROUP_COMMAND_PANEL_MOC_SOURCES}
     src/interface/ik_command_interactive_marker.cpp
+    src/interface/ik_command_widget.cpp
     src/interface/teleop_command.cpp
     src/interface/joint_variable_command_widget.cpp
     src/interface/move_group_command_model.cpp

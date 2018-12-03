@@ -16,6 +16,7 @@
 #include <visualization_msgs/MarkerArray.h>
 
 // project includes
+#include <smpl_moveit_interface/interface/ik_command_widget.h>
 #include <smpl_moveit_interface/interface/joint_variable_command_widget.h>
 
 // module includes
@@ -155,6 +156,7 @@ void MoveGroupCommandPanel::syncModelConfig()
     m_var_cmd_widget->setActiveJointGroup(m_model.planningJointGroupName());
     m_ik_cmd_marker.setActiveJointGroup(m_model.planningJointGroupName());
     m_teleop_command.setActiveJointGroup(m_model.planningJointGroupName());
+    m_ik_widget->setActiveJointGroup(m_model.planningJointGroupName());
 
     syncGoalPositionToleranceSpinBox();
     syncGoalOrientationToleranceSpinBox();
@@ -439,9 +441,16 @@ QGroupBox* MoveGroupCommandPanel::setupGoalConstraintsGroup()
     command_group->setLayout(command_layout);
     // End Goal Command Group
 
+    auto* ik_command_group = new QGroupBox(tr("IK Command"));
+    auto* ik_command_layout = new QVBoxLayout;
+    m_ik_widget = new IKCommandWidget(m_model.getRobotCommandModel());
+    ik_command_layout->addWidget(m_ik_widget);
+    ik_command_group->setLayout(ik_command_layout);
+
     goal_constraints_layout->addWidget(tolerance_group, 0, 0, 1, 2);
     goal_constraints_layout->addWidget(workspace_group, 1, 0, 1, 2);
     goal_constraints_layout->addWidget(command_group, 2, 0, 1, 2);
+    goal_constraints_layout->addWidget(ik_command_group, 3, 0, 1, 2);
 
     goal_constraints_group->setLayout(goal_constraints_layout);
     return goal_constraints_group;
