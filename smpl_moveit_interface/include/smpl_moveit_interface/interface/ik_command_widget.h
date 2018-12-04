@@ -25,7 +25,7 @@ public Q_SLOTS:
 
     void setActiveJointGroup(const std::string& group_name);
 
-private:
+public:
 
     RobotCommandModel* m_model = 0;
 
@@ -46,6 +46,10 @@ private Q_SLOTS:
     void updatePositionX(double value);
     void updatePositionY(double value);
     void updatePositionZ(double value);
+
+    void updatePositionRX(double value);
+    void updatePositionRY(double value);
+    void updatePositionRZ(double value);
 };
 
 } // namespace sbpl_interface
