@@ -546,11 +546,14 @@ void ARAStar::expand(SearchState* s)
             if (succ_state->iteration_closed != m_iteration) {
                 succ_state->f = computeKey(succ_state);
                 if (m_open.contains(succ_state)) {
+                    SMPL_DEBUG_NAMED(SELOG, "  Update with new priority %ld", succ_state->f);
                     m_open.decrease(succ_state);
                 } else {
+                    SMPL_DEBUG_NAMED(SELOG, "  Insert into OPEN with priority %ld", succ_state->f);
                     m_open.push(succ_state);
                 }
             } else if (!succ_state->incons) {
+                SMPL_DEBUG_NAMED(SELOG, "  Insert into INCONS");
                 m_incons.push_back(succ_state);
             }
         }
