@@ -134,9 +134,9 @@ DistanceMapInterface* SparseDistanceMap::clone() const
 /// values of affected cells. Points outside the map and cells that are already
 /// marked as obstacles will be ignored.
 void SparseDistanceMap::addPointsToMap(
-    const std::vector<Eigen::Vector3d>& points)
+    const std::vector<Vector3>& points)
 {
-    for (const Eigen::Vector3d& p : points) {
+    for (const Vector3& p : points) {
         int gx, gy, gz;
         worldToGrid(p.x(), p.y(), p.z(), gx, gy, gz);
         if (!isCellValid(gx, gy, gz)) {
@@ -162,9 +162,9 @@ void SparseDistanceMap::addPointsToMap(
 /// distance values of affected cells. Points outside the map and cells that
 /// are already marked as obstacles will be ignored.
 void SparseDistanceMap::removePointsFromMap(
-    const std::vector<Eigen::Vector3d>& points)
+    const std::vector<Vector3>& points)
 {
-    for (const Eigen::Vector3d& p : points) {
+    for (const Vector3& p : points) {
         int gx, gy, gz;
         worldToGrid(p.x(), p.y(), p.z(), gx, gy, gz);
         if (!isCellValid(gx, gy, gz)) {
@@ -193,11 +193,11 @@ void SparseDistanceMap::removePointsFromMap(
 /// (old_points - new_points) of obstacle cells and update the distance values
 /// of affected cells. Points outside the map will be ignored.
 void SparseDistanceMap::updatePointsInMap(
-    const std::vector<Eigen::Vector3d>& old_points,
-    const std::vector<Eigen::Vector3d>& new_points)
+    const std::vector<Vector3>& old_points,
+    const std::vector<Vector3>& new_points)
 {
     std::set<Eigen::Vector3i, Eigen_Vector3i_compare> old_point_set;
-    for (const Eigen::Vector3d& wp : old_points) {
+    for (const Vector3& wp : old_points) {
         Eigen::Vector3i gp;
         worldToGrid(wp.x(), wp.y(), wp.z(), gp.x(), gp.y(), gp.z());
         if (isCellValid(gp.x(), gp.y(), gp.z())) {
@@ -206,7 +206,7 @@ void SparseDistanceMap::updatePointsInMap(
     }
 
     std::set<Eigen::Vector3i, Eigen_Vector3i_compare> new_point_set;
-    for (const Eigen::Vector3d& wp : new_points) {
+    for (const Vector3& wp : new_points) {
         Eigen::Vector3i gp;
         worldToGrid(wp.x(), wp.y(), wp.z(), gp.x(), gp.y(), gp.z());
         if (isCellValid(gp.x(), gp.y(), gp.z())) {

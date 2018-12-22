@@ -32,9 +32,14 @@
 #ifndef SMPL_SPARSE_EGRAPH_DIJKSTRA_HEURISTIC
 #define SMPL_SPARSE_EGRAPH_DIJKSTRA_HEURISTIC
 
+// standard includes
 #include <cstdlib>
 #include <limits>
 
+// system includes
+#include <Eigen/Core>
+
+// project includes
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/robot_heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
@@ -44,7 +49,6 @@
 namespace smpl {
 
 class OccupancyGrid;
-
 
 class ExperienceGraphExtension;
 class PointProjectionExtension;

@@ -5,10 +5,10 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <Eigen/StdVector>
 
 // project includes
+#include <smpl/spatial.h>
 #include <smpl/types.h>
 
 namespace smpl {
@@ -35,9 +35,9 @@ struct GoalConstraint
     std::vector<double> angle_tolerances;
 
     // Relevant for workspace goals
-    Eigen::Affine3d pose;               // goal pose of the planning link
+    Affine3 pose;               // goal pose of the planning link
 
-    std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>> poses;
+    std::vector<Affine3, Eigen::aligned_allocator<Affine3>> poses;
 
     double xyz_tolerance[3];            // (x, y, z) tolerance
     double rpy_tolerance[3];            // (R, P, Y) tolerance

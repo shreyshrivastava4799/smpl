@@ -38,13 +38,14 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
+#include <Eigen/Core>
 #include <Eigen/StdVector>
 
 // project includes
 #include <smpl/forward.h>
 #include <smpl/distance_map/distance_map_interface.h>
 #include <smpl/grid/grid.h>
+#include <smpl/spatial.h>
 
 #include "detail/distance_map_common.h"
 
@@ -74,11 +75,11 @@ public:
 
     /// \name Required Functions from DistanceMapInterface
     ///@{
-    void addPointsToMap(const std::vector<Eigen::Vector3d>& points) override;
-    void removePointsFromMap(const std::vector<Eigen::Vector3d>& points) override;
+    void addPointsToMap(const std::vector<Vector3>& points) override;
+    void removePointsFromMap(const std::vector<Vector3>& points) override;
     void updatePointsInMap(
-        const std::vector<Eigen::Vector3d>& old_points,
-        const std::vector<Eigen::Vector3d>& new_points) override;
+        const std::vector<Vector3>& old_points,
+        const std::vector<Vector3>& new_points) override;
 
     void reset() override;
 

@@ -134,7 +134,7 @@ public:
 
     /// \name Required Public Functions from PoseProjectionExtension
     ///@{
-    bool projectToPose(int state_id, Eigen::Affine3d& pos) override;
+    bool projectToPose(int state_id, Affine3& pos) override;
     ///@}
 
     /// \name Required Public Functions from RobotPlanningSpace
@@ -181,7 +181,7 @@ protected:
     int getOrCreateState(const RobotCoord& coord, const RobotState& state);
     int reserveHashEntry();
 
-    Eigen::Affine3d computePlanningFrameFK(const RobotState& state) const;
+    Affine3 computePlanningFrameFK(const RobotState& state) const;
 
     int cost(
         ManipLatticeState* HashEntry1,

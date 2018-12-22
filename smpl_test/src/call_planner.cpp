@@ -554,7 +554,7 @@ int main(int argc, char* argv[])
 
     // Set reference state in the robot planning model...
     smpl::urdf::RobotState reference_state;
-    Init(&reference_state, &rm->m_robot_model);
+    InitRobotState(&reference_state, &rm->m_robot_model);
     for (auto i = 0; i < start_state.joint_state.name.size(); ++i) {
         auto* var = GetVariable(&rm->m_robot_model, &start_state.joint_state.name[i]);
         if (var == NULL) {

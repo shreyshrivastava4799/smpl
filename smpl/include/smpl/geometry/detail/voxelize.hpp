@@ -44,14 +44,14 @@ namespace geometry {
 /// North Carolina, USA, pp. 119-126'
 template <typename Discretizer>
 void VoxelizeTriangle(
-    const Eigen::Vector3d& a,
-    const Eigen::Vector3d& b,
-    const Eigen::Vector3d& c,
+    const Vector3& a,
+    const Vector3& b,
+    const Vector3& c,
     VoxelGrid<Discretizer>& vg)
 {
-    Eigen::Vector3d p1 = a;
-    Eigen::Vector3d p2 = b;
-    Eigen::Vector3d p3 = c;
+    Vector3 p1 = a;
+    Vector3 p2 = b;
+    Vector3 p3 = c;
 
     // check for colinearity and counterclockwiseness
     double det = ((p2 - p1).cross(p3 - p1).norm());
@@ -71,22 +71,22 @@ void VoxelizeTriangle(
     double rc2 = rc * rc;
 
     // get the normal vector for the triangle
-    Eigen::Vector3d u = p2 - p1;
-    Eigen::Vector3d v = p3 - p2;
-    Eigen::Vector3d w = p1 - p3;
-    Eigen::Vector3d n = u.cross(v);
+    Vector3 u = p2 - p1;
+    Vector3 v = p3 - p2;
+    Vector3 w = p1 - p3;
+    Vector3 n = u.cross(v);
     n.normalize();
 
     double ca = 1.0;
     double corners[] = {
-        Eigen::Vector3d(-0.5774, -0.5774, -0.5774).dot(n),
-        Eigen::Vector3d(-0.5774, -0.5774,  0.5774).dot(n),
-        Eigen::Vector3d(-0.5774,  0.5774, -0.5774).dot(n),
-        Eigen::Vector3d(-0.5774,  0.5774,  0.5774).dot(n),
-        Eigen::Vector3d( 0.5774, -0.5774, -0.5774).dot(n),
-        Eigen::Vector3d( 0.5774, -0.5774,  0.5774).dot(n),
-        Eigen::Vector3d( 0.5774,  0.5774, -0.5774).dot(n),
-        Eigen::Vector3d( 0.5774,  0.5774,  0.5774).dot(n)
+        Vector3(-0.5774, -0.5774, -0.5774).dot(n),
+        Vector3(-0.5774, -0.5774,  0.5774).dot(n),
+        Vector3(-0.5774,  0.5774, -0.5774).dot(n),
+        Vector3(-0.5774,  0.5774,  0.5774).dot(n),
+        Vector3( 0.5774, -0.5774, -0.5774).dot(n),
+        Vector3( 0.5774, -0.5774,  0.5774).dot(n),
+        Vector3( 0.5774,  0.5774, -0.5774).dot(n),
+        Vector3( 0.5774,  0.5774,  0.5774).dot(n)
     };
     ca = *std::max_element(corners, corners + sizeof(corners) / sizeof(double));
 
@@ -96,15 +96,15 @@ void VoxelizeTriangle(
     double d = -n.dot(p1);
 
     // normal to the edge p2 - p1 pointing inwards
-    Eigen::Vector3d e1 = -u.cross(n);
+    Vector3 e1 = -u.cross(n);
     e1.normalize();
 
     // normal to the edge p3 - p2 pointing inwards
-    Eigen::Vector3d e2 = -v.cross(n);
+    Vector3 e2 = -v.cross(n);
     e2.normalize();
 
     // normal to the edge p1 - p3 pointing inwards
-    Eigen::Vector3d e3 = -w.cross(n);
+    Vector3 e3 = -w.cross(n);
     e3.normalize();
 
     // distances of the edge-guard planes from the origin
@@ -112,9 +112,9 @@ void VoxelizeTriangle(
     double d2 = -e2.dot(p2);
     double d3 = -e3.dot(p3);
 
-    Eigen::Vector3d mintri;
-    Eigen::Vector3d maxtri;
-    std::vector<Eigen::Vector3d> tri_verts(3);
+    Vector3 mintri;
+    Vector3 maxtri;
+    std::vector<Vector3> tri_verts(3);
     tri_verts[0] = a;
     tri_verts[1] = b;
     tri_verts[2] = c;
@@ -140,11 +140,11 @@ void VoxelizeTriangle(
 
         // check if the voxel point is in the plane of the triangle and
         // within the edges
-        const Eigen::Vector3d voxel_p(wc.x, wc.y, wc.z);
+        const Vector3 voxel_p(wc.x, wc.y, wc.z);
 
-        Eigen::Vector3d dx1 = voxel_p - p1;
-        Eigen::Vector3d dx2 = voxel_p - p2;
-        Eigen::Vector3d dx3 = voxel_p - p3;
+        Vector3 dx1 = voxel_p - p1;
+        Vector3 dx2 = voxel_p - p2;
+        Vector3 dx3 = voxel_p - p3;
 
         if (dx1.squaredNorm() <= rc2 ||
             dx2.squaredNorm() <= rc2 ||

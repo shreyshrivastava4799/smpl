@@ -2,6 +2,7 @@
 #define MOVEIT_PLANNERS_SBPL_IK_COMMAND_INTERACTIVE_MARKER_H
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <QtCore>
@@ -40,6 +41,8 @@ private:
 
     interactive_markers::InteractiveMarkerServer m_im_server;
     std::vector<std::string> m_int_marker_names;
+
+    std::unordered_map<std::string, float> m_marker_scale_cache;
 
     void reinitInteractiveMarkers();
     void updateInteractiveMarkers();

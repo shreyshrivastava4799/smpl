@@ -181,14 +181,14 @@ size_t OccupancyGrid::getOccupiedVoxelCount() const
 
 /// Get all occupied voxels within an oriented cube region of the grid.
 void OccupancyGrid::getOccupiedVoxels(
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     const std::vector<double>& dim,
-    std::vector<Eigen::Vector3d>& voxels) const
+    std::vector<Vector3>& voxels) const
 {
     for (double x = -0.5 * dim[0]; x <= 0.5 * dim[0]; x += m_grid->resolution()) {
     for (double y = -0.5 * dim[1]; y <= 0.5 * dim[1]; y += m_grid->resolution()) {
     for (double z = -0.5 * dim[2]; z <= 0.5 * dim[2]; z += m_grid->resolution()) {
-        Eigen::Vector3d point = pose * Eigen::Vector3d(x, y, z);
+        Vector3 point = pose * Vector3(x, y, z);
 
         if (getDistanceFromPoint(point.x(), point.y(), point.z()) <= 0.0) {
             voxels.push_back(point);
@@ -204,13 +204,13 @@ void OccupancyGrid::getOccupiedVoxels(
     double y_center,
     double z_center,
     double radius,
-    std::vector<Eigen::Vector3d>& voxels) const
+    std::vector<Vector3>& voxels) const
 {
     int x_c, y_c, z_c;
     worldToGrid(x_center, y_center, z_center, x_c, y_c, z_c);
     auto radius_c = (int)(radius / resolution() + 0.5);
 
-    Eigen::Vector3d v;
+    Vector3 v;
 
     iterateCells(
             x_c - radius_c, y_c - radius_c, z_c - radius_c,
@@ -226,7 +226,7 @@ void OccupancyGrid::getOccupiedVoxels(
 
 /// Gather all the obstacle points in the occupancy grid.
 void OccupancyGrid::getOccupiedVoxels(
-    std::vector<Eigen::Vector3d>& voxels) const
+    std::vector<Vector3>& voxels) const
 {
     iterateCells([&](int x, int y, int z)
     {
@@ -241,13 +241,13 @@ void OccupancyGrid::getOccupiedVoxels(
 /// Return a visualization of the bounding box of the distance map.
 auto OccupancyGrid::getBoundingBoxVisualization() const -> visual::Marker
 {
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     points.reserve(
             4 * (m_grid->numCellsX() + 2) +
             4 * (m_grid->numCellsY()) +
             4 * (m_grid->numCellsZ()));
 
-    Eigen::Vector3d p;
+    Vector3 p;
     int x, y, z;
 
     for (x = -1; x <= m_grid->numCellsX(); ++x) {
@@ -320,13 +320,13 @@ auto OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
     auto max_value = max_dist < 0.0 ?
             m_grid->getUninitializedDistance() : max_dist;
 
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     std::vector<visual::Color> colors;
     iterateCells([&](int x, int y, int z)
     {
         auto d = m_grid->getCellDistance(x, y, z);
         if (d >= min_value && d <= max_value) {
-            Eigen::Vector3d p;
+            Vector3 p;
             m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             points.push_back(p);
 
@@ -346,7 +346,7 @@ auto OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
 /// Return a visualization of the obstacle cells stored in the distance map.
 auto OccupancyGrid::getOccupiedVoxelsVisualization() const -> visual::Marker
 {
-    std::vector<Eigen::Vector3d> voxels;
+    std::vector<Vector3> voxels;
     getOccupiedVoxels(voxels);
 
     return MakeCubesMarker(
@@ -359,13 +359,13 @@ auto OccupancyGrid::getOccupiedVoxelsVisualization() const -> visual::Marker
 
 /// Add a set of obstacle cells to the occupancy grid.
 void OccupancyGrid::addPointsToField(
-    const std::vector<Eigen::Vector3d>& points)
+    const std::vector<Vector3>& points)
 {
     if (m_ref_counted) {
-        std::vector<Eigen::Vector3d> pts;
+        std::vector<Vector3> pts;
         pts.reserve(points.size());
         int gx, gy, gz;
-        for (const Eigen::Vector3d& v : points) {
+        for (const Vector3& v : points) {
             worldToGrid(v.x(), v.y(), v.z(), gx, gy, gz);
 
             if (isInBounds(gx, gy, gz)) {
@@ -387,13 +387,13 @@ void OccupancyGrid::addPointsToField(
 
 /// Remove a set of obstacle cells from the occupancy grid.
 void OccupancyGrid::removePointsFromField(
-    const std::vector<Eigen::Vector3d>& points)
+    const std::vector<Vector3>& points)
 {
     if (m_ref_counted) {
-        std::vector<Eigen::Vector3d> pts;
+        std::vector<Vector3> pts;
         pts.reserve(points.size());
         int gx, gy, gz;
-        for (const Eigen::Vector3d& v : points) {
+        for (const Vector3& v : points) {
             worldToGrid(v.x(), v.y(), v.z(), gx, gy, gz);
 
             if (isInBounds(gx, gy, gz)) {
@@ -418,8 +418,8 @@ void OccupancyGrid::removePointsFromField(
 /// set, but not in the new obstacle set, and adding obstacles that exist in the
 /// new obstacle set, but not in the old obstacle set.
 void OccupancyGrid::updatePointsInField(
-    const std::vector<Eigen::Vector3d>& old_points,
-    const std::vector<Eigen::Vector3d>& new_points)
+    const std::vector<Vector3>& old_points,
+    const std::vector<Vector3>& new_points)
 {
     // TODO: ref counting
     m_grid->updatePointsInMap(old_points, new_points);

@@ -36,7 +36,8 @@
 #include <cmath>
 
 // system includes
-#include <Eigen/Dense>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 namespace smpl {
 

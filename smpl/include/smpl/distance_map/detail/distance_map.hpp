@@ -149,7 +149,7 @@ DistanceMap<Derived>::DistanceMap(
     CreateNeighborUpdateList(m_neighbors, m_indices, m_neighbor_ranges);
 
     for (size_t i = 0; i < m_indices.size(); ++i) {
-        const Eigen::Vector3i& neighbor = m_neighbors[m_indices[i]];
+        auto& neighbor = m_neighbors[m_indices[i]];
         m_neighbor_offsets[i] = 0;
         m_neighbor_offsets[i] += neighbor.x() * cell_count_z * cell_count_y;
         m_neighbor_offsets[i] += neighbor.y() * cell_count_z;
@@ -305,9 +305,9 @@ double DistanceMap<Derived>::getDistance(int x, int y, int z) const
 /// marked as obstacles will be ignored.
 template <typename Derived>
 void DistanceMap<Derived>::addPointsToMap(
-    const std::vector<Eigen::Vector3d>& points)
+    const std::vector<Vector3>& points)
 {
-    for (const Eigen::Vector3d& p : points) {
+    for (const Vector3& p : points) {
         int gx, gy, gz;
         worldToGrid(p.x(), p.y(), p.z(), gx, gy, gz);
         if (!isCellValid(gx, gy, gz)) {
@@ -333,9 +333,9 @@ void DistanceMap<Derived>::addPointsToMap(
 /// are already marked as obstacles will be ignored.
 template <typename Derived>
 void DistanceMap<Derived>::removePointsFromMap(
-    const std::vector<Eigen::Vector3d>& points)
+    const std::vector<Vector3>& points)
 {
-    for (const Eigen::Vector3d& p : points) {
+    for (const Vector3& p : points) {
         int gx, gy, gz;
         worldToGrid(p.x(), p.y(), p.z(), gx, gy, gz);
         if (!isCellValid(gx, gy, gz)) {
@@ -366,11 +366,11 @@ void DistanceMap<Derived>::removePointsFromMap(
 /// of affected cells. Points outside the map will be ignored.
 template <typename Derived>
 void DistanceMap<Derived>::updatePointsInMap(
-    const std::vector<Eigen::Vector3d>& old_points,
-    const std::vector<Eigen::Vector3d>& new_points)
+    const std::vector<Vector3>& old_points,
+    const std::vector<Vector3>& new_points)
 {
     std::set<Eigen::Vector3i, Eigen_Vector3i_compare> old_point_set;
-    for (const Eigen::Vector3d& wp : old_points) {
+    for (auto& wp : old_points) {
         Eigen::Vector3i gp;
         worldToGrid(wp.x(), wp.y(), wp.z(), gp.x(), gp.y(), gp.z());
         if (isCellValid(gp.x(), gp.y(), gp.z())) {
@@ -380,7 +380,7 @@ void DistanceMap<Derived>::updatePointsInMap(
     }
 
     std::set<Eigen::Vector3i, Eigen_Vector3i_compare> new_point_set;
-    for (const Eigen::Vector3d& wp : new_points) {
+    for (auto& wp : new_points) {
         Eigen::Vector3i gp;
         worldToGrid(wp.x(), wp.y(), wp.z(), gp.x(), gp.y(), gp.z());
         if (isCellValid(gp.x(), gp.y(), gp.z())) {
@@ -406,7 +406,7 @@ void DistanceMap<Derived>::updatePointsInMap(
             comp);
 
     // remove obstacle cells that were in the old cloud but not the new cloud
-    for (const Eigen::Vector3i& p : old_not_new) {
+    for (const auto& p : old_not_new) {
         Cell& c = m_cells(p.x(), p.y(), p.z());
         if (c.obs != &c) {
             continue; // skip already-free cells
@@ -421,7 +421,7 @@ void DistanceMap<Derived>::updatePointsInMap(
     propagateRemovals();
 
     // add obstacle cells that are in the new cloud but not the old cloud
-    for (const Eigen::Vector3i& p : new_not_old) {
+    for (const auto& p : new_not_old) {
         Cell& c = m_cells(p.x(), p.y(), p.z());
         if (c.dist_new == 0) {
             continue; // skip already-obstacle cells

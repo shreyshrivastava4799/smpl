@@ -33,9 +33,6 @@
 #include <cstdio>
 #include <algorithm>
 
-// system includes
-#include <Eigen/Core>
-
 // project includes
 #include <smpl/geometry/voxelize.h>
 #include <smpl/geometry/mesh_utils.h>
@@ -49,9 +46,9 @@ namespace geometry {
 /// origin. This function will only append sphere centers to the output vector.
 void ComputeBoxBoundingSpheres(
     double length, double width, double height,
-    double radius, std::vector<Eigen::Vector3d>& centers)
+    double radius, std::vector<Vector3>& centers)
 {
-    std::vector<Eigen::Vector3d> vertices;
+    std::vector<Vector3> vertices;
     std::vector<std::uint32_t> triangles;
     CreateIndexedBoxMesh(length, width, height, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
@@ -63,9 +60,9 @@ void ComputeBoxBoundingSpheres(
 /// centers to the output vector.
 void ComputeSphereBoundingSpheres(
     double cradius,
-    double radius, std::vector<Eigen::Vector3d>& centers)
+    double radius, std::vector<Vector3>& centers)
 {
-    std::vector<Eigen::Vector3d> vertices;
+    std::vector<Vector3> vertices;
     std::vector<std::uint32_t> triangles;
     CreateIndexedSphereMesh(cradius, 7, 8, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
@@ -77,9 +74,9 @@ void ComputeSphereBoundingSpheres(
 /// This function will only append sphere centers to the output vector.
 void ComputeCylinderBoundingSpheres(
     double cradius, double cheight,
-    double radius, std::vector<Eigen::Vector3d>& centers)
+    double radius, std::vector<Vector3>& centers)
 {
-    std::vector<Eigen::Vector3d> vertices;
+    std::vector<Vector3> vertices;
     std::vector<std::uint32_t> triangles;
     CreateIndexedCylinderMesh(cradius, cheight, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
@@ -91,18 +88,18 @@ void ComputeCylinderBoundingSpheres(
 /// function will only append sphere centers to the output vector.
 void ComputeConeBoundingSpheres(
     double cradius, double cheight,
-    double radius, std::vector<Eigen::Vector3d>& centers)
+    double radius, std::vector<Vector3>& centers)
 {
-    std::vector<Eigen::Vector3d> vertices;
+    std::vector<Vector3> vertices;
     std::vector<std::uint32_t> triangles;
     CreateIndexedConeMesh(cradius, cheight, vertices, triangles);
     ComputeMeshBoundingSpheres(vertices, triangles, radius, centers);
 }
 
 struct EigenVertexArrayIndexer {
-    const std::vector<Eigen::Vector3d>& vertices;
+    const std::vector<Vector3>& vertices;
 
-    EigenVertexArrayIndexer(const std::vector<Eigen::Vector3d>& vertices) :
+    EigenVertexArrayIndexer(const std::vector<Vector3>& vertices) :
         vertices(vertices) { }
 
     double x(int index) const { return vertices[index].x(); }
@@ -133,9 +130,9 @@ void ComputeMeshBoundingSpheresInternal(
         std::uint32_t iv2 = indices[3 * tidx + 1];
         std::uint32_t iv3 = indices[3 * tidx + 2];
 
-        Eigen::Vector3d a(indexer.x(iv1), indexer.y(iv1), indexer.z(iv1));
-        Eigen::Vector3d b(indexer.x(iv2), indexer.y(iv2), indexer.z(iv2));
-        Eigen::Vector3d c(indexer.x(iv3), indexer.y(iv3), indexer.z(iv3));
+        Vector3 a(indexer.x(iv1), indexer.y(iv1), indexer.z(iv1));
+        Vector3 b(indexer.x(iv2), indexer.y(iv2), indexer.z(iv2));
+        Vector3 c(indexer.x(iv3), indexer.y(iv3), indexer.z(iv3));
 
         //  compute the pose of the triangle
         const double a2 = (b - c).squaredNorm();
@@ -149,7 +146,7 @@ void ComputeMeshBoundingSpheresInternal(
         bc2 /= s;
         bc3 /= s;
 
-        Eigen::Vector3d p = bc1 * a + bc2 * b + bc3 * c;
+        Vector3 p = bc1 * a + bc2 * b + bc3 * c;
 
         if ((p - a).squaredNorm() <= radius * radius &&
             (p - b).squaredNorm() <= radius * radius &&
@@ -159,7 +156,7 @@ void ComputeMeshBoundingSpheresInternal(
             continue;
         }
 
-        Eigen::Vector3d z = (c - b).cross(b - a);
+        Vector3 z = (c - b).cross(b - a);
 
         // normalize or skip z
         auto len = z.norm();
@@ -168,7 +165,7 @@ void ComputeMeshBoundingSpheresInternal(
         }
         z /= len;
 
-        Eigen::Vector3d x;
+        Vector3 x;
         if (a2 > b2 && a2 > c2) {
             x = b - c;
         }
@@ -186,8 +183,8 @@ void ComputeMeshBoundingSpheresInternal(
         }
         x /= len;
 
-        Eigen::Vector3d y = z.cross(x);
-        Eigen::Affine3d T_mesh_triangle;
+        Vector3 y = z.cross(x);
+        Affine3 T_mesh_triangle;
         T_mesh_triangle(0, 0) = x[0];
         T_mesh_triangle(1, 0) = x[1];
         T_mesh_triangle(2, 0) = x[2];
@@ -208,12 +205,12 @@ void ComputeMeshBoundingSpheresInternal(
         T_mesh_triangle(2, 3) = p[2];
         T_mesh_triangle(3, 3) = 1.0;
 
-        Eigen::Affine3d T_triangle_mesh = T_mesh_triangle.inverse();
+        Affine3 T_triangle_mesh = T_mesh_triangle.inverse();
 
         //  transform the triangle vertices into the triangle frame
-        Eigen::Vector3d at = T_triangle_mesh * a;
-        Eigen::Vector3d bt = T_triangle_mesh * b;
-        Eigen::Vector3d ct = T_triangle_mesh * c;
+        Vector3 at = T_triangle_mesh * a;
+        Vector3 bt = T_triangle_mesh * b;
+        Vector3 ct = T_triangle_mesh * c;
 
         double minx = std::min(at.x(), std::min(bt.x(), ct.x()));
         double miny = std::min(at.y(), std::min(bt.y(), ct.y()));
@@ -222,10 +219,10 @@ void ComputeMeshBoundingSpheresInternal(
 
         //  voxelize the triangle
         PivotVoxelGrid vg(
-                Eigen::Vector3d(minx, miny, 0.0),
-                Eigen::Vector3d(maxx - minx, maxy - miny, 0.0),
-                Eigen::Vector3d(radius, radius, radius),
-                Eigen::Vector3d::Zero());
+                Vector3(minx, miny, 0.0),
+                Vector3(maxx - minx, maxy - miny, 0.0),
+                Vector3(radius, radius, radius),
+                Vector3::Zero());
         VoxelizeTriangle(at, bt, ct, vg);
 
         // extract filled voxels and append as sphere centers
@@ -234,7 +231,7 @@ void ComputeMeshBoundingSpheresInternal(
                 MemoryCoord mc(x, y, 0);
                 if (vg[mc]) {
                     WorldCoord wc = vg.memoryToWorld(mc);
-                    proc(T_mesh_triangle * Eigen::Vector3d(wc.x, wc.y, wc.z),
+                    proc(T_mesh_triangle * Vector3(wc.x, wc.y, wc.z),
                             tidx);
                 }
             }
@@ -246,17 +243,17 @@ void ComputeMeshBoundingSpheresInternal(
 ///
 /// This function will only append sphere centers to the output vector.
 void ComputeMeshBoundingSpheres(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
     double radius,
-    std::vector<Eigen::Vector3d>& centers)
+    std::vector<Vector3>& centers)
 {
     ComputeMeshBoundingSpheresInternal(
             EigenVertexArrayIndexer(vertices),
             indices.data(),
             indices.size() / 3,
             radius,
-            [&](const Eigen::Vector3d& center, int tidx) {
+            [&](const Vector3& center, int tidx) {
                 centers.push_back(center);
             });
 }
@@ -267,31 +264,31 @@ void ComputeMeshBoundingSpheres(
     const std::uint32_t* triangle_data,
     size_t triangle_count,
     double radius,
-    std::vector<Eigen::Vector3d>& centers)
+    std::vector<Vector3>& centers)
 {
     ComputeMeshBoundingSpheresInternal(
             DoubleArrayVertexArrayIndexer(vertex_data),
             triangle_data,
             triangle_count,
             radius,
-            [&](const Eigen::Vector3d& center, int tidx) {
+            [&](const Vector3& center, int tidx) {
                 centers.push_back(center);
             });
 }
 
 void ComputeMeshBoundingSpheres(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
     double radius,
-    std::vector<Eigen::Vector3d>& centers,
+    std::vector<Vector3>& centers,
     std::vector<std::uint32_t>& triangle_indices)
 {
     ComputeMeshBoundingSpheresInternal(
             EigenVertexArrayIndexer(vertices),
             indices.data(),
-            indices.size() / 3, 
+            indices.size() / 3,
             radius,
-            [&](const Eigen::Vector3d& center, int tidx) {
+            [&](const Vector3& center, int tidx) {
                 centers.push_back(center);
                 triangle_indices.push_back(tidx);
             });
@@ -303,7 +300,7 @@ void ComputeMeshBoundingSpheres(
     const std::uint32_t* triangle_data,
     size_t triangle_count,
     double radius,
-    std::vector<Eigen::Vector3d>& centers,
+    std::vector<Vector3>& centers,
     std::vector<std::uint32_t>& triangle_indices)
 {
     ComputeMeshBoundingSpheresInternal(
@@ -311,7 +308,7 @@ void ComputeMeshBoundingSpheres(
             triangle_data,
             triangle_count,
             radius,
-            [&](const Eigen::Vector3d& center, int tidx) {
+            [&](const Vector3& center, int tidx) {
                 centers.push_back(center);
                 triangle_indices.push_back(tidx);
             });

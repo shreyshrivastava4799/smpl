@@ -35,29 +35,30 @@
 
 // project includes
 #include <smpl/geometry/triangle.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace geometry {
 
 static bool PointOnTriangle(
-    const Eigen::Vector3d& p,
-    const Eigen::Vector3d& a,
-    const Eigen::Vector3d& b,
-    const Eigen::Vector3d& c)
+    const Vector3& p,
+    const Vector3& a,
+    const Vector3& b,
+    const Vector3& c)
 {
-    Eigen::Vector3d ab = b - a;
-    Eigen::Vector3d bc = c - b;
-    Eigen::Vector3d ca = a - c;
+    Vector3 ab = b - a;
+    Vector3 bc = c - b;
+    Vector3 ca = a - c;
 
-    Eigen::Vector3d n = ab.cross(bc);
+    Vector3 n = ab.cross(bc);
 
-    Eigen::Vector3d abn = n.cross(ab);
-    Eigen::Vector3d bcn = n.cross(bc);
-    Eigen::Vector3d can = n.cross(ca);
+    Vector3 abn = n.cross(ab);
+    Vector3 bcn = n.cross(bc);
+    Vector3 can = n.cross(ca);
 
-    Eigen::Vector3d p1 = a - p;
-    Eigen::Vector3d p2 = b - p;
-    Eigen::Vector3d p3 = c - p;
+    Vector3 p1 = a - p;
+    Vector3 p2 = b - p;
+    Vector3 p3 = c - p;
 
     if (p1.dot(abn) < 0.0 && p2.dot(bcn) < 0.0 && p3.dot(can) < 0.0) {
         return true;
@@ -90,15 +91,15 @@ static bool CoplanarTrianglesIntersect(
     // triangles are maximized
 
     // Project the coplanar triangles into the X-Y plane
-    Eigen::Vector2d t1_verts_2d[3];
-    t1_verts_2d[0] = Eigen::Vector2d(v10.x(), v10.y());
-    t1_verts_2d[1] = Eigen::Vector2d(v11.x(), v11.y());
-    t1_verts_2d[2] = Eigen::Vector2d(v12.x(), v12.y());
+    Vector2 t1_verts_2d[3];
+    t1_verts_2d[0] = Vector2(v10.x(), v10.y());
+    t1_verts_2d[1] = Vector2(v11.x(), v11.y());
+    t1_verts_2d[2] = Vector2(v12.x(), v12.y());
 
-    Eigen::Vector2d t2_verts_2d[3];
-    t2_verts_2d[0] = Eigen::Vector2d(v20.x(), v20.y());
-    t2_verts_2d[1] = Eigen::Vector2d(v21.x(), v21.y());
-    t2_verts_2d[2] = Eigen::Vector2d(v22.x(), v22.y());
+    Vector2 t2_verts_2d[3];
+    t2_verts_2d[0] = Vector2(v20.x(), v20.y());
+    t2_verts_2d[1] = Vector2(v21.x(), v21.y());
+    t2_verts_2d[2] = Vector2(v22.x(), v22.y());
 
     ////////////////////////////////////////////////////////////////////
     /// Perform collision tests between two-dimensional line segments //
@@ -120,7 +121,7 @@ static bool CoplanarTrianglesIntersect(
             // if lines arent parallel
             if (std::fabs(denom) > eps) {
                 // the point of intersection between the two lines (from the segments)
-                Eigen::Vector2d intersection;
+                Vector2 intersection;
                 intersection[0] = tmp1 * (pt3[0] - pt4[0]) - (pt1[0] - pt2[0]) * tmp2;
                 intersection[0] /= denom;
                 intersection[1] = tmp1 * (pt3[1] - pt4[1]) - (pt1[1] - pt2[1]) * tmp2;
@@ -148,21 +149,21 @@ static bool CoplanarTrianglesIntersect(
     ////////////////////////////////////////////////////////////////////////////////
 
     // compute center point of first triangle
-    Eigen::Vector2d t1_center = t1_verts_2d[0] + t1_verts_2d[1] + t1_verts_2d[2];
+    Vector2 t1_center = t1_verts_2d[0] + t1_verts_2d[1] + t1_verts_2d[2];
     t1_center /= 3.0;
 
     // compute center point of second triangle
-    Eigen::Vector2d t2_center = t2_verts_2d[0] + t2_verts_2d[1] + t2_verts_2d[2];
+    Vector2 t2_center = t2_verts_2d[0] + t2_verts_2d[1] + t2_verts_2d[2];
     t2_center /= 3.0;
 
-    Eigen::Vector3d firstTriangleCenterTo3D(t1_center[0], t1_center[1], 0.0);
-    Eigen::Vector3d secondTriangleCenterTo3D(t2_center[0], t2_center[1], 0.0);
-    Eigen::Vector3d u10To3D(t1_verts_2d[0][0], t1_verts_2d[0][1], 0.0);
-    Eigen::Vector3d u11To3D(t1_verts_2d[1][0], t1_verts_2d[1][1], 0.0);
-    Eigen::Vector3d u12To3D(t1_verts_2d[2][0], t1_verts_2d[2][1], 0.0);
-    Eigen::Vector3d u20To3D(t2_verts_2d[0][0], t2_verts_2d[0][1], 0.0);
-    Eigen::Vector3d u21To3D(t2_verts_2d[1][0], t2_verts_2d[1][1], 0.0);
-    Eigen::Vector3d u22To3D(t2_verts_2d[2][0], t2_verts_2d[2][1], 0.0);
+    Vector3 firstTriangleCenterTo3D(t1_center[0], t1_center[1], 0.0);
+    Vector3 secondTriangleCenterTo3D(t2_center[0], t2_center[1], 0.0);
+    Vector3 u10To3D(t1_verts_2d[0][0], t1_verts_2d[0][1], 0.0);
+    Vector3 u11To3D(t1_verts_2d[1][0], t1_verts_2d[1][1], 0.0);
+    Vector3 u12To3D(t1_verts_2d[2][0], t1_verts_2d[2][1], 0.0);
+    Vector3 u20To3D(t2_verts_2d[0][0], t2_verts_2d[0][1], 0.0);
+    Vector3 u21To3D(t2_verts_2d[1][0], t2_verts_2d[1][1], 0.0);
+    Vector3 u22To3D(t2_verts_2d[2][0], t2_verts_2d[2][1], 0.0);
 
     return
         PointOnTriangle(firstTriangleCenterTo3D, u20To3D, u21To3D, u22To3D) ||
@@ -180,7 +181,7 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     ////////////////////////////////////////////////////////////////////////////
 
     // Calculate parameters for the plane in which triangle 2 lies
-    Eigen::Vector3d n2 = (v21 - v20).cross(v22 - v20);
+    Vector3 n2 = (v21 - v20).cross(v22 - v20);
     n2.normalize();
     double d2 = (-n2).dot(v20);
 
@@ -208,7 +209,7 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     ////////////////////////////////////////////////////////////////////////////
 
     // Calculate parameters for the plane in which triangle 1 lies
-    Eigen::Vector3d n1 = (v11 - v10).cross(v12 - v10);
+    Vector3 n1 = (v11 - v10).cross(v12 - v10);
     n1.normalize();
     double d1 = (-n1).dot(v10);
 
@@ -232,7 +233,7 @@ bool Intersects(const Triangle& tr1, const Triangle& tr2, double eps)
     }
 
     // The direction of the line of intersection between the two planes
-    Eigen::Vector3d D = n1.cross(n2);
+    Vector3 D = n1.cross(n2);
 
 #define USE_MAX_COMP 1
 #if USE_MAX_COMP

@@ -6,9 +6,7 @@
 
 // system includes
 #include <Eigen/StdVector>
-
-// project includes
-#include <smpl_urdf_robot_model/types.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace urdf {
@@ -22,7 +20,7 @@ struct LinkVisual;
 
 struct RobotState;
 
-bool Init(
+bool InitRobotState(
     RobotState* state,
     const RobotModel* model,
     bool with_velocities = false,

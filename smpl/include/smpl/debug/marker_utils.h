@@ -2,6 +2,7 @@
 #define SMPL_MARKER_UTILS_H
 
 #include <smpl/debug/marker.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace visual {
@@ -17,22 +18,22 @@ auto MakeSphereMarker(
     int id = 0) -> Marker;
 
 auto MakeLineMarker(
-    const Eigen::Vector3d& a,
-    const Eigen::Vector3d& b,
+    const Vector3& a,
+    const Vector3& b,
     const std::string& frame_id,
     const std::string& ns,
     int id = 0)
     -> Marker;
 
 auto MakeFrameMarkers(
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     const std::string& frame_id,
     const std::string& ns,
     int id = 0)
     -> std::vector<Marker>;
 
 auto MakePoseMarkers(
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     const std::string& frame_id,
     const std::string& ns,
     int id = 0,
@@ -40,7 +41,7 @@ auto MakePoseMarkers(
     -> std::vector<Marker>;
 
 auto MakeCubesMarker(
-    const std::vector<Eigen::Vector3d>& centers,
+    const std::vector<Vector3>& centers,
     double size,
     const Color& color,
     const std::string& frame_id,
@@ -48,7 +49,7 @@ auto MakeCubesMarker(
     int id = 0) -> Marker;
 
 auto MakeCubesMarker(
-    const std::vector<Eigen::Vector3d>& centers,
+    const std::vector<Vector3>& centers,
     double size,
     const std::vector<Color>& colors,
     const std::string& frame_id,
@@ -56,7 +57,7 @@ auto MakeCubesMarker(
     int id = 0) -> Marker;
 
 auto MakeCubesMarker(
-    std::vector<Eigen::Vector3d>&& centers,
+    std::vector<Vector3>&& centers,
     double size,
     const Color& color,
     const std::string& frame_id,
@@ -64,7 +65,7 @@ auto MakeCubesMarker(
     int id = 0) -> Marker;
 
 auto MakeCubesMarker(
-    std::vector<Eigen::Vector3d>&& centers,
+    std::vector<Vector3>&& centers,
     double size,
     std::vector<Color>&& colors,
     const std::string& frame_id,

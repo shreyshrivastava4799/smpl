@@ -123,7 +123,7 @@ bool AdaptiveWorkspaceLattice::init(
 
 bool AdaptiveWorkspaceLattice::projectToPoint(
     int state_id,
-    Eigen::Vector3d& pos)
+    Vector3& pos)
 {
     AdaptiveState* state = m_states[state_id];
     if (state_id == m_goal_state_id) {
@@ -640,7 +640,7 @@ void AdaptiveWorkspaceLattice::GetSuccs(
 
     SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "  actions: %zu", m_lo_prims.size());
     for (size_t aidx = 0; aidx < m_lo_prims.size(); ++aidx) {
-        const Eigen::Vector3d& dx = m_lo_prims[aidx];
+        const Vector3& dx = m_lo_prims[aidx];
 
         SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "    action %zu", aidx);
 
@@ -1056,8 +1056,8 @@ bool AdaptiveWorkspaceLattice::isGoal(const WorkspaceState& state) const
 
 bool AdaptiveWorkspaceLattice::isLoGoal(double x, double y, double z) const
 {
-    Eigen::Vector3d p(x, y, z);
-    Eigen::Vector3d dp = p - goal().pose.translation();
+    Vector3 p(x, y, z);
+    Vector3 dp = p - goal().pose.translation();
     const double dx = std::fabs(dp.x());
     const double dy = std::fabs(dp.y());
     const double dz = std::fabs(dp.z());
@@ -1080,12 +1080,12 @@ auto AdaptiveWorkspaceLattice::getStateVisualization(
 auto AdaptiveWorkspaceLattice::getAdaptiveGridVisualization(bool plan_mode) const
     -> visual::Marker
 {
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     for (int x = 0; x < m_grid->numCellsX(); ++x) {
     for (int y = 0; y < m_grid->numCellsY(); ++y) {
     for (int z = 0; z < m_grid->numCellsZ(); ++z) {
         if (isHighDimensional(x, y, z)) {
-            Eigen::Vector3d p;
+            Vector3 p;
             m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             points.push_back(p);
         }

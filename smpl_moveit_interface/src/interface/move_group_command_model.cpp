@@ -2,28 +2,35 @@
 
 // standard includes
 #include <assert.h>
-#include <chrono>
-#include <stack>
 
 // system includes
+#include <QTimer>
 #include <eigen_conversions/eigen_msg.h>
-#include <geometric_shapes/shape_operations.h>
 #include <moveit/robot_state/conversions.h>
 #include <moveit_msgs/GetStateValidity.h>
-#include <moveit_msgs/PlanningSceneWorld.h>
 #include <moveit_msgs/QueryPlannerInterfaces.h>
 #include <ros/console.h>
 #include <smpl/angles.h>
+#include <smpl/stl/memory.h>
+#include <tf/transform_listener.h>
 
 #include <smpl_moveit_interface/interface/utils.h>
 
 namespace sbpl_interface {
 
+template <class Array>
+static bool in_bounds(const Array& a, int index)
+{
+    return (index >= 0) & (index < (int)a.size());
+}
+
 static const char* LOG = "move_group_command_model";
 
+#if 0
 static
-const char* to_cstring(
+auto to_cstring(
     planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType type)
+    -> const char*
 {
     switch (type) {
     case planning_scene_monitor::PlanningSceneMonitor::UPDATE_NONE:
@@ -40,6 +47,7 @@ const char* to_cstring(
         return "<UNKNOWN>";
     }
 }
+#endif
 
 MoveGroupCommandModel::MoveGroupCommandModel() : QObject()
 {
@@ -47,9 +55,8 @@ MoveGroupCommandModel::MoveGroupCommandModel() : QObject()
 
 MoveGroupCommandModel::~MoveGroupCommandModel()
 {
-    if (m_scene_monitor != NULL) {
-        m_scene_monitor->stopSceneMonitor();
-        m_scene_monitor->stopStateMonitor();
+    if (m_state_monitor != NULL) {
+        m_state_monitor->stopStateMonitor();
     }
 }
 
@@ -67,20 +74,7 @@ void MoveGroupCommandModel::Init()
     // mechanism to be notified when this service becomes available so that
     // we don't have to restart RViz to be able to plan.
 
-    m_query_planner_interface_client.reset(new ros::ServiceClient);
-    *m_query_planner_interface_client =
-            m_nh.serviceClient<moveit_msgs::QueryPlannerInterfaces>(
-                    "query_planner_interface");
-
-    if (m_query_planner_interface_client->exists()) {
-        moveit_msgs::QueryPlannerInterfaces::Request req;
-        moveit_msgs::QueryPlannerInterfaces::Response res;
-        if (!m_query_planner_interface_client->call(req, res)) {
-            ROS_ERROR("Failed to call service '%s'", m_query_planner_interface_client->getService().c_str());
-        } else {
-            m_planner_interfaces = res.planner_interfaces;
-        }
-    }
+    updatePlannerInterfaces();
 
     connect(&m_robot_command_model, SIGNAL(robotStateChanged()),
             this, SLOT(updateRobotState()));
@@ -92,11 +86,11 @@ void MoveGroupCommandModel::Init()
     // Set default goal configuration //
     ////////////////////////////////////
 
-    setGoalJointTolerance(smpl::angles::to_radians(DefaultGoalJointTolerance_deg));
+    setGoalJointTolerance(smpl::to_radians(DefaultGoalJointTolerance_deg));
     setGoalPositionTolerance(DefaultGoalPositionTolerance_m);
-    setGoalOrientationTolerance(smpl::angles::to_radians(DefaultGoalOrientationTolerance_deg));
+    setGoalOrientationTolerance(smpl::to_radians(DefaultGoalOrientationTolerance_deg));
 
-    moveit_msgs::WorkspaceParameters workspace;
+    auto workspace = moveit_msgs::WorkspaceParameters();
     workspace.min_corner.x = DefaultWorkspaceMinX;
     workspace.min_corner.y = DefaultWorkspaceMinY;
     workspace.min_corner.z = DefaultWorkspaceMinZ;
@@ -108,14 +102,6 @@ void MoveGroupCommandModel::Init()
     //////////////////////////////////
     // Set default planner settings //
     //////////////////////////////////
-
-    // choose an initial planner name/id
-    if (!m_planner_interfaces.empty()) {
-        m_curr_planner_idx = 0;
-        if (!m_planner_interfaces[0].planner_ids.empty()) {
-            m_curr_planner_id_idx = 0;
-        }
-    }
 
     setAllowedPlanningTime(DefaultAllowedPlanningTime_s);
     setNumPlanningAttempts(DefaultNumPlanningAttempts);
@@ -132,31 +118,29 @@ bool MoveGroupCommandModel::loadRobot(const std::string& robot_description)
     }
 
     // resolve the parameter key to an absolute key
-    std::string robot_description_key;
+    auto robot_description_key = std::string();
     if (!m_nh.searchParam(robot_description, robot_description_key)) {
         ROS_WARN("Parameter '%s' was not found on the param server", robot_description.c_str());
         return false;
     }
 
-    ROS_DEBUG_NAMED(LOG, "Load robot model and construct Planning Scene Monitor");
+    ROS_DEBUG_NAMED(LOG, "Load robot model");
+
+    using robot_model_loader::RobotModelLoader;
+    auto loader = smpl::make_unique<RobotModelLoader>(robot_description);
+
+    auto robot_model = loader->getModel();
+    if (robot_model == NULL) {
+        ROS_ERROR("Failed to load Robot Model");
+        return false;
+    }
+
+    ROS_DEBUG_NAMED(LOG, "Construct current state monitor");
 
     // load the robot from URDF and construct a scene monitor for it
-    using planning_scene_monitor::PlanningSceneMonitor;
-    planning_scene_monitor::PlanningSceneMonitorPtr scene_monitor;
-    scene_monitor.reset(new PlanningSceneMonitor(
-                robot_description,
-                boost::make_shared<tf::TransformListener>()));
-
-    if (scene_monitor == NULL) {
-        ROS_ERROR("Failed to instantiate Planning Scene Monitor");
-        return false;
-    }
-
-    auto robot_model = scene_monitor->getRobotModel();
-    if (robot_model == NULL) {
-        ROS_ERROR("Planning Scene Monitor failed to parse robot description");
-        return false;
-    }
+    using planning_scene_monitor::CurrentStateMonitor;
+    auto tf = boost::make_shared<tf::TransformListener>();
+    auto state_monitor = smpl::make_unique<CurrentStateMonitor>(robot_model, tf);
 
     ROS_DEBUG_NAMED(LOG, "Initialize Robot Command Model");
 
@@ -165,45 +149,13 @@ bool MoveGroupCommandModel::loadRobot(const std::string& robot_description)
         return false;
     }
 
-    m_scene_monitor = std::move(scene_monitor);
+    m_robot_description = robot_description;
+    m_loader = std::move(loader);
+    m_robot_model = robot_model;
+    m_state_monitor = std::move(state_monitor);
+    m_state_monitor->startStateMonitor();
 
-    // configure planning scene monitor
-    m_scene_monitor->requestPlanningSceneState();
-    auto update_fn = [this](
-        planning_scene_monitor::PlanningSceneMonitor::SceneUpdateType type)
-    {
-//        ROS_DEBUG_NAMED(LOG, "Process scene update %s", to_cstring(type));
-        switch (type) {
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_NONE:
-            break;
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_STATE:
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_TRANSFORMS:
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_GEOMETRY:
-        case planning_scene_monitor::PlanningSceneMonitor::UPDATE_SCENE:
-            updateAvailableFrames();
-            break;
-        default:
-            break;
-        }
-    };
-    m_scene_monitor->addUpdateCallback(update_fn);
-    m_scene_monitor->startSceneMonitor();
-    m_scene_monitor->startStateMonitor();
-
-    // log planning scene monitor properties
-    ROS_DEBUG("Planning Scene Monitor Name: %s", m_scene_monitor->getName().c_str());
-    ROS_DEBUG("Default Attached Object Padding: %0.3f", m_scene_monitor->getDefaultAttachedObjectPadding());
-    ROS_DEBUG("Default Object Padding: %0.3f", m_scene_monitor->getDefaultObjectPadding());
-    ROS_DEBUG("Default Robot Scale: %0.3f", m_scene_monitor->getDefaultRobotScale());
-    ROS_DEBUG("Last Update Time: %0.3f", m_scene_monitor->getLastUpdateTime().toSec());
-    std::vector<std::string> monitored_topics;
-    m_scene_monitor->getMonitoredTopics(monitored_topics);
-    ROS_DEBUG("Monitored Topics:");
-    for (auto& topic : monitored_topics) {
-        ROS_DEBUG("  %s", topic.c_str());
-    }
-    ROS_DEBUG("Planning Scene Publishing Frequency: %0.3f", m_scene_monitor->getPlanningScenePublishingFrequency());
-    ROS_DEBUG("Robot Model: %s", m_scene_monitor->getRobotModel()->getName().c_str());
+    ROS_DEBUG("Robot Model: %s", robot_model->getName().c_str());
 
     // retain the selected joint group or choose a new one if not available
     if (!robotModel()->hasJointModelGroup(m_curr_joint_group_name)) {
@@ -217,26 +169,26 @@ bool MoveGroupCommandModel::loadRobot(const std::string& robot_description)
 
     Q_EMIT robotLoaded();
 
-    // seed the available transforms using the available links
-    for (auto& link_name : robotModel()->getLinkModelNames()) {
-        m_available_frames.push_back(link_name);
-    }
-    // NOTE: this emission has to come after the robotLoaded() signal has been
+    // NOTE: This emission has to come after the robotLoaded() signal has been
     // emitted above...not sure why this is yet but failure to do so results in
-    // a repeatable crash
-    Q_EMIT availableFramesUpdated();
+    // a repeatable crash. Update: this doesn't appear to be true anymore...
+    updateAvailableFrames();
 
     return true;
 }
 
 bool MoveGroupCommandModel::isRobotLoaded() const
 {
-    return (bool)m_scene_monitor.get();
+    return (bool)m_state_monitor.get();
 }
 
 auto MoveGroupCommandModel::robotModel() const
     -> const moveit::core::RobotModelConstPtr&
 {
+    // TODO: we should be able to use our own robot model, but it looks
+    // like someone is connected to a robotLoaded() signal that then tries
+    // to access our robot model...maybe we should just piggyback entirely
+    // off of robot command model's robot model
     return m_robot_command_model.getRobotModel(); //m_robot_model;
 }
 
@@ -324,20 +276,18 @@ bool MoveGroupCommandModel::moveToGoalConfiguration()
 
 bool MoveGroupCommandModel::copyCurrentState()
 {
-    if (!m_scene_monitor) {
+    if (!m_state_monitor) {
         ROS_WARN("No scene loaded");
         return false;
     }
 
-    planning_scene_monitor::LockedPlanningSceneRO scene(m_scene_monitor);
-
-    if (!m_scene_monitor->getStateMonitor()->haveCompleteState()) {
+    if (!m_state_monitor->haveCompleteState()) {
         ROS_WARN("Missing joint values for robot state");
     }
 
-    auto& curr_state = scene->getCurrentState();
+    auto curr_state = m_state_monitor->getCurrentState();
     m_robot_command_model.setVariablePositions(
-            curr_state.getVariablePositions());
+            curr_state->getVariablePositions());
 
     return true;
 }
@@ -356,43 +306,48 @@ auto MoveGroupCommandModel::availableFrames() const
 
 auto MoveGroupCommandModel::robotDescription() const -> const std::string&
 {
-    if (m_scene_monitor != NULL) {
-        return m_scene_monitor->getRobotDescription();
-    } else {
-        return m_empty_string;
-    }
+    return m_robot_description;
 }
 
-const std::string MoveGroupCommandModel::plannerName() const
+auto MoveGroupCommandModel::plannerName() const -> std::string
 {
-    assert(m_curr_planner_idx != -1 ?
-                m_curr_planner_idx >= 0 &&
-                m_curr_planner_idx < (int)m_planner_interfaces.size()
-            :
-                true);
+    if (m_planner_interfaces.empty()) {
+        return "UNKNOWN";
+    }
+
     if (m_curr_planner_idx == -1) {
         return "UNKNOWN";
-    } else {
-        return m_planner_interfaces[m_curr_planner_idx].name;
     }
+
+    assert(in_bounds(m_planner_interfaces, m_curr_planner_idx));
+
+    return m_planner_interfaces[m_curr_planner_idx].name;
 }
 
-const std::string MoveGroupCommandModel::plannerID() const
+auto MoveGroupCommandModel::plannerID() const -> std::string
 {
-    assert(m_curr_planner_id_idx != -1 ?
-            m_curr_planner_idx != -1 &&
-            m_curr_planner_idx >= 0 &&
-            m_curr_planner_idx < (int)m_planner_interfaces.size() &&
-            m_curr_planner_id_idx >= 0 &&
-            m_curr_planner_id_idx < (int)m_planner_interfaces[m_curr_planner_idx].planner_ids.size()
-            :
-            true);
-    if (m_curr_planner_id_idx == -1) {
+    if (m_planner_interfaces.empty()) {
+        // Haven't received planner interface descriptions yet...
         return "UNKNOWN";
-    } else {
-        return m_planner_interfaces[m_curr_planner_idx]
-                .planner_ids[m_curr_planner_id_idx];
     }
+
+    if (m_curr_planner_idx == -1) {
+        // Haven't selected a planning library...
+        return "UNKNOWN";
+    }
+
+    assert(in_bounds(m_planner_interfaces, m_curr_planner_idx));
+
+    auto& planner_iface = m_planner_interfaces[m_curr_planner_idx];
+
+    if (m_curr_planner_id_idx == -1) {
+        // Haven't selected a planning algorithm from the library...
+        return "UNKNOWN";
+    }
+
+    assert(in_bounds(planner_iface.planner_ids, m_curr_planner_id_idx));
+
+    return planner_iface.planner_ids[m_curr_planner_id_idx];
 }
 
 int MoveGroupCommandModel::numPlanningAttempts() const
@@ -405,14 +360,14 @@ double MoveGroupCommandModel::allowedPlanningTime() const
     return m_allowed_planning_time_s;
 }
 
-const std::string& MoveGroupCommandModel::planningJointGroupName() const
+auto MoveGroupCommandModel::planningJointGroupName() const -> const std::string&
 {
     return m_curr_joint_group_name;
 }
 
 double MoveGroupCommandModel::goalJointTolerance() const
 {
-    return smpl::angles::to_degrees(m_joint_tol_rad);
+    return smpl::to_degrees(m_joint_tol_rad);
 }
 
 double MoveGroupCommandModel::goalPositionTolerance() const
@@ -422,10 +377,11 @@ double MoveGroupCommandModel::goalPositionTolerance() const
 
 double MoveGroupCommandModel::goalOrientationTolerance() const
 {
-    return smpl::angles::to_degrees(m_rot_tol_rad);
+    return smpl::to_degrees(m_rot_tol_rad);
 }
 
-const moveit_msgs::WorkspaceParameters& MoveGroupCommandModel::workspace() const
+auto MoveGroupCommandModel::workspace() const
+    -> const moveit_msgs::WorkspaceParameters&
 {
     return m_workspace;
 }
@@ -456,9 +412,9 @@ void MoveGroupCommandModel::load(const rviz::Config& config)
     // parse goal request settings
     QString active_joint_group_name;
     std::vector<std::pair<std::string, double>> joint_variables;
-    float joint_tol_rad = smpl::angles::to_radians(DefaultGoalJointTolerance_deg);
+    float joint_tol_rad = smpl::to_radians(DefaultGoalJointTolerance_deg);
     float pos_tol_m = DefaultGoalPositionTolerance_m;
-    float rot_tol_rad = smpl::angles::to_radians(DefaultGoalOrientationTolerance_deg);
+    float rot_tol_rad = smpl::to_radians(DefaultGoalOrientationTolerance_deg);
     QString ws_frame;
     float ws_min_x = DefaultWorkspaceMinX;
     float ws_min_y = DefaultWorkspaceMinY;
@@ -497,7 +453,7 @@ void MoveGroupCommandModel::load(const rviz::Config& config)
     for (auto& entry : joint_variables) {
         ROS_INFO("    %s: %0.3f", entry.first.c_str(), entry.second);
     }
-    ROS_INFO("  Joint Tolerance (deg): %0.3f", smpl::angles::to_degrees(joint_tol_rad));
+    ROS_INFO("  Joint Tolerance (deg): %0.3f", smpl::to_degrees(joint_tol_rad));
     ROS_INFO("  Position Tolerance (m): %0.3f", pos_tol_m);
     ROS_INFO("  Orientation Tolerance (deg): %0.3f", rot_tol_rad);
 
@@ -516,6 +472,9 @@ void MoveGroupCommandModel::load(const rviz::Config& config)
         auto& planner_iface = planner_ifaces[curr_planner_idx];
         setPlannerName(planner_iface.name);
         setPlannerID(planner_iface.planner_ids[curr_planner_id_idx]);
+    } else {
+        m_curr_planner_idx = curr_planner_idx;
+        m_curr_planner_id_idx = curr_planner_id_idx;
     }
 
     setNumPlanningAttempts(num_planning_attempts);
@@ -532,9 +491,9 @@ void MoveGroupCommandModel::load(const rviz::Config& config)
             }
         }
     }
-    setGoalJointTolerance(smpl::angles::to_degrees(joint_tol_rad));
+    setGoalJointTolerance(smpl::to_degrees(joint_tol_rad));
     setGoalPositionTolerance(pos_tol_m);
-    setGoalOrientationTolerance(smpl::angles::to_degrees(rot_tol_rad));
+    setGoalOrientationTolerance(smpl::to_degrees(rot_tol_rad));
 
     moveit_msgs::WorkspaceParameters ws;
     auto it = std::find(
@@ -598,13 +557,15 @@ void MoveGroupCommandModel::save(rviz::Config config) const
 
 void MoveGroupCommandModel::setPlannerName(const std::string& planner_name)
 {
+    ROS_DEBUG_NAMED(LOG, "Set planner name to '%s'", planner_name.c_str());
+
     if (planner_name == plannerName()) {
         return;
     }
 
-    for (size_t i = 0; i < m_planner_interfaces.size(); ++i) {
+    for (auto i = 0; i < (int)m_planner_interfaces.size(); ++i) {
         if (m_planner_interfaces[i].name == planner_name) {
-            m_curr_planner_idx = (int)i;
+            m_curr_planner_idx = i;
             Q_EMIT configChanged();
             return;
         }
@@ -615,7 +576,13 @@ void MoveGroupCommandModel::setPlannerName(const std::string& planner_name)
 
 void MoveGroupCommandModel::setPlannerID(const std::string& planner_id)
 {
+    ROS_DEBUG_NAMED(LOG, "Set planner ID to '%s'", planner_id.c_str());
     if (planner_id == plannerID()) {
+        return;
+    }
+
+    if (m_planner_interfaces.empty()) {
+        ROS_ERROR("No planner interfaces available");
         return;
     }
 
@@ -625,10 +592,10 @@ void MoveGroupCommandModel::setPlannerID(const std::string& planner_id)
     }
 
     auto& planner_desc = m_planner_interfaces[m_curr_planner_idx];
-    for (size_t i = 0; i < planner_desc.planner_ids.size(); ++i) {
+    for (auto i = 0; i < (int)planner_desc.planner_ids.size(); ++i) {
         auto& id = planner_desc.planner_ids[i];
         if (id == planner_id) {
-            m_curr_planner_id_idx = (int)i;
+            m_curr_planner_id_idx = i;
             Q_EMIT configChanged();
             return;
         }
@@ -664,8 +631,8 @@ void MoveGroupCommandModel::setPlanningJointGroup(
 
 void MoveGroupCommandModel::setGoalJointTolerance(double tol_deg)
 {
-    if (tol_deg != smpl::angles::to_degrees(m_joint_tol_rad)) {
-        m_joint_tol_rad = smpl::angles::to_radians(tol_deg);
+    if (tol_deg != smpl::to_degrees(m_joint_tol_rad)) {
+        m_joint_tol_rad = smpl::to_radians(tol_deg);
         Q_EMIT configChanged();
     }
 }
@@ -680,8 +647,8 @@ void MoveGroupCommandModel::setGoalPositionTolerance(double tol_m)
 
 void MoveGroupCommandModel::setGoalOrientationTolerance(double tol_deg)
 {
-    if (tol_deg != smpl::angles::to_degrees(m_rot_tol_rad)) {
-        m_rot_tol_rad = smpl::angles::to_radians(tol_deg);
+    if (tol_deg != smpl::to_degrees(m_rot_tol_rad)) {
+        m_rot_tol_rad = smpl::to_radians(tol_deg);
         Q_EMIT configChanged();
     }
 }
@@ -715,6 +682,61 @@ void MoveGroupCommandModel::setWorkspace(
 
         Q_EMIT configChanged();
     }
+}
+
+void MoveGroupCommandModel::updatePlannerInterfaces()
+{
+    ROS_INFO("Query planner interfaces");
+    auto query_planner_interface_client =
+            m_nh.serviceClient<moveit_msgs::QueryPlannerInterfaces>(
+                    "query_planner_interface");
+
+    auto delay = 1000;
+
+    if (!query_planner_interface_client.exists()) {
+        QTimer::singleShot(delay, this, SLOT(updatePlannerInterfaces()));
+        return;
+    }
+
+    moveit_msgs::QueryPlannerInterfaces::Request req;
+    moveit_msgs::QueryPlannerInterfaces::Response res;
+    if (!query_planner_interface_client.call(req, res)) {
+        ROS_WARN("Failed to call service '%s'", query_planner_interface_client.getService().c_str());
+        QTimer::singleShot(delay, this, SLOT(updatePlannerInterfaces()));
+        return;
+    }
+
+    m_planner_interfaces = res.planner_interfaces;
+
+    if (in_bounds(m_planner_interfaces, m_curr_planner_idx)) {
+        // valid planner index
+        auto& planner = m_planner_interfaces[m_curr_planner_idx];
+        if (in_bounds(planner.planner_ids, m_curr_planner_id_idx)) {
+            // do nothing...we have a valid planner id index
+        } else {
+            // invalid planner id index
+            if (!planner.planner_ids.empty()) {
+                m_curr_planner_id_idx = 0;
+            } else {
+                m_curr_planner_id_idx = -1;
+            }
+        }
+    } else {
+        // invalid planner index
+        if (!m_planner_interfaces.empty()) {
+            m_curr_planner_idx = 0;
+            if (!m_planner_interfaces[m_curr_planner_idx].planner_ids.empty()) {
+                m_curr_planner_id_idx = 0;
+            } else {
+                m_curr_planner_id_idx = -1;
+            }
+        } else {
+            m_curr_planner_idx = -1;
+            m_curr_planner_id_idx = -1;
+        }
+    }
+
+    Q_EMIT configChanged();
 }
 
 void MoveGroupCommandModel::updateRobotState()
@@ -1225,11 +1247,9 @@ bool MoveGroupCommandModel::plannerIndicesValid(
     int planner_idx, int planner_id_idx) const
 {
     auto& planner_ifaces = plannerInterfaces();
-    if (planner_idx >= 0 && planner_idx < planner_ifaces.size()) {
+    if (in_bounds(planner_ifaces, planner_idx)) {
         auto& planner_iface = planner_ifaces[planner_idx];
-        if (planner_id_idx >= 0 &&
-            planner_id_idx < planner_iface.planner_ids.size())
-        {
+        if (in_bounds(planner_iface.planner_ids, planner_id_idx)) {
             return true;
         }
     }
@@ -1246,36 +1266,15 @@ bool MoveGroupCommandModel::hasVariable(
 
 bool MoveGroupCommandModel::updateAvailableFrames()
 {
-    auto transformer = m_scene_monitor->getTFClient();
-
-    if (!transformer) {
-        if (m_available_frames.empty()) {
-            return false;
-        } else {
-            m_available_frames.clear();
-            return true;
-        }
-    } else {
-        std::vector<std::string> frames;
-        transformer->getFrameStrings(frames);
-
-        std::sort(frames.begin(), frames.end());
-
-        std::vector<std::string> diff;
-        std::set_symmetric_difference(
-                m_available_frames.begin(), m_available_frames.end(),
-                frames.begin(), frames.end(),
-                std::back_inserter(diff));
-
-        if (!diff.empty()) {
-            ROS_INFO("Transforms Changed %zu -> %zu", m_available_frames.size(), frames.size());
-            m_available_frames = std::move(frames);
-            Q_EMIT availableFramesUpdated();
-            return true;
-        } else {
-            return false;
-        }
+    m_available_frames.clear();
+    if (m_robot_model->getModelFrame() != m_robot_model->getRootLink()->getName()) {
+        m_available_frames.push_back(m_robot_model->getModelFrame());
     }
+    m_available_frames.insert(
+                end(m_available_frames),
+                begin(m_robot_model->getLinkModelNames()),
+               end(m_robot_model->getLinkModelNames()));
+    Q_EMIT availableFramesUpdated();
 }
 
 void MoveGroupCommandModel::notifyCommandStateChanged()

@@ -34,6 +34,7 @@
 
 // project includes
 #include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 
@@ -78,20 +79,16 @@ private:
     double m_z_coeff = 1.0;
     double m_rot_coeff = 1.0;
 
-    Eigen::Affine3d createPose(const std::vector<double>& pose) const;
-    Eigen::Vector3d createPoint(const std::vector<double>& point) const;
+    Affine3 createPose(const std::vector<double>& pose) const;
+    Vector3 createPoint(const std::vector<double>& point) const;
 
-    Eigen::Affine3d createPose(
+    Affine3 createPose(
         double x, double y, double z,
         double Y, double P, double R) const;
 
-    double computeDistance(
-        const Eigen::Affine3d& a,
-        const Eigen::Affine3d& b) const;
+    double computeDistance(const Affine3& a, const Affine3& b) const;
 
-    double computeDistance(
-        const Eigen::Vector3d& u,
-        const Eigen::Vector3d& v) const;
+    double computeDistance(const Vector3& u, const Vector3& v) const;
 };
 
 } // namespace smpl

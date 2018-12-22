@@ -134,7 +134,7 @@ public:
 
     /// \name Required Public Functions from PointProjectionExtension
     ///@{
-    bool projectToPoint(int state_id, Eigen::Vector3d& pos) override;
+    bool projectToPoint(int state_id, Vector3& pos) override;
     ///@}
 
     /// \name Required Public Functions from AdaptiveGraphExtension
@@ -207,7 +207,7 @@ private:
     clock::time_point m_t_start;
     mutable bool m_near_goal = false;
 
-    std::vector<Eigen::Vector3d> m_lo_prims;
+    std::vector<Vector3> m_lo_prims;
     std::vector<MotionPrimitive> m_hi_prims;
 
     bool m_ik_amp_enabled = true;

@@ -12,9 +12,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <boost/logic/tribool.hpp>
 #include <ros/ros.h>
-#include <sensor_msgs/JointState.h>
-#include <interactive_markers/interactive_marker_server.h>
-#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit/planning_scene_monitor/current_state_monitor.h>
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_model_loader/robot_model_loader.h>
 #include <moveit/robot_state/robot_state.h>
@@ -100,8 +98,8 @@ public:
 
     /// \name Planner Settings
     ///@{
-    auto plannerName() const -> const std::string;
-    auto plannerID() const -> const std::string;
+    auto plannerName() const ->  std::string;
+    auto plannerID() const -> std::string;
     int  numPlanningAttempts() const;
     auto allowedPlanningTime() const -> double;
     ///@}
@@ -134,6 +132,7 @@ public Q_SLOTS:
     void setGoalPositionTolerance(double tol_m);
     void setGoalOrientationTolerance(double tol_deg);
     void setWorkspace(const moveit_msgs::WorkspaceParameters& ws);
+    void updatePlannerInterfaces();
 
 Q_SIGNALS:
 
@@ -163,9 +162,11 @@ private Q_SLOTS:
 
 private:
 
-    RobotCommandModel m_robot_command_model;
+    std::string m_robot_description;
+    std::unique_ptr<robot_model_loader::RobotModelLoader> m_loader;
+    robot_model::RobotModelConstPtr m_robot_model;
 
-    std::string m_empty_string;
+    RobotCommandModel m_robot_command_model;
 
     // assertions:
     // * robot_loaded:
@@ -178,11 +179,10 @@ private:
     // publishes the current command state whenever it is updated
     ros::Publisher m_command_robot_state_pub;
 
-    // monitors the active planning scene to provide:
-    // * current state information to synchronize the command state with
-    // * knowledge of the available frames in the system, for specifying a frame
-    //   for the workspace
-    planning_scene_monitor::PlanningSceneMonitorPtr m_scene_monitor;
+    // NOTE: This replaces an old PlanningSceneMonitor. We lose the ability to
+    // inspect all currently known frames...but then we don't have to deal with
+    // PlanningSceneMonitor.
+    std::unique_ptr<planning_scene_monitor::CurrentStateMonitor> m_state_monitor;
 
     boost::tribool m_validity = boost::indeterminate;
     Contacts m_contacts;
@@ -196,6 +196,11 @@ private:
     std::unique_ptr<MoveGroupActionClient> m_move_group_client;
     ///@}
 
+    // Set of available planning libraries and planning algorithms from each
+    // library. If we have a set of valid planner interfaces, these indices
+    // must reference a valid selection from this set. If we haven't yet
+    // received a description of available planners, these indices may be
+    // represent indices from a previous run.
     std::vector<moveit_msgs::PlannerInterfaceDescription> m_planner_interfaces;
     int m_curr_planner_idx = -1;
     int m_curr_planner_id_idx = -1;

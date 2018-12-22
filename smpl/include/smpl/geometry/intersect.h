@@ -27,8 +27,6 @@
 // POSSIBILITY OF SUCH DAMAGE.
 //////////////////////////////////////////////////////////////////////////////
 
-#include <smpl/geometry/triangle.h>
-
 namespace smpl {
 namespace geometry {
 

@@ -40,7 +40,7 @@ void CreateIndexedBoxMesh(
     double length,
     double width,
     double height,
-    std::vector<Eigen::Vector3d>& vertices,
+    std::vector<Vector3>& vertices,
     std::vector<std::uint32_t>& indices)
 {
     vertices.reserve(vertices.size() + 8);
@@ -48,42 +48,42 @@ void CreateIndexedBoxMesh(
 
     // l = left, r = right, t = top, b = bottom/back, f = front
 
-    Eigen::Vector3d rtb_corner;
+    Vector3 rtb_corner;
     rtb_corner.x() =  0.5 * length;
     rtb_corner.y() =  0.5 * width;
     rtb_corner.z() = -0.5 * height;
 
-    Eigen::Vector3d ltb_corner;
+    Vector3 ltb_corner;
     ltb_corner.x() = -0.5 * length;
     ltb_corner.y() =  0.5 * width;
     ltb_corner.z() = -0.5 * height;
 
-    Eigen::Vector3d ltf_corner;
+    Vector3 ltf_corner;
     ltf_corner.x() = -0.5 * length;
     ltf_corner.y() =  0.5 * width;
     ltf_corner.z() =  0.5 * height;
 
-    Eigen::Vector3d rtf_corner;
+    Vector3 rtf_corner;
     rtf_corner.x() = 0.5 * length;
     rtf_corner.y() = 0.5 * width;
     rtf_corner.z() = 0.5 * height;
 
-    Eigen::Vector3d rbb_corner;
+    Vector3 rbb_corner;
     rbb_corner.x() =  0.5 * length;
     rbb_corner.y() = -0.5 * width;
     rbb_corner.z() = -0.5 * height;
 
-    Eigen::Vector3d lbb_corner;
+    Vector3 lbb_corner;
     lbb_corner.x() = -0.5 * length;
     lbb_corner.y() = -0.5 * width;
     lbb_corner.z() = -0.5 * height;
 
-    Eigen::Vector3d lbf_corner;
+    Vector3 lbf_corner;
     lbf_corner.x() = -0.5 * length;
     lbf_corner.y() = -0.5 * width;
     lbf_corner.z() =  0.5 * height;
 
-    Eigen::Vector3d rbf_corner;
+    Vector3 rbf_corner;
     rbf_corner.x() =  0.5 * length;
     rbf_corner.y() = -0.5 * width;
     rbf_corner.z() =  0.5 * height;
@@ -117,7 +117,7 @@ void CreateIndexedSphereMesh(
     double radius,
     int longitude_count,
     int latitude_count,
-    std::vector<Eigen::Vector3d>& vertices,
+    std::vector<Vector3>& vertices,
     std::vector<std::uint32_t>& indices)
 {
     // TODO: handle the case where there is only one line of longitude and thus
@@ -128,7 +128,7 @@ void CreateIndexedSphereMesh(
     indices.reserve(indices.size() + 6 * longitude_count + 2 * (latitude_count - 1) * longitude_count);
 
     // create the top vertex
-    Eigen::Vector3d northPole(0.0, 0.0, radius);
+    Vector3 northPole(0.0, 0.0, radius);
     vertices.push_back(northPole);
 
     // create the intermediate vertices
@@ -147,7 +147,7 @@ void CreateIndexedSphereMesh(
     }
 
     // create the bottom vertex
-    Eigen::Vector3d southPole(0.0, 0.0, -radius);
+    Vector3 southPole(0.0, 0.0, -radius);
     vertices.push_back(southPole);
 
     // add all the triangles with the north pole as a vertex
@@ -207,7 +207,7 @@ void CreateIndexedSphereMesh(
 void CreateIndexedCylinderMesh(
     double radius,
     double length,
-    std::vector<Eigen::Vector3d>& vertices,
+    std::vector<Vector3>& vertices,
     std::vector<std::uint32_t>& indices)
 {
     const int rim_count = 16;
@@ -215,7 +215,7 @@ void CreateIndexedCylinderMesh(
     // add vertices for the top cap
     for (int i = 0; i < rim_count; i++) {
         double theta = 2.0 * M_PI * (double)i / double(rim_count);
-        Eigen::Vector3d p(
+        Vector3 p(
                 radius * std::cos(theta),
                 radius * std::sin(theta),
                 0.5 * length);
@@ -225,7 +225,7 @@ void CreateIndexedCylinderMesh(
     // add vertices for the bottom cap
     for (int i = 0; i < rim_count; i++) {
         double theta = 2.0 * M_PI * (double)i / double(rim_count);
-        Eigen::Vector3d p(
+        Vector3 p(
                 radius * std::cos(theta),
                 radius * std::sin(theta),
                 -0.5 * length);
@@ -267,7 +267,7 @@ void CreateIndexedCylinderMesh(
 void CreateIndexedConeMesh(
     double radius,
     double height,
-    std::vector<Eigen::Vector3d>& vertices,
+    std::vector<Vector3>& vertices,
     std::vector<std::uint32_t>& indices)
 {
     const int rim_count = 16;
@@ -280,7 +280,7 @@ void CreateIndexedConeMesh(
         const double y = radius * std::sin(theta);
         vertices.emplace_back(x, y, bottom_z);
     }
-    vertices.push_back(Eigen::Vector3d(0.0, 0.0, top_z));
+    vertices.push_back(Vector3(0.0, 0.0, top_z));
     vertices.emplace_back(0.0, 0.0, bottom_z);
 
     for (int i = 0; i < rim_count; ++i) {
@@ -300,21 +300,21 @@ void CreateIndexedConeMesh(
 /// Construct a mesh of a plane, clipped by an axis-aligned bounding box
 void CreateIndexedPlaneMesh(
     double a, double b, double c, double d,
-    const Eigen::Vector3d& min,
-    const Eigen::Vector3d& max,
-    std::vector<Eigen::Vector3d>& vertices,
+    const Vector3& min,
+    const Vector3& max,
+    std::vector<Vector3>& vertices,
     std::vector<std::uint32_t>& indices)
 {
-    Eigen::Vector3d corners[8] =
+    Vector3 corners[8] =
     {
-        Eigen::Vector3d(min.x(), min.y(), min.z()),
-        Eigen::Vector3d(min.x(), min.y(), max.z()),
-        Eigen::Vector3d(min.x(), max.y(), min.z()),
-        Eigen::Vector3d(min.x(), max.y(), max.z()),
-        Eigen::Vector3d(max.x(), min.y(), min.z()),
-        Eigen::Vector3d(max.x(), min.y(), max.z()),
-        Eigen::Vector3d(max.x(), max.y(), min.z()),
-        Eigen::Vector3d(max.x(), max.y(), max.z()),
+        Vector3(min.x(), min.y(), min.z()),
+        Vector3(min.x(), min.y(), max.z()),
+        Vector3(min.x(), max.y(), min.z()),
+        Vector3(min.x(), max.y(), max.z()),
+        Vector3(max.x(), min.y(), min.z()),
+        Vector3(max.x(), min.y(), max.z()),
+        Vector3(max.x(), max.y(), min.z()),
+        Vector3(max.x(), max.y(), max.z()),
     };
 
     bool corner_isxn[8] =
@@ -400,8 +400,8 @@ void CreateIndexedPlaneMesh(
     }
 
     // compute the centroid of all intersection vertices
-    Eigen::Vector3d centroid(Eigen::Vector3d::Zero());
-    for (const Eigen::Vector3d& v : vertices) {
+    Vector3 centroid(Vector3::Zero());
+    for (const Vector3& v : vertices) {
         centroid += v;
     }
     if (!vertices.empty()) {
@@ -409,14 +409,14 @@ void CreateIndexedPlaneMesh(
     }
 
     // define an orientation frame
-    Eigen::Vector3d zaxis(a, b, c);
-    Eigen::AngleAxisd aa(M_PI / 2.0, Eigen::Vector3d::UnitY());
-    Eigen::Vector3d xaxis = aa * zaxis;
-    Eigen::Vector3d yaxis = zaxis.cross(xaxis);
+    Vector3 zaxis(a, b, c);
+    AngleAxis aa(M_PI / 2.0, Vector3::UnitY());
+    Vector3 xaxis = aa * zaxis;
+    Vector3 yaxis = zaxis.cross(xaxis);
 
     // sort counter clockwise around plane normal rooted at centroid
     std::sort(vertices.begin(), vertices.end(),
-        [&](const Eigen::Vector3d& u, const Eigen::Vector3d& v)
+        [&](const Vector3& u, const Vector3& v)
         {
             double ux = xaxis.dot(u - centroid);
             double uy = yaxis.dot(u - centroid);
@@ -443,18 +443,18 @@ void CreateBoxMesh(
     double length,
     double width,
     double height,
-    std::vector<Eigen::Vector3d>& vertices)
+    std::vector<Vector3>& vertices)
 {
     vertices.reserve(vertices.size() + 48);
 
-    Eigen::Vector3d a(-0.5 * length, -0.5 * width, -0.5 * height);
-    Eigen::Vector3d b(-0.5 * length, -0.5 * width,  0.5 * height);
-    Eigen::Vector3d c(-0.5 * length,  0.5 * width, -0.5 * height);
-    Eigen::Vector3d d(-0.5 * length,  0.5 * width,  0.5 * height);
-    Eigen::Vector3d e( 0.5 * length, -0.5 * width, -0.5 * height);
-    Eigen::Vector3d f( 0.5 * length, -0.5 * width,  0.5 * height);
-    Eigen::Vector3d g( 0.5 * length,  0.5 * width, -0.5 * height);
-    Eigen::Vector3d h( 0.5 * length,  0.5 * width,  0.5 * height);
+    Vector3 a(-0.5 * length, -0.5 * width, -0.5 * height);
+    Vector3 b(-0.5 * length, -0.5 * width,  0.5 * height);
+    Vector3 c(-0.5 * length,  0.5 * width, -0.5 * height);
+    Vector3 d(-0.5 * length,  0.5 * width,  0.5 * height);
+    Vector3 e( 0.5 * length, -0.5 * width, -0.5 * height);
+    Vector3 f( 0.5 * length, -0.5 * width,  0.5 * height);
+    Vector3 g( 0.5 * length,  0.5 * width, -0.5 * height);
+    Vector3 h( 0.5 * length,  0.5 * width,  0.5 * height);
 
     // back face
     vertices.push_back(a);

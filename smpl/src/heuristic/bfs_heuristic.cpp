@@ -152,7 +152,7 @@ double BfsHeuristic::getMetricStartDistance(double x, double y, double z)
         return 0.0;
     }
 
-    Eigen::Vector3d p;
+    Vector3 p;
     if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
         return 0.0;
     }
@@ -195,7 +195,7 @@ int BfsHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
 
-    Eigen::Vector3d p;
+    Vector3 p;
     if (!m_pp->projectToPoint(state_id, p)) {
         return 0;
     }
@@ -225,7 +225,7 @@ int BfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
 
 auto BfsHeuristic::getWallsVisualization() const -> visual::Marker
 {
-    std::vector<Eigen::Vector3d> centers;
+    std::vector<Vector3> centers;
     int dimX = grid()->numCellsX();
     int dimY = grid()->numCellsY();
     int dimZ = grid()->numCellsZ();
@@ -233,7 +233,7 @@ auto BfsHeuristic::getWallsVisualization() const -> visual::Marker
     for (int y = 0; y < dimY; y++) {
     for (int z = 0; z < dimZ; z++) {
         if (m_bfs->isWall(x, y, z)) {
-            Eigen::Vector3d p;
+            Vector3 p;
             grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             centers.push_back(p);
         }
@@ -291,9 +291,9 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
     // arbitrary limit on size of visualization...64Mb worth of points+colors
     auto max_points =
             (64u * 1024u * 1024u) /
-            (sizeof(visual::Color) + sizeof(Eigen::Vector3d));
+            (sizeof(visual::Color) + sizeof(Vector3));
 
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     std::vector<visual::Color> colors;
 
     struct CostCell
@@ -326,7 +326,7 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
             color.b = clamp(color.b, 0.0f, 1.0f);
             color.a = 1.0f;
 
-            Eigen::Vector3d p;
+            Vector3 p;
             grid()->gridToWorld(c.x, c.y, c.z, p.x(), p.y(), p.z());
             points.push_back(p);
 

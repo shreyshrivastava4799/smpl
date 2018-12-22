@@ -131,7 +131,7 @@ void DijkstraEgraphHeuristic3D::getEquivalentStates(
     int state_id,
     std::vector<int>& ids)
 {
-    Eigen::Vector3d p;
+    Vector3 p;
     m_pp->projectToPoint(state_id, p);
     Eigen::Vector3i dp;
     grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
@@ -178,12 +178,12 @@ void DijkstraEgraphHeuristic3D::getShortcutSuccs(
 
 auto DijkstraEgraphHeuristic3D::getWallsVisualization() -> visual::Marker
 {
-    std::vector<Eigen::Vector3d> centers;
+    std::vector<Vector3> centers;
     for (int x = 0; x < grid()->numCellsX(); x++) {
     for (int y = 0; y < grid()->numCellsY(); y++) {
     for (int z = 0; z < grid()->numCellsZ(); z++) {
         if (m_dist_grid(x + 1, y + 1, z + 1).dist == Wall) {
-            Eigen::Vector3d p;
+            Vector3 p;
             grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             centers.push_back(p);
         }
@@ -218,7 +218,7 @@ auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
 
     auto max_cost = (int)(1.1 * start_heur);
 
-    std::vector<Eigen::Vector3d> points;
+    std::vector<Vector3> points;
     std::vector<visual::Color> colors;
     for (int x = 0; x < grid()->numCellsX(); ++x) {
     for (int y = 0; y < grid()->numCellsY(); ++y) {
@@ -239,7 +239,7 @@ auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
         color.g = clamp(color.g, 0.0f, 1.0f);
         color.b = clamp(color.b, 0.0f, 1.0f);
 
-        Eigen::Vector3d p;
+        Vector3 p;
         grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
         points.push_back(p);
 
@@ -267,7 +267,7 @@ double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, dou
         return 0.0;
     }
 
-    Eigen::Vector3d p;
+    Vector3 p;
     if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
         return 0.0;
     }
@@ -287,7 +287,7 @@ double DijkstraEgraphHeuristic3D::getMetricStartDistance(double x, double y, dou
 
 double DijkstraEgraphHeuristic3D::getMetricGoalDistance(double x, double y, double z)
 {
-    Eigen::Vector3d gp(planningSpace()->goal().pose.translation());
+    Vector3 gp(planningSpace()->goal().pose.translation());
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
 
@@ -322,7 +322,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 
     projectExperienceGraph();
 
-    Eigen::Vector3d gp(goal.pose.translation());
+    Vector3 gp(goal.pose.translation());
 
     Eigen::Vector3i dgp;
     grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
@@ -339,12 +339,12 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
         }
 
         // get the distance of this node to the goal
-        Eigen::Vector3d p;
+        Vector3 p;
         m_pp->projectToPoint(m_eg->getStateID(*nit), p);
 
         auto dist = (gp - p).squaredNorm();
 
-        Eigen::Vector3d lp;
+        Vector3 lp;
         m_pp->projectToPoint(m_eg->getStateID(m_shortcut_nodes[comp_id].front()), lp);
 
         auto curr_dist = (gp - lp).squaredNorm();
@@ -375,7 +375,7 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
 int DijkstraEgraphHeuristic3D::GetGoalHeuristic(int state_id)
 {
     // project and discretize state
-    Eigen::Vector3d p;
+    Vector3 p;
     m_pp->projectToPoint(state_id, p);
     Eigen::Vector3i dp;
     grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
@@ -426,7 +426,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         return;
     }
 
-    std::vector<Eigen::Vector3d> viz_points;
+    std::vector<Vector3> viz_points;
 
     m_projected_nodes.resize(eg->num_nodes());
 
@@ -437,13 +437,13 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
         // project experience graph state to point and discretize
         int first_id = m_eg->getStateID(*nit);
         SMPL_DEBUG_STREAM_NAMED(LOG, "Project experience graph state " << first_id << " " << eg->state(*nit) << " into 3D");
-        Eigen::Vector3d p;
+        Vector3 p;
         m_pp->projectToPoint(first_id, p);
         SMPL_DEBUG_NAMED(LOG, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
         Eigen::Vector3i dp;
         grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
-        Eigen::Vector3d viz_pt;
+        Vector3 viz_pt;
         grid()->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x(), viz_pt.y(), viz_pt.z());
         viz_points.push_back(viz_pt);
 
@@ -471,7 +471,7 @@ void DijkstraEgraphHeuristic3D::projectExperienceGraph()
             // project adjacent experience graph state and discretize
             auto second_id = m_eg->getStateID(*ait);
             SMPL_DEBUG_NAMED(LOG, "  Project experience graph edge to state %d", second_id);
-            Eigen::Vector3d q;
+            Vector3 q;
             m_pp->projectToPoint(second_id, q);
             Eigen::Vector3i dq;
             grid()->worldToGrid(q.x(), q.y(), q.z(), dq.x(), dq.y(), dq.z());

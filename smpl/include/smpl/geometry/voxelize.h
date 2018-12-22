@@ -33,11 +33,9 @@
 // standard includes
 #include <vector>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <smpl/geometry/voxel_grid.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace geometry {
@@ -47,16 +45,16 @@ void VoxelizeBox(
     double width,
     double height,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeBox(
     double length,
     double width,
     double height,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeBox(
@@ -64,193 +62,193 @@ void VoxelizeBox(
     double width,
     double height,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeBox(
     double length,
     double width,
     double height,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeSphere(
     double radius,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeSphere(
     double radius,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeSphere(
     double radius,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeSphere(
     double radius,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCylinder(
     double radius,
     double height,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCylinder(
     double radius,
     double height,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCylinder(
     double radius,
     double height,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCylinder(
     double radius,
     double height,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCone(
     double radius,
     double height,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCone(
     double radius,
     double height,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCone(
     double radius,
     double height,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeCone(
     double radius,
     double height,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeMesh(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeMesh(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeMesh(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizeMesh(
-    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Vector3>& vertices,
     const std::vector<std::uint32_t>& indices,
-    const Eigen::Affine3d& pose,
+    const Affine3& pose,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels,
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels,
     bool fill = false);
 
 void VoxelizePlane(
     double a, double b, double c, double d,
-    const Eigen::Vector3d& min,
-    const Eigen::Vector3d& max,
+    const Vector3& min,
+    const Vector3& max,
     double res,
-    std::vector<Eigen::Vector3d>& voxels);
+    std::vector<Vector3>& voxels);
 
 void VoxelizePlane(
     double a, double b, double c, double d,
-    const Eigen::Vector3d& min,
-    const Eigen::Vector3d& max,
+    const Vector3& min,
+    const Vector3& max,
     double res,
-    const Eigen::Vector3d& voxel_origin,
-    std::vector<Eigen::Vector3d>& voxels);
+    const Vector3& voxel_origin,
+    std::vector<Vector3>& voxels);
 
 void VoxelizeSphereList(
     const std::vector<double>& radii,
-    const std::vector<Eigen::Affine3d>& poses,
+    const std::vector<Affine3>& poses,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     double& volume,
     bool unique,
     bool fill = false);
 
 void VoxelizeSphereListQAD(
     const std::vector<double>& radii,
-    const std::vector<Eigen::Affine3d>& poses,
+    const std::vector<Affine3>& poses,
     double res,
-    std::vector<Eigen::Vector3d>& voxels,
+    std::vector<Vector3>& voxels,
     double& volume,
     bool unique,
     bool fill = false);
 
 bool ComputeAxisAlignedBoundingBox(
-    const std::vector<Eigen::Vector3d>& vertices,
-    Eigen::Vector3d& min,
-    Eigen::Vector3d& max);
+    const std::vector<Vector3>& vertices,
+    Vector3& min,
+    Vector3& max);
 
 double Distance(
-    const Eigen::Vector3d& p,
-    const Eigen::Vector3d& q,
+    const Vector3& p,
+    const Vector3& q,
     double radius_sqrd,
-    const Eigen::Vector3d& x);
+    const Vector3& x);
 
 template <typename Discretizer>
 void VoxelizeTriangle(
-    const Eigen::Vector3d& a,
-    const Eigen::Vector3d& b,
-    const Eigen::Vector3d& c,
+    const Vector3& a,
+    const Vector3& b,
+    const Vector3& c,
     VoxelGrid<Discretizer>& vg);
 
 } // namespace geometry

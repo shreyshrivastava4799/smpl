@@ -33,11 +33,9 @@
 // standard includes
 #include <vector>
 
-// system includes
-#include <Eigen/Dense>
-
 // project includes
 #include <smpl/geometry/discretize.h>
+#include <smpl/spatial.h>
 
 namespace smpl {
 namespace geometry {
@@ -87,9 +85,9 @@ public:
     typedef unsigned char value_type;
 
     VoxelGridBase(
-        const Eigen::Vector3d& origin,
-        const Eigen::Vector3d& size,
-        const Eigen::Vector3d& res)
+        const Vector3& origin,
+        const Vector3& size,
+        const Vector3& res)
     :
         m_origin(origin),
         m_size(size),
@@ -100,9 +98,9 @@ public:
     }
 
     VoxelGridBase(
-        const Eigen::Vector3d& min,
-        const Eigen::Vector3d& max,
-        const Eigen::Vector3d& res,
+        const Vector3& min,
+        const Vector3& max,
+        const Vector3& res,
         int)
     {
         m_min = min;
@@ -112,17 +110,17 @@ public:
         m_res = res;
     }
 
-    const Eigen::Vector3d& origin() const { return m_origin; }
-    const Eigen::Vector3d& size() const { return m_size; }
-    const Eigen::Vector3d& res() const { return m_res; }
+    const Vector3& origin() const { return m_origin; }
+    const Vector3& size() const { return m_size; }
+    const Vector3& res() const { return m_res; }
 
 protected:
 
-    Eigen::Vector3d m_min;
-    Eigen::Vector3d m_max;
-    Eigen::Vector3d m_origin;
-    Eigen::Vector3d m_size;
-    Eigen::Vector3d m_res;
+    Vector3 m_min;
+    Vector3 m_max;
+    Vector3 m_origin;
+    Vector3 m_size;
+    Vector3 m_res;
 
     std::vector<value_type> m_grid;
 };
@@ -136,17 +134,17 @@ public:
     typedef Base::value_type value_type;
 
     VoxelGrid(
-        const Eigen::Vector3d& origin,
-        const Eigen::Vector3d& size,
-        const Eigen::Vector3d& res,
+        const Vector3& origin,
+        const Vector3& size,
+        const Vector3& res,
         const Discretizer& x_disc,
         const Discretizer& y_disc,
         const Discretizer& z_disc);
 
     VoxelGrid(
-        const Eigen::Vector3d& min,
-        const Eigen::Vector3d& max,
-        const Eigen::Vector3d& res,
+        const Vector3& min,
+        const Vector3& max,
+        const Vector3& res,
         const Discretizer& x_disc,
         const Discretizer& y_disc,
         const Discretizer& z_disc,
@@ -215,9 +213,9 @@ protected:
 
 template <typename Discretizer>
 VoxelGrid<Discretizer>::VoxelGrid(
-    const Eigen::Vector3d& origin,
-    const Eigen::Vector3d& size,
-    const Eigen::Vector3d& res,
+    const Vector3& origin,
+    const Vector3& size,
+    const Vector3& res,
     const Discretizer& x_disc,
     const Discretizer& y_disc,
     const Discretizer& z_disc)
@@ -460,9 +458,9 @@ class HalfResVoxelGrid : public VoxelGrid<HalfResDiscretizer>
 public:
 
     HalfResVoxelGrid(
-        const Eigen::Vector3d& origin,
-        const Eigen::Vector3d& size,
-        const Eigen::Vector3d& res)
+        const Vector3& origin,
+        const Vector3& size,
+        const Vector3& res)
     :
         VoxelGrid(
             origin, size, res,
@@ -477,10 +475,10 @@ class PivotVoxelGrid : public VoxelGrid<PivotDiscretizer>
 public:
 
     PivotVoxelGrid(
-        const Eigen::Vector3d& origin,
-        const Eigen::Vector3d& size,
-        const Eigen::Vector3d& res,
-        const Eigen::Vector3d& pivot)
+        const Vector3& origin,
+        const Vector3& size,
+        const Vector3& res,
+        const Vector3& pivot)
     :
         VoxelGrid(
             origin, size, res,
@@ -490,10 +488,10 @@ public:
     { }
 
     PivotVoxelGrid(
-        const Eigen::Vector3d& min,
-        const Eigen::Vector3d& max,
-        const Eigen::Vector3d& res,
-        const Eigen::Vector3d& pivot,
+        const Vector3& min,
+        const Vector3& max,
+        const Vector3& res,
+        const Vector3& pivot,
         int d)
     :
         VoxelGrid(
