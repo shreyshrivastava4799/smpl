@@ -40,13 +40,21 @@
 
 namespace smpl {
 
-/// Convert an angle specified in radians to degrees.
+constexpr float to_degrees(float rads)
+{
+    return rads * 180.0f / (float)M_PI;
+}
+
 constexpr double to_degrees(double rads)
 {
     return rads * 180.0 / M_PI;
 }
 
-/// Convert an angle specified in degrees to radians.
+constexpr float to_radians(float degs)
+{
+    return degs * (float)M_PI / 180.0f;
+}
+
 constexpr double to_radians(double degs)
 {
     return degs * M_PI / 180.0;
@@ -98,7 +106,7 @@ inline double minor_arc_diff(double af, double ai)
 
 inline double major_arc_diff(double af, double ai)
 {
-    double diff = shortest_angle_diff(af, ai);
+    auto diff = shortest_angle_diff(af, ai);
     return -1.0 * std::copysign(1.0, diff) * (2.0 * M_PI - std::fabs(diff));
 }
 
@@ -180,12 +188,12 @@ auto get_nearest_planar_rotation(const Eigen::Quaternion<T>& q) -> T
     if (s_squared < 10.0 * std::numeric_limits<T>::epsilon()) {
         return 0.0;
     } else {
-        double s = 1.0 / sqrt(s_squared);
+        auto s = 1.0 / sqrt(s_squared);
         return (2.0 * acos(q.w())) * (q.z() * s);
     }
 }
 
-namespace angles { // keep this around for compatibility
+namespace angles { // compatibility namespace
 
 constexpr double to_degrees(double rads) { return ::smpl::to_degrees(rads); }
 constexpr double to_radians(double degs) { return ::smpl::to_radians(degs); }
