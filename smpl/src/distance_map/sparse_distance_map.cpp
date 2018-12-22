@@ -120,9 +120,9 @@ double SparseDistanceMap::getDistance(int x, int y, int z) const
 
 bool SparseDistanceMap::isCellValid(const Eigen::Vector3i& gp) const
 {
-    return gp.x() >= 0 & gp.x() < m_cell_count_x &
-        gp.y() >= 0 & gp.y() < m_cell_count_y &
-        gp.z() >= 0 & gp.z() < m_cell_count_z;
+    return (gp.x() >= 0) & (gp.x() < m_cell_count_x) &
+        (gp.y() >= 0) & (gp.y() < m_cell_count_y) &
+        (gp.z() >= 0) & (gp.z() < m_cell_count_z);
 }
 
 DistanceMapInterface* SparseDistanceMap::clone() const
@@ -355,9 +355,9 @@ void SparseDistanceMap::worldToGrid(
 /// Test if a cell is outside the bounding volume.
 bool SparseDistanceMap::isCellValid(int x, int y, int z) const
 {
-    return x >= 0 & x < m_cell_count_x &
-        y >= 0 & y < m_cell_count_y &
-        z >= 0 & z < m_cell_count_z;
+    return (x >= 0) & (x < m_cell_count_x) &
+        (y >= 0) & (y < m_cell_count_y) &
+        (z >= 0) & (z < m_cell_count_z);
 }
 
 void SparseDistanceMap::updateVertex(Cell* o, int cx, int cy, int cz)
@@ -374,12 +374,12 @@ void SparseDistanceMap::updateVertex(Cell* o, int cx, int cy, int cz)
         m_open[o->bucket].pop_back();
 
         // place at the end of new bucket
-        o->pos = m_open[key].size();
+        o->pos = (int)m_open[key].size();
         m_open[key].emplace_back(o, cx, cy, cz);
         o->bucket = key;
     } else { // not in the heap yet
         // place at the end of new bucket
-        o->pos = m_open[key].size();
+        o->pos = (int)m_open[key].size();
         m_open[key].emplace_back(o, cx, cy, cz);
         o->bucket = key;
     }
@@ -604,19 +604,19 @@ double SparseDistanceMap::getTrueMetricSquaredDistance(
         return 0.0;
     }
 
-    const double ox = originX();
-    const double oy = originY();
-    const double oz = originZ();
-    const double res = resolution();
-    const double half_res = 0.5 * res;
+    auto ox = originX();
+    auto oy = originY();
+    auto oz = originZ();
+    auto res = resolution();
+    auto half_res = 0.5 * res;
 
     // Compute the squared distance from (x, y, z) to the nearest point on
     //  the obstacle cell positioned at \p npos
     auto nearestEdgeDist = [&](int nx, int ny, int nz) {
         // nearest obstacle cell -> nearest obstacle center
-        double nnx = ox + res * nx;
-        double nny = oy + res * ny;
-        double nnz = oz + res * nz;
+        auto nnx = ox + res * nx;
+        auto nny = oy + res * ny;
+        auto nnz = oz + res * nz;
 
         // nearest obstacle center -> nearest obstacle corner/edge/face
         if (gpx > nx) {
@@ -643,36 +643,36 @@ double SparseDistanceMap::getTrueMetricSquaredDistance(
             nnz = z;
         }
 
-        const double dx = x - nnx;
-        const double dy = y - nny;
-        const double dz = z - nnz;
+        auto dx = x - nnx;
+        auto dy = y - nny;
+        auto dz = z - nnz;
 
         return dx * dx + dy * dy + dz * dz;
     };
 
     // check if on the border to skip bounds checking for inner cells
-    const bool border =
-            gpx == 0 | gpy == 0 | gpz == 0 |
-            gpx == m_cell_count_x - 1 |
-            gpy == m_cell_count_y - 1 |
-            gpz == m_cell_count_z - 1;
+    auto border =
+            (gpx == 0) | (gpy == 0) | (gpz == 0) |
+            (gpx == m_cell_count_x - 1) |
+            (gpy == m_cell_count_y - 1) |
+            (gpz == m_cell_count_z - 1);
 
-    double min_d2 = res * res * m_dmax_sqrd_int;
-    int nx_last = -1, ny_last = -1, nz_last = -1;
+    auto min_d2 = res * res * m_dmax_sqrd_int;
+    auto nx_last = -1, ny_last = -1, nz_last = -1;
 
-    bool conservative = false;
+    auto conservative = false;
 
     // check the 27 nearest cells and take the minimum of the distances from
     // (x, y, z) to their nearest obstacles
     if (border) {
-        for (int gppx = gpx - 1; gppx != gpx + 2; ++gppx) {
-        for (int gppy = gpy - 1; gppy != gpy + 2; ++gppy) {
-        for (int gppz = gpz - 1; gppz != gpz + 2; ++gppz) {
+        for (auto gppx = gpx - 1; gppx != gpx + 2; ++gppx) {
+        for (auto gppy = gpy - 1; gppy != gpy + 2; ++gppy) {
+        for (auto gppz = gpz - 1; gppz != gpz + 2; ++gppz) {
             if (SparseDistanceMap::isCellValid(gppx, gppy, gppz)) {
-                const Cell& c = m_cells.get(gppx, gppy, gppz);
+                auto& c = m_cells.get(gppx, gppy, gppz);
 
                 if (c.obs) { // known nearest obstacle -> nearest distance to it
-                    const double d2 = nearestEdgeDist(c.ox, c.oy, c.oz);
+                    auto d2 = nearestEdgeDist(c.ox, c.oy, c.oz);
                     if (d2 < min_d2) {
                         min_d2 = d2;
                     }
@@ -682,13 +682,13 @@ double SparseDistanceMap::getTrueMetricSquaredDistance(
             }
         } } }
     } else {
-        for (int gppx = gpx - 1; gppx != gpx + 2; ++gppx) {
-        for (int gppy = gpy - 1; gppy != gpy + 2; ++gppy) {
-        for (int gppz = gpz - 1; gppz != gpz + 2; ++gppz) {
-            const Cell& c = m_cells.get(gppx, gppy, gppz);
+        for (auto gppx = gpx - 1; gppx != gpx + 2; ++gppx) {
+        for (auto gppy = gpy - 1; gppy != gpy + 2; ++gppy) {
+        for (auto gppz = gpz - 1; gppz != gpz + 2; ++gppz) {
+            auto& c = m_cells.get(gppx, gppy, gppz);
 
             if (c.obs) { // known nearest obstacle -> nearest distance to it
-                const double d2 = nearestEdgeDist(c.ox, c.oy, c.oz);
+                auto d2 = nearestEdgeDist(c.ox, c.oy, c.oz);
                 if (d2 < min_d2) {
                     min_d2 = d2;
                 }
@@ -699,8 +699,8 @@ double SparseDistanceMap::getTrueMetricSquaredDistance(
     }
 
     if (conservative) {
-        const double d = m_sqrt_table[m_dmax_sqrd_int] - m_error;
-        const double d2 = d * d;
+        auto d = m_sqrt_table[m_dmax_sqrd_int] - m_error;
+        auto d2 = d * d;
         if (d2 < min_d2) {
             min_d2 = d2;
         }

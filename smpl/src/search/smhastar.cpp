@@ -412,17 +412,17 @@ SMHAState* SMHAStar::get_state(int state_id)
     int* idxs = environment_->StateID2IndexMapping[state_id];
     if (idxs[MHAMDP_STATEID2IND] == -1) {
         // overallocate search state for appropriate heuristic information
-        size_t state_size =
+        auto state_size =
                 sizeof(SMHAState) +
                 sizeof(SMHAState::HeapData) * (m_heur_count);
-        SMHAState* s = (SMHAState*)malloc(state_size);
+        auto* s = (SMHAState*)malloc(state_size);
 
         new (s) SMHAState;
-        for (int i = 0; i < m_heur_count; ++i) {
+        for (auto i = 0; i < m_heur_count; ++i) {
             new (&s->od[1 + i]) SMHAState::HeapData;
         }
 
-        size_t mha_state_idx = m_search_states.size();
+        auto mha_state_idx = (int)m_search_states.size();
         init_state(s, mha_state_idx, state_id);
 
         // map graph state to search state
@@ -431,7 +431,7 @@ SMHAState* SMHAStar::get_state(int state_id)
 
         return s;
     } else {
-        int ssidx = idxs[MHAMDP_STATEID2IND];
+        auto ssidx = idxs[MHAMDP_STATEID2IND];
         return m_search_states[ssidx];
     }
 }
@@ -441,7 +441,7 @@ void SMHAStar::clear()
     clear_open_lists();
 
     // free states
-    for (size_t i = 0; i < m_search_states.size(); ++i) {
+    for (auto i = 0; i < (int)m_search_states.size(); ++i) {
         // unmap graph to search state
         int state_id = m_search_states[i]->state_id;
         int* idxs = environment_->StateID2IndexMapping[state_id];
@@ -501,7 +501,7 @@ void SMHAStar::clear_open_lists()
 
 int SMHAStar::compute_key(SMHAState* state, int hidx)
 {
-    return state->g + m_eps * state->od[hidx].h;
+    return (int)((double)state->g + m_eps * (double)state->od[hidx].h);
 }
 
 void SMHAStar::expand(SMHAState* state, int hidx)

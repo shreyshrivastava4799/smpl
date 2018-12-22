@@ -208,7 +208,7 @@ void OccupancyGrid::getOccupiedVoxels(
 {
     int x_c, y_c, z_c;
     worldToGrid(x_center, y_center, z_center, x_c, y_c, z_c);
-    int radius_c = radius / resolution() + 0.5;
+    auto radius_c = (int)(radius / resolution() + 0.5);
 
     Eigen::Vector3d v;
 
@@ -316,22 +316,22 @@ auto OccupancyGrid::getBoundingBoxVisualization() const -> visual::Marker
 auto OccupancyGrid::getDistanceFieldVisualization(double max_dist) const
     -> visual::Marker
 {
-    const double min_value = m_grid->resolution();
-    const double max_value = max_dist < 0.0 ?
+    auto min_value = m_grid->resolution();
+    auto max_value = max_dist < 0.0 ?
             m_grid->getUninitializedDistance() : max_dist;
 
     std::vector<Eigen::Vector3d> points;
     std::vector<visual::Color> colors;
     iterateCells([&](int x, int y, int z)
     {
-        const double d = m_grid->getCellDistance(x, y, z);
+        auto d = m_grid->getCellDistance(x, y, z);
         if (d >= min_value && d <= max_value) {
             Eigen::Vector3d p;
             m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             points.push_back(p);
 
-            const double alpha = (d - min_value) / (max_value - min_value);
-            colors.push_back(visual::MakeColorHSV(120.0 + alpha * (240.0)));
+            auto alpha = (d - min_value) / (max_value - min_value);
+            colors.push_back(visual::MakeColorHSV((float)(120.0 + alpha * (240.0))));
         }
     });
 

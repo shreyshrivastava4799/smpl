@@ -47,7 +47,7 @@ struct heap_element
 
 private:
 
-    std::size_t m_heap_index;
+    int m_heap_index;
 
     template <class T, class Compare>
     friend class intrusive_heap;
@@ -76,13 +76,13 @@ public:
 
     static_assert(std::is_base_of<heap_element, T>::value, "T must extend heap_element");
 
-    typedef Compare compare;
+    using compare = Compare;
 
-    typedef std::vector<T*> container_type;
-    typedef typename container_type::size_type size_type;
+    using container_type    = std::vector<T*>;
+    using size_type         = int;
 
-    typedef typename container_type::iterator iterator;
-    typedef typename container_type::const_iterator const_iterator;
+    using iterator          = typename container_type::iterator;
+    using const_iterator    = typename container_type::const_iterator;
 
     intrusive_heap(const compare& comp = compare());
 

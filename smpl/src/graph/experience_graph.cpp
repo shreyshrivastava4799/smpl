@@ -332,7 +332,7 @@ void ExperienceGraph::erase_node(node_id id)
     // adjacency edge ids
     if (rem_node.edges.size() > 0) {
         auto will_remove = [id](const Edge& e) {
-            return e.snode == id | e.tnode == id;
+            return (e.snode == id) | (e.tnode == id);
         };
 
         // map from edge id to how many positions it will shift down

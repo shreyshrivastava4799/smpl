@@ -11,7 +11,7 @@ auto MakeEmptyMarker() -> Marker;
 auto MakeSphereMarker(
     double x, double y, double z,
     double radius,
-    int hue,
+    float hue,
     const std::string& frame_id,
     const std::string& ns,
     int id = 0) -> Marker;

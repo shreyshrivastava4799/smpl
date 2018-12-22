@@ -36,6 +36,7 @@
 #include <smpl/console/console.h>
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
+#include <smpl/stl/algorithm.h>
 
 namespace smpl {
 
@@ -262,23 +263,13 @@ auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
 
         int d = edge_cost * m_bfs->getDistance(x, y, z);
         int eed = factor_ee ? edge_cost * m_ee_bfs->getDistance(x, y, z) : 0;
-        double cost_pct = (double)combine_costs(d, eed) / (double)(max_cost);
+        auto cost_pct = (float)combine_costs(d, eed) / (float)(max_cost);
 
         if (cost_pct > 1.0) {
             continue;
         }
 
-        visual::Color color = visual::MakeColorHSV(300.0 - 300.0 * cost_pct);
-
-        auto clamp = [](double d, double lo, double hi) {
-            if (d < lo) {
-                return lo;
-            } else if (d > hi) {
-                return hi;
-            } else {
-                return d;
-            }
-        };
+        auto color = visual::MakeColorHSV(300.0f - 300.0f * cost_pct);
 
         color.r = clamp(color.r, 0.0f, 1.0f);
         color.g = clamp(color.g, 0.0f, 1.0f);

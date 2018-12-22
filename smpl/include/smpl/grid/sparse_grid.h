@@ -113,11 +113,11 @@ public:
 
     /// \name Element Access
     ///@{
-    const_reference operator()(index_type x, index_type y, index_type z) const;
+    auto operator()(index_type x, index_type y, index_type z) const -> const_reference;
 
-    reference operator()(index_type x, index_type y, index_type z);
+    auto operator()(index_type x, index_type y, index_type z) -> reference;
 
-    const_reference get(index_type x, index_type y, index_type z) const;
+    auto get(index_type x, index_type y, index_type z) const -> const_reference;
     ///@}
 
     /// \name Modifiers

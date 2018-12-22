@@ -146,9 +146,9 @@ template <class T, class Compare>
 void intrusive_heap<T, Compare>::push(T* e)
 {
     assert(e);
-    e->m_heap_index = m_data.size();
+    e->m_heap_index = (int)m_data.size();
     m_data.push_back(e);
-    percolate_up(m_data.size() - 1);
+    percolate_up((int)m_data.size() - 1);
 }
 
 template <class T, class Compare>
@@ -209,7 +209,7 @@ void intrusive_heap<T, Compare>::erase(T* e)
 template <class T, class Compare>
 void intrusive_heap<T, Compare>::make()
 {
-    for (auto i = (m_data.size() - 1) >> 1; i >= 1; --i) {
+    for (auto i = ((int)m_data.size() - 1) >> 1; i >= 1; --i) {
         percolate_down(i);
     }
 }

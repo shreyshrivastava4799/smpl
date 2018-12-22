@@ -47,9 +47,9 @@ double EuclideanDistance(
     double x1, double y1, double z1,
     double x2, double y2, double z2)
 {
-    const double dx = x2 - x1;
-    const double dy = y2 - y1;
-    const double dz = z2 - z1;
+    auto dx = x2 - x1;
+    auto dy = y2 - y1;
+    auto dz = z2 - z1;
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
@@ -132,9 +132,9 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
 
         auto& goal_pose = planningSpace()->goal().pose;
 
-        const double dist = computeDistance(p, goal_pose);
+        auto dist = computeDistance(p, goal_pose);
 
-        const int h = FIXED_POINT_RATIO * dist;
+        auto h = (int)(FIXED_POINT_RATIO * dist);
 
         double Y, P, R;
         angles::get_euler_zyx(p.rotation(), Y, P, R);
@@ -150,9 +150,9 @@ int EuclidDistHeuristic::GetGoalHeuristic(int state_id)
         auto& goal_pose = planningSpace()->goal().pose;
         Eigen::Vector3d gp(goal_pose.translation());
 
-        double dist = computeDistance(p, gp);
+        auto dist = computeDistance(p, gp);
 
-        const int h = FIXED_POINT_RATIO * dist;
+        auto h = (int)(FIXED_POINT_RATIO * dist);
         SMPL_DEBUG_NAMED(LOG, "h(%d) = %d", state_id, h);
         return h;
     } else {

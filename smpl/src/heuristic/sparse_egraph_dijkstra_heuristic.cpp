@@ -41,6 +41,7 @@
 #include <smpl/occupancy_grid.h>
 #include <smpl/graph/robot_planning_space.h>
 #include <smpl/graph/experience_graph_extension.h>
+#include <smpl/stl/algorithm.h>
 
 namespace smpl {
 
@@ -81,9 +82,9 @@ bool SparseEGraphDijkstra3DHeuristic::init(
         SMPL_WARN_NAMED(LOG, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
     }
 
-    size_t num_cells_x = m_grid->numCellsX() + 2;
-    size_t num_cells_y = m_grid->numCellsY() + 2;
-    size_t num_cells_z = m_grid->numCellsZ() + 2;
+    auto num_cells_x = m_grid->numCellsX() + 2;
+    auto num_cells_y = m_grid->numCellsY() + 2;
+    auto num_cells_z = m_grid->numCellsZ() + 2;
 
     m_dist_grid.resize(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
 
@@ -96,20 +97,20 @@ bool SparseEGraphDijkstra3DHeuristic::init(
     };
 
     // pad distance grid borders with walls
-    for (int y = 0; y < num_cells_y; ++y) {
-        for (int z = 0; z < num_cells_z; ++z) {
+    for (auto y = 0; y < num_cells_y; ++y) {
+        for (auto z = 0; z < num_cells_z; ++z) {
             add_wall(0, y, z);
             add_wall(num_cells_x - 1, y, z);
         }
     }
-    for (int x = 1; x < num_cells_x - 1; ++x) {
-        for (int z = 0; z < num_cells_z; ++z) {
+    for (auto x = 1; x < num_cells_x - 1; ++x) {
+        for (auto z = 0; z < num_cells_z; ++z) {
             add_wall(x, 0, z);
             add_wall(x, num_cells_y - 1, z);
         }
     }
-    for (int x = 1; x < num_cells_x - 1; ++x) {
-        for (int y = 1; y < num_cells_y - 1; ++y) {
+    for (auto x = 1; x < num_cells_x - 1; ++x) {
+        for (auto y = 1; y < num_cells_y - 1; ++y) {
             add_wall(x, y, 0);
             add_wall(x, y, num_cells_z - 1);
         }
@@ -224,23 +225,13 @@ auto SparseEGraphDijkstra3DHeuristic::getValuesVisualization() -> visual::Marker
         dp += Eigen::Vector3i::Ones();
 
         int d = getGoalHeuristic(dp);
-        double cost_pct = (double)d / (double)max_cost;
+        auto cost_pct = (float)d / (float)max_cost;
 
         if (cost_pct > 1.0) {
             continue;
         }
 
-        visual::Color color = visual::MakeColorHSV(300.0 - 300.0 * cost_pct);
-
-        auto clamp = [](double d, double lo, double hi) {
-            if (d < lo) {
-                return lo;
-            } else if (d > hi) {
-                return hi;
-            } else {
-                return d;
-            }
-        };
+        auto color = visual::MakeColorHSV(300.0f - 300.0f * cost_pct);
 
         color.r = clamp(color.r, 0.0f, 1.0f);
         color.g = clamp(color.g, 0.0f, 1.0f);
@@ -323,9 +314,9 @@ void SparseEGraphDijkstra3DHeuristic::updateGoal(const GoalConstraint& goal)
     m_open.clear();
 
     // reset all distances
-    for (size_t x = 1; x < m_dist_grid.size_x() - 1; ++x) {
-    for (size_t y = 1; y < m_dist_grid.size_y() - 1; ++y) {
-    for (size_t z = 1; z < m_dist_grid.size_z() - 1; ++z) {
+    for (auto x = 1; x < m_dist_grid.size_x() - 1; ++x) {
+    for (auto y = 1; y < m_dist_grid.size_y() - 1; ++y) {
+    for (auto z = 1; z < m_dist_grid.size_z() - 1; ++z) {
         if (m_dist_grid.get(x, y, z).dist != Wall) {
             m_dist_grid.set(x, y, z, Cell(Unknown));
         }
@@ -606,10 +597,10 @@ int SparseEGraphDijkstra3DHeuristic::getGoalHeuristic(const Eigen::Vector3i& dp)
         }
 
         // update 26-connected neighbors
-        for (int dx = -1; dx <= 1; ++dx) {
-        for (int dy = -1; dy <= 1; ++dy) {
-        for (int dz = -1; dz <= 1; ++dz) {
-            if (dx == 0 & dy == 0 & dz == 0) {
+        for (auto dx = -1; dx <= 1; ++dx) {
+        for (auto dy = -1; dy <= 1; ++dy) {
+        for (auto dz = -1; dz <= 1; ++dz) {
+            if ((dx == 0) & (dy == 0) & (dz == 0)) {
                 continue;
             }
 

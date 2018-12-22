@@ -38,6 +38,7 @@
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
+#include <smpl/stl/algorithm.h>
 
 namespace smpl {
 
@@ -78,9 +79,9 @@ bool DijkstraEgraphHeuristic3D::init(
         SMPL_WARN_NAMED(LOG, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
     }
 
-    size_t num_cells_x = m_grid->numCellsX() + 2;
-    size_t num_cells_y = m_grid->numCellsY() + 2;
-    size_t num_cells_z = m_grid->numCellsZ() + 2;
+    auto num_cells_x = m_grid->numCellsX() + 2;
+    auto num_cells_y = m_grid->numCellsY() + 2;
+    auto num_cells_z = m_grid->numCellsZ() + 2;
 
     m_dist_grid.assign(num_cells_x, num_cells_y, num_cells_z, Cell(Unknown));
 
@@ -213,9 +214,9 @@ auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
 {
     SMPL_INFO("Retrieve values visualization");
 
-    int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
+    auto start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
 
-    int max_cost = (int)(1.1 * start_heur);
+    auto max_cost = (int)(1.1 * start_heur);
 
     std::vector<Eigen::Vector3d> points;
     std::vector<visual::Color> colors;
@@ -225,24 +226,14 @@ auto DijkstraEgraphHeuristic3D::getValuesVisualization() -> visual::Marker
         Eigen::Vector3i dp(x, y, z);
         dp += Eigen::Vector3i::Ones();
 
-        int d = getGoalHeuristic(dp);
-        double cost_pct = (double)d / (double)max_cost;
+        auto d = getGoalHeuristic(dp);
+        auto cost_pct = (float)d / (float)max_cost;
 
-        if (cost_pct > 1.0) {
+        if (cost_pct > 1.0f) {
             continue;
         }
 
-        visual::Color color = visual::MakeColorHSV(300.0 - 300.0 * cost_pct);
-
-        auto clamp = [](double d, double lo, double hi) {
-            if (d < lo) {
-                return lo;
-            } else if (d > hi) {
-                return hi;
-            } else {
-                return d;
-            }
-        };
+        auto color = visual::MakeColorHSV(300.0f - 300.0f * cost_pct);
 
         color.r = clamp(color.r, 0.0f, 1.0f);
         color.g = clamp(color.g, 0.0f, 1.0f);
@@ -320,9 +311,9 @@ void DijkstraEgraphHeuristic3D::updateGoal(const GoalConstraint& goal)
     SMPL_INFO_NAMED(LOG, "Update EGraphBfsHeuristic goal");
 
     // reset all distances
-    for (size_t x = 1; x < m_dist_grid.xsize() - 1; ++x) {
-    for (size_t y = 1; y < m_dist_grid.ysize() - 1; ++y) {
-    for (size_t z = 1; z < m_dist_grid.zsize() - 1; ++z) {
+    for (auto x = 1; x < m_dist_grid.xsize() - 1; ++x) {
+    for (auto y = 1; y < m_dist_grid.ysize() - 1; ++y) {
+    for (auto z = 1; z < m_dist_grid.zsize() - 1; ++z) {
         auto& c = m_dist_grid(x, y, z);
         if (c.dist != Wall) {
             c.dist = Unknown;
@@ -567,8 +558,8 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
         Cell* curr_cell = m_open.min();
         m_open.pop();
 
-        int cidx = std::distance(m_dist_grid.data(), curr_cell);
-        size_t cx, cy, cz;
+        auto cidx = (int)std::distance(m_dist_grid.data(), curr_cell);
+        int cx, cy, cz;
         m_dist_grid.index_to_coord(cidx, cx, cy, cz);
         SMPL_DEBUG_NAMED(LOG, "Expand cell (%zu, %zu, %zu)", cx, cy, cz);
 
@@ -602,7 +593,7 @@ int DijkstraEgraphHeuristic3D::getGoalHeuristic(const Eigen::Vector3i& dp)
         for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
         for (int dz = -1; dz <= 1; ++dz) {
-            if (dx == 0 & dy == 0 & dz == 0) {
+            if ((dx == 0) & (dy == 0) & (dz == 0)) {
                 continue;
             }
 

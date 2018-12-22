@@ -63,7 +63,7 @@ static auto GetState(LazySMHAStar& search, int state_id) -> State*
 
     // initialize offset from each open data to the start of the state
     for (size_t i = 0; i < search.h_count_; ++i) {
-        state->open_data[i].off = ((char*)&state->open_data[0] - (char*)state);
+        state->open_data[i].off = (int32_t)((char*)&state->open_data[0] - (char*)state);
     }
 
     search.states_[state_id] = state;

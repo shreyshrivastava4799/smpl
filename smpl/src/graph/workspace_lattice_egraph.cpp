@@ -274,7 +274,7 @@ void WorkspaceLatticeEGraph::clearExperienceGraph()
         for (auto i = first; ++i != last;) {
             if (m_states[i] != NULL) {
                 // remap state to id
-                m_state_to_id[m_states[i]] = first;
+                m_state_to_id[m_states[i]] = (int)first;
                 // shift the state
                 m_states[first] = m_states[i];
                 ++first;
@@ -439,7 +439,7 @@ bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
 {
     auto* src_state = getState(src_id);
     auto* dst_state = getState(dst_id);
-    if (src_state == NULL | dst_state == NULL) {
+    if ((src_state == NULL) | (dst_state == NULL)) {
         SMPL_WARN("No state entries for state %d or state %d", src_id, dst_id);
         return false;
     }

@@ -132,16 +132,16 @@ void CreateIndexedSphereMesh(
     vertices.push_back(northPole);
 
     // create the intermediate vertices
-    double theta_inc = M_PI / (latitude_count + 1);
-    double phi_inc = (2.0 * M_PI) / longitude_count;
-    for (int tidx = 0; tidx < latitude_count; ++tidx) {
-        for (int pidx = 0; pidx < longitude_count; ++pidx) {
-            double theta = (tidx + 1) * theta_inc;
-            double phi = pidx * phi_inc;
+    auto theta_inc = M_PI / (latitude_count + 1);
+    auto phi_inc = (2.0 * M_PI) / longitude_count;
+    for (auto tidx = 0; tidx < latitude_count; ++tidx) {
+        for (auto pidx = 0; pidx < longitude_count; ++pidx) {
+            auto theta = (tidx + 1) * theta_inc;
+            auto phi = pidx * phi_inc;
 
-            double x = radius * std::sin(theta) * std::cos(phi);
-            double y = radius * std::sin(theta) * std::sin(phi);
-            double z = radius * std::cos(theta);
+            auto x = radius * std::sin(theta) * std::cos(phi);
+            auto y = radius * std::sin(theta) * std::sin(phi);
+            auto z = radius * std::cos(theta);
             vertices.emplace_back(x, y, z);
         }
     }
@@ -151,7 +151,7 @@ void CreateIndexedSphereMesh(
     vertices.push_back(southPole);
 
     // add all the triangles with the north pole as a vertex
-    for (int i = 0; i < longitude_count; i++) {
+    for (auto i = 0; i < longitude_count; i++) {
         // add in top triangle
         indices.push_back(0);
         indices.push_back(i + 1);
@@ -164,19 +164,19 @@ void CreateIndexedSphereMesh(
     }
 
     // add all intermediate triangles
-    for (int i = 0; i < latitude_count - 1; i++) {
-        for (int j = 0; j < longitude_count; j++) {
+    for (auto i = 0; i < latitude_count - 1; i++) {
+        for (auto j = 0; j < longitude_count; j++) {
             // i, j corresponds to one of the generated vertices
-            int baseVertexIdx = i * longitude_count + j + 1;
-            int bBaseVertexIdx = baseVertexIdx + longitude_count;
-            int brBaseVertexIdx = bBaseVertexIdx + 1;
-            int rBaseVertexIdx = baseVertexIdx + 1;
+            auto baseVertexIdx = i * longitude_count + j + 1;
+            auto bBaseVertexIdx = baseVertexIdx + longitude_count;
+            auto brBaseVertexIdx = bBaseVertexIdx + 1;
+            auto rBaseVertexIdx = baseVertexIdx + 1;
 
-            if ((brBaseVertexIdx - 1)/longitude_count != (bBaseVertexIdx - 1)/longitude_count) {
+            if ((brBaseVertexIdx - 1) / longitude_count != (bBaseVertexIdx - 1) / longitude_count) {
                 brBaseVertexIdx -= longitude_count;
             }
 
-            if ((rBaseVertexIdx - 1)/longitude_count != (baseVertexIdx - 1)/longitude_count) {
+            if ((rBaseVertexIdx - 1) / longitude_count != (baseVertexIdx - 1) / longitude_count) {
                 rBaseVertexIdx -= longitude_count;
             }
 
@@ -191,15 +191,14 @@ void CreateIndexedSphereMesh(
     }
 
     // add all the triangles with the south pole as a vertex
-    for (int i = 0; i < longitude_count; i++) {
-        indices.push_back(vertices.size() - 1);
+    for (auto i = 0; i < longitude_count; i++) {
+        indices.push_back((uint32_t)(vertices.size() - 1));
         if (i == 0) {
-            indices.push_back(vertices.size() - 1 - longitude_count);
+            indices.push_back((uint32_t)(vertices.size() - 1 - longitude_count));
+        } else {
+            indices.push_back((uint32_t)(vertices.size() - 1 - i));
         }
-        else {
-            indices.push_back(vertices.size() - 1 - i);
-        }
-        indices.push_back(vertices.size() - 1 - (i + 1));
+        indices.push_back((uint32_t)(vertices.size() - 1 - (i + 1)));
     }
 }
 
@@ -432,10 +431,10 @@ void CreateIndexedPlaneMesh(
     indices.push_back(0);
     indices.push_back(1);
     indices.push_back(2);
-    for (size_t i = 3; i < vertices.size(); ++i) {
+    for (auto i = 3; i < (int)vertices.size(); ++i) {
         indices.push_back(0);
-        indices.push_back(i- 1);
-        indices.push_back(i);
+        indices.push_back((uint32_t)(i - 1));
+        indices.push_back((uint32_t)i);
     }
 }
 

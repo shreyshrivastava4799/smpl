@@ -53,10 +53,10 @@ double distance(
     const RobotState& from,
     const RobotState& to)
 {
-    double dist = 0.0;
-    for (size_t vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
+    auto dist = 0.0;
+    for (auto vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
         if (!robot.hasPosLimit(vidx)) {
-            dist += angles::shortest_angle_dist(to[vidx], from[vidx]);
+            dist += shortest_angle_dist(to[vidx], from[vidx]);
         }
         else {
             dist += fabs(to[vidx] - from[vidx]);
@@ -71,23 +71,23 @@ double pv_distance(
     const RobotState& to)
 {
     auto sqrd = [](double d) { return d * d; };
-    const double pweight = 1.0;
-    const double vweight = 1.0;
+    auto pweight = 1.0;
+    auto vweight = 1.0;
 
-    const size_t var_count = robot.getPlanningJoints().size();
+    auto var_count = (int)robot.getPlanningJoints().size();
 
-    double dist = 0.0;
-    for (size_t vidx = 0; vidx < var_count; ++vidx) {
+    auto dist = 0.0;
+    for (auto vidx = 0; vidx < var_count; ++vidx) {
         if (!robot.hasPosLimit(vidx)) {
-            dist += angles::shortest_angle_dist(to[vidx], from[vidx]);
+            dist += shortest_angle_dist(to[vidx], from[vidx]);
         }
         else {
             dist += fabs(to[vidx] - from[vidx]);
         }
     }
 
-    double vdist = 0.0;
-    for (size_t vidx = 0; vidx < var_count; ++vidx) {
+    auto vdist = 0.0;
+    for (auto vidx = 0; vidx < var_count; ++vidx) {
         vdist += fabs(to[var_count + vidx] - from[var_count + vidx]);
     }
 
@@ -114,8 +114,7 @@ public:
             *ofirst++ = finish;
             cost = distance(*m_robot, start, finish);
             return true;
-        }
-        else {
+        } else {
             return false;
         }
     }
@@ -204,10 +203,10 @@ public:
 
         // compute the number of path waypoints
         double posdiff = (pend - pstart).norm();
-        double rotdiff = angles::normalize_angle(2.0 * acos(qstart.dot(qend)));
+        double rotdiff = normalize_angle(2.0 * acos(qstart.dot(qend)));
 
         const double interp_pres = 0.01;
-        const double interp_rres = angles::to_radians(5.0);
+        const double interp_rres = to_radians(5.0);
 
         int num_points = 2;
         num_points = std::max(num_points, (int)ceil(posdiff / interp_pres));
@@ -362,10 +361,10 @@ bool CreatePositionVelocityPath(
     const std::vector<RobotState>& path,
     std::vector<RobotState>& opath)
 {
-    const size_t var_count = rm->getPlanningJoints().size();
+    auto var_count = (int)rm->getPlanningJoints().size();
 
     // position + zero velocity for the first point
-    std::vector<RobotState> pv_path(path.size());
+    auto pv_path = std::vector<RobotState>(path.size());
     if (!pv_path.empty()) {
         pv_path[0].resize(2 * var_count);
         // p_0 = p_in_0, v_0 = { 0, ..., 0 }
@@ -374,14 +373,14 @@ bool CreatePositionVelocityPath(
     }
 
     // position + velocities for the remaining points
-    for (size_t i = 1; i < path.size(); ++i) {
-        const RobotState& from = path[i - 1];
-        const RobotState& to = path[i];
+    for (auto i = 1; i < path.size(); ++i) {
+        auto& from = path[i - 1];
+        auto& to = path[i];
         pv_path[i].resize(2 * var_count);
         std::copy(to.begin(), to.begin() + var_count, pv_path[i].begin());
-        for (size_t vidx = 0; vidx < var_count; ++vidx) {
+        for (auto vidx = 0; vidx < var_count; ++vidx) {
             if (!rm->hasPosLimit(vidx)) {
-                pv_path[i][var_count + vidx] = std::copysign(1.0, angles::shortest_angle_diff(to[vidx], from[vidx]));
+                pv_path[i][var_count + vidx] = std::copysign(1.0, shortest_angle_diff(to[vidx], from[vidx]));
             }
             else {
                 pv_path[i][var_count + vidx] = std::copysign(1.0, to[vidx] - from[vidx]);
@@ -399,8 +398,8 @@ bool ExtractPositionPath(
     std::vector<RobotState>& path)
 {
     path.resize(pv_path.size());
-    const size_t var_count = rm->getPlanningJoints().size();
-    for (size_t pidx = 0; pidx < pv_path.size(); ++pidx) {
+    auto var_count = (int)rm->getPlanningJoints().size();
+    for (auto pidx = 0; pidx < pv_path.size(); ++pidx) {
         path[pidx].resize(var_count);
         std::copy(&pv_path[pidx][0], &pv_path[pidx][0] + var_count, &path[pidx][0]);
     }
@@ -418,7 +417,7 @@ bool ComputePositionPathCosts(
 
     costs.clear();
     costs.resize(path.size() - 1);
-    for (size_t i = 1; i < path.size(); ++i) {
+    for (auto i = 1; i < path.size(); ++i) {
         costs[i - 1] = distance(*rm, path[i - 1], path[i]);
     }
     return true;
@@ -435,7 +434,7 @@ bool ComputePositionVelocityPathCosts(
 
     costs.clear();
     costs.resize(pv_path.size() - 1);
-    for (size_t i = 1; i < pv_path.size(); ++i) {
+    for (auto i = 1; i < pv_path.size(); ++i) {
         costs[i - 1] = pv_distance(*rm, pv_path[i - 1], pv_path[i]);
     }
     return true;

@@ -43,7 +43,7 @@ namespace smpl {
 
 #define VECTOR_BUCKET_LIST_INSERT(o, key) \
 {\
-    o->pos = m_open[key].size();\
+    o->pos = (int)m_open[key].size();\
     m_open[key].push_back(o);\
     o->bucket = key;\
 }
@@ -55,7 +55,7 @@ namespace smpl {
     m_open[o->bucket][o->pos]->pos = o->pos;\
     m_open[o->bucket].pop_back();\
 \
-    o->pos = m_open[key].size();\
+    o->pos = (int)m_open[key].size();\
     m_open[key].push_back(o);\
     o->bucket = key;\
 }
@@ -316,7 +316,7 @@ void DistanceMap<Derived>::addPointsToMap(
 
         ++gx; ++gy; ++gz;
 
-        Cell& c = m_cells(gx, gy, gz);
+        auto& c = m_cells(gx, gy, gz);
         if (c.dist_new > 0) {
             c.dir = NO_UPDATE_DIR;
             c.dist_new = 0;
@@ -439,10 +439,10 @@ void DistanceMap<Derived>::updatePointsInMap(
 template <typename Derived>
 void DistanceMap<Derived>::reset()
 {
-    for (size_t x = 1; x < m_cells.xsize() - 1; ++x) {
-    for (size_t y = 1; y < m_cells.ysize() - 1; ++y) {
-    for (size_t z = 1; z < m_cells.zsize() - 1; ++z) {
-        Cell& c = m_cells(x, y, z);
+    for (auto x = 1; x < m_cells.xsize() - 1; ++x) {
+    for (auto y = 1; y < m_cells.ysize() - 1; ++y) {
+    for (auto z = 1; z < m_cells.zsize() - 1; ++z) {
+        auto& c = m_cells(x, y, z);
         resetCell(c);
     }
     }
@@ -594,7 +594,7 @@ void DistanceMap<Derived>::initBorderCells()
 template <typename Derived>
 void DistanceMap<Derived>::updateVertex(Cell* o)
 {
-    const int key = std::min(o->dist, o->dist_new);
+    auto key = std::min(o->dist, o->dist_new);
     assert(key < m_open.size());
     if (o->bucket >= 0) { // in heap
         assert(o->bucket < m_open.size());

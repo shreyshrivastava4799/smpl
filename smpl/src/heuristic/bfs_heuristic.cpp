@@ -38,6 +38,7 @@
 #include <smpl/debug/colors.h>
 #include <smpl/grid/grid.h>
 #include <smpl/heap/intrusive_heap.h>
+#include <smpl/stl/algorithm.h>
 
 namespace smpl {
 
@@ -281,15 +282,15 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
 
     SMPL_INFO("Start cell heuristic: %d", start_heur);
 
-    const int max_cost = (int)(1.1 * start_heur);
+    auto max_cost = (int)(1.1 * start_heur);
 
     SMPL_INFO("Get visualization of cells up to cost %d", max_cost);
 
     // ...and this will also flush the bfs...
 
     // arbitrary limit on size of visualization...64Mb worth of points+colors
-    const size_t max_points =
-            (64 * 1024 * 1024) /
+    auto max_points =
+            (64u * 1024u * 1024u) /
             (sizeof(visual::Color) + sizeof(Eigen::Vector3d));
 
     std::vector<Eigen::Vector3d> points;
@@ -308,7 +309,7 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
         }
     }
     while (!cells.empty()) {
-        CostCell c = cells.front();
+        auto c = cells.front();
         cells.pop();
 
         if (c.g > max_cost || points.size() >= max_points) {
@@ -316,19 +317,9 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
         }
 
         {
-            double cost_pct = (double)c.g / (double)max_cost;
+            auto cost_pct = (float)c.g / (float)max_cost;
 
-            visual::Color color = visual::MakeColorHSV(300.0 - 300.0 * cost_pct);
-
-            auto clamp = [](double d, double lo, double hi) {
-                if (d < lo) {
-                    return lo;
-                } else if (d > hi) {
-                    return hi;
-                } else {
-                    return d;
-                }
-            };
+            auto color = visual::MakeColorHSV(300.0f - 300.0f * cost_pct);
 
             color.r = clamp(color.r, 0.0f, 1.0f);
             color.g = clamp(color.g, 0.0f, 1.0f);
@@ -344,7 +335,7 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
 
 //        visited(c.x, c.y, c.z) = true;
 
-        const int d = m_cost_per_cell * m_bfs->getDistance(c.x, c.y, c.z);
+        auto d = m_cost_per_cell * m_bfs->getDistance(c.x, c.y, c.z);
 
         for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
@@ -386,17 +377,17 @@ auto BfsHeuristic::getValuesVisualization() -> visual::Marker
 
 void BfsHeuristic::syncGridAndBfs()
 {
-    const int xc = grid()->numCellsX();
-    const int yc = grid()->numCellsY();
-    const int zc = grid()->numCellsZ();
+    auto xc = grid()->numCellsX();
+    auto yc = grid()->numCellsY();
+    auto zc = grid()->numCellsZ();
 //    SMPL_DEBUG_NAMED(LOG, "Initializing BFS of size %d x %d x %d = %d", xc, yc, zc, xc * yc * zc);
     m_bfs.reset(new BFS_3D(xc, yc, zc));
-    const int cell_count = xc * yc * zc;
-    int wall_count = 0;
-    for (int x = 0; x < xc; ++x) {
-    for (int y = 0; y < yc; ++y) {
-    for (int z = 0; z < zc; ++z) {
-        const double radius = m_inflation_radius;
+    auto cell_count = xc * yc * zc;
+    auto wall_count = 0;
+    for (auto x = 0; x < xc; ++x) {
+    for (auto y = 0; y < yc; ++y) {
+    for (auto z = 0; z < zc; ++z) {
+        auto radius = m_inflation_radius;
         if (grid()->getDistance(x, y, z) <= radius) {
             m_bfs->setWall(x, y, z);
             ++wall_count;
@@ -412,11 +403,9 @@ int BfsHeuristic::getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const
 {
     if (!bfs.inBounds(x, y, z)) {
         return Infinity;
-    }
-    else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
+    } else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
         return Infinity;
-    }
-    else {
+    } else {
         return m_cost_per_cell * bfs.getDistance(x, y, z);
     }
 }

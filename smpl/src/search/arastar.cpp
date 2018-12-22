@@ -532,13 +532,13 @@ void ARAStar::expand(SearchState* s)
     SMPL_DEBUG_NAMED(SELOG, "  %zu successors", m_succs.size());
 
     for (size_t sidx = 0; sidx < m_succs.size(); ++sidx) {
-        int succ_state_id = m_succs[sidx];
-        int cost = m_costs[sidx];
+        auto succ_state_id = m_succs[sidx];
+        auto cost = m_costs[sidx];
 
-        SearchState* succ_state = getSearchState(succ_state_id);
+        auto* succ_state = getSearchState(succ_state_id);
         reinitSearchState(succ_state);
 
-        int new_cost = s->eg + cost;
+        auto new_cost = s->eg + cost;
         SMPL_DEBUG_NAMED(SELOG, "Compare new cost %d vs old cost %d", new_cost, succ_state->g);
         if (new_cost < succ_state->g) {
             succ_state->g = new_cost;

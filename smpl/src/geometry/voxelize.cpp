@@ -146,11 +146,11 @@ void VoxelizeMeshNaive(
     std::vector<Eigen::Vector3d> voxel_mesh;
     CreateGridMesh(vg, voxel_mesh);
 
-    for (std::size_t tidx = 0; tidx < triangles.size(); tidx += 3) {
+    for (auto tidx = 0; tidx < (int)triangles.size(); tidx += 3) {
         // get the vertices of the triangle as Point
-        const Eigen::Vector3d& pt1 = vertices[triangles[tidx + 0]];
-        const Eigen::Vector3d& pt2 = vertices[triangles[tidx + 1]];
-        const Eigen::Vector3d& pt3 = vertices[triangles[tidx + 2]];
+        auto& pt1 = vertices[triangles[tidx + 0]];
+        auto& pt2 = vertices[triangles[tidx + 1]];
+        auto& pt3 = vertices[triangles[tidx + 2]];
 
         // pack those vertices into my Triangle struct
         Triangle triangle(pt1, pt2, pt3);
@@ -165,23 +165,23 @@ void VoxelizeMeshNaive(
         }
 
         // compute the bounding voxel grid
-        const WorldCoord minwc(tri_min.x(), tri_min.y(), tri_min.z());
-        const WorldCoord maxwc(tri_max.x(), tri_max.y(), tri_max.z());
-        const MemoryCoord minmc = vg.worldToMemory(minwc);
-        const MemoryCoord maxmc = vg.worldToMemory(maxwc);
+        auto minwc = WorldCoord(tri_min.x(), tri_min.y(), tri_min.z());
+        auto maxwc = WorldCoord(tri_max.x(), tri_max.y(), tri_max.z());
+        auto minmc = vg.worldToMemory(minwc);
+        auto maxmc = vg.worldToMemory(maxwc);
 
         // voxels in the voxel mesh are ordered by the memory index
-        for (std::size_t a = 0; a < voxel_mesh.size() / 3; ++a) {
-            int voxelNum = a / 12; // there are 12 mesh triangles per voxel
+        for (auto a = 0; a < (int)voxel_mesh.size() / 3; ++a) {
+            auto voxelNum = a / 12; // there are 12 mesh triangles per voxel
 
-            const MemoryIndex mi(voxelNum);
-            const MemoryCoord mc = vg.indexToMemory(mi);
+            auto mi = MemoryIndex(voxelNum);
+            auto mc = vg.indexToMemory(mi);
 
             // if not already filled, is in the bounding voxel grid of the
             // triangle, and this voxel mesh triangle Intersects the current
             // triangle, fill in the voxel
 
-            Triangle t(voxel_mesh[3 * a], voxel_mesh[3 * a + 1], voxel_mesh[3 * a + 2]);
+            auto t = Triangle(voxel_mesh[3 * a], voxel_mesh[3 * a + 1], voxel_mesh[3 * a + 2]);
 
             if (!vg[mi] &&
                 IsInDiscreteBoundingBox(mc, minmc, maxmc) &&

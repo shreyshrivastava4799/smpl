@@ -259,7 +259,7 @@ int AdaptivePlanner::replan(
 
         auto select_random_path_state = [this](const std::vector<int>& path)
         {
-            std::uniform_int_distribution<int> dist(0, path.size() - 1);
+            std::uniform_int_distribution<int> dist(0, (int)path.size() - 1);
             int ridx = dist(m_rng);
             return path[ridx];
         };

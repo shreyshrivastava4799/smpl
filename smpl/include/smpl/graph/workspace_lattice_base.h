@@ -54,11 +54,11 @@ public:
     std::vector<double> m_res;
     std::vector<int> m_val_count;
     int m_dof_count = 0;
-    std::vector<std::size_t> m_fangle_indices;
+    std::vector<int>    m_fangle_indices;
     std::vector<double> m_fangle_min_limits;
     std::vector<double> m_fangle_max_limits;
-    std::vector<bool> m_fangle_continuous;
-    std::vector<bool> m_fangle_bounded;
+    std::vector<bool>   m_fangle_continuous;
+    std::vector<bool>   m_fangle_bounded;
 
     struct Params
     {

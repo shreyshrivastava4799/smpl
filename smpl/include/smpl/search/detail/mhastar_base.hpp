@@ -437,15 +437,15 @@ MHASearchState* MHAStarBase<Derived>::get_state(int state_id)
         const size_t state_size =
                 sizeof(MHASearchState) +
                 sizeof(MHASearchState::HeapData) * (m_hcount);
-        MHASearchState* s = (MHASearchState*)malloc(state_size);
+        auto* s = (MHASearchState*)malloc(state_size);
 
         // force construction to correctly initialize heap position to null
         new (s) MHASearchState;
-        for (int i = 1; i < num_heuristics(); ++i) {
+        for (auto i = 1; i < num_heuristics(); ++i) {
             new (&s->od[i]) MHASearchState::HeapData;
         }
 
-        const size_t mha_state_idx = m_search_states.size();
+        auto mha_state_idx = (int)m_search_states.size();
         init_state(s, state_id);
 
         // map graph state to search state
@@ -454,7 +454,7 @@ MHASearchState* MHAStarBase<Derived>::get_state(int state_id)
 
         return s;
     } else {
-        int ssidx = m_graph_to_search_state[state_id];
+        auto ssidx = m_graph_to_search_state[state_id];
         return m_search_states[ssidx];
     }
 }

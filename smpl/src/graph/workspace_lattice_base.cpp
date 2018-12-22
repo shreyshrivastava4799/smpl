@@ -74,7 +74,7 @@ bool WorkspaceLatticeBase::init(
     m_fangle_continuous.resize(m_rm_iface->redundantVariableCount());
 
     SMPL_DEBUG_NAMED(G_LOG, "%zu free angles", m_fangle_indices.size());
-    for (size_t i = 0; i < m_fangle_indices.size(); ++i) {
+    for (auto i = 0; i < (int)m_fangle_indices.size(); ++i) {
         m_fangle_indices[i] = m_rm_iface->redundantVariableIndex(i);
         m_fangle_min_limits[i] = _robot->minPosLimit(m_fangle_indices[i]);
         m_fangle_max_limits[i] = _robot->maxPosLimit(m_fangle_indices[i]);
@@ -89,7 +89,7 @@ bool WorkspaceLatticeBase::init(
                 (int)m_fangle_continuous[i]);
     }
 
-    m_dof_count = 6 + m_fangle_indices.size();
+    m_dof_count = 6 + (int)m_fangle_indices.size();
 
     m_res.resize(m_dof_count);
     m_val_count.resize(m_dof_count);

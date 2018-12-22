@@ -42,22 +42,22 @@ class Grid3
 {
 public:
 
-    typedef T           value_type;
+    using value_type        = T;
 
-    typedef std::size_t     size_type;
-    typedef std::ptrdiff_t  difference_type;
+    using size_type         = int;
+    using difference_type   = int;
 
-    typedef value_type&         reference;
-    typedef const value_type&   const_reference;
+    using reference         = value_type&;
+    using const_reference   = const value_type&;
 
-    typedef T*       pointer;
-    typedef const T* const_pointer;
+    using pointer           = T*;
+    using const_pointer     = const T*;
 
-    typedef pointer         iterator;
-    typedef const_pointer   const_iterator;
+    using iterator          = pointer;
+    using const_iterator    = const_pointer;
 
-    typedef std::reverse_iterator<iterator>         reverse_iterator;
-    typedef std::reverse_iterator<const_iterator>   const_reverse_iterator;
+    using reverse_iterator          = std::reverse_iterator<iterator>;
+    using const_reverse_iterator    = std::reverse_iterator<const_iterator>;
 
     Grid3();
 

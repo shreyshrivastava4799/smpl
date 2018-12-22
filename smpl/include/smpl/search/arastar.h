@@ -171,12 +171,12 @@ private:
     struct SearchState : public heap_element
     {
         int state_id;       // corresponding graph state
-        unsigned int g;     // cost-to-come
-        unsigned int h;     // estimated cost-to-go
-        unsigned int f;     // (g + eps * h) at time of insertion into OPEN
-        unsigned int eg;    // g-value at time of expansion
-        unsigned short iteration_closed;
-        unsigned short call_number;
+        int g;              // cost-to-come
+        int h;              // estimated cost-to-go
+        int f;              // (g + eps * h) at time of insertion into OPEN
+        int eg;             // g-value at time of expansion
+        short iteration_closed;
+        short call_number;
         SearchState* bp;
         bool incons;
     };

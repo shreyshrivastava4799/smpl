@@ -79,11 +79,13 @@ int JointDistHeuristic::GetGoalHeuristic(int state_id)
         return 0;
     }
 
-    const RobotState& goal_state = planningSpace()->goal().angles;
-    const RobotState& state = m_ers->extractState(state_id);
+    auto& goal_state = planningSpace()->goal().angles;
+    auto& state = m_ers->extractState(state_id);
     assert(goal_state.size() == state.size());
 
-    return (int)(FIXED_POINT_RATIO * computeJointDistance(state, goal_state));
+    auto h = (int)(FIXED_POINT_RATIO * computeJointDistance(state, goal_state));
+    SMPL_DEBUG_NAMED(H_LOG, "h(%d) = %d", state_id, h);
+    return h;
 }
 
 int JointDistHeuristic::GetStartHeuristic(int state_id)
@@ -96,8 +98,8 @@ int JointDistHeuristic::GetStartHeuristic(int state_id)
         return 0;
     }
 
-    const RobotState& s = planningSpace()->startState();
-    const RobotState& t = m_ers->extractState(state_id);
+    auto& s = planningSpace()->startState();
+    auto& t = m_ers->extractState(state_id);
     return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
 }
 
@@ -108,16 +110,16 @@ int JointDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
     }
 
     if (from_id == planningSpace()->getGoalStateID()) {
-        const RobotState& s = planningSpace()->goal().angles;
-        const RobotState& t = m_ers->extractState(to_id);
+        auto& s = planningSpace()->goal().angles;
+        auto& t = m_ers->extractState(to_id);
         return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
     } else if (to_id == planningSpace()->getGoalStateID()) {
-        const RobotState& s = m_ers->extractState(from_id);
-        const RobotState& t = planningSpace()->goal().angles;
+        auto& s = m_ers->extractState(from_id);
+        auto& t = planningSpace()->goal().angles;
         return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
     } else {
-        const RobotState& s = m_ers->extractState(from_id);
-        const RobotState& t = m_ers->extractState(to_id);
+        auto& s = m_ers->extractState(from_id);
+        auto& t = m_ers->extractState(to_id);
         return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
     }
 }
@@ -126,9 +128,9 @@ double JointDistHeuristic::computeJointDistance(
     const RobotState& s,
     const RobotState& t) const
 {
-    double dsum = 0.0;
+    auto dsum = 0.0;
     for (size_t i = 0; i < s.size(); ++i) {
-        double dj = (s[i] - t[i]);
+        auto dj = s[i] - t[i];
         dsum += dj * dj;
     }
     return std::sqrt(dsum);

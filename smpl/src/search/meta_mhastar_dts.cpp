@@ -417,10 +417,10 @@ MHASearchState* MetaMHAstarDTS::get_state(int state_id)
 
     if (m_graph_to_search_state[state_id] == -1) {
         // overallocate search state for appropriate heuristic information
-        const size_t state_size =
+        auto state_size =
                 sizeof(MHASearchState) +
                 sizeof(MHASearchState::HeapData) * (m_hcount);
-        MHASearchState* s = (MHASearchState*)malloc(state_size);
+        auto* s = (MHASearchState*)malloc(state_size);
 
         // force construction to correctly initialize heap position to null
         new (s) MHASearchState;
@@ -428,7 +428,7 @@ MHASearchState* MetaMHAstarDTS::get_state(int state_id)
             new (&s->od[i]) MHASearchState::HeapData;
         }
 
-        const size_t mha_state_idx = m_search_states.size();
+        auto mha_state_idx = (int)m_search_states.size();
         init_state(s, state_id);
 
         // map graph state to search state
@@ -447,9 +447,9 @@ void MetaMHAstarDTS::clear()
     clear_open_lists();
 
     // free states
-    for (size_t i = 0; i < m_search_states.size(); ++i) {
+    for (auto i = 0; i < (int)m_search_states.size(); ++i) {
         // unmap graph to search state
-        MHASearchState* search_state = m_search_states[i];
+        auto* search_state = m_search_states[i];
 
         // free search state
         free(m_search_states[i]);
@@ -470,13 +470,13 @@ void MetaMHAstarDTS::init_state(
     state->state_id = state_id;
     state->closed_in_anc = false;
     state->closed_in_add = false;
-    for (int i = 0; i < num_heuristics(); ++i) {
+    for (auto i = 0; i < num_heuristics(); ++i) {
         state->od[i].f = compute_heuristic(state->state_id, i);
         state->od[i].me = state;
     }
 
     SMPL_DEBUG_STREAM("Initialized state: " << *state);
-    for (int i = 0; i < num_heuristics(); ++i) {
+    for (auto i = 0; i < num_heuristics(); ++i) {
         SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
         SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
         SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
@@ -496,13 +496,13 @@ void MetaMHAstarDTS::reinit_state(MHASearchState* state)
         state->closed_in_anc = false;
         state->closed_in_add = false;
 
-        for (int i = 0; i < num_heuristics(); ++i) {
+        for (auto i = 0; i < num_heuristics(); ++i) {
             state->od[i].h = compute_heuristic(state->state_id, i);
             state->od[i].f = INFINITECOST;
         }
 
         SMPL_DEBUG_STREAM("Reinitialized state: " << *state);
-        for (int i = 0; i < num_heuristics(); ++i) {
+        for (auto i = 0; i < num_heuristics(); ++i) {
             SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
             SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
             SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
@@ -539,7 +539,7 @@ int MetaMHAstarDTS::choose_search()
         r[hidx] = quantile(dist, m_uniform(m_rng));
     }
     SMPL_INFO_STREAM("Choose Search from: " << r);
-    return std::distance(r.begin(), std::max_element(r.begin(), r.end())) + 1;
+    return (int)std::distance(r.begin(), std::max_element(r.begin(), r.end())) + 1;
 }
 
 void MetaMHAstarDTS::update_meta_method(int hidx)

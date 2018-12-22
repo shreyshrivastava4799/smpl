@@ -105,7 +105,7 @@ struct AWAStar : public SBPLPlanner
     int get_n_expands_init_solution() override;
     double get_final_epsilon() override;
     void get_search_stats(std::vector<PlannerStats>* s) override;
-    void set_initialsolution_eps(double eps) override { m_sus_eps = eps; }
+    void set_initialsolution_eps(double eps) override { m_sus_eps = (int64_t)eps; }
     ///@}
 
     struct SearchState : public heap_element

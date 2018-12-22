@@ -58,7 +58,7 @@ void UMHAStar::on_closed_anchor(MHASearchState* s)
 
 int UMHAStar::priority(MHASearchState* state)
 {
-    return state->g + m_eps * state->od[0].h;
+    return (int)((double)state->g + m_eps * (double)state->od[0].h);
 }
 
 bool UMHAStar::terminated() const
