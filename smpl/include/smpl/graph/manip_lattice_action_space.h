@@ -90,7 +90,20 @@ public:
 
     /// \name Required Public Functions from ActionSpace
     ///@{
-    bool apply(const RobotState& parent, std::vector<Action>& actions) override;
+    void apply(const RobotState& parent, std::vector<Action>& actions) override;
+
+    auto Apply(
+        int state_id,
+        const ManipLatticeState* state,
+        ActionArray store = ActionArray())
+        -> ActionArray override;
+
+    auto GetActionPath(
+        int state_id,
+        const ManipLatticeState* state,
+        int action_id,
+        Action store = Action())
+        -> Action override;
     ///@}
 
 protected:

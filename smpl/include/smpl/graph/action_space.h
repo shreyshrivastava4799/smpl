@@ -39,6 +39,7 @@ namespace smpl {
 
 class RobotPlanningSpace;
 struct GoalConstraint;
+struct ManipLatticeState;
 
 class ActionSpace
 {
@@ -51,14 +52,34 @@ public:
     auto planningSpace() -> RobotPlanningSpace* { return m_space; }
     auto planningSpace() const -> const RobotPlanningSpace* { return m_space; }
 
-    /// \brief Return the set of actions available from a state.
+    /// Return the set of actions available from a state.
     ///
     /// Each action consists of a sequence of waypoints from the source state
     /// describing the approximate motion the robot will take to reach a
     /// successor state. The sequence of waypoints need not contain the the
     /// source state. The motion between waypoints will be checked via the set
     /// CollisionChecker's isStateToStateValid function during a search.
-    virtual bool apply(const RobotState& parent, std::vector<Action>& actions) = 0;
+    virtual void apply(const RobotState& state, std::vector<Action>& actions) = 0;
+
+    using ActionArray = std::vector<int>;
+
+    virtual auto Apply(
+        int state_id,
+        const ManipLatticeState* state,
+        ActionArray store = ActionArray())
+        -> ActionArray = 0;
+
+    virtual auto GetActionPath(
+        int state_id,
+        const ManipLatticeState* state,
+        int action_id,
+        Action store = Action())
+        -> Action = 0;
+
+#if 0
+    virtual auto GetActions(int state_id, const ManipLatticeState* state)
+        -> std::pair<ActionArray, std::vector<Action>> = 0;
+#endif
 
     virtual void updateStart(const RobotState& state) { }
     virtual void updateGoal(const GoalConstraint& goal) { }

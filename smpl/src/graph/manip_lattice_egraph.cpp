@@ -45,7 +45,7 @@ namespace smpl {
 auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) const ->
     result_type
 {
-    std::size_t seed = 0;
+    auto seed = (size_t)0;
     boost::hash_combine(seed, boost::hash_range(s.begin(), s.end()));
     return seed;
 }
@@ -59,149 +59,62 @@ bool ManipLatticeEgraph::extractPath(
         return true;
     }
 
-    // attempt to handle paths of length 1...do any of the sbpl planners still
-    // return a single-point path in some cases?
-    if (idpath.size() == 1) {
-        auto state_id = idpath[0];
+    assert(idpath.size() > 1);
+    assert(idpath[0] != getGoalStateID());
 
-        if (state_id == getGoalStateID()) {
-            auto* entry = getHashEntry(getStartStateID());
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", getStartStateID());
-                return false;
-            }
-            path.push_back(entry->state);
-        } else {
-            auto* entry = getHashEntry(state_id);
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", state_id);
-                return false;
-            }
-            path.push_back(entry->state);
-        }
-
-        auto* vis_name = "goal_config";
-        SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(path.back(), vis_name));
-        return true;
-    }
-
-    if (idpath[0] == getGoalStateID()) {
-        SMPL_ERROR_NAMED(G_LOG, "Cannot extract a non-trivial path starting from the goal state");
-        return false;
-    }
-
-    std::vector<RobotState> opath;
+    auto opath = std::vector<RobotState>();
 
     // grab the first point
     {
-        auto* entry = getHashEntry(idpath[0]);
-        if (!entry) {
+        assert(IsValidStateID(this, idpath[0]));
+        auto* first_state = getHashEntry(idpath[0]);
+        if (!first_state) {
             SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", idpath[0]);
             return false;
         }
-        opath.push_back(entry->state);
+        opath.push_back(first_state->state);
     }
 
     // grab the rest of the points
-    for (size_t i = 1; i < idpath.size(); ++i) {
+    for (auto i = 1; i < idpath.size(); ++i) {
         auto prev_id = idpath[i - 1];
         auto curr_id = idpath[i];
         SMPL_DEBUG_NAMED(G_LOG, "Extract motion from state %d to state %d", prev_id, curr_id);
 
-        if (prev_id == getGoalStateID()) {
-            SMPL_ERROR_NAMED(G_LOG, "Cannot determine goal state predecessor state during path extraction");
-            return false;
-        }
+        assert(prev_id != getGoalStateID());
 
-        // find the successor state corresponding to the cheapest valid action
+        auto* prev_state = getHashEntry(prev_id);
 
-        ManipLatticeState* prev_entry = getHashEntry(prev_id);
-        const RobotState& prev_state = prev_entry->state;
-
-        std::vector<Action> actions;
-        if (!actionSpace()->apply(prev_state, actions)) {
-            SMPL_ERROR_NAMED(G_LOG, "Failed to get actions while extracting the path");
-            return false;
-        }
-
-        SMPL_DEBUG_NAMED(G_LOG, "Check for transition via normal successors");
-        ManipLatticeState* best_state = nullptr;
-        RobotCoord succ_coord(robot()->jointVariableCount());
-        int best_cost = std::numeric_limits<int>::max();
-        for (const Action& action : actions) {
-            // check the validity of this transition
-            if (!checkAction(prev_state, action)) {
-                continue;
+        auto best_action = FindBestAction(prev_id, curr_id);
+        if (best_action >= 0) {
+            auto best_action_path = m_action_space->GetActionPath(prev_id, prev_state, best_action);
+            for (auto& wp : best_action_path) {
+                opath.push_back(wp);
             }
-
-            if (curr_id == getGoalStateID()) {
-                SMPL_DEBUG_NAMED(G_LOG, "Search for transition to goal state");
-
-                // skip non-goal states
-                if (!isGoal(action.back())) {
-                    continue;
-                }
-
-                stateToCoord(action.back(), succ_coord);
-                int succ_state_id = getHashEntry(succ_coord);
-                ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
-                assert(succ_entry);
-
-                const int edge_cost = cost(prev_entry, succ_entry, true);
-                if (edge_cost < best_cost) {
-                    best_cost = edge_cost;
-                    best_state = succ_entry;
-                }
-            } else {
-                stateToCoord(action.back(), succ_coord);
-                int succ_state_id = getHashEntry(succ_coord);
-                ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
-                assert(succ_entry);
-                if (succ_state_id != curr_id) {
-                    continue;
-                }
-
-                const int edge_cost = cost(prev_entry, succ_entry, false);
-                if (edge_cost < best_cost) {
-                    best_cost = edge_cost;
-                    best_state = succ_entry;
-                }
-            }
-        }
-
-        if (best_state) {
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "Extract successor state " << best_state->state);
-            opath.push_back(best_state->state);
             continue;
         }
 
-        bool found = false;
         // check for shortcut transition
         auto pnit = std::find(m_egraph_state_ids.begin(), m_egraph_state_ids.end(), prev_id);
         auto cnit = std::find(m_egraph_state_ids.begin(), m_egraph_state_ids.end(), curr_id);
         if (pnit != m_egraph_state_ids.end() &&
             cnit != m_egraph_state_ids.end())
         {
-            ExperienceGraph::node_id pn =
-                    std::distance(m_egraph_state_ids.begin(), pnit);
-            ExperienceGraph::node_id cn =
-                    std::distance(m_egraph_state_ids.begin(), cnit);
+            auto pn = (ExperienceGraph::node_id)std::distance(m_egraph_state_ids.begin(), pnit);
+            auto cn = (ExperienceGraph::node_id)std::distance(m_egraph_state_ids.begin(), cnit);
 
             SMPL_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, pn, cn);
 
-            std::vector<ExperienceGraph::node_id> node_path;
-            found = findShortestExperienceGraphPath(pn, cn, node_path);
-            if (found) {
+            auto node_path = std::vector<ExperienceGraph::node_id>();
+            if (findShortestExperienceGraphPath(pn, cn, node_path)) {
                 for (ExperienceGraph::node_id n : node_path) {
-                    int state_id = m_egraph_state_ids[n];
-                    ManipLatticeState* entry = getHashEntry(state_id);
-                    assert(entry);
+                    auto state_id = m_egraph_state_ids[n];
+                    auto* entry = getHashEntry(state_id);
+                    assert(entry != NULL);
                     opath.push_back(entry->state);
                 }
+                continue;
             }
-        }
-        if (found) {
-            continue;
         }
 
         // check for snap transition
@@ -209,7 +122,7 @@ bool ManipLatticeEgraph::extractPath(
         int cost;
         if (snap(prev_id, curr_id, cost)) {
             SMPL_ERROR("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
-            ManipLatticeState* entry = getHashEntry(curr_id);
+            auto* entry = getHashEntry(curr_id);
             assert(entry);
             opath.push_back(entry->state);
             continue;
@@ -318,8 +231,8 @@ bool ManipLatticeEgraph::shortcut(
     int second_id,
     int& cost)
 {
-    ManipLatticeState* first_entry = getHashEntry(first_id);
-    ManipLatticeState* second_entry = getHashEntry(second_id);
+    auto* first_entry = getHashEntry(first_id);
+    auto* second_entry = getHashEntry(second_id);
     if (!first_entry | !second_entry) {
         SMPL_WARN("No state entries for state %d or state %d", first_id, second_id);
         return false;

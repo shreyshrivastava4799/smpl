@@ -327,15 +327,15 @@ int SparseGrid<T, Allocator>::compute_max_depth(
     auto max_depth = 0;
 
     auto depth_x = (int)std::log2(size_x);
-    if (size_x != 1 << depth_x) {
+    if ((int)size_x != 1 << depth_x) {
         ++depth_x;
     }
     auto depth_y = (int)std::log2(size_y);
-    if (size_y != 1 << depth_y) {
+    if ((int)size_y != 1 << depth_y) {
         ++depth_y;
     }
     auto depth_z = (int)std::log2(size_z);
-    if (size_z != 1 << depth_z) {
+    if ((int)size_z != 1 << depth_z) {
         ++depth_z;
     }
 

@@ -32,18 +32,115 @@
 #ifndef SMPL_COST_FUNCTION_H
 #define SMPL_COST_FUNCTION_H
 
+#include <smpl/types.h>
+
 namespace smpl {
+
+class ManipLattice;
+struct ManipLatticeState;
 
 class CostFunction
 {
 public:
 
-    CostFunction();
     virtual ~CostFunction() { }
 
-    virtual int getCost(const RobotState& state, const RobotState& state) const = 0;
+    virtual int GetActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ) = 0;
+};
 
-private:
+class UniformCostFunction : public CostFunction
+{
+public:
+
+    int cost_per_action = 1;
+
+    int GetActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ) final;
+};
+
+class L1NormCostFunction : public CostFunction
+{
+public:
+
+    int GetActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ) final;
+};
+
+class L2NormCostFunction : public CostFunction
+{
+public:
+
+    int GetActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ) final;
+};
+
+class LInfNormCostFunction : public CostFunction
+{
+public:
+
+    int GetActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ) final;
+};
+
+class LazyCostFunction
+{
+public:
+
+    virtual ~LazyCostFunction() { }
+
+    virtual auto GetLazyActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ)
+        -> std::pair<int, bool> = 0;
+
+    virtual auto GetTrueActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ)
+        -> int = 0;
+};
+
+// A lazily-evaluated cost function that returns a lower-bound uniform cost for
+// every action. When the true cost is evaluated, return the result of an
+// associate cost function.
+class DefaultLazyCostFunction : public LazyCostFunction
+{
+public:
+
+    CostFunction* cost_fun = NULL;
+
+    auto GetLazyActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ)
+        -> std::pair<int, bool> final;
+
+    auto GetTrueActionCost(
+        const ManipLattice* graph,
+        int state_id, const ManipLatticeState* state,
+        int action_id, const Action* action,
+        int succ_id, const ManipLatticeState* succ)
+        -> int final;
 };
 
 } // namespace smpl

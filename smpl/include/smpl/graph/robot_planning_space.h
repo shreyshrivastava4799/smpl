@@ -125,8 +125,6 @@ public:
         FILE* f = nullptr) override = 0;
     ///@}
 
-private:
-
     RobotModel* m_robot             = nullptr;
     CollisionChecker* m_checker     = nullptr;
 
@@ -134,6 +132,8 @@ private:
     GoalConstraint m_goal;
 
     std::vector<RobotHeuristic*> m_heuristics;
+
+private:
 
     // Make all attempts to hide the set of useless functions from
     // DiscreteSpaceInformation

@@ -51,33 +51,118 @@
 auto std::hash<smpl::ManipLatticeState>::operator()(
     const argument_type& s) const -> result_type
 {
-    size_t seed = 0;
+    auto seed = (size_t)0;
     boost::hash_combine(seed, boost::hash_range(s.coord.begin(), s.coord.end()));
     return seed;
 }
 
 namespace smpl {
 
+static
+bool IsValidStateID(const ManipLattice* lattice, int state_id)
+{
+    return (state_id >= 0) & (state_id < (int)lattice->m_states.size());
+}
+
+static
+int ApplyTransition(ManipLattice* lattice, const Action& action)
+{
+    assert(!action.empty());
+    auto& succ_real_coords = action.back();
+    auto succ_coord = RobotCoord(lattice->robot()->jointVariableCount());
+    lattice->stateToCoord(succ_real_coords, succ_coord);
+    return lattice->getOrCreateState(succ_coord, succ_real_coords);
+}
+
+static
+bool SetGoalPose(ManipLattice* lattice, const GoalConstraint& goal)
+{
+    auto* vis_name = "goal_pose";
+    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(goal.pose, lattice->m_viz_frame_id, vis_name));
+
+    using namespace std::chrono;
+    auto now = clock::now();
+    auto now_s = duration_cast<duration<double>>(now.time_since_epoch());
+    SMPL_DEBUG_NAMED(G_LOG, "time: %f", now_s.count());
+    SMPL_DEBUG_NAMED(G_LOG, "A new goal has been set.");
+    SMPL_DEBUG_NAMED(G_LOG, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", goal.pose.translation()[0], goal.pose.translation()[1], goal.pose.translation()[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "    tol (meters): %0.3f", goal.xyz_tolerance[0]);
+    double yaw, pitch, roll;
+    get_euler_zyx(goal.pose.rotation(), yaw, pitch, roll);
+    SMPL_DEBUG_NAMED(G_LOG, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
+    SMPL_DEBUG_NAMED(G_LOG, "    tol (radians): %0.3f", goal.rpy_tolerance[0]);
+
+    // set the (modified) goal
+    return lattice->RobotPlanningSpace::setGoal(goal);
+}
+
+static
+bool SetGoalPoses(ManipLattice* lattice, const GoalConstraint& goal)
+{
+    // TODO: a visualization would be nice
+    return lattice->RobotPlanningSpace::setGoal(goal);
+}
+
+static
+bool SetGoalConfiguration(ManipLattice* lattice, const GoalConstraint& goal)
+{
+    if (goal.angles.size() != lattice->robot()->jointVariableCount() ||
+        goal.angle_tolerances.size() != lattice->robot()->jointVariableCount())
+    {
+        return false;
+    }
+
+    auto vis_name = "target_config";
+    SV_SHOW_INFO_NAMED(vis_name, lattice->getStateVisualization(goal.angles, vis_name));
+
+    SMPL_INFO_NAMED(G_LOG, "A new goal has been set");
+    SMPL_INFO_STREAM_NAMED(G_LOG, "  config: " << goal.angles);
+    SMPL_INFO_STREAM_NAMED(G_LOG, "  tolerance: " << goal.angle_tolerances);
+
+    // notify observers of updated goal
+    return lattice->RobotPlanningSpace::setGoal(goal);
+}
+
+static
+bool SetUserGoal(ManipLattice* lattice, const GoalConstraint& goal)
+{
+    return lattice->RobotPlanningSpace::setGoal(goal);
+}
+
 ManipLattice::~ManipLattice()
 {
-    for (size_t i = 0; i < m_states.size(); i++) {
+    for (auto i = 0; i < m_states.size(); ++i) {
         delete m_states[i];
-        m_states[i] = nullptr;
+        m_states[i] = NULL;
     }
-    m_states.clear();
-    m_state_to_id.clear();
 }
 
 bool ManipLattice::init(
     RobotModel* _robot,
     CollisionChecker* checker,
     const std::vector<double>& resolutions,
-    ActionSpace* actions)
+    ActionSpace* actions,
+    CostFunction* cost_fun)
 {
     SMPL_DEBUG_NAMED(G_LOG, "Initialize Manip Lattice");
 
-    if (!actions) {
+    if (_robot == NULL) {
+        SMPL_ERROR_NAMED(G_LOG, "Robot Model is null");
+        return false;
+    }
+
+    if (checker == NULL) {
+        SMPL_ERROR_NAMED(G_LOG, "Collision Checker is null");
+        return false;
+    }
+
+    if (actions == NULL) {
         SMPL_ERROR_NAMED(G_LOG, "Action Space is null");
+        return false;
+    }
+
+    if (cost_fun == NULL) {
+        SMPL_ERROR_NAMED(G_LOG, "Cost Function is null");
         return false;
     }
 
@@ -97,26 +182,26 @@ bool ManipLattice::init(
     m_max_limits.resize(_robot->jointVariableCount());
     m_continuous.resize(_robot->jointVariableCount());
     m_bounded.resize(_robot->jointVariableCount());
-    for (int jidx = 0; jidx < _robot->jointVariableCount(); ++jidx) {
+    for (auto jidx = 0; jidx < _robot->jointVariableCount(); ++jidx) {
         m_min_limits[jidx] = _robot->minPosLimit(jidx);
         m_max_limits[jidx] = _robot->maxPosLimit(jidx);
         m_continuous[jidx] = _robot->isContinuous(jidx);
         m_bounded[jidx] = _robot->hasPosLimit(jidx);
 
         SMPL_DEBUG_NAMED(G_LOG, "variable %d: { min: %f, max: %f, continuous: %s, bounded: %s }",
-            jidx,
-            m_min_limits[jidx],
-            m_max_limits[jidx],
-            m_continuous[jidx] ? "true" : "false",
-            m_bounded[jidx] ? "true" : "false");
+                jidx,
+                m_min_limits[jidx],
+                m_max_limits[jidx],
+                m_continuous[jidx] ? "true" : "false",
+                m_bounded[jidx] ? "true" : "false");
     }
 
     m_goal_state_id = reserveHashEntry();
     SMPL_DEBUG_NAMED(G_LOG, "  goal state has state ID %d", m_goal_state_id);
 
-    std::vector<int> discretization(_robot->jointVariableCount());
-    std::vector<double> deltas(_robot->jointVariableCount());
-    for (size_t vidx = 0; vidx < _robot->jointVariableCount(); ++vidx) {
+    auto discretization = std::vector<int>(_robot->jointVariableCount());
+    auto deltas = std::vector<double>(_robot->jointVariableCount());
+    for (auto vidx = 0; vidx < _robot->jointVariableCount(); ++vidx) {
         if (m_continuous[vidx]) {
             discretization[vidx] = (int)std::round((2.0 * M_PI) / resolutions[vidx]);
             deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
@@ -136,22 +221,23 @@ bool ManipLattice::init(
     m_coord_vals = std::move(discretization);
     m_coord_deltas = std::move(deltas);
 
-    m_actions = actions;
+    m_action_space = actions;
+    m_cost_fun = cost_fun;
 
     return true;
 }
 
 void ManipLattice::PrintState(int stateID, bool verbose, FILE* fout)
 {
-    assert(stateID >= 0 && stateID < (int)m_states.size());
+    assert(IsValidStateID(this, stateID));
 
-    if (!fout) {
+    if (fout == NULL) {
         fout = stdout;
     }
 
-    ManipLatticeState* entry = m_states[stateID];
+    auto* entry = m_states[stateID];
 
-    std::stringstream ss;
+    auto ss = std::stringstream();
 
     if (stateID == m_goal_state_id) {
         ss << "<goal state: { ";
@@ -199,89 +285,19 @@ void ManipLattice::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    assert(state_id >= 0 && state_id < m_states.size() && "state id out of bounds");
-    assert(succs && costs && "successor buffer is null");
-    assert(m_actions && "action space is uninitialized");
-
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "expanding state %d", state_id);
-
-    // goal state should be absorbing
-    if (state_id == m_goal_state_id) {
-        return;
-    }
-
-    ManipLatticeState* parent_entry = m_states[state_id];
-
-    assert(parent_entry);
-    assert(parent_entry->coord.size() >= robot()->jointVariableCount());
-
-    // log expanded state details
-    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << parent_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  angles: " << parent_entry->state);
-
-    auto* vis_name = "expansion";
-    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
-
-    int goal_succ_count = 0;
-
-    std::vector<Action> actions;
-    if (!m_actions->apply(parent_entry->state, actions)) {
-        SMPL_WARN("Failed to get actions");
-        return;
-    }
-
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
-
-    // check actions for validity
-    RobotCoord succ_coord(robot()->jointVariableCount(), 0);
-    for (size_t i = 0; i < actions.size(); ++i) {
-        auto& action = actions[i];
-
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
-
-        if (!checkAction(parent_entry->state, action)) {
-            continue;
+    auto before = succs->size();
+    GetUniqueSuccs(state_id, succs, costs);
+    auto after = succs->size();
+    auto goal_succ_count = 0;
+    for (auto i = before; i != after; ++i) {
+        auto orig_id = (*succs)[i];
+        if (isGoal(m_states[orig_id]->state)) {
+            SMPL_INFO("Found goal %d", orig_id);
+            (*succs)[i] = m_goal_state_id;
         }
-
-        // compute destination coords
-        stateToCoord(action.back(), succ_coord);
-
-        // get the successor
-
-        // check if hash entry already exists, if not then create one
-        int succ_state_id = getOrCreateState(succ_coord, action.back());
-        ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
-
-        // check if this state meets the goal criteria
-        auto is_goal_succ = isGoal(action.back());
-        if (is_goal_succ) {
-            // update goal state
-            ++goal_succ_count;
-        }
-
-        // put successor on successor list with the proper cost
-        if (is_goal_succ) {
-            succs->push_back(m_goal_state_id);
-        } else {
-            succs->push_back(succ_state_id);
-        }
-        costs->push_back(cost(parent_entry, succ_entry, is_goal_succ));
-
-        // log successor details
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      succ: %zu", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        id: %5i", succ_state_id);
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_coord);
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_entry->state);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        cost: %5d", cost(parent_entry, succ_entry, is_goal_succ));
     }
-
-    if (goal_succ_count > 0) {
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Got %d goal successors!", goal_succ_count);
-    }
+    SMPL_DEBUG_COND_NAMED(G_EXPANSIONS_LOG, goal_succ_count > 0, "Got %d goal successors!", goal_succ_count);
 }
-
-Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
 
 void ManipLattice::GetLazySuccs(
     int state_id,
@@ -289,156 +305,87 @@ void ManipLattice::GetLazySuccs(
     std::vector<int>* costs,
     std::vector<bool>* true_costs)
 {
-    GetLazySuccsStopwatch.start();
-    PROFAUTOSTOP(GetLazySuccsStopwatch);
-
-    assert(state_id >= 0 && state_id < m_states.size());
-
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "expand state %d", state_id);
-
-    // goal state should be absorbing
-    if (state_id == m_goal_state_id) {
-        return;
-    }
-
-    ManipLatticeState* state_entry = m_states[state_id];
-
-    assert(state_entry);
-    assert(state_entry->coord.size() >= robot()->jointVariableCount());
-
-    // log expanded state details
-    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  angles: " << state_entry->state);
-
-    auto& source_angles = state_entry->state;
-    auto* vis_name = "expansion";
-    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(source_angles, vis_name));
-
-    std::vector<Action> actions;
-    if (!m_actions->apply(source_angles, actions)) {
-        SMPL_WARN("Failed to get successors");
-        return;
-    }
-
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
-
-    int goal_succ_count = 0;
-    RobotCoord succ_coord(robot()->jointVariableCount());
-    for (size_t i = 0; i < actions.size(); ++i) {
-        auto& action = actions[i];
-
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
-
-        stateToCoord(action.back(), succ_coord);
-
-        auto succ_is_goal_state = isGoal(action.back());
-        if (succ_is_goal_state) {
-            ++goal_succ_count;
+    auto before = succs->size();
+    GetUniqueLazySuccs(state_id, succs, costs, true_costs);
+    auto after = succs->size();
+    auto goal_succ_count = 0;
+    for (auto i = before; i != after; ++i) {
+        if (isGoal(m_states[(*succs)[i]]->state)) {
+            (*succs)[i] = m_goal_state_id;
         }
-
-        int succ_state_id = getOrCreateState(succ_coord, action.back());
-        ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
-
-        if (succ_is_goal_state) {
-            succs->push_back(m_goal_state_id);
-        } else {
-            succs->push_back(succ_state_id);
-        }
-        costs->push_back(cost(state_entry, succ_entry, succ_is_goal_state));
-        true_costs->push_back(false);
-
-        // log successor details
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      succ: %zu", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        id: %5i", succ_state_id);
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_coord);
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_entry->state);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        cost: %5d", cost(state_entry, succ_entry, succ_is_goal_state));
     }
-
-    if (goal_succ_count > 0) {
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Got %d goal successors!", goal_succ_count);
-    }
+    SMPL_DEBUG_COND_NAMED(G_EXPANSIONS_LOG, goal_succ_count > 0, "Got %d goal successors!", goal_succ_count);
 }
 
-Stopwatch GetTrueCostStopwatch("GetTrueCost", 10);
-
-int ManipLattice::GetTrueCost(int parentID, int childID)
+int ManipLattice::GetTrueCost(int state_id, int succ_id)
 {
-    GetTrueCostStopwatch.start();
-    PROFAUTOSTOP(GetTrueCostStopwatch);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "evaluating cost of transition %d -> %d", state_id, succ_id);
 
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "evaluating cost of transition %d -> %d", parentID, childID);
+    assert(IsValidStateID(this, state_id));
+    assert(IsValidStateID(this, succ_id));
 
-    assert(parentID >= 0 && parentID < (int)m_states.size());
-    assert(childID >= 0 && childID < (int)m_states.size());
+    auto* state = getHashEntry(state_id);
+    auto* succ_state = getHashEntry(succ_id);
+    assert(state->coord.size() >= robot()->jointVariableCount());
+    assert(succ_state->coord.size() >= robot()->jointVariableCount());
 
-    ManipLatticeState* parent_entry = m_states[parentID];
-    ManipLatticeState* child_entry = m_states[childID];
-    assert(parent_entry && parent_entry->coord.size() >= robot()->jointVariableCount());
-    assert(child_entry && child_entry->coord.size() >= robot()->jointVariableCount());
-
-    auto& parent_angles = parent_entry->state;
     auto* vis_name = "expansion";
-    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_angles, vis_name));
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(state->state, vis_name));
 
-    std::vector<Action> actions;
-    if (!m_actions->apply(parent_angles, actions)) {
-        SMPL_WARN("Failed to get actions");
-        return -1;
-    }
+    auto actions = m_action_space->Apply(state_id, state);
 
-    auto goal_edge = (childID == m_goal_state_id);
+    auto goal_edge = (succ_id == m_goal_state_id);
 
-    size_t num_actions = 0;
+    // Find the transition to the successor state with the lowest cost
+    auto best_cost = std::numeric_limits<int>::max();
+    for (auto i = 0; i < (int)actions.size(); ++i) {
+        auto action_id = actions[i];
+        auto action = m_action_space->GetActionPath(state_id, state, action_id);
 
-    // check actions for validity and find the valid action with the least cost
-    RobotCoord succ_coord(robot()->jointVariableCount());
-    int best_cost = std::numeric_limits<int>::max();
-    for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
-        auto& action = actions[aidx];
-
-        stateToCoord(action.back(), succ_coord);
-
-        // check whether this action leads to the child state
-        if (goal_edge) {
-            // skip actions which don't end up at a goal state
-            if (!isGoal(action.back())) {
-                continue;
-            }
-        } else {
-            // skip actions which don't end up at the child state
-            if (succ_coord != child_entry->coord) {
-                continue;
-            }
-        }
-
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", num_actions++);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints %zu:", action.size());
-
-        if (!checkAction(parent_angles, action)) {
+        if (!isActionWithinBounds(state->state, action)) {
             continue;
         }
 
-        // get the unique state
-        int succ_state_id = goal_edge ? getHashEntry(succ_coord) : childID;
-        ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
-        assert(succ_entry);
+        // apply transition function
+        auto this_succ_id = ApplyTransition(this, action);
+        if (this_succ_id < 0) {
+            continue;
+        }
+        auto* this_succ_state = m_states[succ_id];
 
-        auto edge_cost = cost(parent_entry, succ_entry, goal_edge);
-        if (edge_cost < best_cost) {
-            best_cost = edge_cost;
+        // if the successor is a goal state, skip actions which don't transition
+        // to a goal state
+        if (goal_edge && !isGoal(this_succ_state->state)) {
+            continue;
+        }
+
+        // skip actions
+        if (this_succ_id != succ_id) {
+            continue;
+        }
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %d:", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints %zu:", action.size());
+
+        auto cost = m_lazy_cost_fun->GetTrueActionCost(
+                this,
+                state_id, state,
+                action_id, &action,
+                this_succ_id, succ_state);
+
+        if (cost < best_cost) {
+            best_cost = cost;
         }
     }
 
-    if (best_cost != std::numeric_limits<int>::max()) {
-        return best_cost;
-    } else {
+    if (best_cost == std::numeric_limits<int>::max()) {
         return -1;
     }
+
+    return best_cost;
 }
 
-const RobotState& ManipLattice::extractState(int state_id)
+auto ManipLattice::extractState(int state_id) -> const RobotState&
 {
     return m_states[state_id]->state;
 }
@@ -471,7 +418,7 @@ void ManipLattice::coordToState(
     assert((int)state.size() == robot()->jointVariableCount() &&
             (int)coord.size() == robot()->jointVariableCount());
 
-    for (size_t i = 0; i < coord.size(); ++i) {
+    for (auto i = 0; i < (int)coord.size(); ++i) {
         if (m_continuous[i]) {
             state[i] = coord[i] * m_coord_deltas[i];
         } else if (!m_bounded[i]) {
@@ -489,7 +436,7 @@ void ManipLattice::stateToCoord(
     assert((int)state.size() == robot()->jointVariableCount() &&
             (int)coord.size() == robot()->jointVariableCount());
 
-    for (size_t i = 0; i < state.size(); ++i) {
+    for (auto i = 0; i < (int)state.size(); ++i) {
         if (m_continuous[i]) {
             auto pos_angle = normalize_angle_positive(state[i]);
 
@@ -510,12 +457,10 @@ void ManipLattice::stateToCoord(
     }
 }
 
-ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
+auto ManipLattice::getHashEntry(int state_id) const -> ManipLatticeState*
 {
-    if (state_id < 0 || state_id >= (int)m_states.size()) {
-        return nullptr;
-    }
-
+    assert(IsValidStateID(this, state_id));
+    assert(m_states[state_id] != NULL);
     return m_states[state_id];
 }
 
@@ -523,7 +468,7 @@ ManipLatticeState* ManipLattice::getHashEntry(int state_id) const
 /// state has not yet been allocated.
 int ManipLattice::getHashEntry(const RobotCoord& coord)
 {
-    ManipLatticeState state;
+    auto state = ManipLatticeState();
     state.coord = coord;
     auto sit = m_state_to_id.find(&state);
     if (sit == m_state_to_id.end()) {
@@ -536,8 +481,8 @@ int ManipLattice::createHashEntry(
     const RobotCoord& coord,
     const RobotState& state)
 {
-    int state_id = reserveHashEntry();
-    ManipLatticeState* entry = getHashEntry(state_id);
+    auto state_id = reserveHashEntry();
+    auto* entry = getHashEntry(state_id);
 
     entry->coord = coord;
     entry->state = state;
@@ -561,7 +506,7 @@ int ManipLattice::getOrCreateState(
 
 int ManipLattice::reserveHashEntry()
 {
-    ManipLatticeState* entry = new ManipLatticeState;
+    auto* entry = new ManipLatticeState;
     int state_id = (int)m_states.size();
 
     // map state id -> state
@@ -586,75 +531,14 @@ auto ManipLattice::computePlanningFrameFK(const RobotState& state) const
     return m_fk_iface->computeFK(state);
 }
 
-int ManipLattice::cost(
-    ManipLatticeState* HashEntry1,
-    ManipLatticeState* HashEntry2,
-    bool bState2IsGoal) const
+bool ManipLattice::isActionWithinBounds(
+    const RobotState& state,
+    const Action& action)
 {
-    auto DefaultCostMultiplier = 1000;
-    return DefaultCostMultiplier;
-}
-
-bool ManipLattice::checkAction(const RobotState& state, const Action& action)
-{
-    std::uint32_t violation_mask = 0x00000000;
-
-    // check intermediate states for collisions
-    for (size_t iidx = 0; iidx < action.size(); ++iidx) {
-        const RobotState& istate = action[iidx];
-        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        " << iidx << ": " << istate);
-
-        // check joint limits
-        if (!robot()->checkJointLimits(istate)) {
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> violates joint limits");
-            violation_mask |= 0x00000001;
-            break;
+    for (auto& waypoint : action) {
+        if (!robot()->checkJointLimits(waypoint)) {
+            return false;
         }
-
-        // TODO/NOTE: this can result in an unnecessary number of collision
-        // checks per each action; leaving commented here as it might hint at
-        // an optimization where actions are checked at a coarse resolution as
-        // a way of speeding up overall collision checking; in that case, the
-        // isStateToStateValid function on CollisionChecker would have semantics
-        // meaning "collision check a waypoint path without including the
-        // endpoints".
-//        // check for collisions
-//        if (!collisionChecker()->isStateValid(istate))
-//        {
-//            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> in collision);
-//            violation_mask |= 0x00000002;
-//            break;
-//        }
-    }
-
-    if (violation_mask) {
-        return false;
-    }
-
-    // check for collisions along path from parent to first waypoint
-    if (!collisionChecker()->isStateToStateValid(state, action[0])) {
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> path to first waypoint in collision");
-        violation_mask |= 0x00000004;
-    }
-
-    if (violation_mask) {
-        return false;
-    }
-
-    // check for collisions between waypoints
-    for (size_t j = 1; j < action.size(); ++j) {
-        auto& prev_istate = action[j - 1];
-        auto& curr_istate = action[j];
-        if (!collisionChecker()->isStateToStateValid(prev_istate, curr_istate))
-        {
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> path between waypoints %zu and %zu in collision", j - 1, j);
-            violation_mask |= 0x00000008;
-            break;
-        }
-    }
-
-    if (violation_mask) {
-        return false;
     }
 
     return true;
@@ -669,7 +553,7 @@ bool WithinPositionTolerance(
     auto dx = std::fabs(A.translation()[0] - B.translation()[0]);
     auto dy = std::fabs(A.translation()[1] - B.translation()[1]);
     auto dz = std::fabs(A.translation()[2] - B.translation()[2]);
-    return dx <= tol[0] && dy <= tol[1] && dz <= tol[2];
+    return (dx <= tol[0]) & (dy <= tol[1]) & (dz <= tol[2]);
 }
 
 static
@@ -712,8 +596,12 @@ bool ManipLattice::isGoal(const RobotState& state)
     case GoalType::JOINT_STATE_GOAL:
     {
         for (int i = 0; i < goal().angles.size(); i++) {
-            if (fabs(state[i] - goal().angles[i]) > goal().angle_tolerances[i]) {
-                return false;
+            if (this->m_continuous[i]) {
+                auto dist = shortest_angle_dist(goal().angles[i], state[i]);
+                if (dist > goal().angle_tolerances[i]) return false;
+            } else {
+                auto dist = std::fabs(state[i] - goal().angles[i]);
+                if (dist > goal().angle_tolerances[i]) return false;
             }
         }
         return true;
@@ -809,7 +697,7 @@ bool ManipLattice::setStart(const RobotState& state)
 
     m_start_state_id = getOrCreateState(start_coord, state);
 
-    m_actions->updateStart(state);
+    m_action_space->updateStart(state);
 
     // notify observers of updated start state
     return RobotPlanningSpace::setStart(state);
@@ -822,23 +710,23 @@ bool ManipLattice::setGoal(const GoalConstraint& goal)
     switch (goal.type) {
     case GoalType::XYZ_GOAL:
     case GoalType::XYZ_RPY_GOAL:
-        success = setGoalPose(goal);
+        success = SetGoalPose(this, goal);
         break;
     case GoalType::MULTIPLE_POSE_GOAL:
-        success = setGoalPoses(goal);
+        success = SetGoalPoses(this, goal);
         break;
     case GoalType::JOINT_STATE_GOAL:
-        success = setGoalConfiguration(goal);
+        success = SetGoalConfiguration(this, goal);
         break;
     case GoalType::USER_GOAL_CONSTRAINT_FN:
-        success = setUserGoal(goal);
+        success = SetUserGoal(this, goal);
         break;
     default:
         return false;
     }
 
     if (success) {
-        m_actions->updateGoal(goal);
+        m_action_space->updateGoal(goal);
     }
 
     return success;
@@ -856,11 +744,18 @@ auto ManipLattice::visualizationFrameId() const -> const std::string&
 
 auto ManipLattice::getDiscreteCenter(const RobotState& state) const -> RobotState
 {
-    RobotCoord coord(robot()->jointVariableCount());
-    RobotState center(robot()->jointVariableCount());
+    auto coord = RobotCoord(robot()->jointVariableCount());
+    auto center = RobotState(robot()->jointVariableCount());
     stateToCoord(state, coord);
     coordToState(coord, center);
     return center;
+}
+
+auto ManipLattice::getDiscreteState(const RobotState& state) const -> RobotCoord
+{
+    auto coord = RobotCoord(robot()->jointVariableCount());
+    stateToCoord(state, coord);
+    return coord;
 }
 
 void ManipLattice::clearStates()
@@ -875,6 +770,183 @@ void ManipLattice::clearStates()
     m_goal_state_id = reserveHashEntry();
 }
 
+void ManipLattice::GetUniqueSuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    assert((state_id >= 0) & (state_id < m_states.size()));
+    assert((succs != NULL) & (costs != NULL));
+    assert(m_action_space != NULL);
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "expanding state %d", state_id);
+
+    auto* state = getHashEntry(state_id);
+
+    assert(state->coord.size() >= robot()->jointVariableCount());
+
+    // log expanded state details
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  angles: " << state->state);
+
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(state->state, vis_name));
+
+    auto actions = m_action_space->Apply(state_id, state);
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
+
+    for (auto i = 0; i < (int)actions.size(); ++i) {
+        auto action_id = actions[i];
+        auto action = m_action_space->GetActionPath(state_id, state, action_id);
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+
+        // check action for feasibility
+        if (!isActionWithinBounds(state->state, action)) {
+            continue;
+        }
+
+        // add the successor state to the graph
+        auto succ_state_id = ApplyTransition(this, action);
+        if (succ_state_id < 0) {
+            continue;
+        }
+
+        auto* succ_state = getHashEntry(succ_state_id);
+
+        // compute the cost of the action
+        auto cost = m_cost_fun->GetActionCost(
+                this,
+                state_id, state,
+                action_id, &action,
+                succ_state_id, succ_state);
+
+        if (cost < 1) continue;
+
+        succs->push_back(succ_state_id);
+        costs->push_back(cost);
+
+        // log successor details
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "      succ: %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        id: %5i", succ_state_id);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        cost: %5d", cost);
+    }
+}
+
+void ManipLattice::GetUniqueLazySuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs,
+    std::vector<bool>* true_costs)
+{
+    assert(IsValidStateID(this, state_id));
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "expand state %d", state_id);
+
+    auto* state = getHashEntry(state_id);
+
+    assert(state->coord.size() >= robot()->jointVariableCount());
+
+    // log expanded state details
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  angles: " << state->state);
+
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(state->state, vis_name));
+
+    auto actions = m_action_space->Apply(state_id, state);
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
+
+    for (auto i = 0; i < actions.size(); ++i) {
+        auto& action_id = actions[i];
+        auto action = m_action_space->GetActionPath(state_id, state, action_id);
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+
+        auto succ_state_id = ApplyTransition(this, action);
+        if (succ_state_id < 0) continue;
+        auto* succ_state = getHashEntry(succ_state_id);
+
+        succs->push_back(succ_state_id);
+        auto cost = m_lazy_cost_fun->GetLazyActionCost(
+                this,
+                state_id, state,
+                action_id, &action,
+                succ_state_id, succ_state);
+        if (cost.first < 1) continue;
+
+        costs->push_back(cost.first);
+        true_costs->push_back(cost.second);
+
+        // log successor details
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "      succ: %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        id: %5i", succ_state_id);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG,        "        cost: %5d", cost);
+    }
+}
+
+// Return the ID of the lowest-cost action that transitions from state_id to
+// succ_id, or -1 if no such action exists.
+auto ManipLattice::FindBestAction(int state_id, int succ_id) -> int
+{
+    assert(state_id != getGoalStateID());
+    auto is_goal_transition = (succ_id == getGoalStateID());
+
+    SMPL_DEBUG_COND_NAMED(G_LOG, is_goal_transition, "Search for transition to goal state");
+
+    auto* state = m_states[state_id];
+
+    auto actions = m_action_space->Apply(state_id, state);
+
+    // find the goal state corresponding to the cheapest valid action
+    auto best_cost = std::numeric_limits<int>::max();
+    auto best_action = -1;
+    for (auto action_id : actions) {
+        auto action = m_action_space->GetActionPath(state_id, state, action_id);
+
+        if (!isActionWithinBounds(state->state, action)) {
+            continue;
+        }
+
+        auto succ_state_id = ApplyTransition(this, action);
+        if (succ_state_id < 0) {
+            continue;
+        }
+        auto* succ_state = m_states[succ_state_id];
+
+        if (is_goal_transition) {
+            // skip non-goal states
+            if (!isGoal(succ_state->state)) continue;
+        } else {
+            if (succ_state_id != succ_id) continue;
+        }
+
+        auto cost = m_cost_fun->GetActionCost(
+                this,
+                state_id, state,
+                action_id, &action,
+                succ_state_id, succ_state);
+        if (cost < 1) {
+            continue;
+        }
+
+        if (cost < best_cost) {
+            best_cost = cost;
+            best_action = action_id;
+        }
+    }
+
+    return best_action;
+}
+
 bool ManipLattice::extractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
@@ -883,116 +955,45 @@ bool ManipLattice::extractPath(
         return true;
     }
 
-    std::vector<RobotState> opath;
+    assert(idpath.size() > 1);
+    assert(idpath[0] != getGoalStateID());
 
-    // attempt to handle paths of length 1...do any of the sbpl planners still
-    // return a single-point path in some cases?
-    if (idpath.size() == 1) {
-        auto state_id = idpath[0];
+    auto opath = std::vector<RobotState>();
 
-        if (state_id == getGoalStateID()) {
-            auto* entry = getHashEntry(getStartStateID());
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", getStartStateID());
-                return false;
-            }
-            opath.push_back(entry->state);
-        } else {
-            auto* entry = getHashEntry(state_id);
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", state_id);
-                return false;
-            }
-            opath.push_back(entry->state);
-        }
-
-        auto* vis_name = "goal_config";
-        SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(opath.back(), vis_name));
-        return true;
-    }
-
-    if (idpath[0] == getGoalStateID()) {
-        SMPL_ERROR_NAMED(G_LOG, "Cannot extract a non-trivial path starting from the goal state");
-        return false;
-    }
-
-    // grab the first point
     {
-        auto* entry = getHashEntry(idpath[0]);
-        if (!entry) {
+        // grab the first point
+        assert(IsValidStateID(this, idpath[0]));
+        auto* first_state = m_states[idpath[0]];
+        if (first_state == NULL) {
             SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", idpath[0]);
             return false;
         }
-        opath.push_back(entry->state);
+        opath.push_back(first_state->state);
     }
 
     // grab the rest of the points
-    for (size_t i = 1; i < idpath.size(); ++i) {
+    for (auto i = 1; i < idpath.size(); ++i) {
         auto prev_id = idpath[i - 1];
         auto curr_id = idpath[i];
+        assert(IsValidStateID(this, prev_id) & IsValidStateID(this, curr_id));
+
         SMPL_DEBUG_NAMED(G_LOG, "Extract motion from state %d to state %d", prev_id, curr_id);
 
-        if (prev_id == getGoalStateID()) {
-            SMPL_ERROR_NAMED(G_LOG, "Cannot determine goal state predecessor state during path extraction");
+        assert(prev_id != getGoalStateID());
+
+        auto* prev_state = m_states[prev_id];
+
+        auto best_action = FindBestAction(prev_id, curr_id);
+        if (best_action < 0) {
+            SMPL_ERROR_NAMED(G_LOG, "Failed to find action from state %d to state %d", prev_id, curr_id);
             return false;
         }
 
-        if (curr_id == getGoalStateID()) {
-            SMPL_DEBUG_NAMED(G_LOG, "Search for transition to goal state");
+        auto best_action_path = m_action_space->GetActionPath(
+                prev_id, prev_state, best_action);
 
-            ManipLatticeState* prev_entry = m_states[prev_id];
-            auto& prev_state = prev_entry->state;
-
-            std::vector<Action> actions;
-            if (!m_actions->apply(prev_state, actions)) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get actions while extracting the path");
-                return false;
-            }
-
-            // find the goal state corresponding to the cheapest valid action
-            ManipLatticeState* best_goal_state = nullptr;
-            RobotCoord succ_coord(robot()->jointVariableCount());
-            int best_cost = std::numeric_limits<int>::max();
-            for (size_t aidx = 0; aidx < actions.size(); ++aidx) {
-                auto& action = actions[aidx];
-
-                // skip non-goal states
-                if (!isGoal(action.back())) {
-                    continue;
-                }
-
-                // check the validity of this transition
-                if (!checkAction(prev_state, action)) {
-                    continue;
-                }
-
-                stateToCoord(action.back(), succ_coord);
-                int succ_state_id = getHashEntry(succ_coord);
-                ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
-                assert(succ_entry);
-
-                auto edge_cost = cost(prev_entry, succ_entry, true);
-                if (edge_cost < best_cost) {
-                    best_cost = edge_cost;
-                    best_goal_state = succ_entry;
-                }
-            }
-
-            if (!best_goal_state) {
-                SMPL_ERROR_STREAM_NAMED(G_LOG, "Failed to find valid goal successor from state " << prev_entry->state << " during path extraction");
-                return false;
-            }
-
-            opath.push_back(best_goal_state->state);
-        } else {
-            auto* entry = getHashEntry(curr_id);
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry state %d", curr_id);
-                return false;
-            }
-
-            SMPL_DEBUG_STREAM_NAMED(G_LOG, "Extract successor state " << entry->state);
-            opath.push_back(entry->state);
+        for (auto& wp : best_action_path) {
+            opath.push_back(wp);
         }
     }
 
@@ -1003,7 +1004,7 @@ bool ManipLattice::extractPath(
     return true;
 }
 
-Extension* ManipLattice::getExtension(size_t class_code)
+auto ManipLattice::getExtension(size_t class_code) -> Extension*
 {
     if (class_code == GetClassCode<RobotPlanningSpace>() ||
         class_code == GetClassCode<ExtractRobotStateExtension>())
@@ -1022,13 +1023,13 @@ Extension* ManipLattice::getExtension(size_t class_code)
     return nullptr;
 }
 
-/// \brief Return the ID of the goal state or -1 if no goal has been set.
+/// Return the ID of the goal state or -1 if no goal has been set.
 int ManipLattice::getGoalStateID() const
 {
     return m_goal_state_id;
 }
 
-/// \brief Return the ID of the start state or -1 if no start has been set.
+/// Return the ID of the start state or -1 if no start has been set.
 ///
 /// This returns the reserved id corresponding to all states which are goal
 /// states and not the state id of any particular unique state.
@@ -1037,69 +1038,14 @@ int ManipLattice::getStartStateID() const
     return m_start_state_id;
 }
 
-/// \brief Get the (heuristic) distance from the planning frame position to the
-///     start
-RobotState ManipLattice::getStartConfiguration() const
+/// Get the (heuristic) distance from the planning frame position to the start.
+auto ManipLattice::getStartConfiguration() const -> RobotState
 {
     if (m_start_state_id >= 0) {
         return getHashEntry(m_start_state_id)->state;
     } else {
         return RobotState();
     }
-}
-
-/// Set a 6-dof goal pose for the planning link
-bool ManipLattice::setGoalPose(const GoalConstraint& gc)
-{
-    auto* vis_name = "goal_pose";
-    SV_SHOW_INFO_NAMED(vis_name, visual::MakePoseMarkers(gc.pose, m_viz_frame_id, vis_name));
-
-    using namespace std::chrono;
-    auto now = clock::now();
-    auto now_s = duration_cast<duration<double>>(now.time_since_epoch());
-    SMPL_DEBUG_NAMED(G_LOG, "time: %f", now_s.count());
-    SMPL_DEBUG_NAMED(G_LOG, "A new goal has been set.");
-    SMPL_DEBUG_NAMED(G_LOG, "    xyz (meters): (%0.2f, %0.2f, %0.2f)", gc.pose.translation()[0], gc.pose.translation()[1], gc.pose.translation()[2]);
-    SMPL_DEBUG_NAMED(G_LOG, "    tol (meters): %0.3f", gc.xyz_tolerance[0]);
-    double yaw, pitch, roll;
-    get_euler_zyx(gc.pose.rotation(), yaw, pitch, roll);
-    SMPL_DEBUG_NAMED(G_LOG, "    rpy (radians): (%0.2f, %0.2f, %0.2f)", roll, pitch, yaw);
-    SMPL_DEBUG_NAMED(G_LOG, "    tol (radians): %0.3f", gc.rpy_tolerance[0]);
-
-
-    // set the (modified) goal
-    return RobotPlanningSpace::setGoal(gc);
-}
-
-bool ManipLattice::setGoalPoses(const GoalConstraint& gc)
-{
-    // TODO: a visualization would be nice
-    return RobotPlanningSpace::setGoal(gc);
-}
-
-/// \brief Set a full joint configuration goal.
-bool ManipLattice::setGoalConfiguration(const GoalConstraint& goal)
-{
-    if (goal.angles.size() != robot()->jointVariableCount() ||
-        goal.angle_tolerances.size() != robot()->jointVariableCount())
-    {
-        return false;
-    }
-
-    auto vis_name = "target_config";
-    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(goal.angles, vis_name));
-
-    SMPL_INFO_NAMED(G_LOG, "A new goal has been set");
-    SMPL_INFO_STREAM_NAMED(G_LOG, "  config: " << goal.angles);
-    SMPL_INFO_STREAM_NAMED(G_LOG, "  tolerance: " << goal.angle_tolerances);
-
-    // notify observers of updated goal
-    return RobotPlanningSpace::setGoal(goal);
-}
-
-bool ManipLattice::setUserGoal(const GoalConstraint& goal)
-{
-    return RobotPlanningSpace::setGoal(goal);
 }
 
 } // namespace smpl
