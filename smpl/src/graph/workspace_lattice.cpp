@@ -41,7 +41,7 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/marker_utils.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/graph/workspace_lattice_action_space.h>
 
 auto std::hash<smpl::WorkspaceLatticeState>::operator()(

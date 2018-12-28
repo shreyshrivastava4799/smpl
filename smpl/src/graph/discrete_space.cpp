@@ -29,64 +29,71 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_ROBOT_HEURISTIC_H
-#define SMPL_ROBOT_HEURISTIC_H
-
-// standard includes
-#include <stdint.h>
-#include <limits>
-
-// system includes
-#include <sbpl/heuristics/heuristic.h>
-
-// project includes
-#include <smpl/extension.h>
-#include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/discrete_space.h>
 
 namespace smpl {
 
-class RobotHeuristic : public Heuristic, public virtual Extension
+DiscreteSpace::~DiscreteSpace()
 {
-public:
+}
 
-    static const int Infinity = std::numeric_limits<int16_t>::max();
+bool DiscreteSpace::UpdateStart(int state_id)
+{
+    return true;
+}
 
-    RobotHeuristic() : Heuristic(nullptr) { }
+bool DiscreteSpace::UpdateGoal(GoalConstraint* goal)
+{
+    return true;
+}
 
-    virtual ~RobotHeuristic();
+auto DiscreteSpace::GetRobotModel() -> RobotModel*
+{
+    return m_robot;
+}
 
-    bool init(RobotPlanningSpace* space);
+auto DiscreteSpace::GetRobotModel() const -> const RobotModel*
+{
+    return m_robot;
+}
 
-    auto planningSpace() -> RobotPlanningSpace* { return m_space; }
-    auto planningSpace() const -> const RobotPlanningSpace* { return m_space; }
+auto DiscreteSpace::GetCollisionChecker() -> CollisionChecker*
+{
+    return m_checker;
+}
 
-    /// \brief Return the heuristic distance of the planning link to the start.
-    ///
-    /// This distance is used by the manipulation lattice to determine whether
-    /// to activate context-aware actions.
-    virtual double getMetricStartDistance(double x, double y, double z) = 0;
+auto DiscreteSpace::GetCollisionChecker() const -> const CollisionChecker*
+{
+    return m_checker;
+}
 
-    /// \brief Return the heuristic distance of the planning link to the goal.
-    ///
-    /// This distance is used by the manipulation lattice to determine whether
-    /// to activate context-aware actions.
-    virtual double getMetricGoalDistance(double x, double y, double z) = 0;
+bool DiscreteSpace::Init(RobotModel* robot, CollisionChecker* checker)
+{
+    if (robot == NULL || checker == NULL) {
+        return false;
+    }
 
-    virtual void updateStart(const RobotState& state) { }
-    virtual void updateGoal(const GoalConstraint& goal) { }
+    m_robot = robot;
+    m_checker = checker;
+    return true;
+}
 
-    /// \name Restate Required Public Functions from Heuristic
-    ///@{
-    virtual int GetGoalHeuristic(int state_id) = 0;
-    virtual int GetStartHeuristic(int state_id) = 0;
-    virtual int GetFromToHeuristic(int from_id, int to_id) = 0;
-    ///@}
+RobotPlanningSpace::~RobotPlanningSpace() { }
 
-private:
+IProjectToPoint::~IProjectToPoint() { }
 
-    RobotPlanningSpace* m_space = nullptr;
-};
+IProjectToPose::~IProjectToPose() { }
+
+auto IProjectToPose::ProjectToPoint(int state_id) -> Vector3
+{
+    auto pose = ProjectToPose(state_id);
+    return Vector3(pose.translation());
+}
+
+IExtractRobotState::~IExtractRobotState() { }
+
+ISearchable::~ISearchable() { }
+
+ILazySearchable::~ILazySearchable() { }
 
 } // namespace smpl
-
-#endif

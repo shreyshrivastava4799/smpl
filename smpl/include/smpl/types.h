@@ -42,6 +42,9 @@
 
 namespace smpl {
 
+using RobotState = std::vector<double>;
+using Action = std::vector<RobotState>;
+
 template <
     class Key,
     class T,
@@ -82,89 +85,8 @@ struct VectorHash
     }
 };
 
-#if 1
-using RobotState = std::vector<double>;
-#else
-// This class is eventually meant to replace the above typedef to add type
-// safety to RobotState usages; currently, it is used as a compile-time
-// mechanism to ensure for the time being that the RobotState identifier is used
-// in all appropriate contexts.
-class RobotState : public std::vector<double>
-{
-public:
-
-    typedef std::vector<double> Base;
-    typedef Base::value_type value_type;
-    typedef Base::allocator_type allocator_type;
-    typedef Base::size_type size_type;
-    typedef Base::difference_type difference_type;
-    typedef Base::reference reference;
-    typedef Base::const_reference const_reference;
-    typedef Base::pointer pointer;
-    typedef Base::const_pointer const_pointer;
-    typedef Base::iterator iterator;
-    typedef Base::const_iterator const_iterator;
-    typedef Base::reverse_iterator reverse_iterator;
-    typedef Base::const_reverse_iterator const_reverse_iterator;
-
-    explicit RobotState(const allocator_type& alloc = allocator_type()) :
-        Base(alloc) { }
-
-    RobotState(
-        size_type count,
-        const double& value = double(),
-        const allocator_type& alloc = allocator_type())
-    :
-        Base(count, value, alloc)
-    { }
-
-    explicit RobotState(size_type count) : Base(count) { }
-
-    template <class InputIt>
-    RobotState(
-        InputIt first,
-        InputIt last,
-        const allocator_type& alloc = allocator_type())
-    :
-        Base(first, last, alloc)
-    { }
-
-    RobotState(const RobotState& other) : Base(other) { }
-    RobotState(const Base& other) : Base(other) { }
-
-    RobotState(const RobotState& other, const allocator_type& alloc) :
-        Base(other, alloc)
-    { }
-    RobotState(const Base& other, const allocator_type& alloc) :
-        Base(other, alloc)
-    { }
-
-    RobotState(RobotState&& other) : Base(other) { }
-    RobotState(Base&& other) : Base(other) { }
-
-    RobotState(RobotState&& other, const allocator_type& alloc) :
-        Base(other, alloc)
-    { }
-    RobotState(Base&& other, const allocator_type& alloc) :
-        Base(other, alloc)
-    { }
-
-    RobotState(
-            std::initializer_list<double> init,
-            const allocator_type& alloc = allocator_type())
-    :
-        Base(init, alloc)
-    { }
-
-    RobotState& operator=(const RobotState& other) { Base::operator=(other); return *this; }
-    RobotState& operator=(const Base& other) { Base::operator=(other); return *this; }
-    RobotState& operator=(RobotState&& other) { Base::operator=(other); return *this; }
-    RobotState& operator=(Base&& other) { Base::operator=(other); return *this; }
-    RobotState& operator=(std::initializer_list<double> ilist) { Base::operator=(ilist); return *this; }
-};
-#endif
-
-using Action = std::vector<RobotState>;
+constexpr auto FIXED_POINT_RATIO = 1000.0;
+constexpr int ToFixedPoint(double value) { return (int)(FIXED_POINT_RATIO * value); }
 
 } // namespace smpl
 

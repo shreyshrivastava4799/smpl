@@ -29,25 +29,85 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/heuristic/robot_heuristic.h>
+#ifndef SMPL_ROBOT_HEURISTIC_H
+#define SMPL_ROBOT_HEURISTIC_H
 
-#include <smpl/console/console.h>
+// project includes
+#include <smpl/extension.h>
+#include <smpl/types.h>
 
 namespace smpl {
 
-bool RobotHeuristic::init(RobotPlanningSpace* space)
-{
-    if (!space) {
-        SMPL_ERROR("Robot Planning Space is null");
-        return false;
-    }
+class GoalConstraint;
+class DiscreteSpace;
 
-    m_space = space;
-    return true;
-}
-
-RobotHeuristic::~RobotHeuristic()
+class Heuristic : public virtual Extension
 {
-}
+public:
+
+    virtual ~Heuristic();
+
+    bool Init(DiscreteSpace* space);
+
+    auto GetPlanningSpace() -> DiscreteSpace*;
+    auto GetPlanningSpace() const -> const DiscreteSpace*;
+
+    virtual bool UpdateStart(int state_id);
+    virtual bool UpdateGoal(GoalConstraint* goal);
+
+    DiscreteSpace* m_space = NULL;
+};
+
+class IGoalHeuristic : public virtual Extension
+{
+public:
+
+    virtual ~IGoalHeuristic();
+    virtual int GetGoalHeuristic(int state_id) = 0;
+};
+
+class IStartHeuristic : public virtual Extension
+{
+public:
+
+    virtual ~IStartHeuristic();
+    virtual int GetStartHeuristic(int state_id) = 0;
+};
+
+class IPairwiseHeuristic : public virtual Extension
+{
+public:
+
+    virtual ~IPairwiseHeuristic();
+    virtual int GetPairwiseHeuristic(int a_id, int b_id) = 0;
+};
+
+class IMetricGoalHeuristic : public virtual Extension
+{
+public:
+
+    virtual ~IMetricGoalHeuristic();
+
+    /// \brief Return the heuristic distance of the planning link to the start.
+    ///
+    /// This distance is used by the manipulation lattice to determine whether
+    /// to activate context-aware actions.
+    virtual auto GetMetricGoalDistance(double x, double y, double z) -> double = 0;
+};
+
+class IMetricStartHeuristic : public virtual Extension
+{
+public:
+
+    virtual ~IMetricStartHeuristic();
+
+    /// \brief Return the heuristic distance of the planning link to the goal.
+    ///
+    /// This distance is used by the manipulation lattice to determine whether
+    /// to activate context-aware actions.
+    virtual auto GetMetricStartDistance(double x, double y, double z) -> double = 0;
+};
 
 } // namespace smpl
+
+#endif

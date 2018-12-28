@@ -34,30 +34,18 @@
 #define SMPL_MANIP_LATTICE_H
 
 // standard includes
-#include <time.h>
-#include <memory>
+#include <stddef.h>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 // system includes
-#include <boost/functional/hash.hpp>
 
 // project includes
-#include <smpl/angles.h>
-#include <smpl/time.h>
-#include <smpl/collision_checker.h>
-#include <smpl/occupancy_grid.h>
-#include <smpl/planning_params.h>
-#include <smpl/robot_model.h>
 #include <smpl/types.h>
-#include <smpl/graph/robot_planning_space.h>
-#include <smpl/graph/action_space.h>
-#include <smpl/graph/cost_function.h>
+#include <smpl/graph/discrete_space.h>
+#include <smpl/debug/marker.h>
 
 namespace smpl {
-
-class RobotHeuristic;
 
 using RobotCoord = std::vector<int>;
 
@@ -67,11 +55,7 @@ struct ManipLatticeState
     RobotState state;   // corresponding continuous coordinate
 };
 
-inline
-bool operator==(const ManipLatticeState& a, const ManipLatticeState& b)
-{
-    return a.coord == b.coord;
-}
+bool operator==(const ManipLatticeState& a, const ManipLatticeState& b);
 
 } // namespace smpl
 
@@ -89,126 +73,107 @@ struct hash<smpl::ManipLatticeState>
 
 namespace smpl {
 
+class ActionSpace;
+class CostFunction;
+class CollisionChecker;
+class RobotModel;
+class LazyCostFunction;
+class IForwardKinematics;
+
 /// \class Discrete space constructed by expliciting discretizing each joint
 class ManipLattice :
+    public DiscreteSpace,
     public RobotPlanningSpace,
-    public PoseProjectionExtension,
-    public ExtractRobotStateExtension
+    public IExtractRobotState,
+    public ISearchable,
+    private ILazySearchable,
+    private IProjectToPose
 {
 public:
 
     ~ManipLattice();
 
-    bool init(
+    bool Init(
         RobotModel* robot,
         CollisionChecker* checker,
         const std::vector<double>& resolutions,
         ActionSpace* actions,
         CostFunction* cost_fun);
 
-    auto resolutions() const -> const std::vector<double>& { return m_coord_deltas; }
-    auto actionSpace() -> ActionSpace* { return m_action_space; }
-    auto actionSpace() const -> const ActionSpace* { return m_action_space; }
+    bool Init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const std::vector<double>& resolutions,
+        ActionSpace* actions,
+        CostFunction* cost_fun,
+        LazyCostFunction* lazy_cost_fun);
 
-    auto getStartConfiguration() const -> RobotState;
+    auto GetResolutions() const -> const std::vector<double>&;
 
-    void setVisualizationFrameId(const std::string& frame_id);
-    auto visualizationFrameId() const -> const std::string&;
+    auto GetActionSpace() -> ActionSpace*;
+    auto GetActionSpace() const -> const ActionSpace*;
 
-    auto getDiscreteCenter(const RobotState& state) const -> RobotState;
-    auto getDiscreteState(const RobotState& state) const -> RobotCoord;
+    auto GetCostFunction() -> CostFunction*;
+    auto GetCostFunction() const -> const CostFunction*;
 
-    void clearStates();
+    auto GetVisualizationFrameId() const -> const std::string&;
+    void SetVisualizationFrameId(const std::string& frame_id);
 
-    void GetUniqueSuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs);
+    auto GetDiscreteCenter(const RobotState& state) const -> RobotState;
+    auto GetDiscreteState(const RobotState& state) const -> RobotCoord;
 
-    void GetUniqueLazySuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs,
-        std::vector<bool>* true_costs);
+    void CoordToState(const RobotCoord& coord, RobotState& state) const;
+    void StateToCoord(const RobotState& state, RobotCoord& coord) const;
+
+    int ReserveHashEntry();
+    int GetOrCreateState(const RobotCoord& coord, const RobotState& state);
+    int GetHashEntry(const RobotCoord& coord);
+    int CreateHashEntry(const RobotCoord& coord, const RobotState& state);
+    auto GetHashEntry(int state_id) const -> ManipLatticeState*;
+
+    void ClearStates();
+
+    bool IsActionWithinBounds(const RobotState& state, const Action& action);
 
     int FindBestAction(int state_id, int succ_id);
 
-    /// \name Reimplemented Public Functions from RobotPlanningSpace
+    auto GetStateVisualization(const RobotState& vars, const std::string& ns)
+        -> std::vector<visual::Marker>;
+
+    void PrintState(int state_id, bool verbose, FILE* fout = NULL);
+
+    /// \name IExtractRobotState Interface
     ///@{
-    void GetLazySuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs,
-        std::vector<bool>* true_costs) override;
-    int GetTrueCost(int parent_id, int child_id) override;
+    auto ExtractState(int state_id) -> const RobotState& final;
     ///@}
 
-    /// \name ExtractRobotStateExtension Interface
+    /// \name ISearchable Interface
     ///@{
-    auto extractState(int state_id) -> const RobotState& override;
-    ///@}
-
-    /// \name PoseProjectionExtension Interface
-    ///@{
-    bool projectToPose(int state_id, Affine3& pos) override;
+    void GetSuccs(int state_id, std::vector<int>* succs, std::vector<int>* costs) final;
     ///@}
 
     /// \name RobotPlanningSpace Interface
     ///@{
-    bool setStart(const RobotState& state) override;
-    bool setGoal(const GoalConstraint& goal) override;
-    int getStartStateID() const override;
-    int getGoalStateID() const override;
-    bool extractPath(
-        const std::vector<int>& ids,
-        std::vector<RobotState>& path) override;
+    int GetStateID(const RobotState& state) final;
+    bool ExtractPath(const std::vector<int>& ids, std::vector<RobotState>& path) final;
+    ///@}
+
+    /// \name DiscreteSpace Interface
+    ///@{
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
     ///@}
 
     /// \name Extension Interface
     ///@{
-    auto getExtension(size_t class_code) ->Extension* override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
-
-    /// \name DiscreteSpaceInformation Interface
-    ///@{
-    void GetSuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs) override;
-    void PrintState(int state_id, bool verbose, FILE* fout = nullptr) override;
-    void GetPreds(
-        int state_id,
-        std::vector<int>* preds,
-        std::vector<int>* costs) override;
-    ///@}
-
-    /// \name discretization methods
-    ///@{
-    void coordToState(const RobotCoord& coord, RobotState& state) const;
-    void stateToCoord(const RobotState& state, RobotCoord& coord) const;
-    ///@}
-
-    auto getHashEntry(int state_id) const -> ManipLatticeState*;
-
-    int getHashEntry(const RobotCoord& coord);
-    int createHashEntry(const RobotCoord& coord, const RobotState& state);
-    int getOrCreateState(const RobotCoord& coord, const RobotState& state);
-    int reserveHashEntry();
-
-    auto computePlanningFrameFK(const RobotState& state) const -> Affine3;
-
-    bool isActionWithinBounds(const RobotState& state, const Action& action);
-
-    bool isGoal(const RobotState& state);
-
-    auto getStateVisualization(const RobotState& vars, const std::string& ns)
-        -> std::vector<visual::Marker>;
 
     ActionSpace* m_action_space = NULL;
     CostFunction* m_cost_fun = NULL;
     LazyCostFunction* m_lazy_cost_fun = NULL;
 
-    ForwardKinematicsInterface* m_fk_iface = NULL;
+    IForwardKinematics* m_fk_iface = NULL;
 
     // cached from robot model
     std::vector<double> m_min_limits;
@@ -219,19 +184,32 @@ public:
     std::vector<int>    m_coord_vals;
     std::vector<double> m_coord_deltas;
 
-    int m_goal_state_id = -1;
-    int m_start_state_id = -1;
-
     // maps from coords to stateID
     using StateKey = ManipLatticeState;
     using StateHash = PointerValueHash<StateKey>;
     using StateEqual = PointerValueEqual<StateKey>;
-    hash_map<StateKey*, int, StateHash, StateEqual> m_state_to_id;
+    using StateToIDTable = hash_map<StateKey*, int, StateHash, StateEqual>;
+
+    StateToIDTable m_state_to_id;
 
     // maps from stateID to coords
     std::vector<ManipLatticeState*> m_states;
 
     std::string m_viz_frame_id;
+
+private:
+
+    /// \name ILazySearchable Interface
+    ///@{
+    void GetLazySuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs,
+        std::vector<bool>* true_costs) final;
+    int GetTrueCost(int state_id, int succ_state_id) final;
+    ///@}
+
+    auto ProjectToPose(int state_id) -> Affine3 final;
 };
 
 } // namespace smpl

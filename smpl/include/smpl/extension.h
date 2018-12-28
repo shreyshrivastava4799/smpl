@@ -49,13 +49,31 @@ public:
     virtual ~Extension() { }
 
     template <typename T>
-    T* getExtension()
+    T* GetExtension()
     {
-        Extension* e = getExtension(GetClassCode<T>());
+        auto* e = GetExtension(GetClassCode<T>());
         return dynamic_cast<T*>(e);
     }
 
-    virtual Extension* getExtension(size_t class_code) = 0;
+    virtual Extension* GetExtension(size_t class_code) = 0;
+};
+
+template <class ExtensionType, class ParentType = Extension>
+struct ChildInterface : public ExtensionType
+{
+    // TODO: static assert ParentType is an Extension
+
+    ParentType* parent;
+
+    ChildInterface(ParentType* parent) : parent(parent) { }
+
+    auto GetExtension(size_t class_code) -> Extension* final
+    {
+        if (class_code == GetClassCode<ExtensionType>()) {
+            return this;
+        }
+        return parent->GetExtension(class_code);
+    }
 };
 
 } // namespace smpl

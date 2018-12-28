@@ -33,7 +33,7 @@
 #include <vector>
 
 #include <smpl/heap/intrusive_heap.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/search/lazy_search_interface.h>
 
 namespace smpl {

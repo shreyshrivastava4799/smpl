@@ -38,47 +38,55 @@
 
 namespace smpl {
 
-class ManipLatticeEgraph : public ManipLattice, public ExperienceGraphExtension
+class ManipLatticeEgraph :
+    public RobotPlanningSpace,
+    public PoseProjectionExtension,
+    public ExtractRobotStateExtension,
+    public ExperienceGraphExtension
 {
 public:
 
-    /// \name Reimplemented Public Functions from ManipLattice
+    /// \name RobotPlanningSpace Interface
     ///@{
-    bool extractPath(
-        const std::vector<int>& ids,
-        std::vector<RobotState>& path) override;
+    int getStartStateID() const final;
+    int getGoalStateID() const final;
+    bool extractPath(const std::vector<int>& ids, std::vector<RobotState>& path) final;
+    void GetSuccs(int state_id, std::vector<int>* succs, std::vector<int>* costs) final;
+    void GetPreds(int state_id, std::vector<int>* preds, std::vector<int>* costs) final;
+    void PrintState(int state_id, bool verbose, FILE* f = NULL) final;
     ///@}
 
-    /// \name Required Public Functions from ExperienceGraphExtension
+    /// \name PoseProjectionExtension Interface
     ///@{
-    bool loadExperienceGraph(const std::string& path) override;
+    bool projectToPose(int state_id, Affine3& pose) final;
+    ///@}
+
+    /// \name ExtractRobotStateExtension Interface
+    ///@{
+    auto extractState(int state_id) -> const RobotState& final;
+    ///@}
+
+    /// \name ExperienceGraphExtension Interface
+    ///@{
+    bool loadExperienceGraph(const std::string& path) final;
 
     void getExperienceGraphNodes(
         int state_id,
-        std::vector<ExperienceGraph::node_id>& nodes) override;
+        std::vector<ExperienceGraph::node_id>& nodes) final;
 
-    bool shortcut(
-        int first_id,
-        int second_id,
-        int& cost) override;
+    bool shortcut(int first_id, int second_id, int& cost) final;
+    bool snap(int first_id, int second_id, int& cost) final;
 
-    bool snap(
-        int first_id,
-        int second_id,
-        int& cost) override;
+    auto getExperienceGraph() const -> const ExperienceGraph* final;
+    auto getExperienceGraph() -> ExperienceGraph* final;
 
-    const ExperienceGraph* getExperienceGraph() const override;
-    ExperienceGraph* getExperienceGraph() override;
-
-    int getStateID(ExperienceGraph::node_id n) const override;
+    int getStateID(ExperienceGraph::node_id n) const final;
     ///@}
 
-    /// \name Reimplemented Public Functions from Extension
+    /// \name Extension Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    auto getExtension(size_t class_code) -> Extension* override;
     ///@}
-
-private:
 
     struct RobotCoordHash
     {
@@ -87,6 +95,8 @@ private:
 
         result_type operator()(const argument_type& s) const;
     };
+
+    ManipLattice lattice;
 
     typedef hash_map<
             RobotCoord,
@@ -101,17 +111,6 @@ private:
 
     // map from experience graph node ids to state ids
     std::vector<int> m_egraph_state_ids;
-
-    bool findShortestExperienceGraphPath(
-        ExperienceGraph::node_id u,
-        ExperienceGraph::node_id s,
-        std::vector<ExperienceGraph::node_id>& path);
-
-    bool parseExperienceGraphFile(
-        const std::string& filepath,
-        std::vector<RobotState>& egraph_states) const;
-
-    void rasterizeExperienceGraph();
 };
 
 } // namespace smpl

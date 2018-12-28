@@ -40,7 +40,7 @@
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
 #include <smpl/graph/manip_lattice.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 
 namespace smpl {
 

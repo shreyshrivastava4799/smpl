@@ -35,7 +35,7 @@
 // project includes
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/heap/intrusive_heap.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 
 namespace smpl {

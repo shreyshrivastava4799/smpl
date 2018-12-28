@@ -29,11 +29,11 @@
 
 /// \author Andrew Dornbush
 
-// project includes
-#include <smpl/heuristic/robot_heuristic.h>
-
 #ifndef SMPL_ATTRACTOR_HEURISTIC_H
 #define SMPL_ATTRACTOR_HEURISTIC_H
+
+// project includes
+#include <smpl/heuristic/heuristic.h>
 
 namespace smpl {
 

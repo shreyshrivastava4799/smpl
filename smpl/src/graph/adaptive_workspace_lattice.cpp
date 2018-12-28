@@ -40,7 +40,7 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/debug/marker_utils.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 
 constexpr auto PlanAdaptiveGridVisName = "adaptive_grid_plan";
 constexpr auto TrackAdaptiveGridVisName = "adaptive_grid_track";

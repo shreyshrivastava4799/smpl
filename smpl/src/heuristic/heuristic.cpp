@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2017, Andrew Dornbush
+// Copyright (c) 2016, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,39 +29,52 @@
 
 /// \author Andrew Dornbush
 
-#ifndef SMPL_ZERO_HEURISTIC_H
-#define SMPL_ZERO_HEURISTIC_H
-
-// project includes
 #include <smpl/heuristic/heuristic.h>
 
 namespace smpl {
 
-class ZeroHeuristic : public RobotHeuristic
+Heuristic::~Heuristic()
 {
-public:
+}
 
-    bool init(RobotPlanningSpace* space);
+bool Heuristic::Init(DiscreteSpace* space)
+{
+    if (space == NULL) {
+        return false;
+    }
 
-    /// \name Required Functions from RobotHeuristic
-    ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
-    ///@}
+    m_space = space;
+    return true;
+}
 
-    /// \name Required Functions from Extension
-    ///@{
-    Extension* getExtension(size_t class_code) override;
-    ///@}
+auto Heuristic::GetPlanningSpace() -> DiscreteSpace*
+{
+    return m_space;
+}
 
-    /// \name Required Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
-    ///@}
-};
+auto Heuristic::GetPlanningSpace() const -> const DiscreteSpace*
+{
+    return m_space;
+}
+
+bool Heuristic::UpdateStart(int state_id)
+{
+    return true;
+}
+
+bool Heuristic::UpdateGoal(GoalConstraint* goal)
+{
+    return true;
+}
+
+IGoalHeuristic::~IGoalHeuristic() { }
+
+IStartHeuristic::~IStartHeuristic() { }
+
+IPairwiseHeuristic::~IPairwiseHeuristic() { }
+
+IMetricGoalHeuristic::~IMetricGoalHeuristic() { }
+
+IMetricStartHeuristic::~IMetricStartHeuristic() { }
 
 } // namespace smpl
-
-#endif

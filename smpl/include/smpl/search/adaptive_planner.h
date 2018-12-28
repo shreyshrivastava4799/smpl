@@ -41,7 +41,7 @@
 // project includes
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/robot_planning_space.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/search/arastar.h>
 
 namespace smpl {

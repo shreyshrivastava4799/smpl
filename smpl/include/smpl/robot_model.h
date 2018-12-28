@@ -87,11 +87,11 @@ protected:
 };
 
 /// \brief RobotModel extension for providing forward kinematics
-class ForwardKinematicsInterface : public virtual RobotModel
+class IForwardKinematics : public virtual RobotModel
 {
 public:
 
-    virtual ~ForwardKinematicsInterface();
+    virtual ~IForwardKinematics();
 
     /// \brief Compute forward kinematics of the planning link.
     ///
@@ -117,11 +117,11 @@ auto to_cstring(IkOption option) -> const char*;
 } // namespace ik_option
 
 /// \brief RobotModel extension for providing inverse kinematics
-class InverseKinematicsInterface : public virtual RobotModel
+class IInverseKinematics : public virtual RobotModel
 {
 public:
 
-    virtual ~InverseKinematicsInterface();
+    virtual ~IInverseKinematics();
 
     /// \brief Compute an inverse kinematics solution.
     virtual bool computeIK(
@@ -138,7 +138,7 @@ public:
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 };
 
-class RedundantManipulatorInterface : public virtual RobotModel
+class IRedundantManipulator : public virtual RobotModel
 {
 public:
 

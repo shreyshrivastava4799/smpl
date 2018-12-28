@@ -39,7 +39,7 @@ namespace smpl {
 
 namespace ik_option {
 
-std::ostream& operator<<(std::ostream& o, IkOption option)
+auto operator<<(std::ostream& o, IkOption option) -> std::ostream&
 {
     o << to_cstring(option);
     return o;
@@ -71,16 +71,16 @@ void RobotModel::setPlanningJoints(const std::vector<std::string>& joints)
     planning_joints_ = joints;
 }
 
-const std::vector<std::string>& RobotModel::getPlanningJoints() const
+auto RobotModel::getPlanningJoints() const -> const std::vector<std::string>&
 {
     return planning_joints_;
 }
 
-ForwardKinematicsInterface::~ForwardKinematicsInterface()
+IForwardKinematics::~IForwardKinematics()
 {
 }
 
-InverseKinematicsInterface::~InverseKinematicsInterface()
+IInverseKinematics::~IInverseKinematics()
 {
 }
 

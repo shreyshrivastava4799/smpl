@@ -33,62 +33,90 @@
 #define SMPL_EUCLID_DIST_HEURISTIC_H
 
 // project includes
-#include <smpl/heuristic/robot_heuristic.h>
-#include <smpl/spatial.h>
+#include <smpl/heuristic/heuristic.h>
 
 namespace smpl {
 
-class EuclidDistHeuristic : public RobotHeuristic
+class IGetPose;
+class IGetPosition;
+class IProjectToPoint;
+class IProjectToPose;
+
+class EuclidDistHeuristic :
+    public Heuristic,
+    public IGoalHeuristic,
+    public IPairwiseHeuristic,
+    public IMetricGoalHeuristic
 {
 public:
 
-    bool init(RobotPlanningSpace* space);
+    bool Init(DiscreteSpace* space);
 
-    void setWeightX(double wx);
-    void setWeightY(double wy);
-    void setWeightZ(double wz);
-    void setWeightRot(double wr);
+    void SetWeightX(double wx);
+    void SetWeightY(double wy);
+    void SetWeightZ(double wz);
+    void SetWeightRot(double wr);
 
-    /// \name Required Public Functions from RobotHeuristic
+    /// \name IMetricGoalHeuristic Interface
     ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
+    auto GetMetricGoalDistance(double x, double y, double z) -> double final;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name IGoalHeuristic Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    int GetGoalHeuristic(int state_id) final;
     ///@}
 
-    /// \name Required Public Functions from Heuristic
+    /// \name IPairwiseHeuristic Interface
     ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    int GetPairwiseHeuristic(int from_id, int to_id) final;
+    ///@}
+
+    /// \name Heuristic
+    ///@{
+    bool UpdateGoal(GoalConstraint* goal) final;
+    ///@}
+
+    /// \name Extension Interface
+    ///@{
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
 private:
 
-    static constexpr double FIXED_POINT_RATIO = 1000.0;
+    IProjectToPose* m_pose_ext = NULL;
+    IGetPose* m_goal_pose = NULL;
 
-    PoseProjectionExtension* m_pose_ext = nullptr;
-    PointProjectionExtension* m_point_ext = nullptr;
+    double m_weights[6] = { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+};
 
-    double m_x_coeff = 1.0;
-    double m_y_coeff = 1.0;
-    double m_z_coeff = 1.0;
-    double m_rot_coeff = 1.0;
+class EuclidDist3DHeuristic :
+    public Heuristic,
+    public IGoalHeuristic,
+    public IPairwiseHeuristic
+{
+public:
 
-    Affine3 createPose(const std::vector<double>& pose) const;
-    Vector3 createPoint(const std::vector<double>& point) const;
+    bool Init(DiscreteSpace* space);
 
-    Affine3 createPose(
-        double x, double y, double z,
-        double Y, double P, double R) const;
+    void SetWeightX(double wx);
+    void SetWeightY(double wy);
+    void SetWeightZ(double wz);
 
-    double computeDistance(const Affine3& a, const Affine3& b) const;
+    int GetGoalHeuristic(int state_id) final;
 
-    double computeDistance(const Vector3& u, const Vector3& v) const;
+    int GetPairwiseHeuristic(int from_id, int to_id) final;
+
+    bool UpdateGoal(GoalConstraint* goal) final;
+
+    auto GetExtension(size_t class_code) -> Extension* final;
+
+private:
+
+    IProjectToPoint* m_point_ext = NULL;
+    IGetPosition* m_goal_position = NULL;
+
+    double m_weights[3] = { 1.0, 1.0, 1.0 };
 };
 
 } // namespace smpl

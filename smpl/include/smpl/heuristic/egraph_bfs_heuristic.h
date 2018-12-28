@@ -41,7 +41,7 @@
 #include <smpl/grid/grid.h>
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/egraph_heuristic.h>
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/occupancy_grid.h>
 
 namespace smpl {

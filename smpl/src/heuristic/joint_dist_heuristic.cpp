@@ -32,108 +32,99 @@
 #include <smpl/heuristic/joint_dist_heuristic.h>
 
 // standard includes
+#include <assert.h>
 #include <cmath>
 
+// project includes
+#include <smpl/planning_params.h>
+#include <smpl/types.h>
 #include <smpl/console/console.h>
+#include <smpl/graph/goal_constraint.h>
+#include <smpl/graph/discrete_space.h>
 
 namespace smpl {
 
-bool JointDistHeuristic::init(RobotPlanningSpace* space)
+bool JointDistHeuristic::Init(DiscreteSpace* space)
 {
-    if (!RobotHeuristic::init(space)) {
+    auto* extract_state_iface = space->GetExtension<IExtractRobotState>();
+    if (extract_state_iface == NULL) {
         return false;
     }
 
-    m_ers = space->getExtension<ExtractRobotStateExtension>();
+    if (!Heuristic::Init(space)) {
+        return false;
+    }
+
+    m_ers = extract_state_iface;
     return true;
 }
 
-double JointDistHeuristic::getMetricGoalDistance(double x, double y, double z)
+bool JointDistHeuristic::UpdateStart(int state_id)
 {
-    return 0.0;
+    m_start_state = m_ers->ExtractState(state_id);
+    return true;
 }
 
-double JointDistHeuristic::getMetricStartDistance(double x, double y, double z)
+bool JointDistHeuristic::UpdateGoal(GoalConstraint* goal)
 {
-    return 0.0;
+    auto* get_state = goal->GetExtension<IGetRobotState>();
+    if (get_state == NULL) {
+        return false;
+    }
+    m_get_goal_state = get_state;
+    return true;
 }
 
-Extension* JointDistHeuristic::getExtension(size_t class_code)
+auto JointDistHeuristic::GetExtension(size_t class_code) -> Extension*
 {
-    if (class_code == GetClassCode<RobotHeuristic>()) {
+    if (class_code == GetClassCode<Heuristic>() ||
+        class_code == GetClassCode<IGoalHeuristic>() ||
+        class_code == GetClassCode<IStartHeuristic>() ||
+        class_code == GetClassCode<IPairwiseHeuristic>())
+    {
         return this;
     }
-    return nullptr;
+
+    return NULL;
+}
+
+static
+double ComputeJointDistance(const RobotState& s, const RobotState& t)
+{
+    auto dsum = 0.0;
+    for (auto i = 0; i < s.size(); ++i) {
+        auto dj = s[i] - t[i];
+        dsum += dj * dj;
+    }
+    return std::sqrt(dsum);
 }
 
 int JointDistHeuristic::GetGoalHeuristic(int state_id)
 {
-    if (state_id == planningSpace()->getGoalStateID()) {
-        return 0;
-    }
-    if (!m_ers) {
-        return 0;
-    }
-    if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
-        SMPL_WARN_ONCE("Joint Distance Heuristic can only compute goal heuristics for Joint Goals");
-        return 0;
-    }
-
-    auto& goal_state = planningSpace()->goal().angles;
-    auto& state = m_ers->extractState(state_id);
+    auto goal_state = m_get_goal_state->GetState();
+    auto& state = m_ers->ExtractState(state_id);
     assert(goal_state.size() == state.size());
 
-    auto h = (int)(FIXED_POINT_RATIO * computeJointDistance(state, goal_state));
+    auto dist = ComputeJointDistance(state, goal_state);
+    auto h = ToFixedPoint(dist);
     SMPL_DEBUG_NAMED(H_LOG, "h(%d) = %d", state_id, h);
     return h;
 }
 
 int JointDistHeuristic::GetStartHeuristic(int state_id)
 {
-    if (!m_ers) {
-        return 0;
-    }
-
-    if (state_id == planningSpace()->getStartStateID()) {
-        return 0;
-    }
-
-    auto& s = planningSpace()->startState();
-    auto& t = m_ers->extractState(state_id);
-    return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
+    auto& s = m_start_state;
+    auto& t = m_ers->ExtractState(state_id);
+    auto dist = ComputeJointDistance(s, t);
+    return ToFixedPoint(dist);
 }
 
-int JointDistHeuristic::GetFromToHeuristic(int from_id, int to_id)
+int JointDistHeuristic::GetPairwiseHeuristic(int from_id, int to_id)
 {
-    if (!m_ers) {
-        return 0;
-    }
-
-    if (from_id == planningSpace()->getGoalStateID()) {
-        auto& s = planningSpace()->goal().angles;
-        auto& t = m_ers->extractState(to_id);
-        return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
-    } else if (to_id == planningSpace()->getGoalStateID()) {
-        auto& s = m_ers->extractState(from_id);
-        auto& t = planningSpace()->goal().angles;
-        return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
-    } else {
-        auto& s = m_ers->extractState(from_id);
-        auto& t = m_ers->extractState(to_id);
-        return (int)(FIXED_POINT_RATIO * computeJointDistance(s, t));
-    }
-}
-
-double JointDistHeuristic::computeJointDistance(
-    const RobotState& s,
-    const RobotState& t) const
-{
-    auto dsum = 0.0;
-    for (size_t i = 0; i < s.size(); ++i) {
-        auto dj = s[i] - t[i];
-        dsum += dj * dj;
-    }
-    return std::sqrt(dsum);
+    auto& s = m_ers->ExtractState(from_id);
+    auto& t = m_ers->ExtractState(to_id);
+    auto dist = ComputeJointDistance(s, t);
+    return ToFixedPoint(dist);
 }
 
 } // namespace smpl

@@ -31,22 +31,39 @@
 
 #include <smpl/graph/action_space.h>
 
-// project includes
-#include <smpl/graph/robot_planning_space.h>
-
 namespace smpl {
 
 ActionSpace::~ActionSpace()
 {
 }
 
-bool ActionSpace::init(RobotPlanningSpace* space)
+bool ActionSpace::Init(ManipLattice* space)
 {
-    if (!space) {
+    if (space == NULL) {
         return false;
     }
 
     m_space = space;
+    return true;
+}
+
+auto ActionSpace::GetPlanningSpace() -> ManipLattice*
+{
+    return m_space;
+}
+
+auto ActionSpace::GetPlanningSpace() const -> const ManipLattice*
+{
+    return m_space;
+}
+
+bool ActionSpace::UpdateStart(int state_id)
+{
+    return true;
+}
+
+bool ActionSpace::UpdateGoal(GoalConstraint* goal)
+{
     return true;
 }
 

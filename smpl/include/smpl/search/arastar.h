@@ -33,19 +33,20 @@
 #define SMPL_ARASTAR_H
 
 // standard includes
-#include <assert.h>
-#include <algorithm>
 #include <functional>
-
-// system includes
-#include <sbpl/heuristics/heuristic.h>
-#include <sbpl/planners/planner.h>
+#include <vector>
 
 // project includes
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/time.h>
 
 namespace smpl {
+
+class ISearchable;
+class IGoalHeuristic;
+class GoalConstraint;
+class IGoalHeuristic;
+struct StateChangeQuery;
 
 /// An implementation of the ARA* (Anytime Repairing A*) search algorithm. This
 /// algorithm runs a series of weighted A* searches with decreasing bounds on
@@ -55,7 +56,7 @@ namespace smpl {
 /// weighted-A* iteration from scratch.
 ///
 /// This class maintains the state of the search procedure between calls to
-/// replan(), allowing the search to resume from where it left off when the
+/// Replan(), allowing the search to resume from where it left off when the
 /// scenario (start, goal, and edge costs in the graph) doesn't change between
 /// calls. This can be used to dedicate more time to searching in the event the
 /// search fails to find a solution within the given time and to allow solutions
@@ -63,7 +64,7 @@ namespace smpl {
 /// solution given more time. To implement this, several assumptions about the
 /// implementation of the graph and heuristic are made:
 ///
-/// * The state IDs are constant between calls to replan(). If the state ID for
+/// * The state IDs are constant between calls to Replan(). If the state ID for
 ///   any state the search has encountered so far (via state expansions or
 ///   setting the start or goal) changes, the search will be invalid.
 ///
@@ -77,7 +78,7 @@ namespace smpl {
 ///
 /// * The heuristics for any encountered states remain constant, unless the goal
 ///   state ID has changed.
-class ARAStar : public SBPLPlanner
+class ARAStar
 {
 public:
 
@@ -95,75 +96,60 @@ public:
         std::function<bool()> timed_out_fun;
     };
 
-    ARAStar(DiscreteSpaceInformation* space, Heuristic* heuristic);
+    ARAStar();
     ~ARAStar();
 
-    void allowPartialSolutions(bool enabled) {
-        m_allow_partial_solutions = enabled;
-    }
+    bool Init(ISearchable* space, IGoalHeuristic* heuristic);
 
-    bool allowPartialSolutions() const { return m_allow_partial_solutions; }
-
-    void setAllowedRepairTime(double allowed_time_secs) {
-        m_time_params.max_allowed_time = to_duration(allowed_time_secs);
-    }
-
-    double allowedRepairTime() const {
-        return to_seconds(m_time_params.max_allowed_time);
-    }
-
-    void setTargetEpsilon(double target_eps) {
-        m_final_eps = std::max(target_eps, 1.0);
-    }
-
-    double targetEpsilon() const { return m_final_eps; }
-
-    void setDeltaEpsilon(double delta_eps) {
-        assert(delta_eps > 0.0);
-        m_delta_eps = delta_eps;
-    }
-
-    double deltaEpsilon() const { return m_delta_eps; }
-
-    void setImproveSolution(bool improve) {
-        m_time_params.improve = improve;
-    }
-
-    bool improveSolution() const { return m_time_params.improve; }
-
-    void setBoundExpansions(bool bound) { m_time_params.bounded = bound; }
-    bool boundExpansions() const { return m_time_params.bounded; }
-
-    int replan(
-        const TimeParameters &params,
-        std::vector<int>* solution,
-        int* cost);
-
-    /// \name Required Functions from SBPLPlanner
+    /// \name Search Configuration
     ///@{
-    int replan(double allowed_time_secs, std::vector<int>* solution) override;
-    int replan(double allowed_time_secs, std::vector<int>* solution, int* solcost) override;
-    int set_goal(int state_id) override;
-    int set_start(int state_id) override;
-    int force_planning_from_scratch() override;
-    int set_search_mode(bool bSearchUntilFirstSolution) override;
-    void costs_changed(const StateChangeQuery& stateChange) override;
+    void SetAllowPartialSolutions(bool enabled);
+    bool AllowPartialSolutions() const;
+
+    void SetAllowedRepairTime(double allowed_time_secs);
+    double GetAllowedRepairTime() const;
+
+    void SetTargetEpsilon(double target_eps);
+    double GetTargetEpsilon() const;
+
+    void SetDeltaEpsilon(double delta_eps);
+    double GetDeltaEpsilon() const;
+
+    void SetInitialEps(double eps);
+    double GetInitialEps();
+
+    void SetImproveSolution(bool improve);
+    bool ImproveSolution() const;
+
+    void SetBoundExpansions(bool bound);
+    bool BoundExpansions() const;
+
+    int SetSearchMode(bool bSearchUntilFirstSolution);
     ///@}
 
-    /// \name Reimplemented Functions from SBPLPlanner
+    /// \name Search Statistics
     ///@{
-    int replan(std::vector<int>* solution, ReplanParams params) override;
-    int replan(std::vector<int>* solution, ReplanParams params, int* solcost) override;
-    int force_planning_from_scratch_and_free_memory() override;
-    double get_solution_eps() const override;
-    int get_n_expands() const override;
-    double get_initial_eps() override;
-    double get_initial_eps_planning_time() override;
-    double get_final_eps_planning_time() override;
-    int get_n_expands_init_solution() override;
-    double get_final_epsilon() override;
-    void get_search_stats(std::vector<PlannerStats>* s) override;
-    void set_initialsolution_eps(double eps) override;
+    double GetSolutionEps() const;
+
+    int GetNumExpansions() const;
+    int GetNumExpansionsInitialEps();
+
+    double GetElapsedTime();
+    double GetElapsedTimeInitialEps();
+    ///@}
+
+    /// \name Search Queries
+    ///@{
+    bool UpdateStart(int state_id);
+    bool UpdateGoal(GoalConstraint* goal);
+    void UpdateCosts(const StateChangeQuery& stateChange);
+
+    int ForcePlanningFromScratch();
+    int ForcePlanningFromScratchAndFreeMemory();
+
+    int Replan(double allowed_time_secs, std::vector<int>* solution);
+    int Replan(double allowed_time_secs, std::vector<int>* solution, int* cost);
+    int Replan(const TimeParameters& params, std::vector<int>* solution, int* cost);
     ///@}
 
 private:
@@ -188,72 +174,67 @@ private:
         }
     };
 
-    DiscreteSpaceInformation* m_space;
-    Heuristic* m_heur;
+    ISearchable* m_space = 0;
+    IGoalHeuristic* m_heur = 0;
 
     TimeParameters m_time_params;
 
-    double m_initial_eps;
-    double m_final_eps;
-    double m_delta_eps;
+    double m_initial_eps = 1.0;
+    double m_final_eps = 1.0;
+    double m_delta_eps = 1.0;
 
-    bool m_allow_partial_solutions;
+    bool m_allow_partial_solutions = false;
 
     std::vector<SearchState*> m_states;
 
-    int m_start_state_id;   // graph state id for the start state
-    int m_goal_state_id;    // graph state id for the goal state
+    int m_start_state_id = -1;   // graph state id for the start state
+    GoalConstraint* m_goal = NULL;
+    int m_goal_state_id = -1;    // graph state id for the goal state
 
     // search state (not including the values of g, f, back pointers, and
     // closed list from m_stats)
     intrusive_heap<SearchState, SearchStateCompare> m_open;
     std::vector<SearchState*> m_incons;
-    double m_curr_eps;
-    int m_iteration;
+    double m_curr_eps = 1.0;
+    int m_iteration = 1;
 
     std::vector<int> m_succs;
     std::vector<int> m_costs;
 
-    int m_call_number;          // for lazy reinitialization of search states
-    int m_last_start_state_id;  // for lazy reinitialization of the search tree
-    int m_last_goal_state_id;   // for updating the search tree when the goal changes
-    double m_last_eps;          // for updating the search tree when heuristics change
+    int m_call_number = 0;           // for lazy reinitialization of search states
+    int m_last_start_state_id = -1;  // for lazy reinitialization of the search tree
+    bool m_new_goal = true;          // for updating the search tree when the goal changes
+    SearchState m_best_goal;
+    double m_last_eps = 1.0;         // for updating the search tree when heuristics change
 
-    int m_expand_count_init;
+    int m_expand_count_init = 0;
     clock::duration m_search_time_init;
-    int m_expand_count;
+    int m_expand_count = 0;
     clock::duration m_search_time;
 
     double m_satisfied_eps;
 
-    void convertTimeParamsToReplanParams(
-        const TimeParameters& t,
-        ReplanParams& r) const;
-    void convertReplanParamsToTimeParams(
-        const ReplanParams& r,
-        TimeParameters& t);
-
-    bool timedOut(
+    bool TimedOut(
         int elapsed_expansions,
         const clock::duration& elapsed_time) const;
 
-    int improvePath(
+    int ImprovePath(
         const clock::time_point& start_time,
         SearchState* goal_state,
         int& elapsed_expansions,
         clock::duration& elapsed_time);
 
-    void expand(SearchState* s);
+    void Expand(SearchState* s);
 
-    void recomputeHeuristics();
-    void reorderOpen();
-    int computeKey(SearchState* s) const;
+    void RecomputeHeuristics();
+    void ReorderOpen();
+    int ComputeKey(SearchState* s) const;
 
-    SearchState* getSearchState(int state_id);
-    SearchState* createState(int state_id);
-    void reinitSearchState(SearchState* state);
+    SearchState* GetSearchState(int state_id);
+    SearchState* CreateState(int state_id);
+    void ReinitSearchState(SearchState* state);
 
-    void extractPath(
+    void ExtractPath(
         SearchState* to_state,
         std::vector<int>& solution,
         int& cost) const;

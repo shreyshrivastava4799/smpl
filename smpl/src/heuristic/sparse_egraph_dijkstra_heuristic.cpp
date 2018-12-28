@@ -39,7 +39,7 @@
 #include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
 #include <smpl/occupancy_grid.h>
-#include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/discrete_space.h>
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/spatial.h>
 #include <smpl/stl/algorithm.h>

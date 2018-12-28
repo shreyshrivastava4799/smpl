@@ -32,6 +32,7 @@
 #include <smpl/graph/cost_function.h>
 
 // project includes
+#include <smpl/collision_checker.h>
 #include <smpl/graph/manip_lattice.h>
 
 namespace smpl {

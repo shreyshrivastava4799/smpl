@@ -33,41 +33,42 @@
 #define SMPL_JOINT_DIST_HEURISTIC_H
 
 // project includes
-#include <smpl/heuristic/robot_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 
 namespace smpl {
 
-class JointDistHeuristic : public RobotHeuristic
+class GoalConstraint;
+class IExtractRobotState;
+class IGetRobotState;
+class DiscreteSpace;
+
+class JointDistHeuristic :
+    public Heuristic,
+    public IGoalHeuristic,
+    public IStartHeuristic,
+    public IPairwiseHeuristic
 {
 public:
 
-    bool init(RobotPlanningSpace* space);
+    bool Init(DiscreteSpace* space);
 
-    /// \name Required Public Functions from RobotHeuristic
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
+
+    int GetGoalHeuristic(int state_id) final;
+    int GetStartHeuristic(int start_id) final;
+    int GetPairwiseHeuristic(int src_state_id, int dst_state_id) final;
+
+    /// \name Extension Interface
     ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
-    /// \name Required Public Functions from Extension
-    ///@{
-    Extension* getExtension(size_t class_code) override;
-    ///@}
+public:
 
-    /// \name Required Public Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
-    ///@}
-
-private:
-
-    static constexpr double FIXED_POINT_RATIO = 1000.0;
-
-    ExtractRobotStateExtension* m_ers = nullptr;
-
-    double computeJointDistance(const RobotState &s, const RobotState &t) const;
+    IExtractRobotState* m_ers = NULL;
+    IGetRobotState* m_get_goal_state = NULL;
+    RobotState m_start_state;
 };
 
 } // namespace smpl
