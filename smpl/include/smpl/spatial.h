@@ -1,6 +1,10 @@
 #ifndef SMPL_SPATIAL_H
 #define SMPL_SPATIAL_H
 
+// standard includes
+#include <cmath>
+
+// system includes
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -107,6 +111,13 @@ inline auto MakeAffine(
             AngleAxis(Y, Vector3::UnitZ()) *
             AngleAxis(P, Vector3::UnitY()) *
             AngleAxis(R, Vector3::UnitX());
+}
+
+inline auto GetAngularDistance(const Quaternion& p, const Quaternion& q) -> double
+{
+    // CHECK: lots of dot(p,q) < 0 and flipping the sign of q
+    // also normalization on the output
+    return 2.0 * std::acos(std::fabs(p.dot(q)));
 }
 
 } // namespace smpl

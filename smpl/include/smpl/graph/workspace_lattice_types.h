@@ -50,9 +50,9 @@ namespace std {
 template <>
 struct hash<smpl::WorkspaceLatticeState>
 {
-    typedef smpl::WorkspaceLatticeState argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(const argument_type& s) const;
+    using argument_type = smpl::WorkspaceLatticeState;
+    using result_type = std::size_t;
+    auto operator()(const argument_type& s) const -> result_type;
 };
 
 } // namespace std

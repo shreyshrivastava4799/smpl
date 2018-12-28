@@ -38,11 +38,13 @@
 
 // project includes
 #include <smpl/angles.h>
-#include <smpl/time.h>
+#include <smpl/collision_checker.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/geometry/shortcut.h>
+#include <smpl/robot_model.h>
 #include <smpl/spatial.h>
+#include <smpl/time.h>
 
 namespace smpl {
 
@@ -55,8 +57,7 @@ double distance(
     for (auto vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
         if (!robot.hasPosLimit(vidx)) {
             dist += shortest_angle_dist(to[vidx], from[vidx]);
-        }
-        else {
+        } else {
             dist += fabs(to[vidx] - from[vidx]);
         }
     }
@@ -106,7 +107,7 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        const size_t var_count = m_robot->getPlanningJoints().size();
+        auto var_count = m_robot->getPlanningJoints().size();
         if (m_cc->isStateToStateValid(start, finish)) {
             *ofirst++ = start;
             *ofirst++ = finish;
@@ -140,9 +141,9 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        const size_t var_count = m_robot->getPlanningJoints().size();
-        const RobotState pstart(start.begin(), start.begin() + var_count);
-        const RobotState pend(finish.begin(), finish.begin() + var_count);
+        auto var_count = m_robot->getPlanningJoints().size();
+        auto pstart = RobotState(start.begin(), start.begin() + var_count);
+        auto pend = RobotState(finish.begin(), finish.begin() + var_count);
         if (m_cc->isStateToStateValid(pstart, pend)) {
             *ofirst++ = start;
             *ofirst++ = finish;
@@ -167,11 +168,11 @@ public:
     EuclidShortcutPathGenerator(RobotModel* rm, CollisionChecker* cc) :
         m_rm(rm),
         m_cc(cc),
-        m_fk_iface(nullptr),
-        m_ik_iface(nullptr)
+        m_fk_iface(NULL),
+        m_ik_iface(NULL)
     {
-        m_fk_iface = rm->getExtension<ForwardKinematicsInterface>();
-        m_ik_iface = rm->getExtension<InverseKinematicsInterface>();
+        m_fk_iface = rm->GetExtension<IForwardKinematics>();
+        m_ik_iface = rm->GetExtension<IInverseKinematics>();
     }
 
     template <typename OutputIt>
@@ -179,7 +180,7 @@ public:
         const RobotState& start, const RobotState& end,
         OutputIt ofirst, double& cost) const
     {
-        if (!m_fk_iface || !m_ik_iface) {
+        if (m_fk_iface == NULL || m_ik_iface == NULL) {
             return false;
         }
 
@@ -187,44 +188,38 @@ public:
         auto from_pose = m_fk_iface->computeFK(start);
         auto to_pose = m_fk_iface->computeFK(end);
 
-        Vector3 pstart(from_pose.translation());
-        Vector3 pend(to_pose.translation());
+        auto pstart = Vector3(from_pose.translation());
+        auto pend = Vector3(to_pose.translation());
 
-        Quaternion qstart(from_pose.rotation());
-        Quaternion qend(to_pose.rotation());
-
-        if (qstart.dot(qend) < 0.0) {
-            // negate one end of the quaternion path to ensure interpolation
-            // takes the short arc
-            qend = Quaternion(-qend.w(), -qend.x(), -qend.y(), -qend.z());
-        }
+        auto qstart = Quaternion(from_pose.rotation());
+        auto qend = Quaternion(to_pose.rotation());
 
         // compute the number of path waypoints
-        double posdiff = (pend - pstart).norm();
-        double rotdiff = normalize_angle(2.0 * acos(qstart.dot(qend)));
+        auto posdiff = (pend - pstart).norm();
+        auto rotdiff = GetAngularDistance(qstart, qend);
 
-        const double interp_pres = 0.01;
-        const double interp_rres = to_radians(5.0);
+        auto interp_pres = 0.01;
+        auto interp_rres = to_radians(5.0);
 
-        int num_points = 2;
+        auto num_points = 2;
         num_points = std::max(num_points, (int)ceil(posdiff / interp_pres));
         num_points = std::max(num_points, (int)ceil(rotdiff / interp_rres));
 
-        std::vector<RobotState> cpath;
+        auto cpath = std::vector<RobotState>();
 
         cpath.push_back(start);
-        double dist = 0.0;
-        for (int i = 1; i < num_points; ++i) {
+        auto dist = 0.0;
+        for (auto i = 1; i < num_points; ++i) {
             // compute the intermediate pose
-            double alpha = (double)i / (double)(num_points - 1);
-            Vector3 ppos = (1.0 - alpha) * pstart + alpha * pend;
-            Quaternion prot = qstart.slerp(alpha, qend);
+            auto alpha = (double)i / (double)(num_points - 1);
+            auto ppos = Vector3((1.0 - alpha) * pstart + alpha * pend);
+            auto prot = Quaternion(qstart.slerp(alpha, qend));
 
-            const Affine3 ptrans = Translation3(ppos) * prot;
+            auto ptrans = Affine3(Translation3(ppos) * prot);
 
             // run inverse kinematics with the previous pose as the seed state
-            const RobotState& prev_wp = cpath.back();
-            RobotState wp(m_rm->getPlanningJoints().size(), 0.0);
+            auto& prev_wp = cpath.back();
+            auto wp = RobotState(m_rm->getPlanningJoints().size(), 0.0);
             if (!m_ik_iface->computeIK(ptrans, prev_wp, wp)) {
                 return false;
             }
@@ -251,8 +246,8 @@ private:
     RobotModel* m_rm;
     CollisionChecker* m_cc;
 
-    ForwardKinematicsInterface* m_fk_iface;
-    InverseKinematicsInterface* m_ik_iface;
+    IForwardKinematics* m_fk_iface;
+    IInverseKinematics* m_ik_iface;
 };
 
 void ShortcutPath(
@@ -268,11 +263,12 @@ void ShortcutPath(
     }
 
     auto then = clock::now();
-    double prev_cost = 0.0, next_cost = 0.0;
+    auto prev_cost = 0.0;
+    auto next_cost = 0.0;
     switch (type) {
     case ShortcutType::JOINT_SPACE:
     {
-        std::vector<double> costs;
+        auto costs = std::vector<double>();
         ComputePositionPathCosts(rm, pin, costs);
         JointPositionShortcutPathGenerator generators[] =
         {
@@ -286,7 +282,7 @@ void ShortcutPath(
     }   break;
     case ShortcutType::EUCLID_SPACE:
     {
-        std::vector<double> costs;
+        auto costs = std::vector<double>();
         ComputePositionPathCosts(rm, pin, costs);
 
         EuclidShortcutPathGenerator generators[] =
@@ -302,10 +298,10 @@ void ShortcutPath(
     }   break;
     case ShortcutType::JOINT_POSITION_VELOCITY_SPACE:
     {
-        std::vector<RobotState> pv_path;
+        auto pv_path = std::vector<RobotState>();
         CreatePositionVelocityPath(rm, pin, pv_path);
 
-        std::vector<double> costs;
+        auto costs = std::vector<double>();
         ComputePositionVelocityPathCosts(rm, pv_path, costs);
         prev_cost = std::accumulate(costs.begin(), costs.end(), 0.0);
 
@@ -314,27 +310,27 @@ void ShortcutPath(
             JointPositionVelocityShortcutPathGenerator(rm, cc)
         };
 
-        std::vector<RobotState> opvpath;
+        auto opvpath = std::vector<RobotState>();
         shortcut::ShortcutPath(
                 pv_path.begin(), pv_path.end(),
                 costs.begin(), costs.end(),
                 generators, generators + 1,
                 std::back_inserter(opvpath));
 
-        std::vector<RobotState> opvpath_dnc;
+        auto opvpath_dnc = std::vector<RobotState>();
         shortcut::DivideAndConquerShortcutPath(
                 pv_path.begin(), pv_path.end(),
                 costs.begin(), costs.end(),
                 generators, generators + 1,
                 std::back_inserter(opvpath_dnc));
 
-        std::vector<double> new_costs;
+        auto new_costs = std::vector<double>();
         ComputePositionVelocityPathCosts(rm, opvpath, new_costs);
         next_cost = std::accumulate(new_costs.begin(), new_costs.end(), 0.0);
 
-        std::vector<double> new_costs_dnc;
+        auto new_costs_dnc = std::vector<double>();
         ComputePositionVelocityPathCosts(rm, opvpath_dnc, new_costs_dnc);
-        double new_cost_dnc = std::accumulate(new_costs_dnc.begin(), new_costs_dnc.end(), 0.0);
+        auto new_cost_dnc = std::accumulate(new_costs_dnc.begin(), new_costs_dnc.end(), 0.0);
         if (new_cost_dnc < next_cost) {
             SMPL_INFO("Divide and Conquer Wins! (%0.3f < %0.3f)", new_cost_dnc, next_cost);
             next_cost = new_cost_dnc;
@@ -452,19 +448,19 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         }
     }
 
-    std::vector<RobotState> opath;
+    auto opath = std::vector<RobotState>();
 
     // tack on the first point of the trajectory
     opath.push_back(path.front());
 
     // iterate over path segments
-    for (auto i = size_t(0); i < path.size() - 1; ++i) {
+    for (auto i = 0; i < path.size() - 1; ++i) {
         auto& curr = path[i];
         auto& next = path[i + 1];
 
         SMPL_DEBUG_STREAM("Interpolating between " << curr << " and " << next);
 
-        std::vector<RobotState> ipath;
+        auto ipath = std::vector<RobotState>();
         if (!cc.interpolatePath(curr, next, ipath)) {
             SMPL_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
             return false;

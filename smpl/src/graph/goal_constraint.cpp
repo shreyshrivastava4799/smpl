@@ -36,12 +36,8 @@ bool WithinOrientationTolerance(
 {
     auto qg = Quaternion(B.rotation());
     auto q = Quaternion(A.rotation());
-    if (q.dot(qg) < 0.0) {
-        qg = Quaternion(-qg.w(), -qg.x(), -qg.y(), -qg.z());
-    }
-
-    auto theta = normalize_angle(2.0 * std::acos(q.dot(qg)));
-    return theta < tol[0];
+    auto dist = GetAngularDistance(q, qg);
+    return dist < tol[0];
 }
 
 static

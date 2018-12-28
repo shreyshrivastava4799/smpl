@@ -37,12 +37,13 @@
 #include <vector>
 
 // project includes
-#include <smpl/collision_checker.h>
-#include <smpl/robot_model.h>
 #include <smpl/planning_params.h>
 #include <smpl/types.h>
 
 namespace smpl {
+
+class RobotModel;
+class CollisionChecker;
 
 void ShortcutPath(
     RobotModel* rm,

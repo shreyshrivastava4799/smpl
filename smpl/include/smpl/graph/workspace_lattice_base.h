@@ -33,27 +33,30 @@
 #define SMPL_WORKSPACE_LATTICE_BASE_H
 
 // project includes
-#include <smpl/graph/robot_planning_space.h>
 #include <smpl/graph/workspace_lattice_types.h>
 
 namespace smpl {
+
+class IForwardKinematics;
+class IInverseKinematics;
+class IRedundantManipulator;
+class RobotModel;
 
 /// Base class for graph representations that represent states via a 1:1 mapping
 /// from joint space states to states in SE(3) alongside an array of redundant
 /// variables used to uniquely determine the state. This class is responsible
 /// for handling those transformations and discretization of the resulting
 /// SE(3) + <free angle array> space.
-class WorkspaceLatticeBase : public RobotPlanningSpace
+struct WorkspaceLatticeBase
 {
-public:
-
-    ForwardKinematicsInterface* m_fk_iface = NULL;
-    InverseKinematicsInterface* m_ik_iface = NULL;
-    RedundantManipulatorInterface* m_rm_iface = NULL;
+    RobotModel*             m_robot_model = NULL;
+    IForwardKinematics*     m_fk_iface = NULL;
+    IInverseKinematics*     m_ik_iface = NULL;
+    IRedundantManipulator*  m_rm_iface = NULL;
 
     std::vector<double> m_res;
-    std::vector<int> m_val_count;
-    int m_dof_count = 0;
+    std::vector<int>    m_val_count;
+    int                 m_dof_count = 0;
     std::vector<int>    m_fangle_indices;
     std::vector<double> m_fangle_min_limits;
     std::vector<double> m_fangle_max_limits;
@@ -73,41 +76,38 @@ public:
         std::vector<double> free_angle_res;
     };
 
-    virtual bool init(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const Params& params);
+    bool Init(RobotModel* robot, const Params& params);
 
-    virtual bool initialized() const;
+    bool Initialized() const;
 
-    auto resolution() const -> const std::vector<double>& { return m_res; }
-    int dofCount() const { return m_dof_count; }
+    auto Resolution() const -> const std::vector<double>& { return m_res; }
+    int DofCount() const { return m_dof_count; }
 
-    size_t freeAngleCount() const { return m_fangle_indices.size(); }
+    auto FreeAngleCount() const { return (int)m_fangle_indices.size(); }
 
     // conversions between robot states, workspace states, and workspace coords
-    void stateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate) const;
-    void stateRobotToCoord(const RobotState& state, WorkspaceCoord& coord) const;
-    bool stateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate) const;
-    void stateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord) const;
-    bool stateCoordToRobot(const WorkspaceCoord& coord, RobotState& state) const;
-    void stateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state) const;
+    void StateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate) const;
+    void StateRobotToCoord(const RobotState& state, WorkspaceCoord& coord) const;
+    bool StateWorkspaceToRobot(const WorkspaceState& state, RobotState& ostate) const;
+    void StateWorkspaceToCoord(const WorkspaceState& state, WorkspaceCoord& coord) const;
+    bool StateCoordToRobot(const WorkspaceCoord& coord, RobotState& state) const;
+    void StateCoordToWorkspace(const WorkspaceCoord& coord, WorkspaceState& state) const;
 
-    bool stateWorkspaceToRobot(
+    bool StateWorkspaceToRobot(
         const WorkspaceState& state, const RobotState& seed, RobotState& ostate) const;
 
     // TODO: variants of workspace -> robot that don't restrict redundant angles
     // TODO: variants of workspace -> robot that take in a full seed state
 
     // conversions from discrete coordinates to continuous states
-    void posWorkspaceToCoord(const double* wp, int* gp) const;
-    void posCoordToWorkspace(const int* gp, double* wp) const;
-    void rotWorkspaceToCoord(const double* wr, int* gr) const;
-    void rotCoordToWorkspace(const int* gr, double* wr) const;
-    void poseWorkspaceToCoord(const double* wp, int* gp) const;
-    void poseCoordToWorkspace(const int* gp, double* wp) const;
-    void favWorkspaceToCoord(const double* wa, int* ga) const;
-    void favCoordToWorkspace(const int* ga, double* wa) const;
+    void PosWorkspaceToCoord(const double* wp, int* gp) const;
+    void PosCoordToWorkspace(const int* gp, double* wp) const;
+    void RotWorkspaceToCoord(const double* wr, int* gr) const;
+    void RotCoordToWorkspace(const int* gr, double* wr) const;
+    void PoseWorkspaceToCoord(const double* wp, int* gp) const;
+    void PoseCoordToWorkspace(const int* gp, double* wp) const;
+    void FavWorkspaceToCoord(const double* wa, int* ga) const;
+    void FavCoordToWorkspace(const int* ga, double* wa) const;
 };
 
 } // namespace smpl

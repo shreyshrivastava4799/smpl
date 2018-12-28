@@ -209,7 +209,10 @@ private:
     int GetTrueCost(int state_id, int succ_state_id) final;
     ///@}
 
+    /// \name IProjectToPose Interface
+    ///@{
     auto ProjectToPose(int state_id) -> Affine3 final;
+    ///@}
 };
 
 } // namespace smpl

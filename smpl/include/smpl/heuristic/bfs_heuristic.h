@@ -36,63 +36,80 @@
 #include <memory>
 
 // project includes
-#include <smpl/occupancy_grid.h>
-#include <smpl/bfs3d/bfs3d.h>
 #include <smpl/debug/marker.h>
 #include <smpl/heuristic/heuristic.h>
 
 namespace smpl {
 
-class BfsHeuristic : public RobotHeuristic
+class IProjectToPoint;
+class OccupancyGrid;
+
+class BFS_3D;
+
+class BFSHeuristic :
+    public Heuristic,
+    public IGoalHeuristic,
+    public IMetricGoalHeuristic,
+    public IMetricStartHeuristic
 {
 public:
 
-    virtual ~BfsHeuristic();
+    virtual ~BFSHeuristic();
 
-    bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
+    bool Init(DiscreteSpace* space, const OccupancyGrid* grid);
 
-    double inflationRadius() const { return m_inflation_radius; }
-    void setInflationRadius(double radius);
-    int costPerCell() const { return m_cost_per_cell; }
-    void setCostPerCell(int cost);
+    double GetInflationRadius() const;
+    void SetInflationRadius(double radius);
 
-    auto grid() const -> const OccupancyGrid* { return m_grid; }
+    int GetCostPerCell() const;
+    void SetCostPerCell(int cost);
 
-    auto getWallsVisualization() const -> visual::Marker;
-    auto getValuesVisualization() -> visual::Marker;
+    auto GetGrid() const -> const OccupancyGrid*;
 
-    /// \name Required Public Functions from RobotHeuristic
+    auto GetWallsVisualization() const -> visual::Marker;
+    auto GetValuesVisualization() -> visual::Marker;
+
+    void SyncGridAndBFS();
+
+    /// \name IGoalHeuristic Interface
     ///@{
-    double getMetricStartDistance(double x, double y, double z) override;
-    double getMetricGoalDistance(double x, double y, double z) override;
+    int GetGoalHeuristic(int state_id) final;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name IMetricStartHeuristic Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    double GetMetricStartDistance(double x, double y, double z) final;
     ///@}
 
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
+    /// \name IMetricGoalHeuristic Interface
     ///@{
-    void updateGoal(const GoalConstraint& goal) override;
+    double GetMetricGoalDistance(double x, double y, double z) final;
     ///@}
 
-    /// \name Required Public Functions from Heuristic
+    /// \name Heuristic Interface
     ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
+    ///@}
+
+    /// \name Extension Interface
+    ///@{
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
 private:
 
-    const OccupancyGrid* m_grid = nullptr;
+    static constexpr auto Infinity = ((1 << 16) - 1);
+
+    const OccupancyGrid* m_grid = NULL;
 
     std::unique_ptr<BFS_3D> m_bfs;
-    PointProjectionExtension* m_pp = nullptr;
+    IProjectToPoint* m_project_to_point = NULL;
 
     double m_inflation_radius = 0.0;
     int m_cost_per_cell = 1;
+
+    int m_start_state_id = -1;
 
     struct CellCoord
     {
@@ -102,8 +119,7 @@ private:
     };
     std::vector<CellCoord> m_goal_cells;
 
-    void syncGridAndBfs();
-    int getBfsCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
+    int GetBFSCostToGoal(const BFS_3D& bfs, int x, int y, int z) const;
 };
 
 } // namespace smpl

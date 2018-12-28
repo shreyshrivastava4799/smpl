@@ -88,13 +88,7 @@ double WeightedEuclideanDistance(
     auto qb = Quaternion(b.rotation());
     auto qa = Quaternion(a.rotation());
 
-    auto dot = qa.dot(qb);
-    if (dot < 0.0) {
-        qb = Quaternion(-qb.w(), -qb.x(), -qb.y(), -qb.z());
-        dot = qa.dot(qb);
-    }
-
-    auto dr2 = angles::normalize_angle(2.0 * std::acos(dot));
+    auto dr2 = GetAngularDistance(qa, qb);
     dr2 *= (weights[3] * dr2);
 
     SMPL_DEBUG_NAMED(LOG, "Compute Distance: sqrt(%f + %f)", dp2, dr2);

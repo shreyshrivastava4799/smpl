@@ -46,7 +46,7 @@
 #include <smpl/time.h>
 #include <smpl/types.h>
 #include <smpl/graph/motion_primitive.h>
-#include <smpl/graph/robot_planning_space.h>
+#include <smpl/graph/discrete_space.h>
 #include <smpl/graph/workspace_lattice_base.h>
 #include <smpl/graph/workspace_lattice_types.h>
 
@@ -56,16 +56,101 @@ struct WorkspaceLatticeActionSpace;
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
-struct WorkspaceLattice :
-    public WorkspaceLatticeBase,
-    public PoseProjectionExtension,
-    public ExtractRobotStateExtension
+class WorkspaceLattice :
+    public DiscreteSpace,
+    public RobotPlanningSpace,
+    public IExtractRobotState,
+    public IProjectToPose,
+    public ISearchable,
+    private ILazySearchable
 {
-    WorkspaceLatticeState* m_goal_entry = NULL;
-    int m_goal_state_id = -1;
+public:
 
-    WorkspaceLatticeState* m_start_entry = NULL;
-    int m_start_state_id = -1;
+    ~WorkspaceLattice();
+
+    bool Init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const WorkspaceLatticeBase::Params& params,
+        WorkspaceLatticeActionSpace* actions);
+
+    auto GetActionSpace() -> WorkspaceLatticeActionSpace*;
+    auto GetActionSpace() const -> const WorkspaceLatticeActionSpace*;
+
+    auto GetVisualizationFrameId() const -> const std::string&;
+    void SetVisualizationFrameId(const std::string& frame_id);
+
+    int ReserveHashEntry();
+    int GetOrCreateState(const WorkspaceCoord& coord);
+    auto GetState(int state_id) const -> WorkspaceLatticeState*;
+
+    bool CheckAction(
+        const RobotState& state,
+        const WorkspaceAction& action,
+        RobotState* final_rstate = NULL);
+
+    int ComputeCost(
+        const WorkspaceLatticeState& src,
+        const WorkspaceLatticeState& dst);
+
+    bool CheckLazyAction(
+        const RobotState& state,
+        const WorkspaceAction& action,
+        RobotState* final_rstate = NULL);
+
+    auto GetStateVisualization(const RobotState& state, const std::string& ns)
+        -> std::vector<visual::Marker>;
+
+    void PrintState(int state_id, bool verbose, FILE* fout = NULL);
+
+    /// \name IExtractRobotState Interface
+    ///@{
+    auto ExtractState(int state_id) -> const RobotState& final;
+    ///@}
+
+    /// \name IProjectToPose Interface
+    ///@{
+    auto ProjectToPose(int state_id) -> Affine3 final;
+    ///@}
+
+    /// \name RobotPlanningSpace Interface
+    ///@{
+    int GetStateID(const RobotState& state) final;
+    bool ExtractPath(
+        const std::vector<int>& state_ids,
+        std::vector<RobotState>& path) final;
+    ///@}
+
+    /// \name ISearchable Interface
+    ///@{
+    void GetSuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs) final;
+    ///@}
+
+    /// \name ILazySearchable Interface
+    ///@{
+    void GetLazySuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs,
+        std::vector<bool>* true_costs) final;
+    int GetTrueCost(int state_id, int succ_state_id) final;
+    ///@}
+
+    /// \name DiscreteSpace Interface
+    ///@{
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
+    ///@}
+
+    /// \name Extension Interface
+    ///@{
+    auto GetExtension(size_t class_code) -> Extension* final;
+    ///@}
+
+    WorkspaceLatticeBase base;
 
     // maps state -> id
     using StateKey = WorkspaceLatticeState;
@@ -76,109 +161,9 @@ struct WorkspaceLattice :
     // maps id -> state
     std::vector<WorkspaceLatticeState*> m_states;
 
-    clock::time_point m_t_start;
-    mutable bool m_near_goal = false; // mutable for assignment in isGoal
-
     WorkspaceLatticeActionSpace* m_actions = NULL;
 
     std::string m_viz_frame_id;
-
-    ~WorkspaceLattice();
-
-    void setVisualizationFrameId(const std::string& frame_id);
-    auto visualizationFrameId() const -> const std::string&;
-
-    /// \name Reimplemented Public Functions from WorkspaceLatticeBase
-    ///@{
-    bool init(
-        RobotModel* robot,
-        CollisionChecker* checker,
-        const Params& params,
-        WorkspaceLatticeActionSpace* actions);
-    ///@}
-
-    /// \name Required Functions from PoseProjectionExtension
-    ///@{
-    bool projectToPose(int state_id, Affine3& pose) override;
-    ///@}
-
-    /// \name Reimplemented Public Functions from RobotPlanningSpace
-    ///@{
-    bool setStart(const RobotState& state) override;
-    bool setGoal(const GoalConstraint& goal) override;
-    ///@}
-
-    /// \name Required Public Functions from RobotPlanningSpace
-    ///@{
-    int getStartStateID() const override;
-    int getGoalStateID() const override;
-
-    bool extractPath(
-        const std::vector<int>& ids,
-        std::vector<RobotState>& path) override;
-    ///@}
-
-    auto extractState(int state_id) -> const RobotState& override;
-
-    /// \name Required Public Functions from Extension
-    ///@{
-    auto getExtension(size_t class_code) -> Extension* override;
-    ///@}
-
-    /// \name Required Public Functions from DiscreteSpaceInformation
-    ///@{
-    void GetSuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs) override;
-
-    void GetPreds(
-        int state_id,
-        std::vector<int>* preds,
-        std::vector<int>* costs) override;
-
-    void PrintState(
-        int state_id,
-        bool verbose,
-        FILE* fout = nullptr) override;
-    ///@}
-
-    /// \name Reimplemented Functions from DiscreteSpaceInformation
-    ///@{
-    void GetLazySuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs,
-        std::vector<bool>* true_costs) override;
-    int GetTrueCost(int parent_id, int child_id) override;
-    ///@}
-
-    bool setGoalPose(const GoalConstraint& goal);
-    bool setGoalJointState(const GoalConstraint& goal);
-    bool setUserGoal(const GoalConstraint& goal);
-
-    int reserveHashEntry();
-    int createState(const WorkspaceCoord& coord);
-    auto getState(int state_id) const -> WorkspaceLatticeState*;
-
-    bool checkAction(
-        const RobotState& state,
-        const WorkspaceAction& action,
-        RobotState* final_rstate = NULL);
-
-    int computeCost(
-        const WorkspaceLatticeState& src,
-        const WorkspaceLatticeState& dst);
-
-    bool checkLazyAction(
-        const RobotState& state,
-        const WorkspaceAction& action,
-        RobotState* final_rstate = nullptr);
-
-    bool isGoal(const WorkspaceState& state, const RobotState& robot_state) const;
-
-    auto getStateVisualization(const RobotState& state, const std::string& ns)
-        -> std::vector<visual::Marker>;
 };
 
 } // namespace smpl

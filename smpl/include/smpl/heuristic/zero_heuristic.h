@@ -37,28 +37,46 @@
 
 namespace smpl {
 
-class ZeroHeuristic : public RobotHeuristic
+class ZeroHeuristic :
+    public Heuristic,
+    public IGoalHeuristic,
+    public IStartHeuristic,
+    public IPairwiseHeuristic,
+    public IMetricGoalHeuristic,
+    public IMetricStartHeuristic
 {
 public:
 
-    bool init(RobotPlanningSpace* space);
+    bool Init(DiscreteSpace* space);
 
-    /// \name Required Functions from RobotHeuristic
+    /// \name IGoalHeuristic Interface
     ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
+    int GetGoalHeuristic(int state_id) final;
+    ///@}
+
+    /// \name IStartHeuristic Interface
+    ///@{
+    int GetStartHeuristic(int state_id) final;
+    ///@}
+
+    /// \name IPairwiseHeuristic Interface
+    ///@{
+    int GetPairwiseHeuristic(int from_id, int to_id) final;
+    ///@}
+
+    /// \name IMetricGoalHeuristic Interface
+    ///@{
+    auto GetMetricGoalDistance(double x, double y, double z) -> double final;
+    ///@}
+
+    /// \name IMetricStartHeuristic Interface
+    ///@{
+    auto GetMetricStartDistance(double x, double y, double z) -> double final;
     ///@}
 
     /// \name Required Functions from Extension
     ///@{
-    Extension* getExtension(size_t class_code) override;
-    ///@}
-
-    /// \name Required Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 };
 

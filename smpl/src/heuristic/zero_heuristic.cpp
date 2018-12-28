@@ -33,27 +33,9 @@
 
 namespace smpl {
 
-bool ZeroHeuristic::init(RobotPlanningSpace* space)
+bool ZeroHeuristic::Init(DiscreteSpace* space)
 {
-    return RobotHeuristic::init(space);
-}
-
-double ZeroHeuristic::getMetricGoalDistance(double x, double y, double z)
-{
-    return 0.0;
-}
-
-double ZeroHeuristic::getMetricStartDistance(double x, double y, double z)
-{
-    return 0.0;
-}
-
-Extension* ZeroHeuristic::getExtension(size_t class_code)
-{
-    if (class_code == GetClassCode<RobotHeuristic>()) {
-        return this;
-    }
-    return nullptr;
+    return Heuristic::Init(space);
 }
 
 int ZeroHeuristic::GetGoalHeuristic(int state_id)
@@ -66,9 +48,34 @@ int ZeroHeuristic::GetStartHeuristic(int state_id)
     return 0;
 }
 
-int ZeroHeuristic::GetFromToHeuristic(int from_id, int to_id)
+int ZeroHeuristic::GetPairwiseHeuristic(int from_id, int to_id)
 {
     return 0;
+}
+
+auto ZeroHeuristic::GetMetricGoalDistance(double x, double y, double z) -> double
+{
+    return 0.0;
+}
+
+auto ZeroHeuristic::GetMetricStartDistance(double x, double y, double z) -> double
+{
+    return 0.0;
+}
+
+auto ZeroHeuristic::GetExtension(size_t class_id) -> Extension*
+{
+    if (class_id == GetClassCode<Heuristic>() ||
+        class_id == GetClassCode<IGoalHeuristic>() ||
+        class_id == GetClassCode<IStartHeuristic>() ||
+        class_id == GetClassCode<IPairwiseHeuristic>() ||
+        class_id == GetClassCode<IMetricGoalHeuristic>() ||
+        class_id == GetClassCode<IMetricStartHeuristic>())
+    {
+        return this;
+    }
+
+    return NULL;
 }
 
 } // namespace smpl

@@ -3,11 +3,39 @@
 namespace smpl {
 namespace visual {
 
-Color MakeColorHSV(float h, float s, float v, float a)
+auto MakeColorHSV(float h, float s, float v, float a) -> Color
 {
     Color c;
     hsv_to_rgb(&c.r, &c.g, &c.b, h, s, v);
     c.a = a;
+    return c;
+}
+
+auto MakeColorHexARGB(uint32_t value) -> Color
+{
+    auto normalizer = 1.0f / 255.0f;
+    Color c;
+    c.b = normalizer * (float)(value & 0x000000FF);
+    value >>= 8;
+    c.g = normalizer * (float)(value & 0x000000FF);
+    value >>= 8;
+    c.r = normalizer * (float)(value & 0x000000FF);
+    value >>= 8;
+    c.a = normalizer * (float)value;
+    return c;
+}
+
+auto MakeColorHexRGBA(uint32_t value) -> Color
+{
+    auto normalizer = 1.0f / 255.0f;
+    Color c;
+    c.a = normalizer * (float)(value & 0x000000FF);
+    value >>= 8;
+    c.b = normalizer * (float)(value & 0x000000FF);
+    value >>= 8;
+    c.g = normalizer * (float)(value & 0x000000FF);
+    value >>= 8;
+    c.r = normalizer * (float)value;
     return c;
 }
 

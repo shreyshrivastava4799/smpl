@@ -610,19 +610,14 @@ bool ManipLattice::UpdateStart(int state_id)
     SMPL_DEBUG_NAMED(G_LOG, "set the start state");
 
     assert(IsValidStateID(this, state_id));
-    auto& real_coords = GetHashEntry(state_id)->state;
+    auto* state = GetHashEntry(state_id);
 
-    if ((int)real_coords.size() < GetRobotModel()->jointVariableCount()) {
-        SMPL_ERROR_NAMED(G_LOG, "start state does not contain enough joint positions");
-        return false;
-    }
-
-    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state: " << real_coords);
+    SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state: " << state->state);
 
     // check if the start configuration is in collision
-    if (!GetCollisionChecker()->isStateValid(real_coords, true)) {
+    if (!GetCollisionChecker()->isStateValid(state->state, true)) {
         auto* vis_name = "invalid_start";
-        SV_SHOW_WARN_NAMED(vis_name, GetCollisionChecker()->getCollisionModelVisualization(real_coords));
+        SV_SHOW_WARN_NAMED(vis_name, GetCollisionChecker()->getCollisionModelVisualization(state->state));
         SMPL_WARN(" -> in collision");
         return false;
     }
@@ -630,6 +625,9 @@ bool ManipLattice::UpdateStart(int state_id)
     if (!m_action_space->UpdateStart(state_id)) {
         return false;
     }
+
+    auto* vis_name = "start_config";
+    SV_SHOW_INFO_NAMED(vis_name, GetStateVisualization(state->state, vis_name));
 
     return DiscreteSpace::UpdateStart(state_id);
 }
@@ -640,7 +638,7 @@ bool ManipLattice::UpdateGoal(GoalConstraint* goal)
         return false;
     }
 
-    return true;
+    return DiscreteSpace::UpdateGoal(goal);
 }
 
 auto ManipLattice::GetExtension(size_t class_code) -> Extension*

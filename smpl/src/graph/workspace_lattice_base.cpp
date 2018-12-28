@@ -34,36 +34,38 @@
 // project includes
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
+#include <smpl/planning_params.h>
+#include <smpl/robot_model.h>
 #include <smpl/spatial.h>
 
 namespace smpl {
 
-bool WorkspaceLatticeBase::init(
-    RobotModel* _robot,
-    CollisionChecker* checker,
-    const Params& _params)
+bool WorkspaceLatticeBase::Init(RobotModel* robot, const Params& params)
 {
-    if (!RobotPlanningSpace::init(_robot, checker)) {
-        return false;
-    }
+    if (robot == NULL) return false;
 
-    m_fk_iface = _robot->getExtension<ForwardKinematicsInterface>();
-    if (!m_fk_iface) {
+    auto* fk_iface = robot->GetExtension<IForwardKinematics>();
+    if (fk_iface == NULL) {
         SMPL_WARN("Workspace Lattice requires Forward Kinematics Interface extension");
         return false;
     }
 
-    m_ik_iface = _robot->getExtension<InverseKinematicsInterface>();
-    if (!m_ik_iface) {
+    auto* ik_iface = robot->GetExtension<IInverseKinematics>();
+    if (ik_iface == NULL) {
         SMPL_WARN("Workspace Lattice requires Inverse Kinematics Interface extension");
         return false;
     }
 
-    m_rm_iface = _robot->getExtension<RedundantManipulatorInterface>();
-    if (!m_rm_iface) {
+    auto* rm_iface = robot->GetExtension<IRedundantManipulator>();
+    if (rm_iface == NULL) {
         SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return false;
     }
+
+    m_robot_model = robot;
+    m_fk_iface = fk_iface;
+    m_ik_iface = ik_iface;
+    m_rm_iface = rm_iface;
 
     m_fangle_indices.resize(m_rm_iface->redundantVariableCount());
     m_fangle_min_limits.resize(m_rm_iface->redundantVariableCount());
@@ -74,10 +76,10 @@ bool WorkspaceLatticeBase::init(
     SMPL_DEBUG_NAMED(G_LOG, "%zu free angles", m_fangle_indices.size());
     for (auto i = 0; i < (int)m_fangle_indices.size(); ++i) {
         m_fangle_indices[i] = m_rm_iface->redundantVariableIndex(i);
-        m_fangle_min_limits[i] = _robot->minPosLimit(m_fangle_indices[i]);
-        m_fangle_max_limits[i] = _robot->maxPosLimit(m_fangle_indices[i]);
-        m_fangle_bounded[i] = _robot->hasPosLimit(m_fangle_indices[i]);
-        m_fangle_continuous[i] = _robot->isContinuous(m_fangle_indices[i]);
+        m_fangle_min_limits[i] = robot->minPosLimit(m_fangle_indices[i]);
+        m_fangle_max_limits[i] = robot->maxPosLimit(m_fangle_indices[i]);
+        m_fangle_bounded[i] = robot->hasPosLimit(m_fangle_indices[i]);
+        m_fangle_continuous[i] = robot->isContinuous(m_fangle_indices[i]);
         SMPL_DEBUG_NAMED(G_LOG, "  name = %s, index = %zu, min = %f, max = %f, bounded = %d, continuous = %d",
                 m_rm_iface->getPlanningJoints()[m_fangle_indices[i]].c_str(),
                 m_fangle_indices[i],
@@ -95,27 +97,27 @@ bool WorkspaceLatticeBase::init(
     m_val_count[0] = std::numeric_limits<int>::max();
     m_val_count[1] = std::numeric_limits<int>::max();
     m_val_count[2] = std::numeric_limits<int>::max();
-    m_val_count[3] = _params.R_count;
-    m_val_count[4] = _params.P_count;
-    m_val_count[5] = _params.Y_count;
+    m_val_count[3] = params.R_count;
+    m_val_count[4] = params.P_count;
+    m_val_count[5] = params.Y_count;
     for (int i = 0; i < m_fangle_indices.size(); ++i) {
         if (m_fangle_continuous[i]) {
-            m_val_count[6 + i] = (int)std::round((2.0 * M_PI) / _params.free_angle_res[i]);
+            m_val_count[6 + i] = (int)std::round((2.0 * M_PI) / params.free_angle_res[i]);
         } else if (m_fangle_bounded[i]) {
             auto span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
-            m_val_count[6 + i] = std::max(1, (int)std::round(span / _params.free_angle_res[i]));
+            m_val_count[6 + i] = std::max(1, (int)std::round(span / params.free_angle_res[i]));
         } else {
             m_val_count[6 + i] = std::numeric_limits<int>::max();
         }
     }
 
-    m_res[0] = _params.res_x;
-    m_res[1] = _params.res_y;
-    m_res[2] = _params.res_z;
+    m_res[0] = params.res_x;
+    m_res[1] = params.res_y;
+    m_res[2] = params.res_z;
     // TODO: limit these ranges and handle discretization appropriately
-    m_res[3] = 2.0 * M_PI / _params.R_count;
-    m_res[4] = M_PI       / (_params.P_count - 1);
-    m_res[5] = 2.0 * M_PI / _params.Y_count;
+    m_res[3] = 2.0 * M_PI / params.R_count;
+    m_res[4] = M_PI       / (params.P_count - 1);
+    m_res[5] = 2.0 * M_PI / params.Y_count;
 
     for (int i = 0; i < m_fangle_indices.size(); ++i) {
         if (m_fangle_continuous[i]) {
@@ -124,7 +126,7 @@ bool WorkspaceLatticeBase::init(
             auto span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
             m_res[6 + i] = span / m_val_count[6 + i];
         } else {
-            m_res[6 + i] = _params.free_angle_res[i];
+            m_res[6 + i] = params.free_angle_res[i];
         }
     }
 
@@ -142,12 +144,12 @@ bool WorkspaceLatticeBase::init(
     return true;
 }
 
-bool WorkspaceLatticeBase::initialized() const
+bool WorkspaceLatticeBase::Initialized() const
 {
-    return (bool)m_fk_iface;
+    return m_fk_iface != NULL;
 }
 
-void WorkspaceLatticeBase::stateRobotToWorkspace(
+void WorkspaceLatticeBase::StateRobotToWorkspace(
     const RobotState& state,
     WorkspaceState& ostate) const
 {
@@ -160,81 +162,75 @@ void WorkspaceLatticeBase::stateRobotToWorkspace(
 
     get_euler_zyx(pose.rotation(), ostate[5], ostate[4], ostate[3]);
 
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
+    for (auto fai = 0; fai < FreeAngleCount(); ++fai) {
         ostate[6 + fai] = state[m_fangle_indices[fai]];
     }
 }
 
-void WorkspaceLatticeBase::stateRobotToCoord(
+void WorkspaceLatticeBase::StateRobotToCoord(
     const RobotState& state,
     WorkspaceCoord& coord) const
 {
-    WorkspaceState ws_state;
-    stateRobotToWorkspace(state, ws_state);
-    stateWorkspaceToCoord(ws_state, coord);
+    auto ws_state = WorkspaceState();
+    StateRobotToWorkspace(state, ws_state);
+    StateWorkspaceToCoord(ws_state, coord);
 }
 
-bool WorkspaceLatticeBase::stateWorkspaceToRobot(
+bool WorkspaceLatticeBase::StateWorkspaceToRobot(
     const WorkspaceState& state,
     RobotState& ostate) const
 {
-    RobotState seed(robot()->jointVariableCount(), 0);
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
+    auto seed = RobotState(m_robot_model->jointVariableCount(), 0);
+    for (auto fai = 0; fai < FreeAngleCount(); ++fai) {
         seed[m_fangle_indices[fai]] = state[6 + fai];
     }
 
-    Affine3 pose =
-            Translation3(state[0], state[1], state[2]) *
-            AngleAxis(state[5], Vector3::UnitZ()) *
-            AngleAxis(state[4], Vector3::UnitY()) *
-            AngleAxis(state[3], Vector3::UnitX());
+    auto pose = MakeAffine(
+            state[0], state[1], state[2], state[5], state[4], state[3]);
 
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
 
-void WorkspaceLatticeBase::stateWorkspaceToCoord(
+void WorkspaceLatticeBase::StateWorkspaceToCoord(
     const WorkspaceState& state,
     WorkspaceCoord& coord) const
 {
     coord.resize(m_dof_count);
-    posWorkspaceToCoord(&state[0], &coord[0]);
-    rotWorkspaceToCoord(&state[3], &coord[3]);
-    favWorkspaceToCoord(&state[6], &coord[6]);
+    PosWorkspaceToCoord(&state[0], &coord[0]);
+    RotWorkspaceToCoord(&state[3], &coord[3]);
+    FavWorkspaceToCoord(&state[6], &coord[6]);
 }
 
-bool WorkspaceLatticeBase::stateCoordToRobot(
+bool WorkspaceLatticeBase::StateCoordToRobot(
     const WorkspaceCoord& coord,
     RobotState& state) const
 {
     return false;
 }
 
-void WorkspaceLatticeBase::stateCoordToWorkspace(
+void WorkspaceLatticeBase::StateCoordToWorkspace(
     const WorkspaceCoord& coord,
     WorkspaceState& state) const
 {
     state.resize(m_dof_count);
-    posCoordToWorkspace(&coord[0], &state[0]);
-    rotCoordToWorkspace(&coord[3], &state[3]);
-    favCoordToWorkspace(&coord[6], &state[6]);
+    PosCoordToWorkspace(&coord[0], &state[0]);
+    RotCoordToWorkspace(&coord[3], &state[3]);
+    FavCoordToWorkspace(&coord[6], &state[6]);
 }
 
-bool WorkspaceLatticeBase::stateWorkspaceToRobot(
+bool WorkspaceLatticeBase::StateWorkspaceToRobot(
     const WorkspaceState& state,
     const RobotState& seed,
     RobotState& ostate) const
 {
-    Affine3 pose =
-            Translation3(state[0], state[1], state[2]) *
-            AngleAxis(state[5], Vector3::UnitZ()) *
-            AngleAxis(state[4], Vector3::UnitY()) *
-            AngleAxis(state[3], Vector3::UnitX());
+    auto pose = MakeAffine(
+            state[0], state[1], state[2], state[5], state[4], state[3]);
 
     // TODO: unrestricted variant?
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
 
-void WorkspaceLatticeBase::posWorkspaceToCoord(const double* wp, int* gp) const
+void WorkspaceLatticeBase::PosWorkspaceToCoord(const double* wp, int* gp) const
 {
     if (wp[0] >= 0.0) {
         gp[0] = (int)(wp[0] / m_res[0]);
@@ -255,45 +251,45 @@ void WorkspaceLatticeBase::posWorkspaceToCoord(const double* wp, int* gp) const
     }
 }
 
-void WorkspaceLatticeBase::posCoordToWorkspace(const int* gp, double* wp) const
+void WorkspaceLatticeBase::PosCoordToWorkspace(const int* gp, double* wp) const
 {
     wp[0] = gp[0] * m_res[0] + 0.5 * m_res[0];
     wp[1] = gp[1] * m_res[1] + 0.5 * m_res[1];
     wp[2] = gp[2] * m_res[2] + 0.5 * m_res[2];
 }
 
-void WorkspaceLatticeBase::rotWorkspaceToCoord(const double* wr, int* gr) const
+void WorkspaceLatticeBase::RotWorkspaceToCoord(const double* wr, int* gr) const
 {
-    gr[0] = (int)((angles::normalize_angle_positive(wr[0]) + m_res[3] * 0.5) / m_res[3]) % m_val_count[3];
-    gr[1] = (int)((angles::normalize_angle(wr[1]) + (0.5 * M_PI) + m_res[4] * 0.5) / m_res[4]) % m_val_count[4];
-    gr[2] = (int)((angles::normalize_angle_positive(wr[2]) + m_res[5] * 0.5) / m_res[5]) % m_val_count[5];
+    gr[0] = (int)((normalize_angle_positive(wr[0]) + m_res[3] * 0.5) / m_res[3]) % m_val_count[3];
+    gr[1] = (int)((normalize_angle(wr[1]) + (0.5 * M_PI) + m_res[4] * 0.5) / m_res[4]) % m_val_count[4];
+    gr[2] = (int)((normalize_angle_positive(wr[2]) + m_res[5] * 0.5) / m_res[5]) % m_val_count[5];
 }
 
-void WorkspaceLatticeBase::rotCoordToWorkspace(const int* gr, double* wr) const
+void WorkspaceLatticeBase::RotCoordToWorkspace(const int* gr, double* wr) const
 {
     // TODO: this normalize is probably not necessary
-    wr[0] = angles::normalize_angle((double)gr[0] * m_res[3]);
-    wr[1] = angles::normalize_angle(-0.5 * M_PI + (double)gr[1] * m_res[4]);
-    wr[2] = angles::normalize_angle((double)gr[2] * m_res[5]);
+    wr[0] = normalize_angle((double)gr[0] * m_res[3]);
+    wr[1] = normalize_angle(-0.5 * M_PI + (double)gr[1] * m_res[4]);
+    wr[2] = normalize_angle((double)gr[2] * m_res[5]);
 }
 
-void WorkspaceLatticeBase::poseWorkspaceToCoord(const double* wp, int* gp) const
+void WorkspaceLatticeBase::PoseWorkspaceToCoord(const double* wp, int* gp) const
 {
-    posWorkspaceToCoord(wp, gp);
-    rotWorkspaceToCoord(wp + 3, gp + 3);
+    PosWorkspaceToCoord(wp, gp);
+    RotWorkspaceToCoord(wp + 3, gp + 3);
 }
 
-void WorkspaceLatticeBase::poseCoordToWorkspace(const int* gp, double* wp) const
+void WorkspaceLatticeBase::PoseCoordToWorkspace(const int* gp, double* wp) const
 {
-    posCoordToWorkspace(gp, wp);
-    rotCoordToWorkspace(gp + 3, wp + 3);
+    PosCoordToWorkspace(gp, wp);
+    RotCoordToWorkspace(gp + 3, wp + 3);
 }
 
-void WorkspaceLatticeBase::favWorkspaceToCoord(const double* wa, int* ga) const
+void WorkspaceLatticeBase::FavWorkspaceToCoord(const double* wa, int* ga) const
 {
-    for (size_t fai = 0; fai < freeAngleCount(); ++fai) {
+    for (size_t fai = 0; fai < FreeAngleCount(); ++fai) {
         if (m_fangle_continuous[fai]) {
-            auto pos_angle = angles::normalize_angle_positive(wa[fai]);
+            auto pos_angle = normalize_angle_positive(wa[fai]);
 
             ga[fai] = (int)((pos_angle + m_res[6 + fai] * 0.5) / m_res[6 + fai]);
 
@@ -312,9 +308,9 @@ void WorkspaceLatticeBase::favWorkspaceToCoord(const double* wa, int* ga) const
     }
 }
 
-void WorkspaceLatticeBase::favCoordToWorkspace(const int* ga, double* wa) const
+void WorkspaceLatticeBase::FavCoordToWorkspace(const int* ga, double* wa) const
 {
-    for (size_t i = 0; i < freeAngleCount(); ++i) {
+    for (size_t i = 0; i < FreeAngleCount(); ++i) {
         if (m_fangle_continuous[i]) {
             wa[i] = (double)ga[i] * m_res[6 + i];
         } else if (!m_fangle_bounded[i]) {
