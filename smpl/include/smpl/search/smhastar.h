@@ -32,16 +32,20 @@
 #ifndef SMPL_SMHASTAR_H
 #define SMPL_SMHASTAR_H
 
-#include <sbpl/heuristics/heuristic.h>
-#include <sbpl/planners/planner.h>
-#include <sbpl/utils/heap.h>
+// standard includes
+#include <vector>
 
+// project includes
 #include <smpl/heap/intrusive_heap.h>
 
-class DiscreteSpaceInformation;
-class Heuristic;
-
 namespace smpl {
+
+class DiscreteSpace;
+class GoalConstraint;
+class Heuristic;
+class IGoalHeuristic;
+class ISearchable;
+struct StateChangeQuery;
 
 struct SMHAState
 {
@@ -68,117 +72,95 @@ struct SMHAState
     HeapData od[1]; // overallocated for additional n heuristics
 };
 
-class SMHAStar : public SBPLPlanner
+struct ReplanParams
+{
+    double initial_eps;
+    double final_eps;
+    double dec_eps;
+    bool return_first_solution;
+    double max_time;
+    double repair_time;
+
+    ReplanParams(double time)
+    {
+        max_time = time;
+        initial_eps = 5.0;
+        final_eps = 1.0;
+        dec_eps = 0.2;
+        return_first_solution = false;
+        repair_time = -1;
+    }
+};
+
+class SMHAStar
 {
 public:
 
     SMHAStar();
 
     bool Init(
-        DiscreteSpaceInformation* space,
+        DiscreteSpace* space,
         Heuristic* anchor,
         Heuristic** heurs,
         int heur_count);
 
-    virtual ~SMHAStar();
+    ~SMHAStar();
 
-    virtual int set_start(int start_stateID);
-    virtual int set_goal(int goal_stateID);
-
-    /// \sa SBPLPlanner::replan(double, std::vector<int>*)
-    virtual int replan(
-        double allowed_time,
-        std::vector<int>* solution);
-
-    /// \sa SBPLPlanner::replan(double, std::vector<int>*, int*)
-    virtual int replan(
-        double allowed_time,
-        std::vector<int>* solution,
-        int* solcost);
-
-    /// \sa SBPLPlanner::replan(std::vector<int*>, ReplanParams)
-    virtual int replan(
-        std::vector<int>* solution,
-        ReplanParams params);
-
-    /// \sa SBPLPlanner::replan(std::vector<int>*, ReplanParams, int*)
-    virtual int replan(
-        std::vector<int>* solution,
-        ReplanParams params,
-        int* cost);
-
-    /// \sa SBPLPlanner::force_planning_from_scratch()
-    /// \return 1 on success; 0 otherwise
-    virtual int force_planning_from_scratch();
-
-    /// \sa SBPLPlanner::force_planning_from_scratch_and_free_memory()
-    /// \return 1 on success; 0 otherwise
-    virtual int force_planning_from_scratch_and_free_memory();
-
-    virtual void costs_changed(const StateChangeQuery& changes);
-
-    /// \sa ARAPlanner::costs_changed()
-    virtual void costs_changed();
-
-    /// \name Search Parameter Accessors
+    /// \name Search Configuration
     ///@{
+    void SetTargetEpsilon(double eps);
+    auto GetTargetEpsilon() const -> double;
 
-    /// \sa SBPLPlanner::set_search_mode(bool)
-    virtual int     set_search_mode(bool search_until_first_solution);
-    /// \sa SBPLPlanner::set_initialsolution_eps(double)
-    virtual void    set_initialsolution_eps(double eps);
+    auto GetDeltaEpsilon() const -> double;
+    void SetDeltaEpsilon(double eps);
 
-    /// \sa SBPLPlanner::get_initial_eps()
-    virtual double  get_initial_eps();
+    void SetInitialEps(double eps);
+    auto GetInitialEps() const -> double;
 
+    int SetSearchMode(bool search_until_first_solution);
+
+    void SetInitialMHAEps(double eps_mha);
+    auto GetInitialMHAEps() const -> double;
+
+    void SetMaxExpansions(int expansion_count);
+    int GetMaxExpansions() const;
+
+    void SetMaxTime(double max_time);
+    auto GetMaxTime() const -> double;
     ///@}
 
     /// \name Search Statistics
     ///@{
+    auto GetSolutionEps() const -> double;
 
-    /// \sa SBPLPlanner::get_solution_eps() const
-    virtual double  get_solution_eps() const;
-    /// \sa SBPLPlanner::get_final_epsilon()
-    virtual double  get_final_epsilon();
+    int GetNumExpansions() const;
+    int GetNumExpansionsInitialEps() const;
 
-    /// \sa SBPLPlanner::get_final_eps_planning_time
-    virtual double  get_final_eps_planning_time();
-    /// \sa SBPLPlanner::get_initial_eps_planning_time
-    virtual double  get_initial_eps_planning_time();
-
-    /// \sa SBPLPlanner::get_n_expands() const
-    virtual int     get_n_expands() const;
-    ///\sa SBPLPlanner::get_n_expands_init_solution()
-    virtual int     get_n_expands_init_solution();
-    /// \sa SBPLPlanner::get_search_states(std::vector<PlannerStates>*)
-    virtual void    get_search_stats(std::vector<PlannerStats>* s);
-
+    auto GetElapsedTime() const -> double;
+    auto GetElapsedTimeInitialEps() const -> double;
     ///@}
 
-    /// \name Homogeneous accessor methods for search mode and timing parameters
-    // @{
+    /// \name Search Queries
+    ///@{
+    bool UpdateStart(int state_id);
+    bool UpdateGoal(GoalConstraint* goal);
 
-    void    set_initial_eps(double eps) { return set_initialsolution_eps(eps); }
-    void    set_initial_mha_eps(double eps_mha);
-    void    set_final_eps(double eps);
-    void    set_dec_eps(double eps);
-    void    set_max_expansions(int expansion_count);
-    void    set_max_time(double max_time);
+    void UpdateCosts(const StateChangeQuery& changes);
+    void UpdateCosts();
 
-    // double get_initial_eps();
-    double  get_initial_mha_eps() const;
-    double  get_final_eps() const;
-    double  get_dec_eps() const;
-    int     get_max_expansions() const;
-    double  get_max_time() const;
+    void ForcePlanningFromScratch();
+    void ForcePlanningFromScratchAndFreeMemory();
 
+    int Replan(double allowed_time, std::vector<int>* solution);
+    int Replan(double allowed_time, std::vector<int>* solution, int* cost);
+    int Replan(ReplanParams params, std::vector<int>* solution);
+    int Replan(ReplanParams params, std::vector<int>* solution, int* cost);
     ///@}
 
-private:
+    ISearchable* m_space = NULL;
 
-    // Related objects
-    Heuristic* m_anchor = NULL;
-    Heuristic** m_heurs = NULL;
+    IGoalHeuristic* m_anchor = NULL;
+    std::vector<IGoalHeuristic*> m_heurs;
     int m_heur_count = 0;           ///< number of additional heuristics used
 
     ReplanParams m_params = ReplanParams(0.0);
@@ -189,7 +171,7 @@ private:
     double m_eps_mha = 1.0;       ///< current w_2
 
     /// suboptimality bound satisfied by the last search
-    double m_eps_satisfied = (double)INFINITECOST;
+    double m_eps_satisfied;
 
     int m_num_expansions = 0;   ///< current number of expansion
     double m_elapsed = 0.0;       ///< current amount of seconds
@@ -197,7 +179,9 @@ private:
     int m_call_number = 0;
 
     SMHAState* m_start_state = NULL;
-    SMHAState* m_goal_state = NULL;
+
+    GoalConstraint* m_goal = NULL;
+    SMHAState m_best_goal;
 
     std::vector<SMHAState*> m_search_states;
 
@@ -212,30 +196,6 @@ private:
 
     using OpenList = intrusive_heap<SMHAState::HeapData, HeapCompare>;
     OpenList* m_open = NULL; ///< sequence of (m_heur_count + 1) open lists
-
-    bool check_params(const ReplanParams& params);
-
-    bool time_limit_reached() const;
-
-    int num_heuristics() const { return m_heur_count + 1; }
-    SMHAState* get_state(int state_id);
-    void init_state(SMHAState* state, size_t mha_state_idx, int state_id);
-    void reinit_state(SMHAState* state);
-    void reinit_search();
-    void clear_open_lists();
-    void clear();
-    int compute_key(SMHAState* state, int hidx);
-    void expand(SMHAState* state, int hidx);
-    SMHAState* state_from_open_state(SMHAState::HeapData* open_state);
-    int compute_heuristic(int state_id, int hidx);
-    int get_minf(OpenList& pq) const;
-    void insert_or_update(SMHAState* state, int hidx);
-
-    void extract_path(std::vector<int>* solution_path, int* solcost);
-
-    bool closed_in_anc_search(SMHAState* state) const;
-    bool closed_in_add_search(SMHAState* state) const;
-    bool closed_in_any_search(SMHAState* state) const;
 };
 
 } // namespace smpl

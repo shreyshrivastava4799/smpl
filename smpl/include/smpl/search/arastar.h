@@ -42,6 +42,8 @@
 
 namespace smpl {
 
+class DiscreteSpace;
+class Heuristic;
 class ISearchable;
 class IGoalHeuristic;
 class GoalConstraint;
@@ -99,7 +101,7 @@ public:
     ARAStar();
     ~ARAStar();
 
-    bool Init(ISearchable* space, IGoalHeuristic* heuristic);
+    bool Init(DiscreteSpace* space, Heuristic* heuristic);
 
     /// \name Search Configuration
     ///@{
@@ -144,8 +146,8 @@ public:
     bool UpdateGoal(GoalConstraint* goal);
     void UpdateCosts(const StateChangeQuery& stateChange);
 
-    int ForcePlanningFromScratch();
-    int ForcePlanningFromScratchAndFreeMemory();
+    void ForcePlanningFromScratch();
+    void ForcePlanningFromScratchAndFreeMemory();
 
     int Replan(double allowed_time_secs, std::vector<int>* solution);
     int Replan(double allowed_time_secs, std::vector<int>* solution, int* cost);
@@ -230,9 +232,9 @@ private:
     void ReorderOpen();
     int ComputeKey(SearchState* s) const;
 
-    SearchState* GetSearchState(int state_id);
-    SearchState* CreateState(int state_id);
-    void ReinitSearchState(SearchState* state);
+    auto GetSearchState(int state_id) -> SearchState*;
+    auto CreateState(int state_id) -> SearchState*;
+    void ReinitSearchState(SearchState* state, bool goal = false);
 
     void ExtractPath(
         SearchState* to_state,

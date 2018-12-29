@@ -37,9 +37,6 @@
 #include <chrono>
 #include <vector>
 
-// system includes
-#include <sbpl/headers.h>
-
 // project includes
 #include <smpl/collision_checker.h>
 #include <smpl/robot_model.h>

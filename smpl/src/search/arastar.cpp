@@ -62,12 +62,18 @@ ARAStar::ARAStar() :
     m_time_params.max_allowed_time = clock::duration::zero();
 }
 
-bool ARAStar::Init(ISearchable* space, IGoalHeuristic* heuristic)
+bool ARAStar::Init(DiscreteSpace* space, Heuristic* heuristic)
 {
     if (space == NULL || heuristic == NULL) return false;
 
-    m_space = space;
-    m_heur = heuristic;
+    auto* searchable = space->GetExtension<ISearchable>();
+    if (searchable == NULL) return false;
+
+    auto* goal_heuristic = heuristic->GetExtension<IGoalHeuristic>();
+    if (goal_heuristic == NULL) return false;
+
+    m_space = searchable;
+    m_heur = goal_heuristic;
     return true;
 }
 
@@ -169,7 +175,7 @@ int ARAStar::Replan(
         ++m_call_number; // trigger state reinitializations
 
         ReinitSearchState(start_state);
-        ReinitSearchState(goal_state);
+        ReinitSearchState(goal_state, true);
 
         start_state->g = 0;
         start_state->f = ComputeKey(start_state);
@@ -299,7 +305,7 @@ int ARAStar::Replan(
 
 /// Force the planner to forget previous search efforts, begin from scratch,
 /// and free all memory allocated by the planner during previous searches.
-int ARAStar::ForcePlanningFromScratchAndFreeMemory()
+void ARAStar::ForcePlanningFromScratchAndFreeMemory()
 {
     ForcePlanningFromScratch();
     m_open.clear();
@@ -310,7 +316,6 @@ int ARAStar::ForcePlanningFromScratchAndFreeMemory()
     }
     m_states.clear();
     m_states.shrink_to_fit();
-    return 0;
 }
 
 /// Return the suboptimality bound of the current solution for the current search.
@@ -371,11 +376,10 @@ bool ARAStar::UpdateStart(int start_state_id)
 }
 
 /// Force the search to forget previous search efforts and start from scratch.
-int ARAStar::ForcePlanningFromScratch()
+void ARAStar::ForcePlanningFromScratch()
 {
     m_last_start_state_id = -1;
     m_new_goal = true;
-    return 0;
 }
 
 /// Set whether the number of expansions is bounded by time or total expansions
@@ -562,12 +566,16 @@ auto ARAStar::CreateState(int state_id) -> SearchState*
 }
 
 // Lazily (re)initialize a search state.
-void ARAStar::ReinitSearchState(SearchState* state)
+void ARAStar::ReinitSearchState(SearchState* state, bool goal)
 {
     if (state->call_number != m_call_number) {
         SMPL_DEBUG_NAMED(SELOG, "Reinitialize state %d", state->state_id);
         state->g = INFINITECOST;
-        state->h = m_heur->GetGoalHeuristic(state->state_id);
+        if (goal) {
+            state->h = 0;
+        } else {
+            state->h = m_heur->GetGoalHeuristic(state->state_id);
+        }
         state->f = INFINITECOST;
         state->eg = INFINITECOST;
         state->iteration_closed = 0;
