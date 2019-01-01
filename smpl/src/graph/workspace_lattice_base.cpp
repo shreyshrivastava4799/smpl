@@ -40,7 +40,7 @@
 
 namespace smpl {
 
-bool WorkspaceLatticeBase::Init(RobotModel* robot, const Params& params)
+bool WorkspaceProjection::Init(RobotModel* robot, const Params& params)
 {
     if (robot == NULL) return false;
 
@@ -144,12 +144,12 @@ bool WorkspaceLatticeBase::Init(RobotModel* robot, const Params& params)
     return true;
 }
 
-bool WorkspaceLatticeBase::Initialized() const
+bool WorkspaceProjection::Initialized() const
 {
     return m_fk_iface != NULL;
 }
 
-void WorkspaceLatticeBase::StateRobotToWorkspace(
+void WorkspaceProjection::StateRobotToWorkspace(
     const RobotState& state,
     WorkspaceState& ostate) const
 {
@@ -167,7 +167,7 @@ void WorkspaceLatticeBase::StateRobotToWorkspace(
     }
 }
 
-void WorkspaceLatticeBase::StateRobotToCoord(
+void WorkspaceProjection::StateRobotToCoord(
     const RobotState& state,
     WorkspaceCoord& coord) const
 {
@@ -176,7 +176,7 @@ void WorkspaceLatticeBase::StateRobotToCoord(
     StateWorkspaceToCoord(ws_state, coord);
 }
 
-bool WorkspaceLatticeBase::StateWorkspaceToRobot(
+bool WorkspaceProjection::StateWorkspaceToRobot(
     const WorkspaceState& state,
     RobotState& ostate) const
 {
@@ -191,7 +191,7 @@ bool WorkspaceLatticeBase::StateWorkspaceToRobot(
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
 
-void WorkspaceLatticeBase::StateWorkspaceToCoord(
+void WorkspaceProjection::StateWorkspaceToCoord(
     const WorkspaceState& state,
     WorkspaceCoord& coord) const
 {
@@ -201,14 +201,14 @@ void WorkspaceLatticeBase::StateWorkspaceToCoord(
     FavWorkspaceToCoord(&state[6], &coord[6]);
 }
 
-bool WorkspaceLatticeBase::StateCoordToRobot(
+bool WorkspaceProjection::StateCoordToRobot(
     const WorkspaceCoord& coord,
     RobotState& state) const
 {
     return false;
 }
 
-void WorkspaceLatticeBase::StateCoordToWorkspace(
+void WorkspaceProjection::StateCoordToWorkspace(
     const WorkspaceCoord& coord,
     WorkspaceState& state) const
 {
@@ -218,7 +218,7 @@ void WorkspaceLatticeBase::StateCoordToWorkspace(
     FavCoordToWorkspace(&coord[6], &state[6]);
 }
 
-bool WorkspaceLatticeBase::StateWorkspaceToRobot(
+bool WorkspaceProjection::StateWorkspaceToRobot(
     const WorkspaceState& state,
     const RobotState& seed,
     RobotState& ostate) const
@@ -230,7 +230,7 @@ bool WorkspaceLatticeBase::StateWorkspaceToRobot(
     return m_rm_iface->computeFastIK(pose, seed, ostate);
 }
 
-void WorkspaceLatticeBase::PosWorkspaceToCoord(const double* wp, int* gp) const
+void WorkspaceProjection::PosWorkspaceToCoord(const double* wp, int* gp) const
 {
     if (wp[0] >= 0.0) {
         gp[0] = (int)(wp[0] / m_res[0]);
@@ -251,21 +251,21 @@ void WorkspaceLatticeBase::PosWorkspaceToCoord(const double* wp, int* gp) const
     }
 }
 
-void WorkspaceLatticeBase::PosCoordToWorkspace(const int* gp, double* wp) const
+void WorkspaceProjection::PosCoordToWorkspace(const int* gp, double* wp) const
 {
     wp[0] = gp[0] * m_res[0] + 0.5 * m_res[0];
     wp[1] = gp[1] * m_res[1] + 0.5 * m_res[1];
     wp[2] = gp[2] * m_res[2] + 0.5 * m_res[2];
 }
 
-void WorkspaceLatticeBase::RotWorkspaceToCoord(const double* wr, int* gr) const
+void WorkspaceProjection::RotWorkspaceToCoord(const double* wr, int* gr) const
 {
     gr[0] = (int)((normalize_angle_positive(wr[0]) + m_res[3] * 0.5) / m_res[3]) % m_val_count[3];
     gr[1] = (int)((normalize_angle(wr[1]) + (0.5 * M_PI) + m_res[4] * 0.5) / m_res[4]) % m_val_count[4];
     gr[2] = (int)((normalize_angle_positive(wr[2]) + m_res[5] * 0.5) / m_res[5]) % m_val_count[5];
 }
 
-void WorkspaceLatticeBase::RotCoordToWorkspace(const int* gr, double* wr) const
+void WorkspaceProjection::RotCoordToWorkspace(const int* gr, double* wr) const
 {
     // TODO: this normalize is probably not necessary
     wr[0] = normalize_angle((double)gr[0] * m_res[3]);
@@ -273,19 +273,19 @@ void WorkspaceLatticeBase::RotCoordToWorkspace(const int* gr, double* wr) const
     wr[2] = normalize_angle((double)gr[2] * m_res[5]);
 }
 
-void WorkspaceLatticeBase::PoseWorkspaceToCoord(const double* wp, int* gp) const
+void WorkspaceProjection::PoseWorkspaceToCoord(const double* wp, int* gp) const
 {
     PosWorkspaceToCoord(wp, gp);
     RotWorkspaceToCoord(wp + 3, gp + 3);
 }
 
-void WorkspaceLatticeBase::PoseCoordToWorkspace(const int* gp, double* wp) const
+void WorkspaceProjection::PoseCoordToWorkspace(const int* gp, double* wp) const
 {
     PosCoordToWorkspace(gp, wp);
     RotCoordToWorkspace(gp + 3, wp + 3);
 }
 
-void WorkspaceLatticeBase::FavWorkspaceToCoord(const double* wa, int* ga) const
+void WorkspaceProjection::FavWorkspaceToCoord(const double* wa, int* ga) const
 {
     for (size_t fai = 0; fai < FreeAngleCount(); ++fai) {
         if (m_fangle_continuous[fai]) {
@@ -308,7 +308,7 @@ void WorkspaceLatticeBase::FavWorkspaceToCoord(const double* wa, int* ga) const
     }
 }
 
-void WorkspaceLatticeBase::FavCoordToWorkspace(const int* ga, double* wa) const
+void WorkspaceProjection::FavCoordToWorkspace(const int* ga, double* wa) const
 {
     for (size_t i = 0; i < FreeAngleCount(); ++i) {
         if (m_fangle_continuous[i]) {

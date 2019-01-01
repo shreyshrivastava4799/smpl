@@ -37,26 +37,59 @@
 
 namespace smpl {
 
-int UniformCostFunction::GetActionCost(
-    const ManipLattice* lattice,
-    int state_id, const ManipLatticeState* state,
-    int action_id, const Action* action,
-    int succ_id, const ManipLatticeState* succ)
+CostFunction::~CostFunction()
 {
-    assert(!action->empty());
+}
 
-    auto* checker = lattice->m_checker;
+bool CostFunction::Init(ManipLattice* space)
+{
+    if (space == NULL) return false;
+    m_space = space;
+    return true;
+}
+
+auto CostFunction::GetPlanningSpace() -> ManipLattice*
+{
+    return m_space;
+}
+
+auto CostFunction::GetPlanningSpace() const -> const ManipLattice*
+{
+    return m_space;
+}
+
+bool CostFunction::UpdateStart(int state_id)
+{
+    return true;
+}
+
+bool CostFunction::UpdateGoal(GoalConstraint* goal)
+{
+    return true;
+}
+
+int UniformCostFunction::GetActionCost(
+    int state_id,
+    const ManipLatticeAction* action,
+    int succ_id)
+{
+    assert(!action->motion.empty());
+
+    auto* lattice = GetPlanningSpace();
+
+    auto* checker = lattice->GetCollisionChecker();
     assert(checker != NULL);
 
     // collision check the trajectory between the source state and the first waypoint
-    auto& src_state = lattice->m_states[state_id]->state;
-    if (!checker->isStateToStateValid(src_state, (*action)[0])) {
+    auto* state = lattice->GetHashEntry(state_id);
+    auto& src_state = state->state;
+    if (!checker->isStateToStateValid(src_state, action->motion[0])) {
         return 0;
     }
 
-    for (auto i = 1; i < action->size(); ++i) {
-        auto& prev_state = (*action)[i - 1];
-        auto& curr_state = (*action)[i];
+    for (auto i = 1; i < action->motion.size(); ++i) {
+        auto& prev_state = action->motion[i - 1];
+        auto& curr_state = action->motion[i];
         if (!checker->isStateToStateValid(prev_state, curr_state)) {
             return 0;
         }
@@ -66,51 +99,49 @@ int UniformCostFunction::GetActionCost(
 }
 
 int L1NormCostFunction::GetActionCost(
-    const ManipLattice* lattice,
-    int state_id, const ManipLatticeState* state,
-    int action_id, const Action* action,
-    int succ_id, const ManipLatticeState* succ)
+    int state_id,
+    const ManipLatticeAction* action,
+    int succ_id)
 {
     return 0;
 }
 
 int L2NormCostFunction::GetActionCost(
-    const ManipLattice* lattice,
-    int state_id, const ManipLatticeState* state,
-    int action_id, const Action* action,
-    int succ_id, const ManipLatticeState* succ)
+    int state_id,
+    const ManipLatticeAction* action,
+    int succ_id)
 {
     return 0;
 }
 
 int LInfNormCostFunction::GetActionCost(
-    const ManipLattice* lattice,
-    int state_id, const ManipLatticeState* state,
-    int action_id, const Action* action,
-    int succ_id, const ManipLatticeState* succ)
+    int state_id,
+    const ManipLatticeAction* action,
+    int succ_id)
 {
     return 0;
 }
 
+LazyCostFunction::~LazyCostFunction()
+{
+}
+
 auto DefaultLazyCostFunction::GetLazyActionCost(
-    const ManipLattice* lattice,
-    int state_id, const ManipLatticeState* state,
-    int action_id, const Action* action,
-    int succ_id, const ManipLatticeState* succ)
+    int state_id,
+    const ManipLatticeAction* action,
+    int succ_id)
     -> std::pair<int, bool>
 {
     return std::make_pair(1000, false);
 }
 
 auto DefaultLazyCostFunction::GetTrueActionCost(
-    const ManipLattice* lattice,
-    int state_id, const ManipLatticeState* state,
-    int action_id, const Action* action,
-    int succ_id, const ManipLatticeState* succ)
+    int state_id,
+    const ManipLatticeAction* action,
+    int succ_id)
     -> int
 {
-    return this->cost_fun->GetActionCost(
-            lattice, state_id, state, action_id, action, succ_id, succ);
+    return this->cost_fun->GetActionCost(state_id, action, succ_id);
 }
 
 } // namespace smpl

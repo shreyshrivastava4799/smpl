@@ -56,7 +56,7 @@ endforeach()
 
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 find_package(Eigen3 REQUIRED)
-find_package(sbpl REQUIRED)
+#find_package(sbpl REQUIRED)
 
 if(SMPL_CONSOLE_ROS)
     find_package(roscpp QUIET)
@@ -187,7 +187,7 @@ endif()
 
 list(APPEND PUBLIC_HEADERS ${EIGEN3_INCLUDE_DIR})
 list(APPEND PUBLIC_HEADERS ${Boost_INCLUDE_DIRS})
-list(APPEND PUBLIC_HEADERS ${SBPL_INCLUDE_DIRS})
+#list(APPEND PUBLIC_HEADERS ${SBPL_INCLUDE_DIRS})
 
 list(APPEND INTERFACE_HEADERS ${SMPL_INSTALL_INCLUDE_DIR})
 
@@ -199,7 +199,7 @@ list(APPEND PRIVATE_LIBRARIES ${Boost_SYSTEM_LIBRARY})
 if(SMPL_HAS_ROSCONSOLE)
     list(APPEND PUBLIC_LIBRARIES ${roscpp_LIBRARIES})
 endif()
-list(APPEND PUBLIC_LIBRARIES ${SBPL_LIBRARIES})
+#list(APPEND PUBLIC_LIBRARIES ${SBPL_LIBRARIES})
 
 macro(include_common_directories name)
     target_include_directories(${name} PRIVATE ${PRIVATE_HEADERS})

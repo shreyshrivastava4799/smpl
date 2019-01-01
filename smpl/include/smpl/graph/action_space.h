@@ -40,12 +40,13 @@ namespace smpl {
 class GoalConstraint;
 class ManipLattice;
 struct ManipLatticeState;
+struct ManipLatticeAction;
 
 class ActionSpace
 {
 public:
 
-    using ActionArray = std::vector<int>;
+    using ActionArray = std::vector<ManipLatticeAction>;
 
     virtual ~ActionSpace();
 
@@ -57,18 +58,7 @@ public:
     virtual bool UpdateStart(int state_id);
     virtual bool UpdateGoal(GoalConstraint* goal);
 
-    virtual auto Apply(
-        int state_id,
-        const ManipLatticeState* state,
-        ActionArray store = ActionArray())
-        -> ActionArray = 0;
-
-    virtual auto GetActionPath(
-        int state_id,
-        const ManipLatticeState* state,
-        int action_id,
-        Action store = Action())
-        -> Action = 0;
+    virtual auto Apply(int state_id, ActionArray store = ActionArray()) -> ActionArray = 0;
 
 private:
 

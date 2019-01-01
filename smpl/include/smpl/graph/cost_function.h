@@ -36,20 +36,33 @@
 
 namespace smpl {
 
+class GoalConstraint;
 class ManipLattice;
+struct ManipLatticeAction;
 struct ManipLatticeState;
 
 class CostFunction
 {
 public:
 
-    virtual ~CostFunction() { }
+    virtual ~CostFunction();
+
+    bool Init(ManipLattice* space);
+
+    auto GetPlanningSpace() -> ManipLattice*;
+    auto GetPlanningSpace() const -> const ManipLattice*;
+
+    virtual bool UpdateStart(int state_id);
+    virtual bool UpdateGoal(GoalConstraint* goal);
 
     virtual int GetActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ) = 0;
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id) = 0;
+
+private:
+
+    ManipLattice* m_space = NULL;
 };
 
 class UniformCostFunction : public CostFunction
@@ -59,10 +72,9 @@ public:
     int cost_per_action = 1;
 
     int GetActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ) final;
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id) final;
 };
 
 class L1NormCostFunction : public CostFunction
@@ -70,10 +82,9 @@ class L1NormCostFunction : public CostFunction
 public:
 
     int GetActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ) final;
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id) final;
 };
 
 class L2NormCostFunction : public CostFunction
@@ -81,10 +92,9 @@ class L2NormCostFunction : public CostFunction
 public:
 
     int GetActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ) final;
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id) final;
 };
 
 class LInfNormCostFunction : public CostFunction
@@ -92,30 +102,27 @@ class LInfNormCostFunction : public CostFunction
 public:
 
     int GetActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ) final;
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id) final;
 };
 
 class LazyCostFunction
 {
 public:
 
-    virtual ~LazyCostFunction() { }
+    virtual ~LazyCostFunction();
 
     virtual auto GetLazyActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ)
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id)
         -> std::pair<int, bool> = 0;
 
     virtual auto GetTrueActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ)
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id)
         -> int = 0;
 };
 
@@ -126,21 +133,21 @@ class DefaultLazyCostFunction : public LazyCostFunction
 {
 public:
 
-    CostFunction* cost_fun = NULL;
-
     auto GetLazyActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ)
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id)
         -> std::pair<int, bool> final;
 
     auto GetTrueActionCost(
-        const ManipLattice* graph,
-        int state_id, const ManipLatticeState* state,
-        int action_id, const Action* action,
-        int succ_id, const ManipLatticeState* succ)
+        int state_id,
+        const ManipLatticeAction* action,
+        int succ_id)
         -> int final;
+
+public:
+
+    CostFunction* cost_fun = NULL;
 };
 
 } // namespace smpl

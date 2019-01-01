@@ -34,117 +34,122 @@
 #define SMPL_MANIP_LATTICE_ACTION_SPACE_H
 
 // standard includes
-#include <iostream>
-#include <iterator>
-#include <memory>
-#include <sstream>
 #include <string>
 #include <vector>
 
-// system includes
-#include <boost/algorithm/string.hpp>
-
 // project includes
 #include <smpl/graph/action_space.h>
-#include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/motion_primitive.h>
-#include <smpl/planning_params.h>
-#include <smpl/robot_model.h>
 
 namespace smpl {
 
 class ManipLattice;
+class Heuristic;
+class IForwardKinematics;
+class IInverseKinematics;
+class IMetricGoalHeuristic;
+class IMetricStartHeuristic;
+class IGetPose;
+class IGetRobotState;
 
-class ManipLatticeActionSpace : public ActionSpace
+// The following actions are available from each state:
+//
+// (1) Short, atomic motion primitives specified as an offset from the source
+//     state; applied when near the start or the goal
+// (2) Long, atomic motion primitives specified as an offset from the state;
+//     applied when far from the start or the goal
+// (3) An adaptively-generated motion that linearly interpolates to the goal
+//     state, when seeking a joint-space goal
+// (4) An adaptively-generated motion that linearly interpolates to an IK
+//     solution that satisfies a 6-DOF pose constraint of the goal state.
+// (5) An adaptively-generated motion that linearly interpolates to an IK
+//     solution that satisfies a 3-DOF position constraint of the goal state.
+// (6) An adaptively-generated motion that linearly interpolates to an IK
+//     solution that satisfies a 3-DOF orientation constraint of the goal state.
+//
+// For (4), (5), and (6), the IK solver may return more than one solution
+// and the action space may return a motion that interpolates to each one.
+//
+// For (4), (5), and (6), the IK solver will only be called if the source state
+// is within some distance to the goal.
+
+// Either use only (1) or (1) and (2)
+//
+// For ... , distances are defined in terms of task-space distance.
+class ManipulationActionSpace : public ActionSpace
 {
 public:
 
-    using const_iterator = std::vector<MotionPrimitive>::const_iterator;
+    bool Init(ManipLattice* space, Heuristic* heuristic);
 
-    bool init(ManipLattice* space);
+    // Load short- and long- distance motion primitives from file
+    bool Load(const std::string& action_filename);
 
-    bool load(const std::string& action_filename);
-
-    void addMotionPrim(
+    // Add a short- or long-distance motion primitive.
+    void AddMotionPrimitive(
         const std::vector<double>& mprim,
         bool short_dist_mprim,
         bool add_converse = true);
 
-    void clear();
+    int GetNumShortMotions() const;
+    int GetNumLongMotions() const;
 
-    const_iterator begin() const { return m_mprims.begin(); }
-    const_iterator end() const { return m_mprims.end(); }
+    bool AreLongMotionsEnabled() const;
+    bool IsInterpMotionEnabled() const;
+    bool IsIKMotionXYZRPYEnabled() const;
+    bool IsIKMotionXYZEnabled() const;
+    bool IsIKMotionRPYEnabled() const;
+    bool IsMultipleIKSolutionsEnabled() const;
 
-    int longDistCount() const;
-    int shortDistCount() const;
+    auto GetLongMotionThreshold() const -> double;
+    auto GetInterpMotionThreshold() const -> double;
+    auto GetIKMotionXYZRPYThreshold() const -> double;
+    auto GetIKMotionXYZThreshold() const -> double;
+    auto GetIKMotionRPYThreshold() const -> double;
 
-    bool useAmp(MotionPrimitive::Type type) const;
-    bool useMultipleIkSolutions() const;
-    bool useLongAndShortPrims() const;
-    double ampThresh(MotionPrimitive::Type type) const;
+    void EnableLongMotions(bool enable);
+    void EnableInterpMotion(bool enable);
+    void EnableIKMotionXYZRPY(bool enable);
+    void EnableIKMotionXYZ(bool enable);
+    void EnableIKMotionRPY(bool enable);
+    void EnableMultipleIKSolutions(bool enable);
 
-    void useAmp(MotionPrimitive::Type type, bool enable);
-    void useMultipleIkSolutions(bool enable);
-    void useLongAndShortPrims(bool enable);
-    void ampThresh(MotionPrimitive::Type type, double thresh);
+    void SetLongMotionThreshold(double thresh);
+    void SetInterpMotionThreshold(double thresh);
+    void SetIKMotionXYZRPYThreshold(double thresh);
+    void SetIKMotionXYZThreshold(double thresh);
+    void SetIKMotionRPYThreshold(double thresh);
 
-    /// \name Required Public Functions from ActionSpace
+    // Remove all long and short motion primitives, and disable all adaptively-
+    // generated motions.
+    void Clear();
+
+    /// \name ActionSpace Interface
     ///@{
-    void apply(const RobotState& parent, std::vector<Action>& actions) override;
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
 
-    auto Apply(
-        int state_id,
-        const ManipLatticeState* state,
-        ActionArray store = ActionArray())
-        -> ActionArray override;
-
-    auto GetActionPath(
-        int state_id,
-        const ManipLatticeState* state,
-        int action_id,
-        Action store = Action())
-        -> Action override;
+    auto Apply(int state_id, ActionArray store = ActionArray()) -> ActionArray final;
     ///@}
 
-protected:
+public:
 
-    std::vector<MotionPrimitive> m_mprims;
+    IForwardKinematics* m_fk_iface = NULL;
+    IInverseKinematics* m_ik_iface = NULL;
 
-    ForwardKinematicsInterface* m_fk_iface = nullptr;
-    InverseKinematicsInterface* m_ik_iface = nullptr;
+    IMetricStartHeuristic*  m_start_heuristic = NULL;
+    IMetricGoalHeuristic*   m_goal_heuristic = NULL;
 
-    bool m_mprim_enabled[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
-    double m_mprim_thresh[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
+    IGetPose*       m_get_goal_pose = NULL;
+    IGetRobotState* m_get_goal_state = NULL;
+
+    std::vector<MotionPrimitive> m_short_dist_mprims;
+    std::vector<MotionPrimitive> m_long_dist_mprims;
+
+    bool m_mprim_enabled[MotionPrimitive::NUMBER_OF_MPRIM_TYPES] = { };
+    double m_mprim_thresh[MotionPrimitive::NUMBER_OF_MPRIM_TYPES] = { };
 
     bool m_use_multiple_ik_solutions        = false;
-    bool m_use_long_and_short_dist_mprims   = false;
-
-    bool applyMotionPrimitive(
-        const RobotState& state,
-        const MotionPrimitive& mp,
-        Action& action);
-
-    bool computeIkAction(
-        const RobotState& state,
-        const Affine3& goal,
-        double dist_to_goal,
-        ik_option::IkOption option,
-        std::vector<Action>& actions);
-
-    virtual bool getAction(
-        const RobotState& parent,
-        double goal_dist,
-        double start_dist,
-        const MotionPrimitive& mp,
-        std::vector<Action>& actions);
-
-    bool mprimActive(
-        double start_dist,
-        double goal_dist,
-        MotionPrimitive::Type type) const;
-
-    auto getStartGoalDistances(const RobotState& state)
-        -> std::pair<double, double>;
 };
 
 } // namespace smpl

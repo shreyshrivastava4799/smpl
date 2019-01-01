@@ -52,7 +52,7 @@ public:
 
     virtual ~DiscreteSpace();
 
-    virtual bool Init(RobotModel* robot, CollisionChecker* checker);
+    bool Init(RobotModel* robot, CollisionChecker* checker);
 
     virtual bool UpdateStart(int state_id);
     virtual bool UpdateGoal(GoalConstraint* goal);

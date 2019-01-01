@@ -38,38 +38,11 @@
 #include <string>
 #include <vector>
 
-// system includes
-
 // project includes
 #include <smpl/types.h>
 #include <smpl/graph/discrete_space.h>
 #include <smpl/debug/marker.h>
-
-namespace smpl {
-
-using RobotCoord = std::vector<int>;
-
-struct ManipLatticeState
-{
-    RobotCoord coord;   // discrete coordinate
-    RobotState state;   // corresponding continuous coordinate
-};
-
-bool operator==(const ManipLatticeState& a, const ManipLatticeState& b);
-
-} // namespace smpl
-
-namespace std {
-
-template <>
-struct hash<smpl::ManipLatticeState>
-{
-    typedef smpl::ManipLatticeState argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(const argument_type& s) const;
-};
-
-} // namespace std
+#include <smpl/graph/manip_lattice_types.h>
 
 namespace smpl {
 
@@ -135,7 +108,7 @@ public:
 
     bool IsActionWithinBounds(const RobotState& state, const Action& action);
 
-    int FindBestAction(int state_id, int succ_id);
+    auto FindBestAction(int state_id, int succ_id) -> ManipLatticeAction;
 
     auto GetStateVisualization(const RobotState& vars, const std::string& ns)
         -> std::vector<visual::Marker>;
@@ -166,6 +139,7 @@ public:
 
     /// \name Extension Interface
     ///@{
+    using Extension::GetExtension;
     auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 

@@ -53,6 +53,7 @@ struct MotionPrimitive
         SNAP_TO_RPY,
         SNAP_TO_XYZ,
         SNAP_TO_XYZ_RPY,
+        SNAP_TO_GOAL_CONFIG,
         NUMBER_OF_MPRIM_TYPES
     };
 
@@ -62,7 +63,8 @@ struct MotionPrimitive
     void print() const;
 };
 
-inline auto to_cstring(MotionPrimitive::Type type) -> const char* {
+inline auto to_cstring(MotionPrimitive::Type type) -> const char*
+{
     switch (type) {
     case MotionPrimitive::LONG_DISTANCE:
         return "LONG_DISTANCE";
@@ -74,6 +76,8 @@ inline auto to_cstring(MotionPrimitive::Type type) -> const char* {
         return "SNAP_TO_XYZ_RPY";
     case MotionPrimitive::SHORT_DISTANCE:
         return "SHORT_DISTANCE";
+    case MotionPrimitive::SNAP_TO_GOAL_CONFIG:
+        return "SNAP_TO_GOAL_CONFIG";
     default:
         assert(0);
         return "";
@@ -92,10 +96,10 @@ void MotionPrimitive::print() const
 {
     SMPL_INFO("type: %d  nsteps: %d ", type, int(action.size()));
     std::stringstream os;
-    for (std::size_t j = 0; j < action.size(); ++j) {
+    for (auto j = 0; j < action.size(); ++j) {
         os.str("");
         os << "[step: " << int(j+1) << "/" << action.size() << "] ";
-        for (std::size_t k = 0; k < action[j].size(); ++k) {
+        for (auto k = 0; k < action[j].size(); ++k) {
             os << std::setw(4) << std::setprecision(3) << std::fixed << action[j][k] << " ";
         }
         SMPL_INFO_STREAM(os.str());

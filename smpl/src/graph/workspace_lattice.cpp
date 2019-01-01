@@ -83,7 +83,7 @@ WorkspaceLattice::~WorkspaceLattice()
 bool WorkspaceLattice::Init(
     RobotModel* robot,
     CollisionChecker* checker,
-    const WorkspaceLatticeBase::Params& params,
+    const WorkspaceProjection::Params& params,
     WorkspaceLatticeActionSpace* actions)
 {
     if (!base.Init(robot, params)) {
@@ -364,7 +364,7 @@ void WorkspaceLattice::GetSuccs(
 
     auto* parent_entry = GetState(state_id);
 
-    assert(parent_entry->coord.size() == m_dof_count);
+//    assert(parent_entry->coord.size() == m_dof_count);
 
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << parent_entry->coord);
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << parent_entry->state);
@@ -423,7 +423,7 @@ void WorkspaceLattice::GetLazySuccs(
 
     auto* state_entry = GetState(state_id);
 
-    assert(state_entry->coord.size() == m_dof_count);
+//    assert(state_entry->coord.size() == m_dof_count);
 
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state_entry->coord);
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  state: " << state_entry->state);
@@ -477,8 +477,8 @@ int WorkspaceLattice::GetTrueCost(int state_id, int succ_state_id)
 
     auto* parent_entry = GetState(state_id);
     auto* child_entry = GetState(succ_state_id);
-    assert(parent_entry->coord.size() == m_dof_count);
-    assert(child_entry->coord.size() == m_dof_count);
+//    assert(parent_entry->coord.size() == m_dof_count);
+//    assert(child_entry->coord.size() == m_dof_count);
 
     auto actions = std::vector<WorkspaceAction>();
     m_actions->apply(*parent_entry, actions);

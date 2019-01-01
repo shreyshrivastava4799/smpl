@@ -33,60 +33,205 @@
 #include <smpl/graph/manip_lattice_action_space.h>
 
 // standard includes
+#include <iostream>
+#include <iterator>
 #include <limits>
+#include <memory>
 #include <numeric>
+#include <sstream>
 
 // project includes
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
+#include <smpl/graph/goal_constraint.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/heuristic/heuristic.h>
+#include <smpl/planning_params.h>
+#include <smpl/robot_model.h>
 
 namespace smpl {
 
-bool ManipLatticeActionSpace::init(ManipLattice* space)
+static
+auto ApplyMotionPrimitive(const RobotState& state, const MotionPrimitive& mp)
+    -> Action
 {
-    if (!ActionSpace::init(space)) {
+    auto action = mp.action;
+    for (auto& waypoint : action) {
+        for (auto i = 0; i < waypoint.size(); ++i) {
+            waypoint[i] = state[i] + waypoint[i];
+        }
+    }
+    return action;
+}
+
+static
+void ComputeIKAction(
+    ManipulationActionSpace* actions,
+    const RobotState& state,
+    const Affine3& goal,
+    ik_option::IkOption option,
+    std::vector<Action>& o_actions)
+{
+    assert(actions->m_ik_iface != NULL);
+
+    if (actions->m_use_multiple_ik_solutions) {
+        auto solutions = std::vector<RobotState>();
+        if (!actions->m_ik_iface->computeIK(goal, state, solutions, option)) {
+            return;
+        }
+        for (auto& solution : solutions) {
+            auto action = Action{ std::move(solution) };
+            o_actions.push_back(std::move(action));
+        }
+    } else {
+        auto ik_sol = RobotState();
+        if (!actions->m_ik_iface->computeIK(goal, state, ik_sol)) {
+            return;
+        }
+
+        auto action = Action{ std::move(ik_sol) };
+        o_actions.push_back(std::move(action));
+    }
+}
+
+// If we don't have forward kinematics or we don't have distance
+// information, we want the adaptive motion primitives to always be active
+// and to always use short-distance motion primitives. To do this, we return
+// distances of 0.0 for both the start and the goal.
+static
+auto GetStartAndGoalDistances(
+    ManipulationActionSpace* actions,
+    const RobotState& state)
+    -> std::pair<double, double>
+{
+    if (actions->m_fk_iface == NULL) {
+        return std::make_pair(0.0, 0.0);
+    }
+
+    auto pose = actions->m_fk_iface->computeFK(state);
+
+    auto start_dist = 0.0;
+    auto goal_dist = 0.0;
+
+    if (actions->m_start_heuristic != NULL) {
+        start_dist = actions->m_start_heuristic->GetMetricStartDistance(pose.translation()[0], pose.translation()[1], pose.translation()[2]);
+    }
+    if (actions->m_goal_heuristic != NULL) {
+        goal_dist = actions->m_goal_heuristic->GetMetricGoalDistance(pose.translation()[0], pose.translation()[1], pose.translation()[2]);
+    }
+
+    return std::make_pair(start_dist, goal_dist);
+}
+
+static
+auto ComputeAllActionMotions(
+    ManipulationActionSpace* actions,
+    const ManipLatticeState* state)
+    -> std::vector<Action>
+{
+    auto dists = GetStartAndGoalDistances(actions, state->state);
+    auto start_dist = dists.first;
+    auto goal_dist = dists.second;
+
+    auto motions = std::vector<Action>();
+
+    auto short_dist_active =
+            !actions->m_mprim_enabled[MotionPrimitive::LONG_DISTANCE] ||
+            (
+                actions->m_mprim_enabled[MotionPrimitive::LONG_DISTANCE] &&
+                (
+                    start_dist <= actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE] ||
+                    goal_dist <= actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE]
+                )
+            );
+    if (short_dist_active) {
+        for (auto& mprim : actions->m_short_dist_mprims) {
+            auto action = ApplyMotionPrimitive(state->state, mprim);
+            motions.push_back(std::move(action));
+        }
+    }
+
+    auto long_dist_active =
+            actions->m_mprim_enabled[MotionPrimitive::LONG_DISTANCE] &&
+            start_dist > actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE] &&
+            goal_dist > actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE];
+
+    if (long_dist_active) {
+        for (auto& mprim : actions->m_long_dist_mprims) {
+            auto action = ApplyMotionPrimitive(state->state, mprim);
+            motions.push_back(std::move(action));
+        }
+    }
+
+    auto snap_to_goal_active =
+            actions->m_get_goal_state != NULL &&
+            actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_GOAL_CONFIG] &&
+            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_GOAL_CONFIG];
+    if (snap_to_goal_active) {
+        auto goal_state = actions->m_get_goal_state->GetState();
+        auto action = Action{ std::move(goal_state) };
+        motions.push_back(std::move(action));
+    }
+
+    if ((actions->m_get_goal_pose != NULL) & (actions->m_ik_iface != NULL)) {
+        auto goal_pose = actions->m_get_goal_pose->GetPose();
+
+        if (actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ_RPY] &&
+            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ_RPY])
+        {
+            ComputeIKAction(actions, state->state, goal_pose, ik_option::UNRESTRICTED, motions);
+        }
+
+        if (actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ] &&
+            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ])
+        {
+            ComputeIKAction(actions, state->state, goal_pose, ik_option::RESTRICT_RPY, motions);
+        }
+
+        if (actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_RPY] &&
+            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_RPY])
+        {
+            ComputeIKAction(actions, state->state, goal_pose, ik_option::RESTRICT_XYZ, motions);
+        }
+    }
+
+    return motions;
+}
+
+bool ManipulationActionSpace::Init(ManipLattice* space, Heuristic* heuristic)
+{
+    if (!ActionSpace::Init(space)) {
         return false;
     }
 
-    // NOTE: other default thresholds will be set in readParameters, with
-    // default values specified in PlanningParams
-    m_mprim_thresh[MotionPrimitive::Type::LONG_DISTANCE] =
-            std::numeric_limits<double>::infinity();
+    Clear();
 
-    clear();
+    auto* robot = space->GetRobotModel();
 
-    RobotModel* robot = planningSpace()->robot();
+    m_fk_iface = robot->GetExtension<IForwardKinematics>();
+    m_ik_iface = robot->GetExtension<IInverseKinematics>();
 
-    m_fk_iface = robot->getExtension<ForwardKinematicsInterface>();
-    m_ik_iface = robot->getExtension<InverseKinematicsInterface>();
-
-    if (!m_fk_iface) {
-        SMPL_WARN("Manip Lattice Action Set requires Forward Kinematics Interface");
+    if (m_fk_iface == NULL) {
+        SMPL_WARN("Manip Lattice Action Set recommends IForwardKinematics");
     }
 
-    if (!m_ik_iface) {
-        SMPL_WARN("Manip Lattice Action Set recommends Inverse Kinematics Interface");
+    if (m_ik_iface == NULL) {
+        SMPL_WARN("Manip Lattice Action Set recommends IInverseKinematics");
     }
 
-    useMultipleIkSolutions(false);
-    useAmp(MotionPrimitive::SNAP_TO_XYZ, false);
-    useAmp(MotionPrimitive::SNAP_TO_RPY, false);
-    useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, false);
-    useAmp(MotionPrimitive::SHORT_DISTANCE, false);
-    ampThresh(MotionPrimitive::SNAP_TO_XYZ, 0.2);
-    ampThresh(MotionPrimitive::SNAP_TO_RPY, 0.2);
-    ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, 0.2);
-    ampThresh(MotionPrimitive::SHORT_DISTANCE, 0.2);
+    m_start_heuristic = heuristic->GetExtension<IMetricStartHeuristic>();
+    m_goal_heuristic = heuristic->GetExtension<IMetricGoalHeuristic>();
 
     return true;
 }
 
-/// \brief Load motion primitives from file.
+/// Load motion primitives from file, removing any pre-existing actions.
 ///
-/// Read in the discrete variable deltas for each motion. If short distance
-/// motion primitives are included in the file, they are also enabled.
+/// The motion primitive file describes each motion primitive as a discrete
+/// offset from the source state. Motion primitives are grouped by long or short
+/// distance. If the file contains any long distance motion primitives, they are
+/// automatically enabled.
 ///
 /// Action Set File Format
 ///
@@ -97,84 +242,72 @@ bool ManipLatticeActionSpace::init(ManipLattice* space)
 /// dv(i-k+1)1   dv(i-k+1)2  ... dv(i-k+1)m
 /// ...
 /// dvi1         dvi2        ... dvim
-bool ManipLatticeActionSpace::load(const std::string& action_filename)
+bool ManipulationActionSpace::Load(const std::string& action_filename)
 {
-    FILE* fCfg = fopen(action_filename.c_str(), "r");
-    if (!fCfg) {
+    Clear();
+
+    auto* f = fopen(action_filename.c_str(), "r");
+    if (!f) {
         SMPL_ERROR("Failed to open action set file. (file: '%s')", action_filename.c_str());
         return false;
     }
 
-    char sTemp[1024] = { 0 };
-    int nrows = 0;
-    int ncols = 0;
-    int short_mprims = 0;
+    auto num_motions = 0;
+    auto num_dims = 0;
+    auto num_short_motions = 0;
 
-    // read and check header
-    if (fscanf(fCfg, "%1023s", sTemp) < 1) {
-        SMPL_ERROR("Parsed string has length < 1.");
-    }
-
-    if (strcmp(sTemp, "Motion_Primitives(degrees):") != 0) {
-        SMPL_ERROR("First line of motion primitive file should be 'Motion_Primitives(degrees):'. Please check your file. (parsed string: %s)\n", sTemp);
+    // read in header information
+    if (fscanf(f, "Motion_Primitives(degrees): %d %d %d", &num_motions, &num_dims, &num_short_motions) < 3) {
+        SMPL_ERROR("Failed to parse motion primitives file header. Expected format: 'Motion_Primitives(degrees): <num motions> <num dims> <num short motions>'");
         return false;
     }
 
-    // read number of actions
-    if (fscanf(fCfg, "%d", &nrows) < 1) {
-        SMPL_ERROR("Parsed string has length < 1.");
-        return false;
-    }
+    auto num_long_motions = num_motions - num_short_motions;
 
-    // read length of joint array
-    if (fscanf(fCfg, "%d", &ncols) < 1) {
-        SMPL_ERROR("Parsed string has length < 1.");
-        return false;
-    }
+    EnableLongMotions(num_long_motions > 0);
 
-    // read number of short distance motion primitives
-    if (fscanf(fCfg, "%d", &short_mprims) < 1) {
-        SMPL_ERROR("Parsed string has length < 1.");
-        return false;
-    }
-
-    if (short_mprims == nrows) {
-        SMPL_WARN("# of motion prims == # of short distance motion prims. No long distance motion prims set.");
-    }
-
-    std::vector<double> mprim(ncols, 0);
-
-    bool have_short_dist_mprims = short_mprims > 0;
-    if (have_short_dist_mprims) {
-        useAmp(MotionPrimitive::SHORT_DISTANCE, true);
-    }
-
-    ManipLattice* lattice = static_cast<ManipLattice*>(planningSpace());
-
-    for (int i = 0; i < nrows; ++i) {
-        // read joint delta
-        for (int j = 0; j < ncols; ++j) {
-            double d;
-            if (fscanf(fCfg, "%lf", &d) < 1)  {
+    auto read_discrete_motion = [](
+        FILE* f,
+        const ManipLattice* graph,
+        int num_dims,
+        std::vector<double>* mprim)
+        -> bool
+    {
+        assert(mprim->size() == num_dims);
+        for (auto i = 0; i < num_dims; ++i) {
+            int d;
+            if (fscanf(f, "%d", &d) < 1)  {
                 SMPL_ERROR("Parsed string has length < 1.");
                 return false;
             }
-            if (feof(fCfg)) {
+            if (feof(f)) {
                 SMPL_ERROR("End of parameter file reached prematurely. Check for newline.");
                 return false;
             }
-            mprim[j] = d * lattice->resolutions()[j];
-            SMPL_DEBUG("Got %0.3f deg -> %0.3f rad", d, mprim[j]);
+            (*mprim)[i] = (double)d * graph->GetResolutions()[i];
         }
+        SMPL_DEBUG_STREAM("Got motion primitive " << (*mprim));
+        return true;
+    };
 
-        if (i < (nrows - short_mprims)) {
-            addMotionPrim(mprim, false);
-        } else {
-            addMotionPrim(mprim, true);
+    auto* lattice = GetPlanningSpace();
+
+    for (auto i = 0; i < num_long_motions; ++i) {
+        auto mprim = std::vector<double>(num_dims);
+        if (!read_discrete_motion(f, lattice, num_dims, &mprim)) {
+            return false;
         }
+        AddMotionPrimitive(mprim, false);
+    }
+    for (auto i = 0; i < num_short_motions; ++i) {
+        auto mprim = std::vector<double>(num_dims);
+        if (!read_discrete_motion(f, lattice, num_dims, &mprim)) {
+            return false;
+        }
+        AddMotionPrimitive(mprim, true);
     }
 
-    fclose(fCfg);
+    fclose(f);
     return true;
 }
 
@@ -183,336 +316,192 @@ bool ManipLatticeActionSpace::load(const std::string& action_filename)
 /// \param short_dist true = short distance; false = long distance
 /// \param add_converse Whether to add the negative of this motion primitive
 ///     to the action set
-void ManipLatticeActionSpace::addMotionPrim(
+void ManipulationActionSpace::AddMotionPrimitive(
     const std::vector<double>& mprim,
     bool short_dist_mprim,
     bool add_converse)
 {
-    MotionPrimitive m;
+    auto m = MotionPrimitive();
 
+    std::vector<MotionPrimitive>* mprims;
     if (short_dist_mprim) {
         m.type = MotionPrimitive::SHORT_DISTANCE;
+        mprims = &m_short_dist_mprims;
     } else {
         m.type = MotionPrimitive::LONG_DISTANCE;
+        mprims = &m_long_dist_mprims;
     }
 
     m.action.push_back(mprim);
-    m_mprims.push_back(m);
+
+    mprims->push_back(m);
 
     if (add_converse) {
-        for (RobotState& state : m.action) {
-            for (size_t i = 0; i < state.size(); ++i) {
-                state[i] *= -1.0;
+        for (auto& waypoint : m.action) {
+            for (auto& delta : waypoint) {
+                delta *= -1.0;
             }
         }
-        m_mprims.push_back(m);
+        mprims->push_back(m);
     }
 }
 
-/// \brief Remove long and short motion primitives and disable adaptive motions.
-///
-/// Thresholds for short distance and adaptive motions are retained
-void ManipLatticeActionSpace::clear()
+int ManipulationActionSpace::GetNumLongMotions() const
 {
-    m_mprims.clear();
-
-    // add all amps to the motion primitive set
-    MotionPrimitive mprim;
-
-    mprim.type = MotionPrimitive::SNAP_TO_RPY;
-    mprim.action.clear();
-    m_mprims.push_back(mprim);
-
-    mprim.type = MotionPrimitive::SNAP_TO_XYZ;
-    mprim.action.clear();
-    m_mprims.push_back(mprim);
-
-    mprim.type = MotionPrimitive::SNAP_TO_XYZ_RPY;
-    mprim.action.clear();
-    m_mprims.push_back(mprim);
-
-    for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
-        m_mprim_enabled[i] = (i == MotionPrimitive::Type::LONG_DISTANCE);
-    }
+    return (int)m_long_dist_mprims.size();
 }
 
-int ManipLatticeActionSpace::longDistCount() const
+int ManipulationActionSpace::GetNumShortMotions() const
 {
-    return std::accumulate(
-            begin(), end(), 0,
-            [](int count, const MotionPrimitive& prim)
-            {
-                return count +
-                        (prim.type == MotionPrimitive::LONG_DISTANCE ? 1 : 0);
-            });
+    return (int)m_short_dist_mprims.size();
 }
 
-int ManipLatticeActionSpace::shortDistCount() const
+bool ManipulationActionSpace::AreLongMotionsEnabled() const
 {
-    return std::accumulate(
-            begin(), end(), 0,
-            [](int count, const MotionPrimitive& prim)
-            {
-                return count +
-                        (prim.type == MotionPrimitive::SHORT_DISTANCE ? 1 : 0);
-            });
+    return m_mprim_enabled[MotionPrimitive::LONG_DISTANCE];
 }
 
-bool ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type) const
+bool ManipulationActionSpace::IsInterpMotionEnabled() const
 {
-    return m_mprim_enabled[type];
+    return m_mprim_enabled[MotionPrimitive::SNAP_TO_GOAL_CONFIG];
 }
 
-bool ManipLatticeActionSpace::useMultipleIkSolutions() const
+bool ManipulationActionSpace::IsIKMotionXYZRPYEnabled() const
+{
+    return m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ_RPY];
+}
+
+bool ManipulationActionSpace::IsIKMotionXYZEnabled() const
+{
+    return m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ];
+}
+
+bool ManipulationActionSpace::IsIKMotionRPYEnabled() const
+{
+    return m_mprim_enabled[MotionPrimitive::SNAP_TO_RPY];
+}
+
+bool ManipulationActionSpace::IsMultipleIKSolutionsEnabled() const
 {
     return m_use_multiple_ik_solutions;
 }
 
-bool ManipLatticeActionSpace::useLongAndShortPrims() const
+auto ManipulationActionSpace::GetLongMotionThreshold() const -> double
 {
-    return m_use_long_and_short_dist_mprims;
+    return m_mprim_thresh[MotionPrimitive::LONG_DISTANCE];
 }
 
-double ManipLatticeActionSpace::ampThresh(MotionPrimitive::Type type) const
+auto ManipulationActionSpace::GetInterpMotionThreshold() const -> double
 {
-    return m_mprim_thresh[type];
+    return m_mprim_thresh[MotionPrimitive::SNAP_TO_GOAL_CONFIG];
 }
 
-void ManipLatticeActionSpace::useAmp(MotionPrimitive::Type type, bool enable)
+auto ManipulationActionSpace::GetIKMotionXYZRPYThreshold() const -> double
 {
-    m_mprim_enabled[type] = enable;
+    return m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ_RPY];
 }
 
-void ManipLatticeActionSpace::useMultipleIkSolutions(bool enable)
+auto ManipulationActionSpace::GetIKMotionXYZThreshold() const -> double
+{
+    return m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ];
+}
+
+auto ManipulationActionSpace::GetIKMotionRPYThreshold() const -> double
+{
+    return m_mprim_thresh[MotionPrimitive::SNAP_TO_RPY];
+}
+
+void ManipulationActionSpace::EnableLongMotions(bool enable)
+{
+    m_mprim_enabled[MotionPrimitive::LONG_DISTANCE] = enable;
+}
+
+void ManipulationActionSpace::EnableInterpMotion(bool enable)
+{
+    m_mprim_enabled[MotionPrimitive::SNAP_TO_GOAL_CONFIG] = enable;
+}
+
+void ManipulationActionSpace::EnableIKMotionXYZRPY(bool enable)
+{
+    m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ_RPY] = enable;
+}
+
+void ManipulationActionSpace::EnableIKMotionXYZ(bool enable)
+{
+    m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ] = enable;
+}
+
+void ManipulationActionSpace::EnableIKMotionRPY(bool enable)
+{
+    m_mprim_enabled[MotionPrimitive::SNAP_TO_RPY] = enable;
+}
+
+void ManipulationActionSpace::EnableMultipleIKSolutions(bool enable)
 {
     m_use_multiple_ik_solutions = enable;
 }
 
-void ManipLatticeActionSpace::useLongAndShortPrims(bool enable)
+void ManipulationActionSpace::SetLongMotionThreshold(double thresh)
 {
-    m_use_long_and_short_dist_mprims = enable;
+    m_mprim_thresh[MotionPrimitive::LONG_DISTANCE] = thresh;
 }
 
-void ManipLatticeActionSpace::ampThresh(
-    MotionPrimitive::Type type,
-    double thresh)
+void ManipulationActionSpace::SetInterpMotionThreshold(double thresh)
 {
-    if (type != MotionPrimitive::LONG_DISTANCE) {
-        m_mprim_thresh[type] = thresh;
-    }
+    m_mprim_thresh[MotionPrimitive::SNAP_TO_GOAL_CONFIG] = thresh;
 }
 
-auto ManipLatticeActionSpace::getStartGoalDistances(const RobotState& state)
-    -> std::pair<double, double>
+void ManipulationActionSpace::SetIKMotionXYZRPYThreshold(double thresh)
 {
-    if (!m_fk_iface) {
-        return std::make_pair(0.0, 0.0);
-    }
-
-    auto pose = m_fk_iface->computeFK(state);
-
-    if (planningSpace()->numHeuristics() > 0) {
-        RobotHeuristic* h = planningSpace()->heuristic(0);
-        double start_dist = h->getMetricStartDistance(
-                pose.translation()[0],
-                pose.translation()[1],
-                pose.translation()[2]);
-        double goal_dist = h->getMetricGoalDistance(
-                pose.translation()[0],
-                pose.translation()[1],
-                pose.translation()[2]);
-        return std::make_pair(start_dist, goal_dist);
-    } else {
-        return std::make_pair(0.0, 0.0);
-    }
+    m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ_RPY] = thresh;
 }
 
-void ManipLatticeActionSpace::apply(
-    const RobotState& parent,
-    std::vector<Action>& actions)
+void ManipulationActionSpace::SetIKMotionXYZThreshold(double thresh)
 {
-    double goal_dist, start_dist;
-    std::tie(start_dist, goal_dist) = getStartGoalDistances(parent);
-
-    for (auto& prim : m_mprims) {
-        (void)getAction(parent, goal_dist, start_dist, prim, actions);
-    }
-
-    if (actions.empty()) {
-        SMPL_WARN_ONCE("No motion primitives specified");
-    }
+    m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ] = thresh;
 }
 
-auto ManipLatticeActionSpace::Apply(
-    int state_id,
-    const ManipLatticeState* state,
-    ActionArray store)
-    -> ActionArray
+void ManipulationActionSpace::SetIKMotionRPYThreshold(double thresh)
 {
-    return store;
+    m_mprim_thresh[MotionPrimitive::SNAP_TO_RPY] = thresh;
 }
 
-auto ManipLatticeActionSpace::GetActionPath(
-    int state_id,
-    const ManipLatticeState* state,
-    int action_id,
-    Action store)
-    -> Action
+/// Remove long and short motion primitives and disable adaptive motions.
+///
+/// Thresholds for short distance and adaptive motions are retained
+void ManipulationActionSpace::Clear()
 {
-    return store;
+    m_short_dist_mprims.clear();
+    m_long_dist_mprims.clear();
+
+    std::fill(m_mprim_enabled, m_mprim_enabled + sizeof(m_mprim_enabled), false);
+    m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] = true;
 }
 
-bool ManipLatticeActionSpace::getAction(
-    const RobotState& parent,
-    double goal_dist,
-    double start_dist,
-    const MotionPrimitive& mp,
-    std::vector<Action>& actions)
+bool ManipulationActionSpace::UpdateStart(int state_id)
 {
-    if (!mprimActive(start_dist, goal_dist, mp.type)) {
-        return false;
-    }
-
-    GoalType goal_type = planningSpace()->goal().type;
-    auto& goal_pose = planningSpace()->goal().pose;
-
-    switch (mp.type) {
-    case MotionPrimitive::LONG_DISTANCE:  // fall-through
-    case MotionPrimitive::SHORT_DISTANCE:
-    {
-        Action action;
-        if (!applyMotionPrimitive(parent, mp, action)) {
-            return false;
-        }
-        actions.push_back(std::move(action));
-        return true;
-    }
-    case MotionPrimitive::SNAP_TO_RPY:
-    {
-        return computeIkAction(
-                parent,
-                goal_pose,
-                goal_dist,
-                ik_option::RESTRICT_XYZ,
-                actions);
-    }
-    case MotionPrimitive::SNAP_TO_XYZ:
-    {
-        return computeIkAction(
-                parent,
-                goal_pose,
-                goal_dist,
-                ik_option::RESTRICT_RPY,
-                actions);
-    }
-    case MotionPrimitive::SNAP_TO_XYZ_RPY:
-    {
-        if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
-            return computeIkAction(
-                    parent,
-                    goal_pose,
-                    goal_dist,
-                    ik_option::UNRESTRICTED,
-                    actions);
-        }
-
-        // goal is 7dof; instead of computing IK, use the goal itself as the IK
-        // solution
-        Action action = { planningSpace()->goal().angles };
-        actions.push_back(std::move(action));
-
-        return true;
-    }
-    default:
-        SMPL_ERROR("Motion Primitives of type '%d' are not supported.", mp.type);
-        return false;
-    }
-}
-
-bool ManipLatticeActionSpace::applyMotionPrimitive(
-    const RobotState& state,
-    const MotionPrimitive& mp,
-    Action& action)
-{
-    action = mp.action;
-    for (size_t i = 0; i < action.size(); ++i) {
-        if (action[i].size() != state.size()) {
-            return false;
-        }
-
-        for (size_t j = 0; j < action[i].size(); ++j) {
-            action[i][j] = action[i][j] + state[j];
-        }
-    }
     return true;
 }
 
-bool ManipLatticeActionSpace::computeIkAction(
-    const RobotState& state,
-    const Affine3& goal,
-    double dist_to_goal,
-    ik_option::IkOption option,
-    std::vector<Action>& actions)
+bool ManipulationActionSpace::UpdateGoal(GoalConstraint* goal)
 {
-    if (!m_ik_iface) {
-        return false;
-    }
-
-    if (m_use_multiple_ik_solutions) {
-        //get actions for multiple ik solutions
-        std::vector<RobotState> solutions;
-        if (!m_ik_iface->computeIK(goal, state, solutions, option)) {
-            return false;
-        }
-        for (auto& solution : solutions) {
-            Action action = { std::move(solution) };
-            actions.push_back(std::move(action));
-        }
-    } else {
-        //get single action for single ik solution
-        RobotState ik_sol;
-        if (!m_ik_iface->computeIK(goal, state, ik_sol)) {
-            return false;
-        }
-
-        Action action = { std::move(ik_sol) };
-        actions.push_back(std::move(action));
-    }
-
+    m_get_goal_pose = goal->GetExtension<IGetPose>();
+    m_get_goal_state = goal->GetExtension<IGetRobotState>();
     return true;
 }
 
-bool ManipLatticeActionSpace::mprimActive(
-    double start_dist,
-    double goal_dist,
-    MotionPrimitive::Type type) const
+auto ManipulationActionSpace::Apply(int state_id, ActionArray store) -> ActionArray
 {
-    // TODO: this seems a awkward..."short distance" motion primitives should be
-    // the default since "long distance" primitives are usually implemented as
-    // an optimization in regions far from the start or goal, and often we
-    // always need "short distance" motion primitives near the start and goal.
-    // -Andrew
-    if (type == MotionPrimitive::LONG_DISTANCE) {
-        if (m_use_long_and_short_dist_mprims) {
-            return true;
-        }
-        const bool near_goal =
-                goal_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE];
-        const bool near_start =
-                start_dist <= m_mprim_thresh[MotionPrimitive::SHORT_DISTANCE];
-        const bool near_endpoint = near_goal || near_start;
-        return !(m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] && near_endpoint);
-    } else if (type == MotionPrimitive::SHORT_DISTANCE) {
-        if (m_use_long_and_short_dist_mprims) {
-            return m_mprim_enabled[type];
-        }
-        const bool near_goal = goal_dist <= m_mprim_thresh[type];
-        const bool near_start = start_dist <= m_mprim_thresh[type];
-        const bool near_endpoint = near_goal || near_start;
-        return m_mprim_enabled[type] && near_endpoint;
-    } else {
-        return m_mprim_enabled[type] && goal_dist <= m_mprim_thresh[type];
+    auto* state = GetPlanningSpace()->GetHashEntry(state_id);
+    auto motions = ComputeAllActionMotions(this, state);
+
+    store.resize(motions.size());
+    for (auto i = 0; i < motions.size(); ++i) {
+        store[i].action_id = i;
+        store[i].motion = std::move(motions[i]);
     }
+
+    return store;
 }
 
 } // namespace smpl

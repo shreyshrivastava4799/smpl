@@ -68,7 +68,7 @@ public:
     bool Init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const WorkspaceLatticeBase::Params& params,
+        const WorkspaceProjection::Params& params,
         WorkspaceLatticeActionSpace* actions);
 
     auto GetActionSpace() -> WorkspaceLatticeActionSpace*;
@@ -147,7 +147,7 @@ public:
     auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
-    WorkspaceLatticeBase base;
+    WorkspaceProjection base;
 
     // maps state -> id
     using StateKey = WorkspaceLatticeState;

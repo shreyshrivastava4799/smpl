@@ -55,20 +55,7 @@
 #include <smpl/robot_model.h>
 #include <smpl/spatial.h>
 
-auto std::hash<smpl::ManipLatticeState>::operator()(
-    const argument_type& s) const -> result_type
-{
-    auto seed = (size_t)0;
-    boost::hash_combine(seed, boost::hash_range(begin(s.coord), end(s.coord)));
-    return seed;
-}
-
 namespace smpl {
-
-bool operator==(const ManipLatticeState& a, const ManipLatticeState& b)
-{
-    return a.coord == b.coord;
-}
 
 static
 bool IsValidStateID(const ManipLattice* lattice, int state_id)
@@ -375,23 +362,21 @@ bool ManipLattice::IsActionWithinBounds(
 
 // Return the ID of the lowest-cost action that transitions from state_id to
 // succ_id, or -1 if no such action exists.
-auto ManipLattice::FindBestAction(int state_id, int succ_id) -> int
+auto ManipLattice::FindBestAction(int state_id, int succ_id) -> ManipLatticeAction
 {
     auto* state = GetHashEntry(state_id);
 
-    auto actions = m_action_space->Apply(state_id, state);
+    auto actions = m_action_space->Apply(state_id);
 
     // find the goal state corresponding to the cheapest valid action
     auto best_cost = std::numeric_limits<int>::max();
-    auto best_action = -1;
-    for (auto action_id : actions) {
-        auto action = m_action_space->GetActionPath(state_id, state, action_id);
-
-        if (!IsActionWithinBounds(state->state, action)) {
+    auto best_action = ManipLatticeAction(); best_action.action_id = -1;
+    for (auto& action : actions) {
+        if (!IsActionWithinBounds(state->state, action.motion)) {
             continue;
         }
 
-        auto succ_state_id = ApplyTransition(this, action);
+        auto succ_state_id = ApplyTransition(this, action.motion);
         if (succ_state_id < 0) {
             continue;
         }
@@ -399,18 +384,13 @@ auto ManipLattice::FindBestAction(int state_id, int succ_id) -> int
 
         if (succ_state_id != succ_id) continue;
 
-        auto cost = m_cost_fun->GetActionCost(
-                this,
-                state_id, state,
-                action_id, &action,
-                succ_state_id, succ_state);
-        if (cost < 1) {
-            continue;
-        }
+        auto cost = m_cost_fun->GetActionCost(state_id, &action, succ_state_id);
+
+        if (cost < 1) continue;
 
         if (cost < best_cost) {
             best_cost = cost;
-            best_action = action_id;
+            best_action = std::move(action);
         }
     }
 
@@ -486,24 +466,23 @@ void ManipLattice::GetSuccs(
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, GetStateVisualization(state->state, vis_name));
 
-    auto actions = m_action_space->Apply(state_id, state);
+    auto actions = m_action_space->Apply(state_id);
 
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
     for (auto i = 0; i < (int)actions.size(); ++i) {
-        auto action_id = actions[i];
-        auto action = m_action_space->GetActionPath(state_id, state, action_id);
+        auto& action = actions[i];
 
         SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.motion.size());
 
         // check action for feasibility
-        if (!IsActionWithinBounds(state->state, action)) {
+        if (!IsActionWithinBounds(state->state, action.motion)) {
             continue;
         }
 
         // add the successor state to the graph
-        auto succ_state_id = ApplyTransition(this, action);
+        auto succ_state_id = ApplyTransition(this, action.motion);
         if (succ_state_id < 0) {
             continue;
         }
@@ -511,11 +490,7 @@ void ManipLattice::GetSuccs(
         auto* succ_state = GetHashEntry(succ_state_id);
 
         // compute the cost of the action
-        auto cost = m_cost_fun->GetActionCost(
-                this,
-                state_id, state,
-                action_id, &action,
-                succ_state_id, succ_state);
+        auto cost = m_cost_fun->GetActionCost(state_id, &action, succ_state_id);
 
         if (cost < 1) continue;
 
@@ -585,15 +560,12 @@ bool ManipLattice::ExtractPath(
         auto* prev_state = GetHashEntry(prev_id);
 
         auto best_action = FindBestAction(prev_id, curr_id);
-        if (best_action < 0) {
+        if (best_action.action_id < 0) {
             SMPL_ERROR_NAMED(G_LOG, "Failed to find action from state %d to state %d", prev_id, curr_id);
             return false;
         }
 
-        auto best_action_path = m_action_space->GetActionPath(
-                prev_id, prev_state, best_action);
-
-        for (auto& wp : best_action_path) {
+        for (auto& wp : best_action.motion) {
             opath.push_back(wp);
         }
     }
@@ -689,27 +661,22 @@ void ManipLattice::GetLazySuccs(
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, GetStateVisualization(state->state, vis_name));
 
-    auto actions = m_action_space->Apply(state_id, state);
+    auto actions = m_action_space->Apply(state_id);
 
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
     for (auto i = 0; i < actions.size(); ++i) {
-        auto& action_id = actions[i];
-        auto action = m_action_space->GetActionPath(state_id, state, action_id);
+        auto& action = actions[i];
 
         SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu:", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.motion.size());
 
-        auto succ_state_id = ApplyTransition(this, action);
+        auto succ_state_id = ApplyTransition(this, action.motion);
         if (succ_state_id < 0) continue;
         auto* succ_state = GetHashEntry(succ_state_id);
 
         succs->push_back(succ_state_id);
-        auto cost = m_lazy_cost_fun->GetLazyActionCost(
-                this,
-                state_id, state,
-                action_id, &action,
-                succ_state_id, succ_state);
+        auto cost = m_lazy_cost_fun->GetLazyActionCost(state_id, &action, succ_state_id);
         if (cost.first < 1) continue;
 
         costs->push_back(cost.first);
@@ -739,20 +706,19 @@ int ManipLattice::GetTrueCost(int state_id, int succ_id)
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, GetStateVisualization(state->state, vis_name));
 
-    auto actions = m_action_space->Apply(state_id, state);
+    auto actions = m_action_space->Apply(state_id);
 
     // Find the transition to the successor state with the lowest cost
     auto best_cost = std::numeric_limits<int>::max();
     for (auto i = 0; i < (int)actions.size(); ++i) {
-        auto action_id = actions[i];
-        auto action = m_action_space->GetActionPath(state_id, state, action_id);
+        auto& action = actions[i];
 
-        if (!IsActionWithinBounds(state->state, action)) {
+        if (!IsActionWithinBounds(state->state, action.motion)) {
             continue;
         }
 
         // apply transition function
-        auto this_succ_id = ApplyTransition(this, action);
+        auto this_succ_id = ApplyTransition(this, action.motion);
         if (this_succ_id < 0) {
             continue;
         }
@@ -764,13 +730,9 @@ int ManipLattice::GetTrueCost(int state_id, int succ_id)
         }
 
         SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %d:", i);
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints %zu:", action.size());
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints %zu:", action.motion.size());
 
-        auto cost = m_lazy_cost_fun->GetTrueActionCost(
-                this,
-                state_id, state,
-                action_id, &action,
-                this_succ_id, succ_state);
+        auto cost = m_lazy_cost_fun->GetTrueActionCost(state_id, &action, this_succ_id);
 
         if (cost < best_cost) {
             best_cost = cost;

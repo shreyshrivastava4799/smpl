@@ -30,22 +30,30 @@
 #include <smpl/graph/manip_lattice_egraph.h>
 
 // standard includes
+#include <algorithm>
 #include <fstream>
+#include <limits>
+#include <utility>
+#include <vector>
 
 // system includes
 #include <boost/filesystem.hpp>
+#include <boost/functional/hash.hpp>
 
 // project includes
+#include <smpl/collision_checker.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/csv_parser.h>
 #include <smpl/debug/visualize.h>
-#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/action_space.h>
 #include <smpl/heap/intrusive_heap.h>
+#include <smpl/planning_params.h>
+#include <smpl/robot_model.h>
 
 namespace smpl {
 
-auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) const ->
+auto ManipLatticeEGraph::RobotCoordHash::operator()(const argument_type& s) const ->
     result_type
 {
     auto seed = (size_t)0;
@@ -54,8 +62,8 @@ auto ManipLatticeEgraph::RobotCoordHash::operator()(const argument_type& s) cons
 }
 
 static
-bool findShortestExperienceGraphPath(
-    ManipLatticeEgraph* lattice,
+bool FindShortestExperienceGraphPath(
+    ManipLatticeEGraph* lattice,
     ExperienceGraph::node_id start_node,
     ExperienceGraph::node_id goal_node,
     std::vector<ExperienceGraph::node_id>& path)
@@ -68,7 +76,7 @@ bool findShortestExperienceGraphPath(
         ExperienceGraphSearchNode() :
             g(std::numeric_limits<int>::max()),
             closed(false),
-            bp(nullptr)
+            bp(NULL)
         { }
     };
 
@@ -99,10 +107,8 @@ bool findShortestExperienceGraphPath(
 
         if (min == &search_nodes[goal_node]) {
             SMPL_ERROR("Found shortest experience graph path");
-            ExperienceGraphSearchNode* ps = nullptr;
-            for (ExperienceGraphSearchNode* s = &search_nodes[goal_node];
-                s; s = s->bp)
-            {
+            ExperienceGraphSearchNode* ps = NULL;
+            for (auto* s = &search_nodes[goal_node]; s; s = s->bp) {
                 if (s != ps) {
                     path.push_back(std::distance(search_nodes.data(), s));
                     ps = s;
@@ -110,7 +116,7 @@ bool findShortestExperienceGraphPath(
                     SMPL_ERROR("Cycle detected!");
                 }
             }
-            std::reverse(path.begin(), path.end());
+            std::reverse(begin(path), end(path));
             return true;
         }
 
@@ -139,8 +145,8 @@ bool findShortestExperienceGraphPath(
 }
 
 static
-bool parseExperienceGraphFile(
-    const ManipLatticeEgraph* lattice,
+bool ParseExperienceGraphFile(
+    const ManipLatticeEGraph* lattice,
     const std::string& filepath,
     std::vector<RobotState>& egraph_states)
 {
@@ -161,7 +167,7 @@ bool parseExperienceGraphFile(
     SMPL_INFO("  %zu records", parser.recordCount());
     SMPL_INFO("  %zu fields", parser.fieldCount());
 
-    auto jvar_count = lattice->robot()->getPlanningJoints().size();
+    auto jvar_count = lattice->GetRobotModel()->getPlanningJoints().size();
     if (parser.fieldCount() != jvar_count) {
         SMPL_ERROR("Parsed experience graph contains insufficient number of joint variables");
         return false;
@@ -188,17 +194,31 @@ bool parseExperienceGraphFile(
     return true;
 }
 
-int ManipLatticeEgraph::getStartStateID() const
+bool ManipLatticeEGraph::Init(
+    RobotModel* robot,
+    CollisionChecker* checker,
+    const std::vector<double>& resolutions,
+    ActionSpace* actions,
+    CostFunction* cost_fun)
 {
-    return this->lattice.getStartStateID();
+    if (!m_lattice.Init(robot, checker, resolutions, actions, cost_fun)) {
+        return false;
+    }
+
+    return DiscreteSpace::Init(robot, checker);
 }
 
-int ManipLatticeEgraph::getGoalStateID() const
+void ManipLatticeEGraph::PrintState(int state_id, bool verbose, FILE* f)
 {
-    return this->lattice.getGoalStateID();
+    return m_lattice.PrintState(state_id, verbose, f);
 }
 
-bool ManipLatticeEgraph::extractPath(
+int ManipLatticeEGraph::GetStateID(const RobotState& state)
+{
+    return m_lattice.GetStateID(state);
+}
+
+bool ManipLatticeEGraph::ExtractPath(
     const std::vector<int>& idpath,
     std::vector<RobotState>& path)
 {
@@ -208,14 +228,13 @@ bool ManipLatticeEgraph::extractPath(
     }
 
     assert(idpath.size() > 1);
-    assert(idpath[0] != getGoalStateID());
 
     auto opath = std::vector<RobotState>();
 
     // grab the first point
     {
-        assert(IsValidStateID(this, idpath[0]));
-        auto* first_state = lattice.getHashEntry(idpath[0]);
+//        assert(IsValidStateID(this, idpath[0]));
+        auto* first_state = m_lattice.GetHashEntry(idpath[0]);
         if (!first_state) {
             SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", idpath[0]);
             return false;
@@ -229,35 +248,30 @@ bool ManipLatticeEgraph::extractPath(
         auto curr_id = idpath[i];
         SMPL_DEBUG_NAMED(G_LOG, "Extract motion from state %d to state %d", prev_id, curr_id);
 
-        assert(prev_id != getGoalStateID());
+        auto* prev_state = m_lattice.GetHashEntry(prev_id);
 
-        auto* prev_state = lattice.getHashEntry(prev_id);
-
-        auto best_action = lattice.FindBestAction(prev_id, curr_id);
-        if (best_action >= 0) {
-            auto best_action_path = lattice.m_action_space->GetActionPath(prev_id, prev_state, best_action);
-            for (auto& wp : best_action_path) {
+        auto best_action = m_lattice.FindBestAction(prev_id, curr_id);
+        if (best_action.action_id >= 0) {
+            for (auto& wp : best_action.motion) {
                 opath.push_back(wp);
             }
             continue;
         }
 
         // check for shortcut transition
-        auto pnit = std::find(m_egraph_state_ids.begin(), m_egraph_state_ids.end(), prev_id);
-        auto cnit = std::find(m_egraph_state_ids.begin(), m_egraph_state_ids.end(), curr_id);
-        if (pnit != m_egraph_state_ids.end() &&
-            cnit != m_egraph_state_ids.end())
-        {
+        auto pnit = std::find(begin(m_egraph_state_ids), end(m_egraph_state_ids), prev_id);
+        auto cnit = std::find(begin(m_egraph_state_ids), end(m_egraph_state_ids), curr_id);
+        if (pnit != end(m_egraph_state_ids) && cnit != end(m_egraph_state_ids)) {
             auto pn = (ExperienceGraph::node_id)std::distance(m_egraph_state_ids.begin(), pnit);
             auto cn = (ExperienceGraph::node_id)std::distance(m_egraph_state_ids.begin(), cnit);
 
             SMPL_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, pn, cn);
 
             auto node_path = std::vector<ExperienceGraph::node_id>();
-            if (findShortestExperienceGraphPath(this, pn, cn, node_path)) {
+            if (FindShortestExperienceGraphPath(this, pn, cn, node_path)) {
                 for (auto n : node_path) {
                     auto state_id = m_egraph_state_ids[n];
-                    auto* entry = lattice.getHashEntry(state_id);
+                    auto* entry = m_lattice.GetHashEntry(state_id);
                     assert(entry != NULL);
                     opath.push_back(entry->state);
                 }
@@ -268,9 +282,9 @@ bool ManipLatticeEgraph::extractPath(
         // check for snap transition
         SMPL_DEBUG_NAMED(G_LOG, "Check for snap successor");
         int cost;
-        if (snap(prev_id, curr_id, cost)) {
+        if (Snap(prev_id, curr_id, cost)) {
             SMPL_ERROR("Snap from %d to %d with cost %d", prev_id, curr_id, cost);
-            auto* entry = lattice.getHashEntry(curr_id);
+            auto* entry = m_lattice.GetHashEntry(curr_id);
             assert(entry);
             opath.push_back(entry->state);
             continue;
@@ -283,40 +297,33 @@ bool ManipLatticeEgraph::extractPath(
     // we made it!
     path = std::move(opath);
     auto* vis_name = "goal_config";
-    SV_SHOW_INFO_NAMED(vis_name, lattice.getStateVisualization(path.back(), vis_name));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(path.back(), vis_name));
     return true;
 }
 
-void ManipLatticeEgraph::GetSuccs(int state_id, std::vector<int>* succs, std::vector<int>* costs)
+void ManipLatticeEGraph::GetSuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
 {
-    return this->lattice.GetSuccs(state_id, succs, costs);
+    return m_lattice.GetSuccs(state_id, succs, costs);
 }
 
-void ManipLatticeEgraph::GetPreds(int state_id, std::vector<int>* preds, std::vector<int>* costs)
+auto ManipLatticeEGraph::ProjectToPose(int state_id) -> Affine3
 {
-    return this->lattice.GetPreds(state_id, preds, costs);
+    return m_project_to_pose->ProjectToPose(state_id);
 }
 
-void ManipLatticeEgraph::PrintState(int state_id, bool verbose, FILE* f)
+auto ManipLatticeEGraph::ExtractState(int state_id) -> const RobotState&
 {
-    return this->lattice.PrintState(state_id, verbose, f);
+    return m_lattice.ExtractState(state_id);
 }
 
-bool ManipLatticeEgraph::projectToPose(int state_id, Affine3& pose)
-{
-    return this->lattice.projectToPose(state_id, pose);
-}
-
-auto ManipLatticeEgraph::extractState(int state_id) -> const RobotState&
-{
-    return this->lattice.extractState(state_id);
-}
-
-bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
+bool ManipLatticeEGraph::LoadExperienceGraph(const std::string& path)
 {
     SMPL_INFO("Load Experience Graph at %s", path.c_str());
 
-    boost::filesystem::path p(path);
+    auto p = boost::filesystem::path(path);
     if (!boost::filesystem::is_directory(p)) {
         SMPL_ERROR("'%s' is not a directory", path.c_str());
         return false;
@@ -326,8 +333,8 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         dit != boost::filesystem::directory_iterator(); ++dit)
     {
         auto& filepath = dit->path().generic_string();
-        std::vector<RobotState> egraph_states;
-        if (!parseExperienceGraphFile(this, filepath, egraph_states)) {
+        auto egraph_states = std::vector<RobotState>();
+        if (!ParseExperienceGraphFile(this, filepath, egraph_states)) {
             continue;
         }
 
@@ -338,14 +345,14 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         SMPL_INFO("Create hash entries for experience graph states");
 
         auto& pp = egraph_states.front();  // previous robot state
-        RobotCoord pdp(robot()->jointVariableCount()); // previous robot coord
-        lattice.stateToCoord(egraph_states.front(), pdp);
+        auto pdp = RobotCoord(GetRobotModel()->jointVariableCount()); // previous robot coord
+        m_lattice.StateToCoord(egraph_states.front(), pdp);
 
         auto pid = m_egraph.insert_node(pp);
         m_coord_to_nodes[pdp].push_back(pid);
 
-        int entry_id = lattice.reserveHashEntry();
-        auto* entry = lattice.getHashEntry(entry_id);
+        auto entry_id = m_lattice.ReserveHashEntry();
+        auto* entry = m_lattice.GetHashEntry(entry_id);
         entry->coord = pdp;
         entry->state = pp;
 
@@ -354,19 +361,19 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
         m_egraph_state_ids[pid] = entry_id;
         m_state_to_node[entry_id] = pid;
 
-        std::vector<RobotState> edge_data;
-        for (size_t i = 1; i < egraph_states.size(); ++i) {
+        auto edge_data = std::vector<RobotState>();
+        for (auto i = 1; i < egraph_states.size(); ++i) {
             auto& p = egraph_states[i];
-            RobotCoord dp(robot()->jointVariableCount());
-            lattice.stateToCoord(p, dp);
+            auto dp = RobotCoord(GetRobotModel()->jointVariableCount());
+            m_lattice.StateToCoord(p, dp);
             if (dp != pdp) {
                 // found a new discrete state along the path
 
                 auto id = m_egraph.insert_node(p);
                 m_coord_to_nodes[dp].push_back(id);
 
-                int entry_id = lattice.reserveHashEntry();
-                auto* entry = lattice.getHashEntry(entry_id);
+                int entry_id = m_lattice.ReserveHashEntry();
+                auto* entry = m_lattice.GetHashEntry(entry_id);
                 entry->coord = dp;
                 entry->state = p;
 
@@ -389,7 +396,7 @@ bool ManipLatticeEgraph::loadExperienceGraph(const std::string& path)
     return true;
 }
 
-void ManipLatticeEgraph::getExperienceGraphNodes(
+void ManipLatticeEGraph::GetExperienceGraphNodes(
     int state_id,
     std::vector<ExperienceGraph::node_id>& nodes)
 {
@@ -399,48 +406,37 @@ void ManipLatticeEgraph::getExperienceGraphNodes(
     }
 }
 
-bool ManipLatticeEgraph::shortcut(
-    int first_id,
-    int second_id,
-    int& cost)
+bool ManipLatticeEGraph::Shortcut(int first_id, int second_id, int& cost)
 {
-    auto* first_entry = lattice.getHashEntry(first_id);
-    auto* second_entry = lattice.getHashEntry(second_id);
-    if (!first_entry | !second_entry) {
-        SMPL_WARN("No state entries for state %d or state %d", first_id, second_id);
-        return false;
-    }
+    auto* first_state = m_lattice.GetHashEntry(first_id);
+    auto* second_state = m_lattice.GetHashEntry(second_id);
+    assert(first_state != NULL && second_state != NULL);
 
-    SMPL_INFO_STREAM("Shortcut " << first_entry->state << " -> " << second_entry->state);
+    SMPL_INFO_STREAM("Shortcut " << first_state->state << " -> " << second_state->state);
     auto* vis_name = "shortcut";
-    SV_SHOW_INFO_NAMED(vis_name, lattice.getStateVisualization(first_entry->state, "shortcut_from"));
-    SV_SHOW_INFO_NAMED(vis_name, lattice.getStateVisualization(second_entry->state, "shortcut_to"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(first_state->state, "shortcut_from"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(second_state->state, "shortcut_to"));
 
     SMPL_INFO("  Shortcut %d -> %d!", first_id, second_id);
     cost = 1000;
     return true;
 }
 
-bool ManipLatticeEgraph::snap(
+bool ManipLatticeEGraph::Snap(
     int first_id,
     int second_id,
     int& cost)
 {
-    auto* first_entry = lattice.getHashEntry(first_id);
-    auto* second_entry = lattice.getHashEntry(second_id);
-    if (!first_entry | !second_entry) {
-        SMPL_WARN("No state entries for state %d or state %d", first_id, second_id);
-        return false;
-    }
+    auto* first_entry = m_lattice.GetHashEntry(first_id);
+    auto* second_entry = m_lattice.GetHashEntry(second_id);
+    assert(first_entry != NULL && second_entry != NULL);
 
     SMPL_INFO_STREAM("Snap " << first_entry->state << " -> " << second_entry->state);
     auto* vis_name = "snap";
-    SV_SHOW_INFO_NAMED(vis_name, lattice.getStateVisualization(first_entry->state, "snap_from"));
-    SV_SHOW_INFO_NAMED(vis_name, lattice.getStateVisualization(second_entry->state, "snap_to"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(first_entry->state, "snap_from"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(second_entry->state, "snap_to"));
 
-    if (!collisionChecker()->isStateToStateValid(
-            first_entry->state, second_entry->state))
-    {
+    if (!GetCollisionChecker()->isStateToStateValid(first_entry->state, second_entry->state)) {
         SMPL_WARN("Failed snap!");
         return false;
     }
@@ -450,17 +446,17 @@ bool ManipLatticeEgraph::snap(
     return true;
 }
 
-const ExperienceGraph* ManipLatticeEgraph::getExperienceGraph() const
+auto ManipLatticeEGraph::GetExperienceGraph() const -> const ExperienceGraph*
 {
     return &m_egraph;
 }
 
-ExperienceGraph* ManipLatticeEgraph::getExperienceGraph()
+auto ManipLatticeEGraph::GetExperienceGraph() -> ExperienceGraph*
 {
     return &m_egraph;
 }
 
-int ManipLatticeEgraph::getStateID(ExperienceGraph::node_id n) const
+int ManipLatticeEGraph::GetStateID(ExperienceGraph::node_id n) const
 {
     if (n >= m_egraph_state_ids.size()) {
         return -1;
@@ -469,103 +465,32 @@ int ManipLatticeEgraph::getStateID(ExperienceGraph::node_id n) const
     }
 }
 
-auto ManipLatticeEgraph::getExtension(size_t class_code) -> Extension*
+bool ManipLatticeEGraph::UpdateGoal(GoalConstraint* goal)
 {
-    if (class_code == GetClassCode<ExperienceGraphExtension>() ||
-        class_code == GetClassCode<ExtractRobotStateInterface>())
+    return m_lattice.UpdateGoal(goal);
+}
+
+auto ManipLatticeEGraph::GetExtension(size_t class_code) -> Extension*
+{
+    if (class_code == GetClassCode<IExperienceGraph>() ||
+        class_code == GetClassCode<IExtractRobotState>())
     {
         return this;
     }
 
-    if (class_code == GetClassCode<PoseProjectionExtension>() &&
-        lattice_pose_projection != NULL)
-    {
-        return this;
+    if (class_code == GetClassCode<IProjectToPose>()) {
+        if (m_project_to_pose == NULL) {
+            auto* project_to_pose = m_lattice.GetExtension<IProjectToPose>();
+            if (project_to_pose != NULL) {
+                m_project_to_pose = project_to_pose;
+                return this;
+            }
+        } else {
+            return this;
+        }
     }
 
     return NULL;
-}
-
-/// An attempt to construct the discrete experience graph by discretizing all
-/// input continuous states and connecting them via edges available in the
-/// canonical action set. This turns out to not work very well since the points
-/// are not often able to be connected by the limited action set. It also
-/// necessitates imposing restrictions on the action set, since context-specific
-/// actions don't make sense before an actual planning request.
-void rasterizeExperienceGraph()
-{
-//    std::vector<RobotCoord> egraph_coords;
-//    for (const RobotState& state : egraph_states) {
-//        RobotCoord coord(robot()->jointVariableCount());
-//        lattice.stateToCoord(state, coord);
-//        egraph_coords.push_back(std::move(coord));
-//    }
-//
-//    auto it = std::unique(egraph_coords.begin(), egraph_coords.end());
-//    egraph_coords.erase(it, egraph_coords.end());
-//
-//    SMPL_INFO("Experience contains %zu discrete states", egraph_coords.size());
-//    for (const RobotCoord& coord : egraph_coords) {
-//        SMPL_STREAM_INFO("  " << coord);
-//    }
-//
-//    SMPL_INFO("Insert states into experience graph and map coords to experience graph nodes");
-//
-//    // insert all coords into egraph and initialize coord -> egraph node mapping
-//    RobotState state(robot()->jointVariableCount());
-//    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
-//        coordToState(*it, state);
-//        m_coord_to_nodes[*it] = m_egraph.insert_node(state);
-//    }
-//
-//    SMPL_INFO("Insert experience graph edges into experience graph");
-//
-//    int edge_count = 0;
-//    ManipLatticeActionSpace* aspace =
-//            dynamic_cast<ManipLatticeActionSpace*>(actionSpace().get());
-//    if (!aspace) {
-//        SMPL_ERROR("ManipLatticeEgraph requires action space to be a ManipLatticeActionSpace");
-//        return false;
-//    }
-//
-//    // save action space configuration
-//    bool mprim_enabled_state[MotionPrimitive::NUMBER_OF_MPRIM_TYPES];
-//    for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
-//        mprim_enabled_state[i] = aspace->useAmp((MotionPrimitive::Type)i);
-//    }
-//    bool use_long_and_short_mprims = aspace->useLongAndShortPrims();
-//
-//    // disable context-specific motion primitives
-//    aspace->useAmp(MotionPrimitive::SHORT_DISTANCE, true);
-//    aspace->useAmp(MotionPrimitive::SNAP_TO_RPY, false);
-//    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ, false);
-//    aspace->useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, false);
-//
-//    for (auto it = egraph_coords.begin(); it != egraph_coords.end(); ++it) {
-//        const ExperienceGraph::node_id n = m_coord_to_nodes[*it];
-//        RobotState source(robot()->jointVariableCount());
-//        coordToState(*it, source);
-//        std::vector<Action> actions;
-//        aspace->apply(source, actions);
-//        SMPL_INFO("%zu actions from egraph state", actions.size());
-//        for (const Action& action : actions) {
-//            RobotCoord last(robot()->jointVariableCount());
-//            lattice.stateToCoord(action.back(), last);
-//            SMPL_INFO("Check for experience graph edge " << *it << " -> " << last);
-//            auto iit = m_coord_to_nodes.find(last);
-//            if (iit != m_coord_to_nodes.end() && !m_egraph.edge(n, iit->second)) {
-//                m_egraph.insert_edge(n, iit->second);
-//                ++edge_count;
-//            }
-//        }
-//    }
-//    SMPL_INFO("Experience graph contains %d edges", edge_count);
-//
-//    // restore action space configuration
-//    for (int i = 0; i < MotionPrimitive::NUMBER_OF_MPRIM_TYPES; ++i) {
-//        aspace->useAmp((MotionPrimitive::Type)i, mprim_enabled_state[i]);
-//    }
-//    aspace->useLongAndShortPrims(use_long_and_short_mprims);
 }
 
 } // namespace smpl

@@ -47,7 +47,7 @@ class RobotModel;
 /// variables used to uniquely determine the state. This class is responsible
 /// for handling those transformations and discretization of the resulting
 /// SE(3) + <free angle array> space.
-struct WorkspaceLatticeBase
+struct WorkspaceProjection
 {
     RobotModel*             m_robot_model = NULL;
     IForwardKinematics*     m_fk_iface = NULL;

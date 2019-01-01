@@ -32,32 +32,36 @@
 #ifndef SMPL_EXPERIENCE_GRAPH_EXTENSION_H
 #define SMPL_EXPERIENCE_GRAPH_EXTENSION_H
 
+// standard includes
 #include <string>
 #include <vector>
 
+// project includes
 #include <smpl/extension.h>
 #include <smpl/graph/experience_graph.h>
 
 namespace smpl {
 
-class ExperienceGraphExtension : public virtual Extension
+struct ExperienceGraph;
+
+class IExperienceGraph : public virtual Extension
 {
 public:
 
-    virtual bool loadExperienceGraph(const std::string& path) = 0;
+    virtual bool LoadExperienceGraph(const std::string& path) = 0;
 
-    virtual void getExperienceGraphNodes(
+    virtual void GetExperienceGraphNodes(
         int state_id,
         std::vector<ExperienceGraph::node_id>& nodes) = 0;
 
-    virtual bool shortcut(int first_id, int second_id, int& cost) = 0;
+    virtual bool Shortcut(int first_id, int second_id, int& cost) = 0;
 
-    virtual bool snap(int first_id, int second_id, int& cost) = 0;
+    virtual bool Snap(int first_id, int second_id, int& cost) = 0;
 
-    virtual const ExperienceGraph* getExperienceGraph() const = 0;
-    virtual ExperienceGraph* getExperienceGraph() = 0;
+    virtual const ExperienceGraph* GetExperienceGraph() const = 0;
+    virtual ExperienceGraph* GetExperienceGraph() = 0;
 
-    virtual int getStateID(ExperienceGraph::node_id n) const = 0;
+    virtual int GetStateID(ExperienceGraph::node_id n) const = 0;
 };
 
 } // namespace smpl

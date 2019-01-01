@@ -32,82 +32,136 @@
 #ifndef SMPL_MANIP_LATTICE_EGRAPH_H
 #define SMPL_MANIP_LATTICE_EGRAPH_H
 
+// project includes
+#include <smpl/graph/discrete_space.h>
 #include <smpl/graph/experience_graph.h>
 #include <smpl/graph/experience_graph_extension.h>
 #include <smpl/graph/manip_lattice.h>
 
 namespace smpl {
 
-class ManipLatticeEgraph :
+class ActionSpace;
+class CollisionChecker;
+class CostFunction;
+class RobotModel;
+
+// A graph composed of two sub-graphs, a typical joint-space lattice graph and
+// an experience graph represented as a dense set of states and edges.
+//
+// The nodes in the graph are one of two types:
+//
+// (1) A state in the original joint-space lattice
+// (2) A state in the experience graph
+//
+// The following types of actions are available from each state:
+//
+// (1) The original actions as defined by the joint-space lattice
+// (2) Edges between states in the experience graph
+// (3) Precomputed shortcut edges between states in the experience graph that
+//     represent paths through the experience graph that may quickly lead to
+//     the goal.
+// (4) "Snap motions" or adaptively-generated motions between
+//     original graph states and experience graph states, with similar
+//     heuristic values, to avoid local minima imposed by the experience-graph
+//     heuristic
+// (5) Bridge edges that connect original and experience graph states within
+//     the same discretization.
+class ManipLatticeEGraph :
+    public DiscreteSpace,
     public RobotPlanningSpace,
-    public PoseProjectionExtension,
-    public ExtractRobotStateExtension,
-    public ExperienceGraphExtension
+    public IProjectToPose,
+    public IExtractRobotState,
+    public ISearchable,
+    public IExperienceGraph
 {
 public:
 
+    bool Init(
+        RobotModel* robot,
+        CollisionChecker* checker,
+        const std::vector<double>& resolutions,
+        ActionSpace* actions,
+        CostFunction* cost_fun);
+
+    void PrintState(int state_id, bool verbose, FILE* f = NULL);
+
     /// \name RobotPlanningSpace Interface
     ///@{
-    int getStartStateID() const final;
-    int getGoalStateID() const final;
-    bool extractPath(const std::vector<int>& ids, std::vector<RobotState>& path) final;
+    int GetStateID(const RobotState& state) final;
+    bool ExtractPath(const std::vector<int>& ids, std::vector<RobotState>& path) final;
+    ///@}
+
+    /// \name ISearchable
+    ///@{
     void GetSuccs(int state_id, std::vector<int>* succs, std::vector<int>* costs) final;
-    void GetPreds(int state_id, std::vector<int>* preds, std::vector<int>* costs) final;
-    void PrintState(int state_id, bool verbose, FILE* f = NULL) final;
     ///@}
 
-    /// \name PoseProjectionExtension Interface
+    /// \name IProjectToPose Interface
     ///@{
-    bool projectToPose(int state_id, Affine3& pose) final;
+    auto ProjectToPose(int state_id) -> Affine3 final;
     ///@}
 
-    /// \name ExtractRobotStateExtension Interface
+    /// \name IExtractState Interface
     ///@{
-    auto extractState(int state_id) -> const RobotState& final;
+    auto ExtractState(int state_id) -> const RobotState& final;
     ///@}
 
-    /// \name ExperienceGraphExtension Interface
+    /// \name IExperienceGraph Interface
     ///@{
-    bool loadExperienceGraph(const std::string& path) final;
+    bool LoadExperienceGraph(const std::string& path) final;
 
-    void getExperienceGraphNodes(
+    void GetExperienceGraphNodes(
         int state_id,
         std::vector<ExperienceGraph::node_id>& nodes) final;
 
-    bool shortcut(int first_id, int second_id, int& cost) final;
-    bool snap(int first_id, int second_id, int& cost) final;
+    bool Shortcut(int first_id, int second_id, int& cost) final;
+    bool Snap(int first_id, int second_id, int& cost) final;
 
-    auto getExperienceGraph() const -> const ExperienceGraph* final;
-    auto getExperienceGraph() -> ExperienceGraph* final;
+    auto GetExperienceGraph() const -> const ExperienceGraph* final;
+    auto GetExperienceGraph() -> ExperienceGraph* final;
 
-    int getStateID(ExperienceGraph::node_id n) const final;
+    int GetStateID(ExperienceGraph::node_id n) const final;
+    ///@}
+
+    /// \name DiscreteSpace Interface
+    ///@{
+    bool UpdateGoal(GoalConstraint* goal) final;
     ///@}
 
     /// \name Extension Interface
     ///@{
-    auto getExtension(size_t class_code) -> Extension* override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
+
+public:
 
     struct RobotCoordHash
     {
-        typedef std::vector<int> argument_type;
-        typedef std::size_t result_type;
+        using argument_type = std::vector<int>;
+        using result_type = std::size_t;
 
-        result_type operator()(const argument_type& s) const;
+        auto operator()(const argument_type& s) const -> result_type;
     };
 
-    ManipLattice lattice;
-
-    typedef hash_map<
-            RobotCoord,
-            std::vector<ExperienceGraph::node_id>,
-            RobotCoordHash>
-    CoordToExperienceGraphNodeMap;
-
-    CoordToExperienceGraphNodeMap m_coord_to_nodes;
-    hash_map<int, ExperienceGraph::node_id> m_state_to_node;
+    // The ManipLattice maintains both experience graph states and states
+    // generated by calls to its GetSuccs function. The experience graph states
+    // are preloaded into its state table and are unreachable by its GetSuccs
+    // method.
+    ManipLattice m_lattice;
+    IProjectToPose* m_project_to_pose = NULL;
 
     ExperienceGraph m_egraph;
+
+    // map from discrete state to the set of experience graph states within
+    // the same discretization
+    using CoordToExperienceGraphNodeMap = hash_map<
+            RobotCoord,
+            std::vector<ExperienceGraph::node_id>,
+            RobotCoordHash>;
+    CoordToExperienceGraphNodeMap m_coord_to_nodes;
+
+    // map from state id to the experience graph node id
+    hash_map<int, ExperienceGraph::node_id> m_state_to_node;
 
     // map from experience graph node ids to state ids
     std::vector<int> m_egraph_state_ids;
