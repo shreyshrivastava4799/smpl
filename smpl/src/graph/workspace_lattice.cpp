@@ -289,7 +289,7 @@ void WorkspaceLattice::PrintState(int state_id, bool verbose, FILE* fout)
 
     auto* state = GetState(state_id);
 
-    auto ss = std::stringstream();
+    std::stringstream ss;
     ss << *state;
 
     if (fout == stdout) {
@@ -541,7 +541,7 @@ bool WorkspaceLattice::UpdateGoal(GoalConstraint* goal)
 
 auto WorkspaceLattice::GetExtension(size_t class_code) -> Extension*
 {
-    if (class_code == GetClassCode<WorkspaceLattice>() ||
+    if (class_code == GetClassCode<DiscreteSpace>() ||
         class_code == GetClassCode<RobotPlanningSpace>() ||
         class_code == GetClassCode<IProjectToPose>() ||
         class_code == GetClassCode<IProjectToPoint>() ||

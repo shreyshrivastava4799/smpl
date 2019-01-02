@@ -32,6 +32,8 @@
 #ifndef SMPL_EXTENSION_H
 #define SMPL_EXTENSION_H
 
+// standard includes
+#include <stddef.h>
 #include <typeinfo>
 
 namespace smpl {

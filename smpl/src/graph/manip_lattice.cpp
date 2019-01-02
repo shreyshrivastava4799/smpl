@@ -419,7 +419,7 @@ void ManipLattice::PrintState(int state_id, bool verbose, FILE* fout)
 
     auto* entry = GetHashEntry(state_id);
 
-    auto ss = std::stringstream();
+    std::stringstream ss;
 
     ss << "{ ";
     for (size_t i = 0; i < entry->state.size(); ++i) {

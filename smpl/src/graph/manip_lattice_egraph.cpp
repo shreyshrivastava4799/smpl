@@ -150,7 +150,7 @@ bool ParseExperienceGraphFile(
     const std::string& filepath,
     std::vector<RobotState>& egraph_states)
 {
-    auto fin = std::ifstream(filepath);
+    std::ifstream fin(filepath);
     if (!fin.is_open()) {
         return false;
     }

@@ -83,7 +83,7 @@ struct WorkspaceProjection
     auto Resolution() const -> const std::vector<double>& { return m_res; }
     int DofCount() const { return m_dof_count; }
 
-    auto FreeAngleCount() const { return (int)m_fangle_indices.size(); }
+    int FreeAngleCount() const { return (int)m_fangle_indices.size(); }
 
     // conversions between robot states, workspace states, and workspace coords
     void StateRobotToWorkspace(const RobotState& state, WorkspaceState& ostate) const;

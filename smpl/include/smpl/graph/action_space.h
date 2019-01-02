@@ -33,6 +33,7 @@
 #define SMPL_ACTION_SPACE_H
 
 // project includes
+#include <smpl/graph/manip_lattice_types.h>
 #include <smpl/types.h>
 
 namespace smpl {
@@ -40,7 +41,6 @@ namespace smpl {
 class GoalConstraint;
 class ManipLattice;
 struct ManipLatticeState;
-struct ManipLatticeAction;
 
 class ActionSpace
 {
