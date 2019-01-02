@@ -40,15 +40,15 @@
 
 namespace smpl {
 
-class AdaptiveGraphExtension : public virtual Extension
+class IAdaptiveGraph : public virtual Extension
 {
 public:
 
-    virtual bool addHighDimRegion(int state_id) = 0;
-    virtual bool setTunnel(const std::vector<int>& states) = 0;
-    virtual bool isExecutable(const std::vector<int>& states) const = 0;
-    virtual bool setPlanMode() = 0;
-    virtual bool setTrackMode(const std::vector<int>& states) = 0;
+    virtual bool AddHighDimRegion(int state_id) = 0;
+    virtual bool SetTunnel(const std::vector<int>& states) = 0;
+    virtual bool IsExecutable(const std::vector<int>& states) const = 0;
+    virtual bool SetPlanMode() = 0;
+    virtual bool SetTrackMode(const std::vector<int>& states) = 0;
 };
 
 } // namespace smpl

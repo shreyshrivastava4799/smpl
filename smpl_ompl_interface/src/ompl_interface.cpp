@@ -61,7 +61,7 @@ CallOnDestruct<Callable> MakeCallOnDestruct(Callable c) {
 
 struct RobotModel :
     public virtual smpl::RobotModel,
-    public smpl::ForwardKinematicsInterface
+    public smpl::IForwardKinematics
 {
     struct VariableProperties
     {
@@ -92,7 +92,7 @@ struct RobotModel :
 
     auto computeFK(const smpl::RobotState& state) -> Eigen::Affine3d override;
 
-    auto getExtension(size_t class_code) -> smpl::Extension* override;
+    auto GetExtension(size_t class_code) -> smpl::Extension* override;
 };
 
 double RobotModel::minPosLimit(int vidx) const
@@ -142,13 +142,13 @@ auto RobotModel::computeFK(const smpl::RobotState& state) -> Eigen::Affine3d
             Eigen::AngleAxisd(projected[5], Eigen::Vector3d::UnitX());
 }
 
-auto RobotModel::getExtension(size_t class_code) -> smpl::Extension*
+auto RobotModel::GetExtension(size_t class_code) -> smpl::Extension*
 {
     if (class_code == smpl::GetClassCode<smpl::RobotModel>()) {
         return this;
     }
 
-    if (class_code == smpl::GetClassCode<smpl::ForwardKinematicsInterface>() &&
+    if (class_code == smpl::GetClassCode<smpl::IForwardKinematics>() &&
         this->projection != NULL &&
         this->projection->getDimension() == 6)
     {
@@ -191,7 +191,7 @@ struct CollisionChecker : public smpl::CollisionChecker
 
     /// \name Extension Interface
     ///@{
-    auto getExtension(size_t class_code) -> smpl::Extension* override;
+    auto GetExtension(size_t class_code) -> smpl::Extension* override;
     ///@}
 };
 
@@ -234,7 +234,7 @@ auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
     return this->visualizer(state);
 }
 
-auto CollisionChecker::getExtension(size_t class_code)
+auto CollisionChecker::GetExtension(size_t class_code)
     -> smpl::Extension*
 {
     if (class_code == smpl::GetClassCode<smpl::CollisionChecker>()) {

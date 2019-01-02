@@ -33,18 +33,17 @@
 #define SMPL_ADAPTIVE_WORKSPACE_LATTICE_H
 
 // standard includes
+#include <cstddef>
 #include <functional>
-#include <ostream>
-#include <tuple>
+#include <iosfwd>
 #include <vector>
 
 // project includes
 #include <smpl/graph/adaptive_graph_extension.h>
+#include <smpl/graph/discrete_space.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/workspace_lattice_base.h>
 #include <smpl/grid/grid.h>
-#include <smpl/occupancy_grid.h>
-#include <smpl/time.h>
 #include <smpl/types.h>
 
 namespace smpl {
@@ -65,13 +64,8 @@ struct AdaptiveGridState : public AdaptiveState
     int gz;
 };
 
-std::ostream& operator<<(std::ostream& o, const AdaptiveGridState& s);
-
-inline
-bool operator==(const AdaptiveGridState& a, const AdaptiveGridState& b)
-{
-    return std::tie(a.gx, a.gy, a.gz) == std::tie(b.gx, b.gy, b.gz);
-}
+bool operator==(const AdaptiveGridState& a, const AdaptiveGridState& b);
+auto operator<<(std::ostream& o, const AdaptiveGridState& s) -> std::ostream&;
 
 struct AdaptiveWorkspaceState : public AdaptiveState
 {
@@ -79,15 +73,8 @@ struct AdaptiveWorkspaceState : public AdaptiveState
     WorkspaceCoord coord;
 };
 
-std::ostream& operator<<(std::ostream& o, const AdaptiveWorkspaceState& s);
-
-inline
-bool operator==(
-    const AdaptiveWorkspaceState& a,
-    const AdaptiveWorkspaceState& b)
-{
-    return a.coord == b.coord;
-}
+bool operator==(const AdaptiveWorkspaceState& a, const AdaptiveWorkspaceState& b);
+auto operator<<(std::ostream& o, const AdaptiveWorkspaceState& s) -> std::ostream&;
 
 } // namespace smpl
 
@@ -97,115 +84,98 @@ namespace std {
 template <>
 struct hash<smpl::AdaptiveGridState>
 {
-    typedef smpl::AdaptiveGridState argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(const argument_type& s) const;
+    using argument_type = smpl::AdaptiveGridState;
+    using result_type = std::size_t;
+    auto operator()(const argument_type& s) const -> result_type;
 };
 
 template <>
 struct hash<smpl::AdaptiveWorkspaceState>
 {
-    typedef smpl::AdaptiveWorkspaceState argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(const argument_type& s) const;
+    using argument_type = smpl::AdaptiveWorkspaceState;
+    using result_type = std::size_t;
+    auto operator()(const argument_type& s) const -> result_type;
 };
 
 } // namespace std
 
 namespace smpl {
 
+class OccupancyGrid;
+
+// This class represents two lattice structures, a typical high-dimensional
+// lattice structure and a low-dimensional lattice structure, with a projection
+// function that maps between them. A search through this lattice structure may
+// alternate between searching in the high-dimensional vs. the low-dimensional
+// lattice.
 class AdaptiveWorkspaceLattice :
-    public WorkspaceLatticeBase,
-    public AdaptiveGraphExtension,
-    public PointProjectionExtension
+    public DiscreteSpace,
+    public RobotPlanningSpace,
+    public IProjectToPoint,
+    public IAdaptiveGraph,
+    public ISearchable
 {
 public:
 
     ~AdaptiveWorkspaceLattice();
 
-    /// \name Reimplemented Public Functions from WorkspaceLatticeBase
-    ///@{
-    bool init(
+    bool Init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const Params& params,
+        const WorkspaceProjection::Params& params,
         const OccupancyGrid* grid);
-    ///@}
 
-    /// \name Required Public Functions from PointProjectionExtension
+    void PrintState(int state_id, bool verbose, FILE* f = NULL);
+
+    /// \name RobotPlanningSpace Interface
     ///@{
-    bool projectToPoint(int state_id, Vector3& pos) override;
+    int GetStateID(const RobotState& state) final;
+    bool ExtractPath(
+        const std::vector<int>& state_ids,
+        std::vector<RobotState>& path) final;
     ///@}
 
-    /// \name Required Public Functions from AdaptiveGraphExtension
+    /// \name IProjectToPoint Interface
     ///@{
-    bool addHighDimRegion(int state_id) override;
-    bool setTunnel(const std::vector<int>& states) override;
-    bool isExecutable(const std::vector<int>& states) const override;
-    bool setTrackMode(const std::vector<int>& tunnel) override;
-    bool setPlanMode() override;
+    auto ProjectToPoint(int state_id) -> Vector3 final;
     ///@}
 
-    /// \name Required Public Functions from RobotPlanningSpcae
+    /// \name IAdaptiveGraph Interface
     ///@{
-    int getStartStateID() const override;
-    int getGoalStateID() const override;
-
-    bool extractPath(
-        const std::vector<int>& ids,
-        std::vector<RobotState>& path) override;
+    bool AddHighDimRegion(int state_id) final;
+    bool SetTunnel(const std::vector<int>& states) final;
+    bool IsExecutable(const std::vector<int>& states) const final;
+    bool SetTrackMode(const std::vector<int>& tunnel) final;
+    bool SetPlanMode() final;
     ///@}
 
-    /// \name Reimplemneted Functions from RobotPlanningSpace
+    /// \name ISearchable
     ///@{
-    bool setStart(const RobotState& state) override;
-    bool setGoal(const GoalConstraint& goal) override;
+    void GetSuccs(int state_id, std::vector<int>* succs, std::vector<int>* costs) final;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name Extension Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
-    /// \name required Public Functions from DiscreteSpaceInformation
-    ///@{
-    void GetSuccs(
-        int state_id,
-        std::vector<int>* succs,
-        std::vector<int>* costs) override;
+public:
 
-    void GetPreds(
-        int state_id,
-        std::vector<int>* preds,
-        std::vector<int>* costs) override;
+    WorkspaceProjection m_proj;
 
-    void PrintState(int state_id, bool verbose, FILE* f = nullptr) override;
-    ///@}
+    const OccupancyGrid* m_grid = NULL;
 
-private:
-
-    const OccupancyGrid* m_grid = nullptr;
-
-    AdaptiveState* m_goal_state = nullptr;
-    int m_goal_state_id = -1;
-
-    AdaptiveState* m_start_state = nullptr;
-    int m_start_state_id = -1;
-
-    typedef AdaptiveWorkspaceState HiStateKey;
-    typedef PointerValueHash<HiStateKey> HiStateHash;
-    typedef PointerValueEqual<HiStateKey> HiStateEqual;
-    typedef AdaptiveGridState LoStateKey;
-    typedef PointerValueHash<LoStateKey> LoStateHash;
-    typedef PointerValueEqual<LoStateKey> LoStateEqual;
+    using HiStateKey = AdaptiveWorkspaceState;
+    using HiStateHash = PointerValueHash<HiStateKey>;
+    using HiStateEqual = PointerValueEqual<HiStateKey>;
+    using LoStateKey = AdaptiveGridState;
+    using LoStateHash = PointerValueHash<LoStateKey>;
+    using LoStateEqual = PointerValueEqual<LoStateKey>;
 
     hash_map<HiStateKey*, int, HiStateHash, HiStateEqual> m_hi_to_id;
     hash_map<LoStateKey*, int, LoStateHash, LoStateEqual> m_lo_to_id;
 
     std::vector<AdaptiveState*> m_states;
-
-    clock::time_point m_t_start;
-    mutable bool m_near_goal = false;
 
     std::vector<Vector3> m_lo_prims;
     std::vector<MotionPrimitive> m_hi_prims;
@@ -220,58 +190,11 @@ private:
 
     struct AdaptiveGridCell
     {
-        int grow_count;
-        bool plan_hd; //planning_hd;
-        bool trak_hd;
-
-        AdaptiveGridCell() : grow_count(0), plan_hd(false), trak_hd(false) { }
+        int grow_count = 0;
+        bool plan_hd = false;
+        bool trak_hd = false;
     };
     Grid3<AdaptiveGridCell> m_dim_grid;
-
-    bool initMotionPrimitives();
-
-    bool setGoalPose(const GoalConstraint& goal);
-
-    void GetSuccs(
-        const AdaptiveGridState& state,
-        std::vector<int>* succs,
-        std::vector<int>* costs);
-
-    void GetSuccs(
-        const AdaptiveWorkspaceState& state,
-        std::vector<int>* succs,
-        std::vector<int>* costs);
-
-    int reserveHashEntry(bool hid);
-
-    bool isHighDimensional(int gx, int gy, int gz) const;
-
-    AdaptiveState* getHashEntry(int state_id) const;
-    AdaptiveWorkspaceState* getHiHashEntry(int state_id) const;
-    AdaptiveGridState* getLoHashEntry(int state_id) const;
-
-    int getHiHashEntry(const WorkspaceCoord& coord);
-    int getLoHashEntry(int x, int y, int z);
-
-    int createHiState(const WorkspaceCoord& coord, const RobotState& state);
-    int createLoState(int x, int y, int z, double wx, double wy, double wz);
-
-    void getActions(
-        const AdaptiveWorkspaceState& state,
-        std::vector<Action>& actions);
-
-    bool checkAction(
-        const RobotState& state,
-        const Action& action,
-        RobotState* final_rstate = nullptr);
-
-    bool isGoal(const WorkspaceState& state) const;
-    bool isLoGoal(double x, double y, double z) const;
-
-    auto getStateVisualization(const RobotState& state, const std::string& ns)
-        -> std::vector<visual::Marker>;
-
-    auto getAdaptiveGridVisualization(bool plan_mode) const -> visual::Marker;
 };
 
 } // namespace smpl
