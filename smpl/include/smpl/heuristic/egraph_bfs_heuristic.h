@@ -33,79 +33,81 @@
 #define SMPL_EGRAPH_BFS_HEURISTIC_H
 
 // standard includes
+#include <limits>
 #include <vector>
 
 // project includes
 #include <smpl/debug/marker.h>
-#include <smpl/graph/experience_graph_extension.h>
 #include <smpl/grid/grid.h>
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/egraph_heuristic.h>
 #include <smpl/heuristic/heuristic.h>
-#include <smpl/occupancy_grid.h>
+#include <smpl/graph/experience_graph.h>
 
 namespace smpl {
 
-class DijkstraEgraphHeuristic3D :
-    public RobotHeuristic,
-    public ExperienceGraphHeuristicExtension
+class IExperienceGraph;
+class IProjectToPoint;
+class IGetPosition;
+class OccupancyGrid;
+
+class DijkstraEGraphHeuristic3D :
+    public Heuristic,
+    public IExperienceGraphHeuristic,
+    public IMetricStartHeuristic,
+    public IMetricGoalHeuristic,
+    public IGoalHeuristic
 {
 public:
 
-    bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
+    bool Init(DiscreteSpace* space, const OccupancyGrid* grid);
 
-    auto grid() const -> const OccupancyGrid* { return m_grid; }
+    void SyncGridAndDijkstra();
 
-    double weightEGraph() const { return m_eg_eps; }
-    void setWeightEGraph(double w);
+    auto GetGrid() const -> const OccupancyGrid*;
 
-    double inflationRadius() const { return m_inflation_radius; }
-    void setInflationRadius(double radius);
+    auto GetEGraphWeight() const -> double;
+    void SetEGraphWeight(double w);
 
-    auto getWallsVisualization() -> visual::Marker;
-    auto getValuesVisualization() -> visual::Marker;
+    auto GetInflationRadius() const -> double;
+    void SetInflationRadius(double radius);
 
-    /// \name Required Public Functions from ExperienceGraphHeuristicExtension
+    auto GetWallsVisualization() -> visual::Marker;
+    auto GetValuesVisualization() -> visual::Marker;
+
+    /// \name IExperienceGraphHeuristic Interface
     ///@{
-    void getEquivalentStates(
-        int state_id,
-        std::vector<int>& ids) override;
-
-    void getShortcutSuccs(
-        int state_id,
-        std::vector<int>& ids) override;
+    void GetEquivalentStates(int state_id, std::vector<int>& ids) final;
+    void GetShortcutSuccs(int state_id, std::vector<int>& ids) final;
     ///@}
 
-    /// \name Required Public Functions from RobotHeuristic
+    /// \name IMetricStartHeuristic Interface
     ///@{
-    double getMetricStartDistance(double x, double y, double z) override;
-    double getMetricGoalDistance(double x, double y, double z) override;
+    double GetMetricStartDistance(double x, double y, double z) final;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name IMetricGoalHeuristic Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    double GetMetricGoalDistance(double x, double y, double z) final;
     ///@}
 
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
+    /// \name IGoalHeuristic Interface
     ///@{
-    void updateGoal(const GoalConstraint& goal) override;
+    int GetGoalHeuristic(int state_id) final;
     ///@}
 
-    /// \name Required Public Functions from Heuristic
+    /// \name Heuristic Interface
     ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
     ///@}
 
-private:
+    /// \name Extension Interface
+    ///@{
+    auto GetExtension(size_t class_code) -> Extension* final;
+    ///@}
 
-    static const int Unknown = std::numeric_limits<int>::max() >> 1;
-    static const int Wall = std::numeric_limits<int>::max();
-    static const int Infinity = Unknown;
-
-    const OccupancyGrid* m_grid = nullptr;
+public:
 
     struct Cell : public heap_element
     {
@@ -115,22 +117,12 @@ private:
         explicit Cell(int d) : heap_element(), dist(d) { }
     };
 
-    Grid3<Cell> m_dist_grid;
-
     struct CellCompare
     {
         bool operator()(const Cell& a, const Cell& b) const {
             return a.dist < b.dist;
         }
     };
-
-    double m_eg_eps = 1.0;
-    double m_inflation_radius = 0.0;
-
-    intrusive_heap<Cell, CellCompare> m_open;
-
-    PointProjectionExtension* m_pp = nullptr;
-    ExperienceGraphExtension* m_eg = nullptr;
 
     // map down-projected state cells to adjacent down-projected state cells
     struct Vector3iHash
@@ -141,13 +133,6 @@ private:
         result_type operator()(const argument_type& s) const;
     };
 
-    // map from experience graph nodes to their heuristic cell coordinates
-    std::vector<Eigen::Vector3i> m_projected_nodes;
-
-    // map from experience graph nodes to their component ids
-    std::vector<int> m_component_ids;
-    std::vector<std::vector<ExperienceGraph::node_id>> m_shortcut_nodes;
-
     struct HeuristicNode
     {
         std::vector<ExperienceGraph::node_id> up_nodes;
@@ -155,12 +140,33 @@ private:
         std::vector<Eigen::Vector3i> edges;
     };
 
+    static const int Unknown = std::numeric_limits<int>::max() >> 1;
+    static const int Wall = std::numeric_limits<int>::max();
+    static const int Infinity = Unknown;
+
+    int m_start_state_id = -1;
+
+    const OccupancyGrid* m_grid = NULL;
+
+    Grid3<Cell> m_dist_grid;
+
+    double m_eg_eps = 1.0;
+    double m_inflation_radius = 0.0;
+
+    intrusive_heap<Cell, CellCompare> m_open;
+
+    IProjectToPoint* m_pp = NULL;
+    IExperienceGraph* m_eg = NULL;
+    IGetPosition* m_get_goal_position = NULL;
+
+    // map from experience graph nodes to their heuristic cell coordinates
+    std::vector<Eigen::Vector3i> m_projected_nodes;
+
+    // map from experience graph nodes to their component ids
+    std::vector<int> m_component_ids;
+    std::vector<std::vector<ExperienceGraph::node_id>> m_shortcut_nodes;
+
     hash_map<Eigen::Vector3i, HeuristicNode, Vector3iHash> m_heur_nodes;
-
-    void projectExperienceGraph();
-    int getGoalHeuristic(const Eigen::Vector3i& dp);
-
-    void syncGridAndDijkstra();
 };
 
 } // namespace smpl

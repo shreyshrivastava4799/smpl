@@ -14,6 +14,7 @@
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/workspace_lattice_action_space.h>
 #include <smpl/heap/intrusive_heap.h>
+#include <smpl/planning_params.h>
 
 namespace smpl {
 
@@ -30,7 +31,7 @@ bool ParseExperienceGraphFile(
 
     SMPL_DEBUG_NAMED(G_LOG, "Parse experience graph at '%s'", filepath.c_str());
 
-    CSVParser parser;
+    auto parser = CSVParser();
     auto with_header = true;
     if (!parser.parseStream(fin, with_header)) {
         SMPL_WARN("Failed to parse experience graph file '%s'", filepath.c_str());
@@ -52,9 +53,9 @@ bool ParseExperienceGraphFile(
     }
 
     egraph_states.reserve(parser.totalFieldCount());
-    for (size_t i = 0; i < parser.recordCount(); ++i) {
-        RobotState state(jvar_count);
-        for (size_t j = 0; j < parser.fieldCount(); ++j) {
+    for (auto i = 0; i < parser.recordCount(); ++i) {
+        auto state = RobotState(jvar_count);
+        for (auto j = 0; j < parser.fieldCount(); ++j) {
             try {
                 state[j] = std::stod(parser.fieldAt(i, j));
             } catch (const std::invalid_argument& ex) {
@@ -72,165 +73,39 @@ bool ParseExperienceGraphFile(
     return true;
 }
 
-void WorkspaceLatticeEGraph::getEGraphStateAdjacentSuccs(
-    WorkspaceLatticeState* state,
-    ExperienceGraph::node_id egraph_node,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
+bool WorkspaceLatticeEGraph::Init(
+    RobotModel* robot,
+    CollisionChecker* checker,
+    const WorkspaceProjectionParams& params,
+    WorkspaceLatticeActionSpace* actions)
 {
-    auto& egraph_state = m_egraph.state(egraph_node);
-
-    // E_demo from V_demo
-    auto adj = m_egraph.adjacent_nodes(egraph_node);
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  %td adjacent experience graph edges", std::distance(adj.first, adj.second));
-    for (auto ait = adj.first; ait != adj.second; ++ait) {
-        auto& adj_egraph_state = m_egraph.state(*ait);
-        WorkspaceState workspace_state;
-        stateRobotToWorkspace(adj_egraph_state, workspace_state);
-        succs->push_back(m_egraph_node_to_state[*ait]);
-        costs->push_back(10);
+    if (!DiscreteSpace::Init(robot, checker)) {
+        return false;
     }
-}
 
-void WorkspaceLatticeEGraph::getEGraphStateBridgeSuccs(
-    WorkspaceLatticeState* state,
-    ExperienceGraph::node_id egraph_node,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
-{
-    auto& egraph_state = m_egraph.state(egraph_node);
-
-    // E_bridge from V_demo
-    {
-        // egraph robot state -> workspace state
-        WorkspaceState workspace_state;
-        stateRobotToWorkspace(egraph_state, workspace_state);
-
-        // discrete successor state
-        WorkspaceCoord workspace_coord;
-        stateWorkspaceToCoord(workspace_state, workspace_coord);
-
-        // successor robot state
-        RobotState robot_state;
-        if (stateWorkspaceToRobot(workspace_state, egraph_state, robot_state)) {
-            // inherit the exact z value from the e-graph state
-
-            // TODO: check action
-
-            auto succ_id = createState(workspace_coord);
-            auto* succ_state = getState(succ_id);
-            succ_state->state = robot_state;
-
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge edge to %d", succ_id);
-
-            succs->push_back(succ_id);
-
-            costs->push_back(computeCost(*state, *succ_state));
-        } else {
-            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge edge failed");
-        }
+    if (!m_lattice.Init(robot, checker, params, actions)) {
+        return false;
     }
+
+    return true;
 }
 
-void WorkspaceLatticeEGraph::getEGraphStateSuccs(
-    WorkspaceLatticeState* state,
-    ExperienceGraph::node_id egraph_node,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
-{
-    getEGraphStateBridgeSuccs(state, egraph_node, succs, costs);
-    getEGraphStateAdjacentSuccs(state, egraph_node, succs, costs);
-}
-
-void WorkspaceLatticeEGraph::getOrigStateBridgeSuccs(
-    WorkspaceLatticeState* state,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
-{
-    // E_bridge from V_orig
-    auto it = m_coord_to_egraph_nodes.find(state->coord);
-    if (it != end(m_coord_to_egraph_nodes)) {
-        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge to %zu e-graph nodes", it->second.size());
-        for (auto node : it->second) {
-            auto succ_id = m_egraph_node_to_state[node];
-            auto& egraph_state = m_egraph.state(node);
-            smpl::WorkspaceState workspace_state;
-            stateRobotToWorkspace(egraph_state, workspace_state);
-            succs->push_back(succ_id);
-            costs->push_back(30);
-        }
-    }
-}
-
-void WorkspaceLatticeEGraph::getOrigStateOrigSuccs(
-    WorkspaceLatticeState* state,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
-{
-    std::vector<smpl::WorkspaceAction> actions;
-    m_actions->apply(*state, actions);
-
-    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
-
-    // iterate through successors of source state
-    for (size_t i = 0; i < actions.size(); ++i) {
-        auto& action = actions[i];
-
-        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "    action %zu", i);
-        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      waypoints: %zu", action.size());
-
-        RobotState final_robot_state;
-        if (!checkAction(state->state, action, &final_robot_state)) {
-            continue;
-        }
-
-        auto& final_workspace_state = action.back();
-        smpl::WorkspaceCoord succ_coord;
-        stateWorkspaceToCoord(final_workspace_state, succ_coord);
-
-        // check if hash entry already exists, if not then create one
-        auto succ_id = createState(succ_coord);
-        auto* succ_state = getState(succ_id);
-        succ_state->state = final_robot_state;
-
-        // put successor on successor list with the proper cost
-        succs->push_back(succ_id);
-
-        auto edge_cost = computeCost(*state, *succ_state);
-        costs->push_back(edge_cost);
-
-        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG,        "      succ: %d", succ_id);
-        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        coord: " << succ_state->coord);
-        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        state: " << succ_state->state);
-        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG,        "        cost: %5d", edge_cost);
-    }
-}
-
-void WorkspaceLatticeEGraph::getOrigStateSuccs(
-    smpl::WorkspaceLatticeState* state,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
-{
-    getOrigStateBridgeSuccs(state, succs, costs);
-    getOrigStateOrigSuccs(state, succs, costs);
-}
-
-void WorkspaceLatticeEGraph::getUniqueSuccs(
+void WorkspaceLatticeEGraph::GetSuccs(
     int state_id,
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
 
-    auto* parent_entry = getState(state_id);
+    auto* state = m_lattice.GetState(state_id);
 
-    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << parent_entry->coord);
-    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << parent_entry->state);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << state->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << state->state);
 
     auto* vis_name = "expansion";
-    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
+    SV_SHOW_DEBUG_NAMED(vis_name, m_lattice.GetStateVisualization(state->state, vis_name));
 
-    bool is_egraph_node = false;
+    auto is_egraph_node = false;
     ExperienceGraph::node_id egraph_node;
     {
         auto it = m_state_to_egraph_node.find(state_id);
@@ -243,54 +118,156 @@ void WorkspaceLatticeEGraph::getUniqueSuccs(
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  egraph state: %s", is_egraph_node ? "true" : "false");
 
     if (is_egraph_node) { // expanding an egraph node
-        return getEGraphStateSuccs(parent_entry, egraph_node, succs, costs);
+        return GetEGraphStateSuccs(state, egraph_node, succs, costs);
     } else {
-        return getOrigStateSuccs(parent_entry, succs, costs);
+        return GetOrigStateSuccs(state, succs, costs);
     }
 }
 
-void WorkspaceLatticeEGraph::clearExperienceGraph()
+void WorkspaceLatticeEGraph::GetEGraphStateSuccs(
+    WorkspaceLatticeState* state,
+    ExperienceGraph::node_id egraph_node,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
 {
-    // delete all reserved states corresponding to e-graph states
-    for (auto state_id : m_egraph_node_to_state) {
-        auto& state = WorkspaceLattice::m_states[state_id];
-        delete state;
-        state = NULL;
+    GetEGraphStateBridgeSuccs(state, egraph_node, succs, costs);
+    GetEGraphStateAdjacentSuccs(state, egraph_node, succs, costs);
+}
+
+void WorkspaceLatticeEGraph::GetEGraphStateAdjacentSuccs(
+    WorkspaceLatticeState* state,
+    ExperienceGraph::node_id egraph_node,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    auto& egraph_state = m_egraph.state(egraph_node);
+
+    // E_demo from V_demo
+    auto adj = m_egraph.adjacent_nodes(egraph_node);
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  %td adjacent experience graph edges", std::distance(adj.first, adj.second));
+    for (auto ait = adj.first; ait != adj.second; ++ait) {
+        auto& adj_egraph_state = m_egraph.state(*ait);
+        auto workspace_state = WorkspaceState();
+        StateRobotToWorkspace(&m_lattice.m_proj, adj_egraph_state, workspace_state);
+        succs->push_back(m_egraph_node_to_state[*ait]);
+        costs->push_back(10);
     }
+}
 
-    // remove all e-graph states from the state table
+void WorkspaceLatticeEGraph::GetEGraphStateBridgeSuccs(
+    WorkspaceLatticeState* state,
+    ExperienceGraph::node_id egraph_node,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    auto& egraph_state = m_egraph.state(egraph_node);
 
-    auto first = (decltype(m_states)::size_type)0;
-    auto last = m_states.size();
+    // E_bridge from V_demo
+    {
+        // egraph robot state -> workspace state
+        auto workspace_state = WorkspaceState();
+        StateRobotToWorkspace(&m_lattice.m_proj, egraph_state, workspace_state);
 
-    // find the index of the first non-null state
-    while (first != last) {
-        if (m_states[first] == NULL) break;
-        ++first;
-    }
+        // discrete successor state
+        auto workspace_coord = WorkspaceCoord();
+        StateWorkspaceToCoord(&m_lattice.m_proj, workspace_state, workspace_coord);
 
-    // shift all non-null states
-    if (first != last) {
-        for (auto i = first; ++i != last;) {
-            if (m_states[i] != NULL) {
-                // remap state to id
-                m_state_to_id[m_states[i]] = (int)first;
-                // shift the state
-                m_states[first] = m_states[i];
-                ++first;
-            }
+        // successor robot state
+        auto robot_state = RobotState();
+        if (StateWorkspaceToRobot(&m_lattice.m_proj, workspace_state, egraph_state, robot_state)) {
+            // inherit the exact z value from the e-graph state
+
+            // TODO: check action
+
+            auto succ_id = m_lattice.GetOrCreateState(workspace_coord);
+            auto* succ_state = m_lattice.GetState(succ_id);
+            succ_state->state = robot_state;
+
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge edge to %d", succ_id);
+
+            succs->push_back(succ_id);
+
+            costs->push_back(m_lattice.ComputeCost(*state, *succ_state));
+        } else {
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge edge failed");
         }
     }
-
-    m_states.resize(first);
-
-    m_egraph.clear();
-    m_coord_to_egraph_nodes.clear();
-    m_egraph_node_to_state.clear();
-    m_state_to_egraph_node.clear();
 }
 
-void WorkspaceLatticeEGraph::insertExperienceGraphPath(
+void WorkspaceLatticeEGraph::GetOrigStateSuccs(
+    smpl::WorkspaceLatticeState* state,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    GetOrigStateBridgeSuccs(state, succs, costs);
+    GetOrigStateOrigSuccs(state, succs, costs);
+}
+
+void WorkspaceLatticeEGraph::GetOrigStateBridgeSuccs(
+    WorkspaceLatticeState* state,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    // E_bridge from V_orig
+    auto it = m_coord_to_egraph_nodes.find(state->coord);
+    if (it != end(m_coord_to_egraph_nodes)) {
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  bridge to %zu e-graph nodes", it->second.size());
+        for (auto node : it->second) {
+            auto succ_id = m_egraph_node_to_state[node];
+            auto& egraph_state = m_egraph.state(node);
+            smpl::WorkspaceState workspace_state;
+            StateRobotToWorkspace(&m_lattice.m_proj, egraph_state, workspace_state);
+            succs->push_back(succ_id);
+            costs->push_back(30);
+        }
+    }
+}
+
+void WorkspaceLatticeEGraph::GetOrigStateOrigSuccs(
+    WorkspaceLatticeState* state,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    auto actions = std::vector<smpl::WorkspaceAction>();
+    m_lattice.m_actions->Apply(*state, actions);
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
+
+    // iterate through successors of source state
+    for (auto i = 0; i < actions.size(); ++i) {
+        auto& action = actions[i];
+
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      waypoints: %zu", action.size());
+
+        auto final_robot_state = RobotState();
+        if (!m_lattice.CheckAction(state->state, action, &final_robot_state)) {
+            continue;
+        }
+
+        auto& final_workspace_state = action.back();
+        auto succ_coord = smpl::WorkspaceCoord();
+        StateWorkspaceToCoord(&m_lattice.m_proj, final_workspace_state, succ_coord);
+
+        // check if hash entry already exists, if not then create one
+        auto succ_id = m_lattice.GetOrCreateState(succ_coord);
+        auto* succ_state = m_lattice.GetState(succ_id);
+        succ_state->state = final_robot_state;
+
+        // put successor on successor list with the proper cost
+        succs->push_back(succ_id);
+
+        auto edge_cost = m_lattice.ComputeCost(*state, *succ_state);
+        costs->push_back(edge_cost);
+
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG,        "      succ: %d", succ_id);
+        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG,        "        cost: %5d", edge_cost);
+    }
+}
+
+void WorkspaceLatticeEGraph::InsertExperienceGraphPath(
     const std::vector<smpl::RobotState>& path)
 {
     if (path.empty()) {
@@ -308,16 +285,16 @@ void WorkspaceLatticeEGraph::insertExperienceGraphPath(
 
     {
         // map discrete egraph state -> egraph node
-        WorkspaceState tmp;
-        stateRobotToWorkspace(first_egraph_state, tmp);
+        auto tmp = WorkspaceState();
+        StateRobotToWorkspace(&m_lattice.m_proj, first_egraph_state, tmp);
 
-        WorkspaceCoord disc_egraph_state(dofCount());
-        stateWorkspaceToCoord(tmp, disc_egraph_state);
+        auto disc_egraph_state = WorkspaceCoord(m_lattice.m_proj.dof_count);
+        StateWorkspaceToCoord(&m_lattice.m_proj, tmp, disc_egraph_state);
         m_coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
 
         // reserve a graph state for this state
-        auto state_id = reserveHashEntry();
-        auto* state = getState(state_id);
+        auto state_id = m_lattice.ReserveHashEntry();
+        auto* state = m_lattice.GetState(state_id);
         state->coord = disc_egraph_state;
         state->state = first_egraph_state;
 
@@ -338,22 +315,22 @@ void WorkspaceLatticeEGraph::insertExperienceGraphPath(
     // for each state. Intermediately encountered
     // states that span between two discrete states become the edges in
     // the e-graph.
-    for (size_t i = 1; i < path.size(); ++i) {
+    for (auto i = 1; i < path.size(); ++i) {
         auto& egraph_state = path[i];
 
         auto node_id = m_egraph.insert_node(egraph_state);
 
-        WorkspaceState tmp;
-        stateRobotToWorkspace(egraph_state, tmp);
+        auto tmp = WorkspaceState();
+        StateRobotToWorkspace(&m_lattice.m_proj, egraph_state, tmp);
 
         // map discrete egraph state -> egraph node
-        WorkspaceCoord disc_egraph_state(dofCount());
-        stateWorkspaceToCoord(tmp, disc_egraph_state);
+        auto disc_egraph_state = WorkspaceCoord(m_lattice.m_proj.dof_count);
+        StateWorkspaceToCoord(&m_lattice.m_proj, tmp, disc_egraph_state);
         m_coord_to_egraph_nodes[disc_egraph_state].push_back(prev_node_id);
 
         // reserve a graph state for this state
-        auto state_id = reserveHashEntry();
-        auto* state = getState(state_id);
+        auto state_id = m_lattice.ReserveHashEntry();
+        auto* state = m_lattice.GetState(state_id);
         state->coord = disc_egraph_state;
         state->state = egraph_state;
 
@@ -376,6 +353,47 @@ void WorkspaceLatticeEGraph::insertExperienceGraphPath(
     }
 }
 
+void WorkspaceLatticeEGraph::ClearExperienceGraph()
+{
+    // delete all reserved states corresponding to e-graph states
+    for (auto state_id : m_egraph_node_to_state) {
+        auto& state = m_lattice.m_states[state_id];
+        delete state;
+        state = NULL;
+    }
+
+    // remove all e-graph states from the state table
+
+    auto first = (decltype(m_lattice.m_states)::size_type)0;
+    auto last = m_lattice.m_states.size();
+
+    // find the index of the first non-null state
+    while (first != last) {
+        if (m_lattice.m_states[first] == NULL) break;
+        ++first;
+    }
+
+    // shift all non-null states
+    if (first != last) {
+        for (auto i = first; ++i != last;) {
+            if (m_lattice.m_states[i] != NULL) {
+                // remap state to id
+                m_lattice.m_state_to_id[m_lattice.m_states[i]] = (int)first;
+                // shift the state
+                m_lattice.m_states[first] = m_lattice.m_states[i];
+                ++first;
+            }
+        }
+    }
+
+    m_lattice.m_states.resize(first);
+
+    m_egraph.clear();
+    m_coord_to_egraph_nodes.clear();
+    m_egraph_node_to_state.clear();
+    m_state_to_egraph_node.clear();
+}
+
 // Load the experience graph from a database of paths:
 // 1. Convert the raw path to an ExperienceGraph, which captures the
 // connectivity of the demonstration (some states are retained as unique nodes
@@ -386,9 +404,9 @@ void WorkspaceLatticeEGraph::insertExperienceGraphPath(
 // the graph.
 //
 // ExperienceGraph to uniquely label nodes
-bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
+bool WorkspaceLatticeEGraph::LoadExperienceGraph(const std::string& path)
 {
-    boost::filesystem::path p(path);
+    auto p = boost::filesystem::path(path);
     if (!boost::filesystem::is_directory(p)) {
         SMPL_ERROR("'%s' is not a directory", path.c_str());
         return false;
@@ -398,19 +416,19 @@ bool WorkspaceLatticeEGraph::loadExperienceGraph(const std::string& path)
         dit != boost::filesystem::directory_iterator(); ++dit)
     {
         auto& filepath = dit->path().generic_string();
-        std::vector<RobotState> egraph_path;
-        if (!ParseExperienceGraphFile(filepath, robot(), egraph_path)) {
+        auto egraph_path = std::vector<RobotState>();
+        if (!ParseExperienceGraphFile(filepath, GetRobotModel(), egraph_path)) {
             continue;
         }
 
-        insertExperienceGraphPath(egraph_path);
+        InsertExperienceGraphPath(egraph_path);
     }
 
     SMPL_DEBUG_NAMED(G_LOG, "Experience graph contains %zu nodes and %zu edges", m_egraph.num_nodes(), m_egraph.num_edges());
     return true;
 }
 
-void WorkspaceLatticeEGraph::getExperienceGraphNodes(
+void WorkspaceLatticeEGraph::GetExperienceGraphNodes(
     int state_id,
     std::vector<ExperienceGraph::node_id>& nodes)
 {
@@ -420,36 +438,33 @@ void WorkspaceLatticeEGraph::getExperienceGraphNodes(
     }
 }
 
-bool WorkspaceLatticeEGraph::shortcut(int src_id, int dst_id, int& cost)
+bool WorkspaceLatticeEGraph::Shortcut(int src_id, int dst_id, int& cost)
 {
-    auto* src_state = getState(src_id);
-    auto* dst_state = getState(dst_id);
+    auto* src_state = m_lattice.GetState(src_id);
+    auto* dst_state = m_lattice.GetState(dst_id);
 
     SMPL_INFO_STREAM("Shortcut " << src_state->coord << " -> " << dst_state->coord);
     auto* vis_name = "shortcut";
-    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(src_state->state, "shortcut_from"));
-    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(dst_state->state, "shortcut_to"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(src_state->state, "shortcut_from"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(dst_state->state, "shortcut_to"));
 
     SMPL_DEBUG_NAMED(G_LOG, "  shortcut %d -> %d!", src_id, dst_id);
     cost = 10;
     return true;
 }
 
-bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
+bool WorkspaceLatticeEGraph::Snap(int src_id, int dst_id, int& cost)
 {
-    auto* src_state = getState(src_id);
-    auto* dst_state = getState(dst_id);
-    if ((src_state == NULL) | (dst_state == NULL)) {
-        SMPL_WARN("No state entries for state %d or state %d", src_id, dst_id);
-        return false;
-    }
+    auto* src_state = m_lattice.GetState(src_id);
+    auto* dst_state = m_lattice.GetState(dst_id);
+    assert(src_state != NULL && dst_state != NULL);
 
     SMPL_DEBUG_STREAM("Snap " << src_state->coord << " -> " << dst_state->coord);
     auto* vis_name = "snap";
-    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(src_state->state, "snap_from"));
-    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(dst_state->state, "snap_to"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(src_state->state, "snap_from"));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(dst_state->state, "snap_to"));
 
-    if (!collisionChecker()->isStateToStateValid(
+    if (!GetCollisionChecker()->isStateToStateValid(
             src_state->state, dst_state->state))
     {
         SMPL_WARN("Failed snap!");
@@ -461,17 +476,17 @@ bool WorkspaceLatticeEGraph::snap(int src_id, int dst_id, int& cost)
     return true;
 }
 
-auto WorkspaceLatticeEGraph::getExperienceGraph() const -> const ExperienceGraph*
+auto WorkspaceLatticeEGraph::GetExperienceGraph() const -> const ExperienceGraph*
 {
     return &m_egraph;
 }
 
-auto WorkspaceLatticeEGraph::getExperienceGraph() -> ExperienceGraph*
+auto WorkspaceLatticeEGraph::GetExperienceGraph() -> ExperienceGraph*
 {
     return &m_egraph;
 }
 
-int WorkspaceLatticeEGraph::getStateID(ExperienceGraph::node_id n) const
+int WorkspaceLatticeEGraph::GetStateID(ExperienceGraph::node_id n) const
 {
     if (n >= m_egraph_node_to_state.size()) {
         return -1;
@@ -480,7 +495,12 @@ int WorkspaceLatticeEGraph::getStateID(ExperienceGraph::node_id n) const
     }
 }
 
-bool WorkspaceLatticeEGraph::extractPath(
+int WorkspaceLatticeEGraph::GetStateID(const RobotState& state)
+{
+    return m_lattice.GetStateID(state);
+}
+
+bool WorkspaceLatticeEGraph::ExtractPath(
     const std::vector<int>& ids,
     std::vector<RobotState>& path)
 {
@@ -488,43 +508,12 @@ bool WorkspaceLatticeEGraph::extractPath(
 
     if (ids.empty()) return true;
 
-    // attempt to handle paths of length 1...do any of the sbpl planners still
-    // return a single-point path in some cases?
-    if (ids.size() == 1) {
-        auto state_id = ids[0];
-
-        if (state_id == getGoalStateID()) {
-            auto* entry = getState(getStartStateID());
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", getStartStateID());
-                return false;
-            }
-            path.push_back(entry->state);
-        } else {
-            auto* entry = getState(state_id);
-            if (!entry) {
-                SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", state_id);
-                return false;
-            }
-            path.push_back(entry->state);
-        }
-
-        auto* vis_name = "goal_config";
-        SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(path.back(), vis_name));
-        return true;
-    }
-
-    if (ids[0] == getGoalStateID()) {
-        SMPL_ERROR_NAMED(G_LOG, "Cannot extract a non-trivial path starting from the goal state");
-        return false;
-    }
-
-    std::vector<RobotState> opath;
+    auto opath = std::vector<RobotState>();
 
     // grab the first point
     {
-        auto* entry = getState(ids[0]);
-        if (!entry) {
+        auto* entry = m_lattice.GetState(ids[0]);
+        if (entry == NULL) {
             SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", ids[0]);
             return false;
         }
@@ -532,39 +521,24 @@ bool WorkspaceLatticeEGraph::extractPath(
     }
 
     // grab the rest of the points
-    for (size_t i = 1; i < ids.size(); ++i) {
+    for (auto i = 1; i < ids.size(); ++i) {
         auto prev_id = ids[i - 1];
         auto curr_id = ids[i];
         SMPL_DEBUG_NAMED(G_LOG, "Extract motion from state %d to state %d", prev_id, curr_id);
-
-        if (prev_id == getGoalStateID()) {
-            SMPL_ERROR_NAMED(G_LOG, "Cannot determine goal state predecessor state during path extraction");
-            return false;
-        }
 
         // find the successor state corresponding to the cheapest valid action
 
         // TODO: return an iterator here to avoid collision checking all
         // successors
         std::vector<int> succs, costs;
-        getUniqueSuccs(prev_id, &succs, &costs);
+        GetSuccs(prev_id, &succs, &costs);
 
         WorkspaceLatticeState* best_state = NULL;
         auto best_cost = std::numeric_limits<int>::max();
-        for (size_t i = 0; i < succs.size(); ++i) {
-            if (curr_id == getGoalStateID()) {
-                auto* state = getState(succs[i]);
-                WorkspaceState workspace_state;
-                stateRobotToWorkspace(state->state, workspace_state);
-                if (costs[i] < best_cost && isGoal(workspace_state, state->state)) {
-                    best_state = state;
-                    best_cost = costs[i];
-                }
-            } else {
-                if (succs[i] == curr_id && costs[i] < best_cost) {
-                    best_state = getState(succs[i]);
-                    best_cost = costs[i];
-                }
+        for (auto i = 0; i < succs.size(); ++i) {
+            if (succs[i] == curr_id && costs[i] < best_cost) {
+                best_state = m_lattice.GetState(succs[i]);
+                best_cost = costs[i];
             }
         }
 
@@ -589,12 +563,12 @@ bool WorkspaceLatticeEGraph::extractPath(
 
             SMPL_DEBUG_NAMED(G_LOG, "Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, prev_node, curr_node);
 
-            std::vector<ExperienceGraph::node_id> node_path;
+            auto node_path = std::vector<ExperienceGraph::node_id>();
             found = FindShortestExperienceGraphPath(m_egraph, prev_node, curr_node, node_path);
             if (found) {
                 for (auto n : node_path) {
                     auto state_id = m_egraph_node_to_state[n];
-                    auto* entry = getState(state_id);
+                    auto* entry = m_lattice.GetState(state_id);
                     opath.push_back(entry->state);
                 }
             }
@@ -605,9 +579,9 @@ bool WorkspaceLatticeEGraph::extractPath(
         // check for snap transition
         SMPL_DEBUG_NAMED(G_LOG, "Check for snap successor");
         int cost;
-        if (snap(prev_id, curr_id, cost)) {
+        if (Snap(prev_id, curr_id, cost)) {
             SMPL_DEBUG_NAMED(G_LOG, "Snap from %d to %d with cost %d", prev_id, curr_id, cost);
-            auto* curr_state = getState(curr_id);
+            auto* curr_state = m_lattice.GetState(curr_id);
             opath.push_back(curr_state->state);
             continue;
         }
@@ -625,35 +599,33 @@ bool WorkspaceLatticeEGraph::extractPath(
     }
 
     auto* vis_name = "goal_config";
-    SV_SHOW_INFO_NAMED(vis_name, getStateVisualization(path.back(), vis_name));
+    SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(path.back(), vis_name));
     return true;
 }
 
-void WorkspaceLatticeEGraph::GetSuccs(
-    int state_id,
-    std::vector<int>* succs,
-    std::vector<int>* costs)
+auto WorkspaceLatticeEGraph::ExtractState(int state_id) -> const RobotState&
 {
-    auto prev_count = succs->size();
-    getUniqueSuccs(state_id, succs, costs);
-    auto curr_count = succs->size();
-    for (auto i = prev_count; i != curr_count; ++i) {
-        auto* state = getState((*succs)[i]);
-        WorkspaceState workspace_state;
-        stateCoordToWorkspace(state->coord, workspace_state);
-        if (isGoal(workspace_state, state->state)) {
-            (*succs)[i] = getGoalStateID();
-        }
-    }
+    return m_lattice.ExtractState(state_id);
 }
 
-auto WorkspaceLatticeEGraph::getExtension(size_t class_code) -> Extension*
+auto WorkspaceLatticeEGraph::ProjectToPose(int state_id) -> Affine3
 {
-    if (class_code == GetClassCode<ExperienceGraphExtension>()) {
+    return m_lattice.ProjectToPose(state_id);
+}
+
+auto WorkspaceLatticeEGraph::GetExtension(size_t class_code) -> Extension*
+{
+    if (class_code == GetClassCode<DiscreteSpace>() ||
+        class_code == GetClassCode<RobotPlanningSpace>() ||
+        class_code == GetClassCode<IExtractRobotState>() ||
+        class_code == GetClassCode<IProjectToPose>() ||
+        class_code == GetClassCode<ISearchable>() ||
+        class_code == GetClassCode<IExperienceGraph>())
+    {
         return this;
-    } else {
-        return WorkspaceLattice::getExtension(class_code);
     }
+
+    return NULL;
 }
 
 bool FindShortestExperienceGraphPath(
@@ -679,15 +651,15 @@ bool FindShortestExperienceGraphPath(
         }
     };
 
-    typedef intrusive_heap<ExperienceGraphSearchNode, NodeCompare> heap_type;
+    using heap_type = intrusive_heap<ExperienceGraphSearchNode, NodeCompare>;
 
-    std::vector<ExperienceGraphSearchNode> search_nodes(egraph.num_nodes());
+    auto search_nodes = std::vector<ExperienceGraphSearchNode>(egraph.num_nodes());
 
-    heap_type open;
+    auto open = heap_type();
 
     search_nodes[start_node].g = 0;
     open.push(&search_nodes[start_node]);
-    int exp_count = 0;
+    auto exp_count = 0;
     while (!open.empty()) {
         ++exp_count;
         ExperienceGraphSearchNode* min = open.min();

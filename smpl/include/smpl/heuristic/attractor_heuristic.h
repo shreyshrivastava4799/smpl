@@ -37,39 +37,32 @@
 
 namespace smpl {
 
-class OccupancyGrid;
+class IExtractRobotState;
 
-class AttractorHeuristic : public RobotHeuristic
+class AttractorHeuristic :
+    public Heuristic,
+    public IGoalHeuristic
 {
 public:
 
-    bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
+    bool Init(DiscreteSpace* space);
 
-    void setAttractor(const RobotState& state) { m_attractor = state; }
-    const RobotState& attractor() const { return m_attractor; }
+    void SetAttractor(const RobotState& state) { m_attractor = state; }
+    auto GetAttractor() const -> const RobotState& { return m_attractor; }
 
-    /// \name Required Functions from RobotHeuristic
+    /// \name IGoalHeuristic Interface
     ///@{
-    double getMetricGoalDistance(double x, double y, double z) override;
-    double getMetricStartDistance(double x, double y, double z) override;
+    int GetGoalHeuristic(int state_id) final;
     ///@}
 
-    /// \name Required Functions from Extension
+    /// \name Extension Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
-    ///@}
-
-    /// \name Required Functions from Heuristic
-    ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
 private:
 
-    const OccupancyGrid* m_grid = nullptr;
-    ExtractRobotStateExtension* m_ers = nullptr;
+    IExtractRobotState* m_extract_state = NULL;
     RobotState m_attractor;
 };
 

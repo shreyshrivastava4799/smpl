@@ -55,6 +55,8 @@ public:
     virtual bool UpdateStart(int state_id);
     virtual bool UpdateGoal(GoalConstraint* goal);
 
+public:
+
     DiscreteSpace* m_space = NULL;
 };
 

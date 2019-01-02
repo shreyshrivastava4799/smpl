@@ -18,7 +18,7 @@ public:
     bool m_ik_amp_enabled = true;
     double m_ik_amp_thresh = 0.2;
 
-    void apply(
+    void Apply(
         const WorkspaceLatticeState& state,
         std::vector<WorkspaceAction>& actions) override;
 };

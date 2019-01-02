@@ -83,10 +83,10 @@ WorkspaceLattice::~WorkspaceLattice()
 bool WorkspaceLattice::Init(
     RobotModel* robot,
     CollisionChecker* checker,
-    const WorkspaceProjection::Params& params,
+    const WorkspaceProjectionParams& params,
     WorkspaceLatticeActionSpace* actions)
 {
-    if (!base.Init(robot, params)) {
+    if (!InitWorkspaceProjection(&m_proj, robot, params)) {
         return false;
     }
 
@@ -182,12 +182,12 @@ bool WorkspaceLattice::CheckAction(
 
         auto seed = state;
         // copy over seed angles from the intermediate state
-        for (auto i = 0; i < base.FreeAngleCount(); ++i) {
-            seed[base.m_fangle_indices[i]] = waypoint[6 + i];
+        for (auto i = 0; i < GetNumFreeAngles(&m_proj); ++i) {
+            seed[m_proj.fa_indices[i]] = waypoint[6 + i];
         }
 
         auto irstate = RobotState();
-        if (!base.StateWorkspaceToRobot(waypoint, seed, irstate)) {
+        if (!StateWorkspaceToRobot(&m_proj, waypoint, seed, irstate)) {
             SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "         -> failed to find ik solution");
             return false;
         }
@@ -246,7 +246,7 @@ bool WorkspaceLattice::CheckLazyAction(
         SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        " << widx << ": " << istate);
 
         RobotState irstate;
-        if (!base.StateWorkspaceToRobot(istate, state, irstate)) {
+        if (!StateWorkspaceToRobot(&m_proj, istate, state, irstate)) {
             SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "         -> failed to find ik solution");
             return false;
         }
@@ -311,7 +311,7 @@ auto WorkspaceLattice::ProjectToPose(int state_id) -> Affine3
     auto* state = GetState(state_id);
 
     double p[6];
-    base.PoseCoordToWorkspace(&state->coord[0], &p[0]);
+    PoseCoordToWorkspace(&m_proj, &state->coord[0], &p[0]);
 
     return Translation3(p[FK_PX], p[FK_PY], p[FK_PZ]) *
             AngleAxis(p[FK_QZ], Vector3::UnitZ()) *
@@ -334,7 +334,7 @@ int WorkspaceLattice::GetStateID(const RobotState& real_coords)
     }
 
     auto disc_coords = WorkspaceCoord();
-    base.StateRobotToCoord(real_coords, disc_coords);
+    StateRobotToCoord(&m_proj, real_coords, disc_coords);
     auto state_id = GetOrCreateState(disc_coords);
     auto* state = GetState(state_id);
     state->state = real_coords;
@@ -373,7 +373,7 @@ void WorkspaceLattice::GetSuccs(
     SV_SHOW_DEBUG_NAMED(vis_name, GetStateVisualization(parent_entry->state, vis_name));
 
     auto actions = std::vector<WorkspaceAction>();
-    m_actions->apply(*parent_entry, actions);
+    m_actions->Apply(*parent_entry, actions);
 
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
@@ -391,7 +391,7 @@ void WorkspaceLattice::GetSuccs(
 
         auto& final_state = action.back();
         auto succ_coord = WorkspaceCoord();
-        base.StateWorkspaceToCoord(final_state, succ_coord);
+        StateWorkspaceToCoord(&m_proj, final_state, succ_coord);
 
         // check if hash entry already exists, if not then create one
         auto succ_id = GetOrCreateState(succ_coord);
@@ -432,7 +432,7 @@ void WorkspaceLattice::GetLazySuccs(
     SV_SHOW_DEBUG_NAMED(vis_name, GetStateVisualization(state_entry->state, vis_name));
 
     auto actions = std::vector<WorkspaceAction>();
-    m_actions->apply(*state_entry, actions);
+    m_actions->Apply(*state_entry, actions);
 
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
 
@@ -449,7 +449,7 @@ void WorkspaceLattice::GetLazySuccs(
 
         auto& final_state = action.back();
         auto succ_coord = WorkspaceCoord();
-        base.StateWorkspaceToCoord(final_state, succ_coord);
+        StateWorkspaceToCoord(&m_proj, final_state, succ_coord);
 
         // check if hash entry already exists, if not then create one
         int succ_id = GetOrCreateState(succ_coord);
@@ -481,7 +481,7 @@ int WorkspaceLattice::GetTrueCost(int state_id, int succ_state_id)
 //    assert(child_entry->coord.size() == m_dof_count);
 
     auto actions = std::vector<WorkspaceAction>();
-    m_actions->apply(*parent_entry, actions);
+    m_actions->Apply(*parent_entry, actions);
 
     auto succ_coord = WorkspaceCoord();
     auto best_cost = std::numeric_limits<int>::max();
@@ -493,7 +493,7 @@ int WorkspaceLattice::GetTrueCost(int state_id, int succ_state_id)
             continue;
         }
 
-        base.StateWorkspaceToCoord(action.back(), succ_coord);
+        StateWorkspaceToCoord(&m_proj, action.back(), succ_coord);
 
         if (succ_coord != child_entry->coord) {
             continue;

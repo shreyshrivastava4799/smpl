@@ -32,23 +32,27 @@
 #ifndef SMPL_EGRAPH_HEURISTIC_H
 #define SMPL_EGRAPH_HEURISTIC_H
 
+// standard includes
 #include <vector>
+
+// project includes
+#include <smpl/extension.h>
 
 namespace smpl {
 
-class ExperienceGraphHeuristicExtension : public virtual Extension
+class IExperienceGraphHeuristic : public virtual Extension
 {
 public:
 
     /// Return the state ids of experience graph states that have the same
     /// heuristic value as the input state
-    virtual void getEquivalentStates(
+    virtual void GetEquivalentStates(
         int state_id,
         std::vector<int>& ids) = 0;
 
     /// Return the state ids of experience graph shortcut states available from
     /// the input state
-    virtual void getShortcutSuccs(
+    virtual void GetShortcutSuccs(
         int state_id,
         std::vector<int>& ids) = 0;
 

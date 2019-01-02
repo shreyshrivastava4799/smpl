@@ -29,67 +29,90 @@
 
 /// \author Andrew Dornbush
 
+#include <smpl/heuristic/generic_egraph_heuristic.h>
+
 // project includes
 #include <smpl/console/console.h>
-#include <smpl/heuristic/generic_egraph_heuristic.h>
+#include <smpl/graph/discrete_space.h>
+#include <smpl/graph/experience_graph_extension.h>
 
 namespace smpl {
 
 static const char* LOG = "heuristic.generic_egraph";
 
-bool GenericEgraphHeuristic::init(RobotPlanningSpace* space, RobotHeuristic* h)
+bool GenericEGraphHeuristic::Init(DiscreteSpace* space, Heuristic* h)
 {
-    if (!h) {
+    if (h == NULL) {
         return false;
     }
 
-    if (!RobotHeuristic::init(space)) {
+    auto egraph = space->GetExtension<IExperienceGraph>();
+    if (egraph == NULL) {
+        return false;
+    }
+
+    auto pairwise = h->GetExtension<IPairwiseHeuristic>();
+    if (pairwise == NULL) {
+        return false;
+    }
+
+    auto goal_heuristic = h->GetExtension<IGoalHeuristic>();
+    if (goal_heuristic == NULL) {
+        return false;
+    }
+
+    auto metric_start = h->GetExtension<IMetricStartHeuristic>();
+    auto metric_goal = h->GetExtension<IMetricGoalHeuristic>();
+
+    if (!Heuristic::Init(space)) {
         return false;
     }
 
     m_orig_h = h;
-
-    m_eg = space->getExtension<ExperienceGraphExtension>();
-    if (!m_eg) {
-        SMPL_WARN_NAMED(LOG, "GenericEgraphHeuristic recommends ExperienceGraphExtension");
-    }
-
+    m_pairwise_h = pairwise;
+    m_metric_start_h = metric_start;
+    m_metric_goal_h = metric_goal;
+    m_eg = egraph;
     return true;
 }
 
-void GenericEgraphHeuristic::setWeightEGraph(double w)
+auto GenericEGraphHeuristic::GetEGraphWeight() const -> double
 {
-    m_eg_eps = w;
-    SMPL_INFO_NAMED(LOG, "egraph_epsilon: %0.3f", m_eg_eps);
+    return m_eg_eps;
 }
 
-void GenericEgraphHeuristic::getEquivalentStates(
+void GenericEGraphHeuristic::SetEGraphWeight(double w)
+{
+    m_eg_eps = w;
+}
+
+void GenericEGraphHeuristic::GetEquivalentStates(
     int state_id,
     std::vector<int>& ids)
 {
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    auto* eg = m_eg->GetExperienceGraph();
     auto nodes = eg->nodes();
-    const int equiv_thresh = 100;
+    auto equiv_thresh = 100;
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
-        int egraph_state_id = m_eg->getStateID(*nit);
-        int h = m_orig_h->GetFromToHeuristic(state_id, egraph_state_id);
+        auto egraph_state_id = m_eg->GetStateID(*nit);
+        auto h = m_pairwise_h->GetPairwiseHeuristic(state_id, egraph_state_id);
         if (h <= equiv_thresh) {
             ids.push_back(egraph_state_id);
         }
     }
 }
 
-void GenericEgraphHeuristic::getShortcutSuccs(
+void GenericEGraphHeuristic::GetShortcutSuccs(
     int state_id,
     std::vector<int>& shortcut_ids)
 {
-    std::vector<ExperienceGraph::node_id> egraph_nodes;
-    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
+    auto egraph_nodes = std::vector<ExperienceGraph::node_id>();
+    m_eg->GetExperienceGraphNodes(state_id, egraph_nodes);
 
-    for (ExperienceGraph::node_id n : egraph_nodes) {
-        const int comp_id = m_component_ids[n];
-        for (ExperienceGraph::node_id nn : m_shortcut_nodes[comp_id]) {
-            int egraph_state_id = m_eg->getStateID(nn);
+    for (auto n : egraph_nodes) {
+        auto comp_id = m_component_ids[n];
+        for (auto nn : m_shortcut_nodes[comp_id]) {
+            auto egraph_state_id = m_eg->GetStateID(nn);
             if (state_id != egraph_state_id) {
                 shortcut_ids.push_back(egraph_state_id);
             }
@@ -97,39 +120,39 @@ void GenericEgraphHeuristic::getShortcutSuccs(
     }
 }
 
-double GenericEgraphHeuristic::getMetricStartDistance(
-    double x, double y, double z)
+int GenericEGraphHeuristic::GetGoalHeuristic(int state_id)
 {
-    return m_orig_h->getMetricStartDistance(x, y, z);
-}
+    auto* eg = m_eg->GetExperienceGraph();
+    assert(eg != NULL);
 
-double GenericEgraphHeuristic::getMetricGoalDistance(
-    double x, double y, double z)
-{
-    return m_orig_h->getMetricGoalDistance(x, y, z);
-}
-
-Extension* GenericEgraphHeuristic::getExtension(size_t class_code)
-{
-    if (class_code == GetClassCode<ExperienceGraphHeuristicExtension>()) {
-        return this;
-    }
-    return nullptr;
-}
-
-void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
-{
-    m_orig_h->updateGoal(goal);
-
-    if (!m_eg) {
-        return;
+    auto best_h = (int)(m_eg_eps * m_goal_h->GetGoalHeuristic(state_id));
+    auto nodes = eg->nodes();
+    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
+        auto egraph_state_id = m_eg->GetStateID(*nit);
+        auto h = m_pairwise_h->GetPairwiseHeuristic(state_id, egraph_state_id);
+        auto dist = m_h_nodes[*nit + 1].dist;
+        auto new_h = dist + (int)(m_eg_eps * h);
+        if (new_h < best_h) {
+            best_h = new_h;
+        }
     }
 
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
-    if (!eg) {
-        SMPL_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
-        return;
+    return best_h;
+}
+
+bool GenericEGraphHeuristic::UpdateStart(int state_id)
+{
+    return m_orig_h->UpdateStart(state_id);
+}
+
+bool GenericEGraphHeuristic::UpdateGoal(GoalConstraint* goal)
+{
+    if (!m_orig_h->UpdateGoal(goal)) {
+        return false;
     }
+
+    auto* eg = m_eg->GetExperienceGraph();
+    assert(eg != NULL);
 
     //////////////////////////////////////////////////////////
     // Compute Connected Components of the Experience Graph //
@@ -143,7 +166,7 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
             continue;
         }
 
-        std::vector<ExperienceGraph::node_id> frontier;
+        auto frontier = std::vector<ExperienceGraph::node_id>();
         frontier.push_back(*nit);
         while (!frontier.empty()) {
             auto n = frontier.back();
@@ -169,13 +192,13 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
     ////////////////////////////
 
     m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
-    std::vector<int> shortcut_heuristics(comp_count);
+    auto shortcut_heuristics = std::vector<int>(comp_count);
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         auto n = *nit;
         auto comp_id = m_component_ids[n];
-        auto state_id = m_eg->getStateID(n);
+        auto state_id = m_eg->GetStateID(n);
 
-        auto h = m_orig_h->GetGoalHeuristic(state_id);
+        auto h = m_goal_h->GetGoalHeuristic(state_id);
 
         if (m_shortcut_nodes[comp_id].empty()) {
             m_shortcut_nodes[comp_id].push_back(n);
@@ -211,8 +234,8 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
             for (auto nit = nodes.first; nit != nodes.second; ++nit) {
                 auto nid = *nit;
                 auto* n = &m_h_nodes[nid + 1];
-                auto state_id = m_eg->getStateID(nid);
-                auto h = m_orig_h->GetGoalHeuristic(state_id);
+                auto state_id = m_eg->GetStateID(nid);
+                auto h = m_goal_h->GetGoalHeuristic(state_id);
                 n->dist = (int)(m_eg_eps * (double)h);
                 m_open.push(n);
             }
@@ -221,7 +244,7 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
             // states original cost edges to all adjacent experience graph
             // states
             auto sid = nidx - 1;
-            auto s_state_id = m_eg->getStateID(sid);
+            auto s_state_id = m_eg->GetStateID(sid);
             for (auto nit = nodes.first; nit != nodes.second; ++nit) {
                 auto nid = *nit;
                 auto* n = &m_h_nodes[nid + 1];
@@ -237,8 +260,8 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
                         }
                     }
                 } else {
-                    auto n_state_id = m_eg->getStateID(nid);
-                    auto h = m_orig_h->GetFromToHeuristic(s_state_id, n_state_id);
+                    auto n_state_id = m_eg->GetStateID(nid);
+                    auto h = m_pairwise_h->GetPairwiseHeuristic(s_state_id, n_state_id);
                     auto new_cost = s->dist + (int)(m_eg_eps * h);
                     if (new_cost < n->dist) {
                         n->dist = new_cost;
@@ -252,42 +275,39 @@ void GenericEgraphHeuristic::updateGoal(const GoalConstraint& goal)
             }
         }
     }
+
+    return true;
 }
 
-int GenericEgraphHeuristic::GetGoalHeuristic(int state_id)
+auto GenericEGraphHeuristic::GetExtension(size_t class_code) -> Extension*
 {
-    if (!m_eg) {
-        return 0;
+    if (class_code == GetClassCode<Heuristic>() ||
+        class_code == GetClassCode<IGoalHeuristic>() ||
+        class_code == GetClassCode<IExperienceGraphHeuristic>())
+    {
+        return this;
     }
 
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
-    if (!eg) {
-        return 0;
+    if (class_code == GetClassCode<IMetricStartHeuristic>()) {
+        if (m_metric_start_h != NULL) return this;
+    }
+    if (class_code == GetClassCode<IMetricGoalHeuristic>()) {
+        if (m_metric_goal_h != NULL) return this;
     }
 
-    auto best_h = (int)(m_eg_eps * m_orig_h->GetGoalHeuristic(state_id));
-    auto nodes = eg->nodes();
-    for (auto nit = nodes.first; nit != nodes.second; ++nit) {
-        auto egraph_state_id = m_eg->getStateID(*nit);
-        auto h = m_orig_h->GetFromToHeuristic(state_id, egraph_state_id);
-        auto dist = m_h_nodes[*nit + 1].dist;
-        auto new_h = dist + (int)(m_eg_eps * h);
-        if (new_h < best_h) {
-            best_h = new_h;
-        }
-    }
-
-    return best_h;
+    return NULL;
 }
 
-int GenericEgraphHeuristic::GetStartHeuristic(int state_id)
+auto GenericEGraphHeuristic::GetMetricStartDistance(
+    double x, double y, double z) -> double
 {
-    return 0;
+    return m_metric_start_h->GetMetricStartDistance(x, y, z);
 }
 
-int GenericEgraphHeuristic::GetFromToHeuristic(int from_id, int to_id)
+auto GenericEGraphHeuristic::GetMetricGoalDistance(
+    double x, double y, double z) -> double
 {
-    return 0;
+    return m_metric_goal_h->GetMetricGoalDistance(x, y, z);
 }
 
 } // namespace smpl

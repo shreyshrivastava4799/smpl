@@ -122,7 +122,7 @@ public:
     bool Init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const WorkspaceProjection::Params& params,
+        const WorkspaceProjectionParams& params,
         const OccupancyGrid* grid);
 
     void PrintState(int state_id, bool verbose, FILE* f = NULL);

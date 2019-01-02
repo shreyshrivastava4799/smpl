@@ -7,6 +7,7 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/heuristic/heuristic.h>
+#include <smpl/planning_params.h>
 
 namespace smpl {
 
@@ -18,14 +19,14 @@ bool InitSimpleWorkspaceLatticeActions(
 
     actions->m_prims.clear();
 
-    MotionPrimitive prim;
+    auto prim = MotionPrimitive();
 
     auto add_xyz_prim = [&](int dx, int dy, int dz)
     {
-        std::vector<double> d(space->dofCount(), 0.0);
-        d[FK_PX] = space->resolution()[FK_PX] * dx;
-        d[FK_PY] = space->resolution()[FK_PY] * dy;
-        d[FK_PZ] = space->resolution()[FK_PZ] * dz;
+        auto d = std::vector<double>(GetNumDOFs(&space->m_proj), 0.0);
+        d[FK_PX] = space->m_proj.res[FK_PX] * dx;
+        d[FK_PY] = space->m_proj.res[FK_PY] * dy;
+        d[FK_PZ] = space->m_proj.res[FK_PZ] * dz;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
         prim.action.clear();
         prim.action.push_back(std::move(d));
@@ -55,17 +56,17 @@ bool InitSimpleWorkspaceLatticeActions(
     add_xyz_prim(0, 0, -1);
 
     // create 2-connected motions for rotation and free angle motions
-    for (int a = 3; a < space->dofCount(); ++a) {
-        std::vector<double> d(space->dofCount(), 0.0);
+    for (int a = 3; a < space->m_proj.dof_count; ++a) {
+        std::vector<double> d(space->m_proj.dof_count, 0.0);
 
-        d[a] = space->resolution()[a] * -1;
+        d[a] = space->m_proj.res[a] * -1;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
 
         prim.action.clear();
         prim.action.push_back(d);
         actions->m_prims.push_back(prim);
 
-        d[a] = space->resolution()[a] * 1;
+        d[a] = space->m_proj.res[a] * 1;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
 
         prim.action.clear();
@@ -76,25 +77,25 @@ bool InitSimpleWorkspaceLatticeActions(
     return true;
 }
 
-void SimpleWorkspaceLatticeActionSpace::apply(
+void SimpleWorkspaceLatticeActionSpace::Apply(
     const WorkspaceLatticeState& state,
     std::vector<WorkspaceAction>& actions)
 {
     actions.reserve(actions.size() + m_prims.size());
 
-    WorkspaceState cont_state;
-    space->stateCoordToWorkspace(state.coord, cont_state);
+    auto cont_state = WorkspaceState();
+    StateCoordToWorkspace(&space->m_proj, state.coord, cont_state);
 
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  create actions for workspace state: " << cont_state);
 
     for (auto& prim : m_prims) {
-        WorkspaceAction action;
+        auto action = WorkspaceAction();
         action.reserve(prim.action.size());
 
         auto final_state = cont_state;
         for (auto& delta_state : prim.action) {
             // increment the state
-            for (size_t d = 0; d < space->dofCount(); ++d) {
+            for (size_t d = 0; d < space->m_proj.dof_count; ++d) {
                 final_state[d] += delta_state[d];
             }
 
@@ -106,6 +107,7 @@ void SimpleWorkspaceLatticeActionSpace::apply(
         actions.push_back(std::move(action));
     }
 
+#if 0
     if (m_ik_amp_enabled && space->numHeuristics() > 0) {
         auto* h = space->heuristic(0);
         auto goal_dist = h->getMetricGoalDistance(
@@ -121,6 +123,7 @@ void SimpleWorkspaceLatticeActionSpace::apply(
             }
         }
     }
+#endif
 }
 
 } // namespace smpl

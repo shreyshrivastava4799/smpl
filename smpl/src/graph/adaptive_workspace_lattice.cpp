@@ -110,10 +110,10 @@ void InitMotionPrimitives(AdaptiveWorkspaceLattice* lattice)
             continue;
         }
 
-        auto d = std::vector<double>(lattice->m_proj.m_dof_count, 0.0);
-        d[0] = lattice->m_proj.m_res[0] * dx;
-        d[1] = lattice->m_proj.m_res[1] * dy;
-        d[2] = lattice->m_proj.m_res[2] * dz;
+        auto d = std::vector<double>(GetNumDOFs(&lattice->m_proj), 0.0);
+        d[0] = lattice->m_proj.res[0] * dx;
+        d[1] = lattice->m_proj.res[1] * dy;
+        d[2] = lattice->m_proj.res[2] * dz;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
         prim.action.clear();
         prim.action.push_back(std::move(d));
@@ -124,16 +124,16 @@ void InitMotionPrimitives(AdaptiveWorkspaceLattice* lattice)
     }
 
     // create 2-connected motions for rotation and free angle motions
-    for (auto a = 3; a < lattice->m_proj.m_dof_count; ++a) {
-        auto d = std::vector<double>(lattice->m_proj.m_dof_count, 0.0);
+    for (auto a = 3; a < lattice->m_proj.dof_count; ++a) {
+        auto d = std::vector<double>(lattice->m_proj.dof_count, 0.0);
 
-        d[a] = lattice->m_proj.m_res[a] * -1;
+        d[a] = lattice->m_proj.res[a] * -1;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
         prim.action.clear();
         prim.action.push_back(d);
         lattice->m_hi_prims.push_back(prim);
 
-        d[a] = lattice->m_proj.m_res[a] * 1;
+        d[a] = lattice->m_proj.res[a] * 1;
         prim.type = MotionPrimitive::Type::LONG_DISTANCE;
         prim.action.clear();
         prim.action.push_back(d);
@@ -150,9 +150,9 @@ void InitMotionPrimitives(AdaptiveWorkspaceLattice* lattice)
         }
 
          lattice->m_lo_prims.emplace_back(
-                lattice->m_proj.m_res[0] * dx,
-                lattice->m_proj.m_res[1] * dy,
-                lattice->m_proj.m_res[2] * dz);
+                lattice->m_proj.res[0] * dx,
+                lattice->m_proj.res[1] * dy,
+                lattice->m_proj.res[2] * dz);
     }
     }
     }
@@ -346,7 +346,7 @@ void GetActions(
     actions.reserve(lattice->m_hi_prims.size());
 
     auto cont_state = WorkspaceState();
-    lattice->m_proj.StateCoordToWorkspace(state.coord, cont_state);
+    StateCoordToWorkspace(&lattice->m_proj, state.coord, cont_state);
 
     SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "Create actions for state: " << cont_state);
 
@@ -358,7 +358,7 @@ void GetActions(
 
         auto final_state = cont_state;
         for (auto& delta_state : prim.action) {
-            for (int d = 0; d < lattice->m_proj.DofCount(); ++d) {
+            for (int d = 0; d < lattice->m_proj.dof_count; ++d) {
                 final_state[d] += delta_state[d];
             }
 
@@ -379,7 +379,7 @@ void GetActions(
             auto ik_sol = std::vector<double>();
             if (lattice->m_ik_iface->computeIK(goal().pose, state.state, ik_sol)) {
                 auto final_state = WorkspaceState();
-                lattice->m_proj.stateRobotToWorkspace(ik_sol, final_state);
+                StateRobotToWorkspace(&lattice->m_proj, ik_sol, final_state);
                 auto action = Action(1);
                 action[0] = final_state;
                 actions.push_back(std::move(action));
@@ -406,7 +406,7 @@ bool CheckAction(
         SMPL_DEBUG_STREAM_NAMED(G_SUCCESSORS_LOG, "        " << widx << ": " << istate);
 
         auto irstate = RobotState();
-        if (!lattice->m_proj.StateWorkspaceToRobot(istate, state, irstate)) {
+        if (!StateWorkspaceToRobot(&lattice->m_proj, istate, state, irstate)) {
             SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "         -> failed to find ik solution");
             return false;
         }
@@ -496,7 +496,7 @@ void GetSuccsLo(
             // TODO: high-dimensional transitions
             // sample roll, pitch, yaw, and free angles
 
-            auto succ_state = WorkspaceState(lattice->m_proj.m_dof_count);
+            auto succ_state = WorkspaceState(lattice->m_proj.dof_count);
             succ_state[0] = succ_pos[0];
             succ_state[1] = succ_pos[1];
             succ_state[2] = succ_pos[2];
@@ -517,8 +517,8 @@ void GetSuccsLo(
 
                 auto succ_coord = WorkspaceCoord();
                 auto final_rstate = RobotState();
-                lattice->m_proj.StateWorkspaceToCoord(succ_state, succ_coord);
-                if (!lattice->m_proj.StateWorkspaceToRobot(succ_state, final_rstate)) {
+                StateWorkspaceToCoord(&lattice->m_proj, succ_state, succ_coord);
+                if (!StateWorkspaceToRobot(&lattice->m_proj, succ_state, final_rstate)) {
                     continue;
                 }
 
@@ -536,7 +536,7 @@ void GetSuccsLo(
             SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> low-dimensional");
 
             int succ_coord[3];
-            lattice->m_proj.PosWorkspaceToCoord(succ_pos, succ_coord);
+            PosWorkspaceToCoord(&lattice->m_proj, succ_pos, succ_coord);
 
             int succ_id = GetHashEntryLo(lattice, tgx, tgy, tgz);
             if (succ_id < 0) {
@@ -593,7 +593,7 @@ void GetSuccsHi(
         }
 
         auto succ_coord = WorkspaceCoord();
-        lattice->m_proj.StateWorkspaceToCoord(final_state, succ_coord);
+        StateWorkspaceToCoord(&lattice->m_proj, final_state, succ_coord);
         if (IsHighDimensional(lattice, gx, gy, gz)) {
             SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "      -> high-dimensional");
             int succ_id = GetHashEntryHi(lattice, succ_coord);
@@ -639,7 +639,7 @@ AdaptiveWorkspaceLattice::~AdaptiveWorkspaceLattice()
 bool AdaptiveWorkspaceLattice::Init(
     RobotModel* robot,
     CollisionChecker* checker,
-    const WorkspaceProjection::Params& params,
+    const WorkspaceProjectionParams& params,
     const OccupancyGrid* grid)
 {
     if (m_grid == NULL) {
@@ -650,7 +650,7 @@ bool AdaptiveWorkspaceLattice::Init(
         return false;
     }
 
-    if (!m_proj.Init(robot, params)) {
+    if (!InitWorkspaceProjection(&m_proj, robot, params)) {
         return false;
     }
 
@@ -704,7 +704,7 @@ int AdaptiveWorkspaceLattice::GetStateID(const RobotState& state)
     }
 
     auto state_coord = WorkspaceCoord();
-    m_proj.StateRobotToCoord(state, state_coord);
+    StateRobotToCoord(&m_proj, state, state_coord);
 
     auto state_id = GetHashEntryHi(this, state_coord);
     if (state_id < 0) {
@@ -738,7 +738,7 @@ auto AdaptiveWorkspaceLattice::ProjectToPoint(int state_id) -> Vector3
     if (state->hid) {
         auto* hi_state = (AdaptiveWorkspaceState*)state;
         auto state = WorkspaceState();
-        m_proj.StateCoordToWorkspace(hi_state->coord, state);
+        StateCoordToWorkspace(&m_proj, hi_state->coord, state);
         return Vector3(state[0], state[1], state[2]);
     } else {
         auto* lo_state = (AdaptiveGridState*)state;

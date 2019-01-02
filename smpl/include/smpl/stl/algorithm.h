@@ -39,9 +39,7 @@ auto unordered_remove(
 template <class T>
 constexpr auto clamp(const T& val, const T& min, const T& max) -> T
 {
-    if (val < min) return min;
-    else if (val > max) return max;
-    else return val;
+    return val < min ? min : val > max ? max : val;
 }
 
 } // namespace smpl

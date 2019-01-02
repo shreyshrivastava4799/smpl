@@ -80,11 +80,11 @@ void FillGoalConstraint(
 //    goals.position_constraints[0].position.y = pose[1];
 //    goals.position_constraints[0].position.z = pose[2];
 
-    Eigen::Quaterniond q;
+    auto q = smpl::Quaternion();
     smpl::angles::from_euler_zyx(pose[5], pose[4], pose[3], q);
     tf::quaternionEigenToMsg(q, goals.orientation_constraints[0].orientation);
 
-    geometry_msgs::Pose p;
+    auto p = geometry_msgs::Pose();
     p.position = goals.position_constraints[0].constraint_region.primitive_poses[0].position;
     p.orientation = goals.orientation_constraints[0].orientation;
     leatherman::printPoseMsg(p, "Goal");
@@ -105,13 +105,13 @@ auto GetCollisionCube(
     const std::string& id)
     -> moveit_msgs::CollisionObject
 {
-    moveit_msgs::CollisionObject object;
+    auto object = moveit_msgs::CollisionObject();
     object.id = id;
     object.operation = moveit_msgs::CollisionObject::ADD;
     object.header.frame_id = frame_id;
     object.header.stamp = ros::Time::now();
 
-    shape_msgs::SolidPrimitive box_object;
+    auto box_object = shape_msgs::SolidPrimitive();
     box_object.type = shape_msgs::SolidPrimitive::BOX;
     box_object.dimensions.resize(3);
     box_object.dimensions[0] = dims[0];
@@ -386,7 +386,7 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
     return true;
 }
 
-auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
+auto SetupRobotModel(const std::string& urdf, const RobotModelConfig& config)
     -> std::unique_ptr<smpl::KDLRobotModel>
 {
     if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {

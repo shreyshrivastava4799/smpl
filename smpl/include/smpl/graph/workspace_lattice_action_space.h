@@ -9,11 +9,13 @@
 
 namespace smpl {
 
-struct WorkspaceLatticeActionSpace
+class WorkspaceLatticeActionSpace
 {
+public:
+
     virtual ~WorkspaceLatticeActionSpace() { }
 
-    virtual void apply(
+    virtual void Apply(
         const WorkspaceLatticeState& state,
         std::vector<WorkspaceAction>& actions) = 0;
 };

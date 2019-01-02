@@ -31,79 +31,49 @@
 
 #include <smpl/heuristic/attractor_heuristic.h>
 
-#include <smpl/occupancy_grid.h>
+// standard includes
+#include <cmath>
+
+// project includes
+#include <smpl/graph/discrete_space.h>
 
 namespace smpl {
 
-bool AttractorHeuristic::init(
-    RobotPlanningSpace* space,
-    const OccupancyGrid* grid)
+bool AttractorHeuristic::Init(DiscreteSpace* space)
 {
-    if (grid == NULL) {
+    auto* extract_state = space->GetExtension<IExtractRobotState>();
+    if (extract_state == NULL) return false;
+
+    if (!Heuristic::Init(space)) {
         return false;
     }
 
-    if (!RobotHeuristic::init(space)) {
-        return false;
-    }
-
-    m_grid = grid;
-    m_ers = space->getExtension<ExtractRobotStateExtension>();
+    m_extract_state = extract_state;
     return true;
-}
-
-double AttractorHeuristic::getMetricGoalDistance(double x, double y, double z)
-{
-    return 0.0;
-}
-
-double AttractorHeuristic::getMetricStartDistance(double x, double y, double z)
-{
-    return 0.0;
-}
-
-Extension* AttractorHeuristic::getExtension(size_t class_code)
-{
-    if (class_code == GetClassCode<RobotHeuristic>()) {
-        return this;
-    }
-    return nullptr;
 }
 
 int AttractorHeuristic::GetGoalHeuristic(int state_id)
 {
-    if (state_id == planningSpace()->getGoalStateID()) {
-        return 0;
-    }
-    if (!m_ers) {
-        return 0;
-    }
-    if (planningSpace()->goal().type != GoalType::JOINT_STATE_GOAL) {
-        return 0;
-    }
+    auto& state = m_extract_state->ExtractState(state_id);
+    assert(state.size() == m_attractor.size());
 
-    const RobotState& state = m_ers->extractState(state_id);
-    if (state.size() != m_attractor.size()) {
-        return 0;
-    }
-
-    double dsum = 0.0;
-    for (size_t i = 0; i < state.size(); ++i) {
+    auto dsum = 0.0;
+    for (auto i = 0; i < state.size(); ++i) {
         double dj = (state[i] - m_attractor[i]);
         dsum += dj * dj;
     }
-    dsum = 1000.0 * std::sqrt(dsum);
+    dsum = FIXED_POINT_RATIO * std::sqrt(dsum);
     return (int)dsum;
 }
 
-int AttractorHeuristic::GetStartHeuristic(int state_id)
+auto AttractorHeuristic::GetExtension(size_t class_code) -> Extension*
 {
-    return 0;
-}
-
-int AttractorHeuristic::GetFromToHeuristic(int from_id, int to_id)
-{
-    return 0;
+    if (class_code == GetClassCode<Heuristic>() ||
+        class_code == GetClassCode<IGoalHeuristic>())
+    {
+        return this;
+    }
+    return NULL;
 }
 
 } // namespace smpl

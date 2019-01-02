@@ -40,7 +40,10 @@
 
 namespace smpl {
 
-bool WorkspaceProjection::Init(RobotModel* robot, const Params& params)
+bool InitWorkspaceProjection(
+    WorkspaceProjection* proj,
+    RobotModel* robot,
+    const WorkspaceProjectionParams& params)
 {
     if (robot == NULL) return false;
 
@@ -62,261 +65,299 @@ bool WorkspaceProjection::Init(RobotModel* robot, const Params& params)
         return false;
     }
 
-    m_robot_model = robot;
-    m_fk_iface = fk_iface;
-    m_ik_iface = ik_iface;
-    m_rm_iface = rm_iface;
+    proj->robot_model = robot;
+    proj->fk_iface = fk_iface;
+    proj->ik_iface = ik_iface;
+    proj->rm_iface = rm_iface;
 
-    m_fangle_indices.resize(m_rm_iface->redundantVariableCount());
-    m_fangle_min_limits.resize(m_rm_iface->redundantVariableCount());
-    m_fangle_max_limits.resize(m_rm_iface->redundantVariableCount());
-    m_fangle_bounded.resize(m_rm_iface->redundantVariableCount());
-    m_fangle_continuous.resize(m_rm_iface->redundantVariableCount());
+    proj->fa_indices.resize(rm_iface->redundantVariableCount());
+    proj->fa_min_limits.resize(rm_iface->redundantVariableCount());
+    proj->fa_max_limits.resize(rm_iface->redundantVariableCount());
+    proj->fa_bounded.resize(rm_iface->redundantVariableCount());
+    proj->fa_continuous.resize(rm_iface->redundantVariableCount());
 
-    SMPL_DEBUG_NAMED(G_LOG, "%zu free angles", m_fangle_indices.size());
-    for (auto i = 0; i < (int)m_fangle_indices.size(); ++i) {
-        m_fangle_indices[i] = m_rm_iface->redundantVariableIndex(i);
-        m_fangle_min_limits[i] = robot->minPosLimit(m_fangle_indices[i]);
-        m_fangle_max_limits[i] = robot->maxPosLimit(m_fangle_indices[i]);
-        m_fangle_bounded[i] = robot->hasPosLimit(m_fangle_indices[i]);
-        m_fangle_continuous[i] = robot->isContinuous(m_fangle_indices[i]);
+    SMPL_DEBUG_NAMED(G_LOG, "%zu free angles", proj->fa_indices.size());
+    for (auto i = 0; i < (int)proj->fa_indices.size(); ++i) {
+        proj->fa_indices[i] = proj->rm_iface->redundantVariableIndex(i);
+        proj->fa_min_limits[i] = robot->minPosLimit(proj->fa_indices[i]);
+        proj->fa_max_limits[i] = robot->maxPosLimit(proj->fa_indices[i]);
+        proj->fa_bounded[i] = robot->hasPosLimit(proj->fa_indices[i]);
+        proj->fa_continuous[i] = robot->isContinuous(proj->fa_indices[i]);
         SMPL_DEBUG_NAMED(G_LOG, "  name = %s, index = %zu, min = %f, max = %f, bounded = %d, continuous = %d",
-                m_rm_iface->getPlanningJoints()[m_fangle_indices[i]].c_str(),
-                m_fangle_indices[i],
-                m_fangle_min_limits[i],
-                m_fangle_max_limits[i],
-                (int)m_fangle_bounded[i],
-                (int)m_fangle_continuous[i]);
+                proj->rm_iface->getPlanningJoints()[proj->fa_indices[i]].c_str(),
+                proj->fa_indices[i],
+                proj->fa_min_limits[i],
+                proj->fa_max_limits[i],
+                (int)proj->fa_bounded[i],
+                (int)proj->fa_continuous[i]);
     }
 
-    m_dof_count = 6 + (int)m_fangle_indices.size();
+    proj->dof_count = 6 + (int)proj->fa_indices.size();
 
-    m_res.resize(m_dof_count);
-    m_val_count.resize(m_dof_count);
+    proj->res.resize(proj->dof_count);
+    proj->val_count.resize(proj->dof_count);
 
-    m_val_count[0] = std::numeric_limits<int>::max();
-    m_val_count[1] = std::numeric_limits<int>::max();
-    m_val_count[2] = std::numeric_limits<int>::max();
-    m_val_count[3] = params.R_count;
-    m_val_count[4] = params.P_count;
-    m_val_count[5] = params.Y_count;
-    for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        if (m_fangle_continuous[i]) {
-            m_val_count[6 + i] = (int)std::round((2.0 * M_PI) / params.free_angle_res[i]);
-        } else if (m_fangle_bounded[i]) {
-            auto span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
-            m_val_count[6 + i] = std::max(1, (int)std::round(span / params.free_angle_res[i]));
+    proj->val_count[0] = std::numeric_limits<int>::max();
+    proj->val_count[1] = std::numeric_limits<int>::max();
+    proj->val_count[2] = std::numeric_limits<int>::max();
+    proj->val_count[3] = params.R_count;
+    proj->val_count[4] = params.P_count;
+    proj->val_count[5] = params.Y_count;
+    for (int i = 0; i < proj->fa_indices.size(); ++i) {
+        if (proj->fa_continuous[i]) {
+            proj->val_count[6 + i] = (int)std::round((2.0 * M_PI) / params.free_angle_res[i]);
+        } else if (proj->fa_bounded[i]) {
+            auto span = std::fabs(proj->fa_max_limits[i] - proj->fa_min_limits[i]);
+            proj->val_count[6 + i] = std::max(1, (int)std::round(span / params.free_angle_res[i]));
         } else {
-            m_val_count[6 + i] = std::numeric_limits<int>::max();
+            proj->val_count[6 + i] = std::numeric_limits<int>::max();
         }
     }
 
-    m_res[0] = params.res_x;
-    m_res[1] = params.res_y;
-    m_res[2] = params.res_z;
+    proj->res[0] = params.res_x;
+    proj->res[1] = params.res_y;
+    proj->res[2] = params.res_z;
     // TODO: limit these ranges and handle discretization appropriately
-    m_res[3] = 2.0 * M_PI / params.R_count;
-    m_res[4] = M_PI       / (params.P_count - 1);
-    m_res[5] = 2.0 * M_PI / params.Y_count;
+    proj->res[3] = 2.0 * M_PI / params.R_count;
+    proj->res[4] = M_PI       / (params.P_count - 1);
+    proj->res[5] = 2.0 * M_PI / params.Y_count;
 
-    for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        if (m_fangle_continuous[i]) {
-            m_res[6 + i] = (2.0 * M_PI) / (double)m_val_count[6 + i];
-        } else if (m_fangle_bounded[i]) {
-            auto span = std::fabs(m_fangle_max_limits[i] - m_fangle_min_limits[i]);
-            m_res[6 + i] = span / m_val_count[6 + i];
+    for (auto i = 0; i < proj->fa_indices.size(); ++i) {
+        if (proj->fa_continuous[i]) {
+            proj->res[6 + i] = (2.0 * M_PI) / (double)proj->val_count[6 + i];
+        } else if (proj->fa_bounded[i]) {
+            auto span = std::fabs(proj->fa_max_limits[i] - proj->fa_min_limits[i]);
+            proj->res[6 + i] = span / proj->val_count[6 + i];
         } else {
-            m_res[6 + i] = params.free_angle_res[i];
+            proj->res[6 + i] = params.free_angle_res[i];
         }
     }
 
     SMPL_DEBUG_NAMED(G_LOG, "discretization of workspace lattice:");
-    SMPL_DEBUG_NAMED(G_LOG, "  x: { res: %f, count: %d }", m_res[0], m_val_count[0]);
-    SMPL_DEBUG_NAMED(G_LOG, "  y: { res: %f, count: %d }", m_res[1], m_val_count[1]);
-    SMPL_DEBUG_NAMED(G_LOG, "  z: { res: %f, count: %d }", m_res[2], m_val_count[2]);
-    SMPL_DEBUG_NAMED(G_LOG, "  R: { res: %f, count: %d }", m_res[3], m_val_count[3]);
-    SMPL_DEBUG_NAMED(G_LOG, "  P: { res: %f, count: %d }", m_res[4], m_val_count[4]);
-    SMPL_DEBUG_NAMED(G_LOG, "  Y: { res: %f, count: %d }", m_res[5], m_val_count[5]);
-    for (int i = 0; i < m_fangle_indices.size(); ++i) {
-        SMPL_DEBUG_NAMED(G_LOG, "  J%d: { res: %f, count: %d }", i, m_res[6 + i], m_val_count[6 + i]);
+    SMPL_DEBUG_NAMED(G_LOG, "  x: { res: %f, count: %d }", proj->res[0], proj->val_count[0]);
+    SMPL_DEBUG_NAMED(G_LOG, "  y: { res: %f, count: %d }", proj->res[1], proj->val_count[1]);
+    SMPL_DEBUG_NAMED(G_LOG, "  z: { res: %f, count: %d }", proj->res[2], proj->val_count[2]);
+    SMPL_DEBUG_NAMED(G_LOG, "  R: { res: %f, count: %d }", proj->res[3], proj->val_count[3]);
+    SMPL_DEBUG_NAMED(G_LOG, "  P: { res: %f, count: %d }", proj->res[4], proj->val_count[4]);
+    SMPL_DEBUG_NAMED(G_LOG, "  Y: { res: %f, count: %d }", proj->res[5], proj->val_count[5]);
+    for (int i = 0; i < proj->fa_indices.size(); ++i) {
+        SMPL_DEBUG_NAMED(G_LOG, "  J%d: { res: %f, count: %d }", i, proj->res[6 + i], proj->val_count[6 + i]);
     }
 
     return true;
 }
 
-bool WorkspaceProjection::Initialized() const
+auto GetResolutions(WorkspaceProjection* proj) -> std::vector<double>&
 {
-    return m_fk_iface != NULL;
+    return proj->res;
 }
 
-void WorkspaceProjection::StateRobotToWorkspace(
-    const RobotState& state,
-    WorkspaceState& ostate) const
+auto GetNumDOFs(WorkspaceProjection* proj) -> int
 {
-    auto pose = m_fk_iface->computeFK(state);
+    return proj->dof_count;
+}
 
-    ostate.resize(m_dof_count);
+auto GetNumFreeAngles(const WorkspaceProjection* proj) -> int
+{
+    return (int)proj->fa_indices.size();
+}
+
+void StateRobotToWorkspace(
+    const WorkspaceProjection* proj,
+    const RobotState& state,
+    WorkspaceState& ostate)
+{
+    auto pose = proj->fk_iface->computeFK(state);
+
+    ostate.resize(proj->dof_count);
     ostate[0] = pose.translation().x();
     ostate[1] = pose.translation().y();
     ostate[2] = pose.translation().z();
 
     get_euler_zyx(pose.rotation(), ostate[5], ostate[4], ostate[3]);
 
-    for (auto fai = 0; fai < FreeAngleCount(); ++fai) {
-        ostate[6 + fai] = state[m_fangle_indices[fai]];
+    for (auto fai = 0; fai < GetNumFreeAngles(proj); ++fai) {
+        ostate[6 + fai] = state[proj->fa_indices[fai]];
     }
 }
 
-void WorkspaceProjection::StateRobotToCoord(
+void StateRobotToCoord(
+    const WorkspaceProjection* proj,
     const RobotState& state,
-    WorkspaceCoord& coord) const
+    WorkspaceCoord& coord)
 {
     auto ws_state = WorkspaceState();
-    StateRobotToWorkspace(state, ws_state);
-    StateWorkspaceToCoord(ws_state, coord);
+    StateRobotToWorkspace(proj, state, ws_state);
+    StateWorkspaceToCoord(proj, ws_state, coord);
 }
 
-bool WorkspaceProjection::StateWorkspaceToRobot(
+bool StateWorkspaceToRobot(
+    const WorkspaceProjection* proj,
     const WorkspaceState& state,
-    RobotState& ostate) const
+    RobotState& ostate)
 {
-    auto seed = RobotState(m_robot_model->jointVariableCount(), 0);
-    for (auto fai = 0; fai < FreeAngleCount(); ++fai) {
-        seed[m_fangle_indices[fai]] = state[6 + fai];
+    auto seed = RobotState(proj->robot_model->jointVariableCount(), 0);
+    for (auto fai = 0; fai < GetNumFreeAngles(proj); ++fai) {
+        seed[proj->fa_indices[fai]] = state[6 + fai];
     }
 
     auto pose = MakeAffine(
             state[0], state[1], state[2], state[5], state[4], state[3]);
 
-    return m_rm_iface->computeFastIK(pose, seed, ostate);
+    return proj->rm_iface->computeFastIK(pose, seed, ostate);
 }
 
-void WorkspaceProjection::StateWorkspaceToCoord(
+void StateWorkspaceToCoord(
+    const WorkspaceProjection* proj,
     const WorkspaceState& state,
-    WorkspaceCoord& coord) const
+    WorkspaceCoord& coord)
 {
-    coord.resize(m_dof_count);
-    PosWorkspaceToCoord(&state[0], &coord[0]);
-    RotWorkspaceToCoord(&state[3], &coord[3]);
-    FavWorkspaceToCoord(&state[6], &coord[6]);
+    coord.resize(proj->dof_count);
+    PosWorkspaceToCoord(proj, &state[0], &coord[0]);
+    RotWorkspaceToCoord(proj, &state[3], &coord[3]);
+    FavWorkspaceToCoord(proj, &state[6], &coord[6]);
 }
 
-bool WorkspaceProjection::StateCoordToRobot(
+bool StateCoordToRobot(
+    const WorkspaceProjection* proj,
     const WorkspaceCoord& coord,
-    RobotState& state) const
+    RobotState& state)
 {
     return false;
 }
 
-void WorkspaceProjection::StateCoordToWorkspace(
+void StateCoordToWorkspace(
+    const WorkspaceProjection* proj,
     const WorkspaceCoord& coord,
-    WorkspaceState& state) const
+    WorkspaceState& state)
 {
-    state.resize(m_dof_count);
-    PosCoordToWorkspace(&coord[0], &state[0]);
-    RotCoordToWorkspace(&coord[3], &state[3]);
-    FavCoordToWorkspace(&coord[6], &state[6]);
+    state.resize(proj->dof_count);
+    PosCoordToWorkspace(proj, &coord[0], &state[0]);
+    RotCoordToWorkspace(proj, &coord[3], &state[3]);
+    FavCoordToWorkspace(proj, &coord[6], &state[6]);
 }
 
-bool WorkspaceProjection::StateWorkspaceToRobot(
+bool StateWorkspaceToRobot(
+    const WorkspaceProjection* proj,
     const WorkspaceState& state,
     const RobotState& seed,
-    RobotState& ostate) const
+    RobotState& ostate)
 {
     auto pose = MakeAffine(
             state[0], state[1], state[2], state[5], state[4], state[3]);
 
     // TODO: unrestricted variant?
-    return m_rm_iface->computeFastIK(pose, seed, ostate);
+    return proj->rm_iface->computeFastIK(pose, seed, ostate);
 }
 
-void WorkspaceProjection::PosWorkspaceToCoord(const double* wp, int* gp) const
+void PosWorkspaceToCoord(
+    const WorkspaceProjection* proj,
+    const double* wp,
+    int* gp)
 {
     if (wp[0] >= 0.0) {
-        gp[0] = (int)(wp[0] / m_res[0]);
+        gp[0] = (int)(wp[0] / proj->res[0]);
     } else {
-        gp[0] = (int)(wp[0] / m_res[0]) - 1;
+        gp[0] = (int)(wp[0] / proj->res[0]) - 1;
     }
 
     if (wp[1] >= 0.0) {
-        gp[1] = (int)(wp[1] / m_res[1]);
+        gp[1] = (int)(wp[1] / proj->res[1]);
     } else {
-        gp[1] = (int)(wp[1] / m_res[1]) - 1;
+        gp[1] = (int)(wp[1] / proj->res[1]) - 1;
     }
 
     if (wp[2] >= 0.0) {
-        gp[2] = (int)(wp[2] / m_res[2]);
+        gp[2] = (int)(wp[2] / proj->res[2]);
     } else {
-        gp[2] = (int)(wp[2] / m_res[2]) - 1;
+        gp[2] = (int)(wp[2] / proj->res[2]) - 1;
     }
 }
 
-void WorkspaceProjection::PosCoordToWorkspace(const int* gp, double* wp) const
+void PosCoordToWorkspace(
+    const WorkspaceProjection* proj,
+    const int* gp,
+    double* wp)
 {
-    wp[0] = gp[0] * m_res[0] + 0.5 * m_res[0];
-    wp[1] = gp[1] * m_res[1] + 0.5 * m_res[1];
-    wp[2] = gp[2] * m_res[2] + 0.5 * m_res[2];
+    wp[0] = gp[0] * proj->res[0] + 0.5 * proj->res[0];
+    wp[1] = gp[1] * proj->res[1] + 0.5 * proj->res[1];
+    wp[2] = gp[2] * proj->res[2] + 0.5 * proj->res[2];
 }
 
-void WorkspaceProjection::RotWorkspaceToCoord(const double* wr, int* gr) const
+void RotWorkspaceToCoord(
+    const WorkspaceProjection* proj,
+    const double* wr,
+    int* gr)
 {
-    gr[0] = (int)((normalize_angle_positive(wr[0]) + m_res[3] * 0.5) / m_res[3]) % m_val_count[3];
-    gr[1] = (int)((normalize_angle(wr[1]) + (0.5 * M_PI) + m_res[4] * 0.5) / m_res[4]) % m_val_count[4];
-    gr[2] = (int)((normalize_angle_positive(wr[2]) + m_res[5] * 0.5) / m_res[5]) % m_val_count[5];
+    gr[0] = (int)((normalize_angle_positive(wr[0]) + proj->res[3] * 0.5) / proj->res[3]) % proj->val_count[3];
+    gr[1] = (int)((normalize_angle(wr[1]) + (0.5 * M_PI) + proj->res[4] * 0.5) / proj->res[4]) % proj->val_count[4];
+    gr[2] = (int)((normalize_angle_positive(wr[2]) + proj->res[5] * 0.5) / proj->res[5]) % proj->val_count[5];
 }
 
-void WorkspaceProjection::RotCoordToWorkspace(const int* gr, double* wr) const
+void RotCoordToWorkspace(
+    const WorkspaceProjection* proj,
+    const int* gr,
+    double* wr)
 {
     // TODO: this normalize is probably not necessary
-    wr[0] = normalize_angle((double)gr[0] * m_res[3]);
-    wr[1] = normalize_angle(-0.5 * M_PI + (double)gr[1] * m_res[4]);
-    wr[2] = normalize_angle((double)gr[2] * m_res[5]);
+    wr[0] = normalize_angle((double)gr[0] * proj->res[3]);
+    wr[1] = normalize_angle(-0.5 * M_PI + (double)gr[1] * proj->res[4]);
+    wr[2] = normalize_angle((double)gr[2] * proj->res[5]);
 }
 
-void WorkspaceProjection::PoseWorkspaceToCoord(const double* wp, int* gp) const
+void PoseWorkspaceToCoord(
+    const WorkspaceProjection* proj,
+    const double* wp,
+    int* gp)
 {
-    PosWorkspaceToCoord(wp, gp);
-    RotWorkspaceToCoord(wp + 3, gp + 3);
+    PosWorkspaceToCoord(proj, wp, gp);
+    RotWorkspaceToCoord(proj, wp + 3, gp + 3);
 }
 
-void WorkspaceProjection::PoseCoordToWorkspace(const int* gp, double* wp) const
+void PoseCoordToWorkspace(
+    const WorkspaceProjection* proj,
+    const int* gp,
+    double* wp)
 {
-    PosCoordToWorkspace(gp, wp);
-    RotCoordToWorkspace(gp + 3, wp + 3);
+    PosCoordToWorkspace(proj, gp, wp);
+    RotCoordToWorkspace(proj, gp + 3, wp + 3);
 }
 
-void WorkspaceProjection::FavWorkspaceToCoord(const double* wa, int* ga) const
+void FavWorkspaceToCoord(
+    const WorkspaceProjection* proj,
+    const double* wa,
+    int* ga)
 {
-    for (size_t fai = 0; fai < FreeAngleCount(); ++fai) {
-        if (m_fangle_continuous[fai]) {
+    for (auto fai = 0; fai < GetNumFreeAngles(proj); ++fai) {
+        if (proj->fa_continuous[fai]) {
             auto pos_angle = normalize_angle_positive(wa[fai]);
 
-            ga[fai] = (int)((pos_angle + m_res[6 + fai] * 0.5) / m_res[6 + fai]);
+            ga[fai] = (int)((pos_angle + proj->res[6 + fai] * 0.5) / proj->res[6 + fai]);
 
-            if (ga[fai] == m_val_count[6 + fai]) {
+            if (ga[fai] == proj->val_count[6 + fai]) {
                 ga[fai] = 0;
             }
-        } else if (!m_fangle_bounded[fai]) {
+        } else if (!proj->fa_bounded[fai]) {
             if (wa[fai] >= 0.0) {
-                ga[fai] = (int)(wa[fai] / m_res[6 + fai] + 0.5);
+                ga[fai] = (int)(wa[fai] / proj->res[6 + fai] + 0.5);
             } else {
-                ga[fai] = (int)(wa[fai] / m_res[6 + fai] - 0.5);
+                ga[fai] = (int)(wa[fai] / proj->res[6 + fai] - 0.5);
             }
         } else {
-            ga[fai] = (int)(((wa[fai] - m_fangle_min_limits[fai]) / m_res[6 + fai]) + 0.5);
+            ga[fai] = (int)(((wa[fai] - proj->fa_min_limits[fai]) / proj->res[6 + fai]) + 0.5);
         }
     }
 }
 
-void WorkspaceProjection::FavCoordToWorkspace(const int* ga, double* wa) const
+void FavCoordToWorkspace(const WorkspaceProjection* proj, const int* ga, double* wa)
 {
-    for (size_t i = 0; i < FreeAngleCount(); ++i) {
-        if (m_fangle_continuous[i]) {
-            wa[i] = (double)ga[i] * m_res[6 + i];
-        } else if (!m_fangle_bounded[i]) {
-            wa[i] = (double)ga[i] * m_res[6 + i];// + 0.5 * m_res[6 + i];
+    for (size_t i = 0; i < GetNumFreeAngles(proj); ++i) {
+        if (proj->fa_continuous[i]) {
+            wa[i] = (double)ga[i] * proj->res[6 + i];
+        } else if (!proj->fa_bounded[i]) {
+            wa[i] = (double)ga[i] * proj->res[6 + i];// + 0.5 * res[6 + i];
         } else {
-            wa[i] = m_fangle_min_limits[i] + ga[i] * m_res[6 + i];
+            wa[i] = proj->fa_min_limits[i] + ga[i] * proj->res[6 + i];
         }
     }
 }

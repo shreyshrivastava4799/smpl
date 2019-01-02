@@ -49,7 +49,7 @@
 
 namespace smpl {
 
-struct WorkspaceLatticeActionSpace;
+class WorkspaceLatticeActionSpace;
 
 /// \class Discrete state lattice representation representing a robot as the
 ///     pose of one of its links and all redundant joint variables
@@ -68,7 +68,7 @@ public:
     bool Init(
         RobotModel* robot,
         CollisionChecker* checker,
-        const WorkspaceProjection::Params& params,
+        const WorkspaceProjectionParams& params,
         WorkspaceLatticeActionSpace* actions);
 
     auto GetActionSpace() -> WorkspaceLatticeActionSpace*;
@@ -147,7 +147,7 @@ public:
     auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
-    WorkspaceProjection base;
+    WorkspaceProjection m_proj;
 
     // maps state -> id
     using StateKey = WorkspaceLatticeState;

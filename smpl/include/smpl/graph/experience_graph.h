@@ -50,8 +50,8 @@ struct ExperienceGraph
     using node_container = std::vector<Node>;
     using edge_container = std::vector<Edge>;
 
-    using node_id = node_container::size_type;
-    using edge_id = edge_container::size_type;
+    using node_id = int;
+    using edge_id = int;
 
     struct Node
     {
