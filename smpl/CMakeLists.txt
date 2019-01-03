@@ -138,10 +138,14 @@ set(SMPL_LIBRARY_SOURCES
     src/geometry/voxelize.cpp
     src/graph/action_space.cpp
     src/graph/adaptive_workspace_lattice.cpp
+    src/graph/cost_function.cpp
+    src/graph/discrete_space.cpp
     src/graph/experience_graph.cpp
+    src/graph/goal_constraint.cpp
     src/graph/manip_lattice.cpp
-    src/graph/manip_lattice_egraph.cpp
     src/graph/manip_lattice_action_space.cpp
+    src/graph/manip_lattice_egraph.cpp
+    src/graph/manip_lattice_types.cpp
     src/graph/workspace_lattice.cpp
     src/graph/workspace_lattice_base.cpp
     src/graph/workspace_lattice_egraph.cpp
@@ -149,23 +153,24 @@ set(SMPL_LIBRARY_SOURCES
     src/heuristic/attractor_heuristic.cpp
     src/heuristic/bfs_heuristic.cpp
     src/heuristic/egraph_bfs_heuristic.cpp
-    src/heuristic/generic_egraph_heuristic.cpp
     src/heuristic/euclid_dist_heuristic.cpp
+    src/heuristic/generic_egraph_heuristic.cpp
+    src/heuristic/heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
     src/heuristic/sparse_egraph_dijkstra_heuristic.cpp
     src/heuristic/zero_heuristic.cpp
-    src/search/fmhastar.cpp
-    src/search/meta_mhastar_dts.cpp
-    src/search/mhastarpp.cpp
-    src/search/umhastar.cpp
+#    src/search/fmhastar.cpp
+#    src/search/meta_mhastar_dts.cpp
+#    src/search/mhastarpp.cpp
+#    src/search/umhastar.cpp
     src/search/arastar.cpp
-    src/search/experience_graph_planner.cpp
-    src/search/adaptive_planner.cpp
-    src/search/lazy_arastar.cpp
-    src/search/lazy_mhastar.cpp
+#    src/search/experience_graph_planner.cpp
+#    src/search/adaptive_planner.cpp
+#    src/search/lazy_arastar.cpp
+#    src/search/lazy_mhastar.cpp
     src/search/smhastar.cpp
-    src/search/awastar.cpp
+#    src/search/awastar.cpp
     src/steer/steer.cpp
     src/unicycle/dubins.cpp
     src/unicycle/unicycle.cpp)
