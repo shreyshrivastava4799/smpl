@@ -43,7 +43,7 @@ namespace smpl {
 
 AdaptivePlanner::AdaptivePlanner(
     RobotPlanningSpace* space,
-    RobotHeuristic* heur)
+    Heuristic* heur)
 :
     m_planner(space, heur),
     m_tracker(space, heur),

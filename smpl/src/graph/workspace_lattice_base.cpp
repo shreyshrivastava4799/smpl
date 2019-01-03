@@ -147,12 +147,12 @@ bool InitWorkspaceProjection(
     return true;
 }
 
-auto GetResolutions(WorkspaceProjection* proj) -> std::vector<double>&
+auto GetResolutions(const WorkspaceProjection* proj) -> const std::vector<double>&
 {
     return proj->res;
 }
 
-auto GetNumDOFs(WorkspaceProjection* proj) -> int
+auto GetNumDOFs(const WorkspaceProjection* proj) -> int
 {
     return proj->dof_count;
 }

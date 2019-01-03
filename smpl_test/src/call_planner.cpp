@@ -56,6 +56,25 @@
 #include "collision_space_scene.h"
 #include "pr2_allowed_collision_pairs.h"
 
+auto format(std::ostream& o, const geometry_msgs::Point& p) -> std::ostream&
+{
+    o << "{ x: " << p.x << ", y: " << p.y << ", z: " << p.z << " }";
+    return o;
+}
+
+auto format(std::ostream& o, const geometry_msgs::Quaternion& q) -> std::ostream&
+{
+    o << "{ w: " << q.w << ", x: " << q.x << ", y: " << q.y << ", z: " << q.z << " }";
+    return o;
+}
+
+auto format(std::ostream& o, const geometry_msgs::Pose& p) -> std::ostream&
+{
+    o << "{ position: " << format(o, p.position) <<
+            ", orientation: " << format(o, p.orientation) << " }";
+    return o;
+}
+
 void FillGoalConstraint(
     const std::vector<double>& pose,
     std::string frame_id,
@@ -87,7 +106,9 @@ void FillGoalConstraint(
     auto p = geometry_msgs::Pose();
     p.position = goals.position_constraints[0].constraint_region.primitive_poses[0].position;
     p.orientation = goals.orientation_constraints[0].orientation;
-    leatherman::printPoseMsg(p, "Goal");
+    std::stringstream ss;
+    ss << "Goal: " << format(ss, p);
+    ROS_INFO("%s", ss.str().c_str());
 
     /// set tolerances
     goals.position_constraints[0].constraint_region.primitives[0].dimensions.resize(3, 0.015);

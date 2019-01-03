@@ -57,19 +57,20 @@
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 #include <smpl/debug/marker.h>
-#include <smpl/graph/robot_planning_space.h>
-#include <smpl/heuristic/robot_heuristic.h>
 
 class SBPLPlanner;
 
 namespace smpl {
+
+class RobotPlanningSpace;
+class Heuristic;
 
 using PlanningSpaceFactory = std::function<
         std::unique_ptr<RobotPlanningSpace>(
                 RobotModel*, CollisionChecker*, const PlanningParams&)>;
 
 using HeuristicFactory = std::function<
-        std::unique_ptr<RobotHeuristic>(
+        std::unique_ptr<Heuristic>(
                 RobotPlanningSpace*, const PlanningParams&)>;
 
 using PlannerFactory = std::function<

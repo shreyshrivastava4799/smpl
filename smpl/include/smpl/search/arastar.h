@@ -99,7 +99,10 @@ public:
     };
 
     ARAStar();
+    ARAStar(ARAStar&&) = default;
     ~ARAStar();
+
+    ARAStar& operator=(ARAStar&&) = default;
 
     bool Init(DiscreteSpace* space, Heuristic* heuristic);
 

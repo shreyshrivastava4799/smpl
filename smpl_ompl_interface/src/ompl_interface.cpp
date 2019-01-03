@@ -258,7 +258,7 @@ struct PlannerImpl
     // graph
     std::string mprim_filename;
     smpl::ManipLattice space;
-    smpl::ManipLatticeActionSpace actions;
+    smpl::ManipulationActionSpace actions;
 
     // heuristic
     std::unique_ptr<smpl::RobotHeuristic> heuristic;

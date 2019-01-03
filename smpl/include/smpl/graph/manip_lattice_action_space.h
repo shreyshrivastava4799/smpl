@@ -94,6 +94,7 @@ public:
     int GetNumShortMotions() const;
     int GetNumLongMotions() const;
 
+    bool IsMotionTypeEnabled(MotionPrimitive::Type type) const;
     bool AreLongMotionsEnabled() const;
     bool IsInterpMotionEnabled() const;
     bool IsIKMotionXYZRPYEnabled() const;
@@ -101,6 +102,7 @@ public:
     bool IsIKMotionRPYEnabled() const;
     bool IsMultipleIKSolutionsEnabled() const;
 
+    auto GetMotionTypeThreshold(MotionPrimitive::Type type) const -> double;
     auto GetLongMotionThreshold() const -> double;
     auto GetInterpMotionThreshold() const -> double;
     auto GetIKMotionXYZRPYThreshold() const -> double;

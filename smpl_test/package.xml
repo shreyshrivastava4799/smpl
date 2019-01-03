@@ -8,15 +8,15 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
-    <depend>geometry_msgs</depend>
-    <depend>leatherman</depend>
-    <depend>moveit_msgs</depend>
-    <depend>moveit_ros_planning</depend>
-    <depend>orocos_kdl</depend>
-    <depend>roscpp</depend>
-    <depend>smpl</depend>
-    <depend>sbpl_collision_checking</depend>
-    <depend>sbpl_kdl_robot_model</depend>
-    <depend>visualization_msgs</depend>
-    <depend>smpl_ompl_interface</depend>
+    <!-- <depend>geometry_msgs</depend> -->
+    <!-- <depend>leatherman</depend> -->
+    <!-- <depend>moveit_msgs</depend> -->
+    <!-- <depend>moveit_ros_planning</depend> -->
+    <!-- <depend>orocos_kdl</depend> -->
+    <!-- <depend>roscpp</depend> -->
+    <!-- <depend>smpl</depend> -->
+    <!-- <depend>sbpl_collision_checking</depend> -->
+    <!-- <depend>sbpl_kdl_robot_model</depend> -->
+    <!-- <depend>visualization_msgs</depend> -->
+    <!-- <depend>smpl_ompl_interface</depend> -->
 </package>

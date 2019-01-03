@@ -82,7 +82,7 @@ bool InitWorkspaceProjection(
     RobotModel* robot,
     const WorkspaceProjectionParams& params);
 
-auto GetResolutions(WorkspaceProjection* proj) -> std::vector<double>&;
+auto GetResolutions(const WorkspaceProjection* proj) -> const std::vector<double>&;
 
 auto GetNumDOFs(const WorkspaceProjection* proj) -> int;
 

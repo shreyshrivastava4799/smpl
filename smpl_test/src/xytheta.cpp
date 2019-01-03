@@ -1,17 +1,21 @@
+// standard includes
 #include <cmath>
+#include <iostream>
 #include <chrono>
 
+// system includes
 #include <smpl/collision_checker.h>
+#include <smpl/console/ansi.h>
+#include <smpl/console/console.h>
+#include <smpl/console/nonstd.h>
+#include <smpl/graph/cost_function.h>
+#include <smpl/graph/manip_lattice.h>
+#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/goal_constraint.h>
+#include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
 #include <smpl/search/arastar.h>
-#include <smpl/console/console.h>
-#include <smpl/console/nonstd.h>
-#include <smpl/console/ansi.h>
-#include <smpl/graph/manip_lattice.h>
-#include <smpl/graph/manip_lattice_action_space.h>
-#include <smpl/heuristic/attractor_heuristic.h>
-#include <smpl/heuristic/joint_dist_heuristic.h>
 
 template <class CharT, class Traits = std::char_traits<CharT>>
 auto donothing(std::basic_ostream<CharT, Traits>& o)
@@ -25,21 +29,21 @@ const bool g_colorize = true;
 ///
 /// RobotModel base: basic requirements (variable types and limits)
 ///
-/// ForwardKinematicsInterface: forward kinematics interface required by much
+/// IForwardKinematics: forward kinematics interface required by much
 /// of smpl; trivial in this case to establish frame of reference
 class KinematicVehicleModel :
 //    public virtual smpl::RobotModel,
-    public smpl::ForwardKinematicsInterface
+    public smpl::IForwardKinematics
 {
 public:
 
-    KinematicVehicleModel() : smpl::RobotModel(), smpl::ForwardKinematicsInterface()
+    KinematicVehicleModel() : smpl::RobotModel(), smpl::IForwardKinematics()
     {
         const std::vector<std::string> joint_names = { "x", "y" };
         setPlanningJoints(joint_names);
     }
 
-    /// \name Required Public Functions from ForwardKinematicsInterface
+    /// \name Required Public Functions from IForwardKinematics
     ///@{
     Eigen::Affine3d computeFK(const smpl::RobotState& state) override
     {
@@ -66,10 +70,10 @@ public:
 
     /// \name Required Public Functions from Extension
     ///@{
-    Extension* getExtension(size_t class_code) override
+    auto GetExtension(size_t class_code) -> Extension* final
     {
         if (class_code == smpl::GetClassCode<RobotModel>() ||
-            class_code == smpl::GetClassCode<ForwardKinematicsInterface>())
+            class_code == smpl::GetClassCode<IForwardKinematics>())
         {
             return this;
         } else {
@@ -90,7 +94,7 @@ public:
 
     /// \name Required Functions from Extension
     ///@{
-    Extension* getExtension(size_t class_code) override
+    auto GetExtension(size_t class_code) -> Extension* final
     {
         if (class_code == smpl::GetClassCode<smpl::CollisionChecker>()) {
             return this;
@@ -248,32 +252,27 @@ void PrintGrid(std::ostream& o, smpl::OccupancyGrid& grid)
     o << '\n';
 }
 
-void PrintActionSpace(const smpl::ManipLatticeActionSpace& aspace)
+void PrintActionSpace(const smpl::ManipulationActionSpace& actions)
 {
     SMPL_INFO("Action Set:");
     for (int i = 0; i < smpl::MotionPrimitive::Type::NUMBER_OF_MPRIM_TYPES; ++i) {
-        smpl::MotionPrimitive::Type prim((smpl::MotionPrimitive::Type)i);
-        SMPL_INFO("  %s: %s @ %0.3f", to_cstring(prim), aspace.useAmp(prim) ? "true" : "false", aspace.ampThresh(prim));
+        auto prim_type = (smpl::MotionPrimitive::Type)i;
+        if (actions.IsMotionTypeEnabled(prim_type)) {
+            SMPL_INFO("  %s enabled @ %0.3f",
+                    to_cstring(prim_type),
+                    actions.GetMotionTypeThreshold(prim_type));
+        } else {
+            SMPL_INFO("  %s disabled", to_cstring(prim_type));
+        }
     }
-    for (auto ait = aspace.begin(); ait != aspace.end(); ++ait) {
-        SMPL_INFO("  type: %s", to_cstring(ait->type));
-        if (ait->type == smpl::MotionPrimitive::SNAP_TO_RPY) {
-            SMPL_INFO("    enabled: %s", aspace.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY));
-        }
-        else if (ait->type == smpl::MotionPrimitive::SNAP_TO_XYZ) {
-            SMPL_INFO("    enabled: %s", aspace.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ));
-        }
-        else if (ait->type == smpl::MotionPrimitive::SNAP_TO_XYZ_RPY) {
-            SMPL_INFO("    enabled: %s", aspace.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-            SMPL_INFO("    thresh: %0.3f", aspace.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY));
-        }
-        else if (ait->type == smpl::MotionPrimitive::LONG_DISTANCE ||
-                ait->type == smpl::MotionPrimitive::SHORT_DISTANCE)
-        {
-            SMPL_INFO_STREAM("    action: " << ait->action);
-        }
+
+    SMPL_INFO("short distance motion primitives:");
+    for (auto& prim : actions.m_short_dist_mprims) {
+        SMPL_INFO_STREAM("  " << prim.action);
+    }
+    SMPL_INFO("long distance motion primitives:");
+    for (auto& prim : actions.m_long_dist_mprims) {
+        SMPL_INFO_STREAM("  " << prim.action);
     }
 }
 
@@ -345,21 +344,21 @@ int main(int argc, char* argv[])
     SMPL_INFO("Load motion primitives from %s", mprim_path);
 
     // 1. Create Robot Model
-    KinematicVehicleModel robot_model;
+    auto robot_model = KinematicVehicleModel();
 
-    const double res = 1.0; //0.02; // match resolution of grid and state space
+    auto res = 1.0; //0.02; // match resolution of grid and state space
 
     // 2. Create and Initialize the Environment
-    const double grid_res = res;
-    const double world_size_x = 50.0;
-    const double world_size_y = 50.0;
-    const double world_size_z = 1.5 * grid_res;
-    const double world_origin_x = 0.0;
-    const double world_origin_y = 0.0;
-    const double world_origin_z = 0.0;
-    const double max_distance_m = 4.0;
-    const bool ref_count = false;
-    smpl::OccupancyGrid grid(
+    auto grid_res = res;
+    auto world_size_x = 50.0;
+    auto world_size_y = 50.0;
+    auto world_size_z = 1.5 * grid_res;
+    auto world_origin_x = 0.0;
+    auto world_origin_y = 0.0;
+    auto world_origin_z = 0.0;
+    auto max_distance_m = 4.0;
+    auto ref_count = false;
+    auto grid = smpl::OccupancyGrid(
             world_size_x, world_size_y, world_size_z,
             grid_res,
             world_origin_x, world_origin_y, world_origin_z,
@@ -369,41 +368,43 @@ int main(int argc, char* argv[])
     PrintGrid(std::cout, grid);
 
     // 3. Create Collision Checker
-    GridCollisionChecker cc(&grid);
+    auto cc = GridCollisionChecker(&grid);
 
     // 5. Create Action Space
-    smpl::ManipLatticeActionSpace actions;
+    auto actions = smpl::ManipulationActionSpace();
+
+    auto cost_fun = smpl::L2NormCostFunction();
 
     // 6. Create Planning Space
-    smpl::ManipLattice space;
+    auto space = smpl::ManipLattice();
 
     // 7. Initialize Manipulation Lattice with RobotModel, CollisionChecker,
     // variable resolutions, and ActionSpace
-    std::vector<double> resolutions = { res, res };
-    if (!space.init(&robot_model, &cc, resolutions, &actions)) {
+    auto resolutions = std::vector<double>{ res, res };
+    if (!space.Init(&robot_model, &cc, resolutions, &actions, &cost_fun)) {
         SMPL_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }
 
-    space.setVisualizationFrameId("map"); // for correct rviz visualization
+    space.SetVisualizationFrameId("map"); // for correct rviz visualization
 
     // 8. Initialize Manipulation Lattice Action Space
 
     // associate actions with planning space
-    if (!actions.init(&space)) {
+    if (!actions.Init(&space, NULL)) { // FIXME
         SMPL_ERROR("Failed to initialize Manip Lattice Action Space");
         return 1;
     }
 
     // load primitives from file, whose path is stored on the param server
-    if (!actions.load(mprim_path)) {
+    if (!actions.Load(mprim_path)) {
         return 1;
     }
 //    PrintActionSpace(actions);
 
     // 9. Create Heuristic
-    smpl::JointDistHeuristic h;
-    if (!h.init(&space)) {
+    auto h = smpl::JointDistHeuristic();
+    if (!h.Init(&space)) {
         SMPL_ERROR("Failed to initialize Joint Dist Heuristic");
         return 1;
     }
@@ -411,94 +412,95 @@ int main(int argc, char* argv[])
     // 10. Associate Heuristic with Planning Space. In this case, Manip Lattice
     // Action Space may use this to determine when to use adaptive motion
     // primitives.
-    space.insertHeuristic(&h);
+//    space.insertHeuristic(&h);
 
     // 11. Create Search, associated with the planning space and heuristic
-    smpl::ARAStar search(&space, &h);
+    auto search = smpl::ARAStar();
+    if (!search.Init(&space, &h)) {
+        SMPL_ERROR("Failed to initialize ARA*");
+        return 1;
+    }
 
     // 12. Configure Search Behavior
-    const double epsilon = 5.0;
-    search.set_initialsolution_eps(epsilon);
-    search.set_search_mode(false);
+    search.SetInitialEps(5.0);
+    search.SetDeltaEpsilon(0.2);
+
+    auto goal = smpl::UniqueGoalState();
 
     // 13. Set start state and goal condition in the Planning Space and
     // propagate state IDs to search
-    double start_x = 0.5 * world_size_x;
-    double start_y = 0.33 * world_size_y;
-    const smpl::RobotState start_state = space.getDiscreteCenter({ start_x, start_y });
+    auto start_x = 0.5 * world_size_x;
+    auto start_y = 0.33 * world_size_y;
+    auto start_state = space.GetDiscreteCenter({ start_x, start_y });
+    auto start_state_id = space.GetStateID(start_state);
 
-    double goal_x = 0.5 * world_size_x;
-    double goal_y = 0.66 * world_size_y;
-    const smpl::RobotState goal_state = space.getDiscreteCenter({ goal_x, goal_y });
+    auto goal_x = 0.5 * world_size_x;
+    auto goal_y = 0.66 * world_size_y;
+    auto goal_state = space.GetDiscreteCenter({ goal_x, goal_y });
+    auto goal_state_id = space.GetStateID(goal_state);
 
-    smpl::GoalConstraint goal;
-    goal.type = smpl::GoalType::JOINT_STATE_GOAL;
-    goal.angles = goal_state;
-    goal.angle_tolerances = { res, res };
+    goal.SetGoalStateID(goal_state_id);
 
-    if (!space.setGoal(goal)) {
-        SMPL_ERROR("Failed to set goal");
+    if (!space.UpdateStart(start_state_id)) {
+        SMPL_ERROR("Failed to update start in the graph");
         return 1;
     }
 
-    if (!space.setStart(start_state)) {
-        SMPL_ERROR("Failed to set start");
+    if (!space.UpdateGoal(&goal)) {
+        SMPL_ERROR("Failed to update goal in the graph");
         return 1;
     }
 
-    int start_id = space.getStartStateID();
-    if (start_id < 0) {
-        SMPL_ERROR("Start state id is invalid");
+    if (!h.UpdateStart(start_state_id)) {
+        SMPL_ERROR("Failed to update start in the heuristic");
+        return 1;
+    }
+    if (!h.UpdateGoal(&goal)) {
+        SMPL_ERROR("Failed to update goal in the heuristic");
         return 1;
     }
 
-    int goal_id = space.getGoalStateID();
-    if (goal_id < 0)  {
-        SMPL_ERROR("Goal state id is invalid");
+    if (!search.UpdateStart(start_state_id)) {
+        SMPL_ERROR("Failed to update start in the search");
         return 1;
     }
 
-    if (search.set_start(start_id) == 0) {
-        SMPL_ERROR("Failed to set planner start state");
-        return 1;
-    }
-
-    if (search.set_goal(goal_id) == 0) {
-        SMPL_ERROR("Failed to set planner goal state");
+    if (!search.UpdateGoal(&goal)) {
+        SMPL_ERROR("Failed to update goal in the search");
         return 1;
     }
 
     // 14. Plan a path
 
-    ReplanParams search_params(10.0);
-    search_params.initial_eps = epsilon;
-    search_params.final_eps = 1.0;
-    search_params.dec_eps = 0.2;
-    search_params.return_first_solution = false;
-    search_params.repair_time = 1.0;
+    auto search_params = smpl::ARAStar::TimeParameters();
+    search_params.type = smpl::ARAStar::TimeParameters::TIME;
+    search_params.bounded = true;
+    search_params.improve = true;
+    search_params.max_allowed_time_init = std::chrono::seconds(1);
+    search_params.max_allowed_time = std::chrono::seconds(1);
 
     auto then = std::chrono::high_resolution_clock::now();
     std::vector<int> solution;
     int solcost;
-    bool bret = search.replan(&solution, search_params, &solcost);
+    auto bret = (bool)search.Replan(search_params, &solution, &solcost);
     if (!bret) {
         SMPL_ERROR("Search failed to find a solution");
         return 1;
     }
     auto now = std::chrono::high_resolution_clock::now();
-    const double elapsed = std::chrono::duration<double>(now - then).count();
+    auto elapsed = std::chrono::duration<double>(now - then).count();
 
     // 15. Extract path from Planning Space
 
     std::vector<smpl::RobotState> path;
-    if (!space.extractPath(solution, path)) {
+    if (!space.ExtractPath(solution, path)) {
         SMPL_ERROR("Failed to extract path");
     }
 
     SMPL_INFO("Path found!");
     SMPL_INFO("  Planning Time: %0.3f", elapsed);
-    SMPL_INFO("  Expansion Count (total): %d", search.get_n_expands());
-    SMPL_INFO("  Expansion Count (initial): %d", search.get_n_expands_init_solution());
+    SMPL_INFO("  Expansion Count (total): %d", search.GetNumExpansions());
+    SMPL_INFO("  Expansion Count (initial): %d", search.GetNumExpansionsInitialEps());
     SMPL_INFO("  Solution (%zu)", solution.size());
 //    for (int id : solution) {
 //        SMPL_INFO("    %d", id);

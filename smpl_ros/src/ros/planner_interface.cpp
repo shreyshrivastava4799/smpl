@@ -50,6 +50,8 @@
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
+#include <smpl/graph/discrete_space.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/heuristic/egraph_bfs_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>

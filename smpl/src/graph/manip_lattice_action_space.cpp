@@ -356,6 +356,12 @@ int ManipulationActionSpace::GetNumShortMotions() const
     return (int)m_short_dist_mprims.size();
 }
 
+bool ManipulationActionSpace::IsMotionTypeEnabled(
+    MotionPrimitive::Type type) const
+{
+    return m_mprim_enabled[type];
+}
+
 bool ManipulationActionSpace::AreLongMotionsEnabled() const
 {
     return m_mprim_enabled[MotionPrimitive::LONG_DISTANCE];
@@ -384,6 +390,12 @@ bool ManipulationActionSpace::IsIKMotionRPYEnabled() const
 bool ManipulationActionSpace::IsMultipleIKSolutionsEnabled() const
 {
     return m_use_multiple_ik_solutions;
+}
+
+auto ManipulationActionSpace::GetMotionTypeThreshold(
+    MotionPrimitive::Type type) const -> double
+{
+    return m_mprim_thresh[type];
 }
 
 auto ManipulationActionSpace::GetLongMotionThreshold() const -> double
