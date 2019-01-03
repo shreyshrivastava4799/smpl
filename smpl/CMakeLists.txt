@@ -142,7 +142,6 @@ set(SMPL_LIBRARY_SOURCES
     src/graph/manip_lattice.cpp
     src/graph/manip_lattice_egraph.cpp
     src/graph/manip_lattice_action_space.cpp
-    src/graph/robot_planning_space.cpp
     src/graph/workspace_lattice.cpp
     src/graph/workspace_lattice_base.cpp
     src/graph/workspace_lattice_egraph.cpp
@@ -152,7 +151,6 @@ set(SMPL_LIBRARY_SOURCES
     src/heuristic/egraph_bfs_heuristic.cpp
     src/heuristic/generic_egraph_heuristic.cpp
     src/heuristic/euclid_dist_heuristic.cpp
-    src/heuristic/robot_heuristic.cpp
     src/heuristic/joint_dist_heuristic.cpp
     src/heuristic/multi_frame_bfs_heuristic.cpp
     src/heuristic/sparse_egraph_dijkstra_heuristic.cpp
