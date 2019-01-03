@@ -31,187 +31,183 @@
 
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
 
+// system includes
+#include <Eigen/Core>
+
 // project includes
 #include <smpl/bfs3d/bfs3d.h>
 #include <smpl/console/console.h>
-#include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
+#include <smpl/debug/marker_utils.h>
+#include <smpl/graph/discrete_space.h>
+#include <smpl/graph/goal_constraint.h>
+#include <smpl/occupancy_grid.h>
+#include <smpl/robot_model.h>
 #include <smpl/stl/algorithm.h>
 
 namespace smpl {
 
 static const char* LOG = "heuristic.mfbfs";
 
-MultiFrameBfsHeuristic::~MultiFrameBfsHeuristic()
+static
+int combine_costs(int c1, int c2)
+{
+    return c1 + c2;
+}
+
+static
+auto DiscretizePoint(const OccupancyGrid* grid, const Vector3& p)
+    -> Eigen::Vector3i
+{
+    auto dp = Eigen::Vector3i();
+    grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+    return dp;
+}
+
+static
+int GetBFSCostToGoal(
+    const BFS_3D& bfs, int x, int y, int z, int cost_per_cell)
+{
+    if (!bfs.inBounds(x, y, z)) {
+        return MultiFrameBFSHeuristic::Infinity;
+    } else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
+        return MultiFrameBFSHeuristic::Infinity;
+    } else {
+        return cost_per_cell * bfs.getDistance(x, y, z);
+    }
+}
+
+static
+int GetGoalHeuristicMF(
+    const MultiFrameBFSHeuristic* heur, int state_id, bool use_ee)
+{
+    auto p = heur->m_pp->ProjectToPoint(state_id);
+    auto dp = DiscretizePoint(heur->m_grid, p);
+    auto h_planning_frame = GetBFSCostToGoal(*heur->m_bfs, dp.x(), dp.y(), dp.z(), heur->m_cost_per_cell);
+
+    int h_planning_link = 0;
+    if (use_ee) {
+        auto& state = heur->m_ers->ExtractState(state_id);
+        auto pose = heur->m_fk_iface->computeFK(state);
+        auto eex = DiscretizePoint(heur->m_grid, pose.translation());
+        h_planning_link = GetBFSCostToGoal(*heur->m_ee_bfs, eex[0], eex[1], eex[2], heur->m_cost_per_cell);
+    }
+
+    return combine_costs(h_planning_frame, h_planning_link);
+}
+
+MultiFrameBFSHeuristic::~MultiFrameBFSHeuristic()
 {
     // empty to allow forward declaration of BFS_3D
 }
 
-bool MultiFrameBfsHeuristic::init(
-    RobotPlanningSpace* space,
+bool MultiFrameBFSHeuristic::Init(
+    DiscreteSpace* space,
     const OccupancyGrid* grid)
 {
-    if (!grid) {
+    if (grid == NULL) {
         return false;
     }
 
-    if (!RobotHeuristic::init(space)) {
+    auto* project_to_point = space->GetExtension<IProjectToPoint>();
+    if (project_to_point == NULL) {
+        return false;
+    }
+
+    auto* extract_state = space->GetExtension<IExtractRobotState>();
+    if (extract_state == NULL) {
+        return false;
+    }
+
+    auto* fk = space->GetRobotModel()->GetExtension<IForwardKinematics>();
+    if (fk == NULL) {
+        return false;
+    }
+
+    if (!Heuristic::Init(space)) {
         return false;
     }
 
     m_pos_offset[0] = m_pos_offset[1] = m_pos_offset[2] = 0.0;
-
     m_grid = grid;
+    m_pp = project_to_point;
+    m_ers = extract_state;
+    m_fk_iface = fk;
 
-    m_pp = space->getExtension<PointProjectionExtension>();
-    if (m_pp) {
-        SMPL_INFO_NAMED(LOG, "Got Point Projection Extension!");
-    }
-    m_ers = space->getExtension<ExtractRobotStateExtension>();
-    if (m_ers) {
-        SMPL_INFO_NAMED(LOG, "Got Extract Robot State Extension!");
-    }
-    m_fk_iface = space->robot()->getExtension<ForwardKinematicsInterface>();
-    if (m_fk_iface) {
-        SMPL_INFO_NAMED(LOG, "Got Forward Kinematics Interface!");
-    }
-    syncGridAndBfs();
+    SyncGridAndBFS();
 
     return true;
 }
 
-void MultiFrameBfsHeuristic::setOffset(double x, double y, double z)
+void MultiFrameBFSHeuristic::SyncGridAndBFS()
+{
+    auto xc = m_grid->numCellsX();
+    auto yc = m_grid->numCellsY();
+    auto zc = m_grid->numCellsZ();
+    m_bfs.reset(new BFS_3D(xc, yc, zc));
+    m_ee_bfs.reset(new BFS_3D(xc, yc, zc));
+    auto cell_count = xc * yc * zc;
+    auto wall_count = 0;
+    for (auto z = 0; z < zc; ++z) {
+    for (auto y = 0; y < yc; ++y) {
+    for (auto x = 0; x < xc; ++x) {
+        auto radius = m_inflation_radius;
+        if (m_grid->getDistance(x, y, z) <= radius) {
+            m_bfs->setWall(x, y, z);
+            m_ee_bfs->setWall(x, y, z);
+            ++wall_count;
+        }
+    }
+    }
+    }
+
+    SMPL_DEBUG_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+}
+
+void MultiFrameBFSHeuristic::SetOffset(double x, double y, double z)
 {
     m_pos_offset[0] = x;
     m_pos_offset[1] = y;
     m_pos_offset[2] = z;
 }
 
-void MultiFrameBfsHeuristic::setInflationRadius(double radius)
+auto MultiFrameBFSHeuristic::GetInflationRadius() const -> double
+{
+    return m_inflation_radius;
+}
+
+void MultiFrameBFSHeuristic::SetInflationRadius(double radius)
 {
     m_inflation_radius = radius;
 }
 
-void MultiFrameBfsHeuristic::setCostPerCell(int cost)
+int MultiFrameBFSHeuristic::GetCostPerCell() const
+{
+    return m_cost_per_cell;
+}
+
+void MultiFrameBFSHeuristic::SetCostPerCell(int cost)
 {
     m_cost_per_cell = cost;
 }
 
-Extension* MultiFrameBfsHeuristic::getExtension(size_t class_code)
+auto MultiFrameBFSHeuristic::GetGrid() const -> const OccupancyGrid*
 {
-    if (class_code == GetClassCode<RobotHeuristic>()) {
-        return this;
-    }
-    return nullptr;
+    return m_grid;
 }
 
-void MultiFrameBfsHeuristic::updateGoal(const GoalConstraint& goal)
+auto MultiFrameBFSHeuristic::GetWallsVisualization() const -> visual::Marker
 {
-    SMPL_DEBUG_NAMED(LOG, "Update goal");
-
-    Affine3 offset_pose =
-            goal.pose *
-            Translation3(m_pos_offset[0], m_pos_offset[1], m_pos_offset[2]);
-
-    int ogx, ogy, ogz;
-    grid()->worldToGrid(
-            offset_pose.translation()[0],
-            offset_pose.translation()[1],
-            offset_pose.translation()[2],
-            ogx, ogy, ogz);
-
-    int plgx, plgy, plgz;
-    grid()->worldToGrid(
-            goal.pose.translation()[0],
-            goal.pose.translation()[1],
-            goal.pose.translation()[2],
-            plgx, plgy, plgz);
-
-    SMPL_DEBUG_NAMED(LOG, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)", ogx, ogy, ogz, plgx, plgy, plgz);
-
-    if (!m_bfs->inBounds(ogx, ogy, ogz) ||
-        !m_ee_bfs->inBounds(plgx, plgy, plgz))
-    {
-        SMPL_ERROR_NAMED(LOG, "Heuristic goal is out of BFS bounds");
-        return;
-    }
-
-    m_bfs->run(ogx, ogy, ogz);
-    m_ee_bfs->run(plgx, plgy, plgz);
-}
-
-double MultiFrameBfsHeuristic::getMetricStartDistance(double x, double y, double z)
-{
-    // TODO: shamefully copied from BfsHeuristic
-    int start_id = planningSpace()->getStartStateID();
-
-    if (!m_pp) {
-        return 0.0;
-    }
-
-    Vector3 p;
-    if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
-        return 0.0;
-    }
-
-    int sx, sy, sz;
-    grid()->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
-
-    int gx, gy, gz;
-    grid()->worldToGrid(x, y, z, gx, gy, gz);
-
-    // compute the manhattan distance to the start cell
-    const int dx = sx - gx;
-    const int dy = sy - gy;
-    const int dz = sz - gz;
-    return grid()->resolution() * (abs(dx) + abs(dy) + abs(dz));
-}
-
-double MultiFrameBfsHeuristic::getMetricGoalDistance(
-    double x, double y, double z)
-{
-    int gx, gy, gz;
-    grid()->worldToGrid(x, y, z, gx, gy, gz);
-    if (!m_bfs->inBounds(gx, gy, gz)) {
-        return (double)BFS_3D::WALL * grid()->resolution();
-    } else {
-        return (double)m_bfs->getDistance(gx, gy, gz) * grid()->resolution();
-    }
-}
-
-int MultiFrameBfsHeuristic::GetGoalHeuristic(int state_id)
-{
-    return getGoalHeuristic(state_id, true);
-}
-
-int MultiFrameBfsHeuristic::GetStartHeuristic(int state_id)
-{
-    SMPL_WARN_ONCE("MultiFrameBfsHeuristic::GetStartHeuristic unimplemented");
-    return 0;
-}
-
-int MultiFrameBfsHeuristic::GetFromToHeuristic(int from_id, int to_id)
-{
-    if (to_id == planningSpace()->getGoalStateID()) {
-        return GetGoalHeuristic(from_id);
-    } else {
-        SMPL_WARN_ONCE("MultiFrameBfsHeuristic::GetFromToHeuristic unimplemented for arbitrary state pair");
-        return 0;
-    }
-}
-
-auto MultiFrameBfsHeuristic::getWallsVisualization() const -> visual::Marker
-{
-    std::vector<Vector3> points;
-    const int dimX = grid()->numCellsX();
-    const int dimY = grid()->numCellsY();
-    const int dimZ = grid()->numCellsZ();
-    for (int z = 0; z < dimZ; z++) {
-    for (int y = 0; y < dimY; y++) {
-    for (int x = 0; x < dimX; x++) {
+    auto points = std::vector<Vector3>();
+    auto dimX = m_grid->numCellsX();
+    auto dimY = m_grid->numCellsY();
+    auto dimZ = m_grid->numCellsZ();
+    for (auto z = 0; z < dimZ; z++) {
+    for (auto y = 0; y < dimY; y++) {
+    for (auto x = 0; x < dimX; x++) {
         if (m_bfs->isWall(x, y, z)) {
             Vector3 p;
-            grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             points.push_back(p);
         }
     }
@@ -228,41 +224,45 @@ auto MultiFrameBfsHeuristic::getWallsVisualization() const -> visual::Marker
 
     return visual::MakeCubesMarker(
             points,
-            grid()->resolution(),
+            m_grid->resolution(),
             color,
-            grid()->getReferenceFrame(),
+            m_grid->getReferenceFrame(),
             "bfs_walls");
 }
 
-auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
+auto MultiFrameBFSHeuristic::GetValuesVisualization() const -> visual::Marker
 {
+    if (m_start_state_id < 0) {
+        return visual::MakeEmptyMarker();
+    }
+
     // factor in the ee bfs values? This doesn't seem to make a whole lot of
     // sense since the color would be derived from colocated cell values
-    const bool factor_ee = false;
+    auto factor_ee = false;
 
     // hopefully this doesn't screw anything up too badly...this will flush the
     // bfs to a little past the start, but this would be done by the search
     // hereafter anyway
-    int start_heur = getGoalHeuristic(planningSpace()->getStartStateID(), factor_ee);
+    auto start_heur = GetGoalHeuristicMF(this, m_start_state_id, factor_ee);
 
-    const int edge_cost = m_cost_per_cell;
+    auto edge_cost = m_cost_per_cell;
 
-    int max_cost = (int)(1.1 * start_heur);
+    auto max_cost = (int)(1.1 * start_heur);
 
     // ...and this will also flush the bfs...
 
-    std::vector<Vector3> points;
-    std::vector<visual::Color> colors;
-    for (int z = 0; z < grid()->numCellsZ(); ++z) {
-    for (int y = 0; y < grid()->numCellsY(); ++y) {
-    for (int x = 0; x < grid()->numCellsX(); ++x) {
+    auto points = std::vector<Vector3>();
+    auto colors = std::vector<visual::Color>();
+    for (auto z = 0; z < m_grid->numCellsZ(); ++z) {
+    for (auto y = 0; y < m_grid->numCellsY(); ++y) {
+    for (auto x = 0; x < m_grid->numCellsX(); ++x) {
         // skip cells without valid distances from the start
         if (m_bfs->isWall(x, y, z) || m_bfs->isUndiscovered(x, y, z)) {
             continue;
         }
 
-        int d = edge_cost * m_bfs->getDistance(x, y, z);
-        int eed = factor_ee ? edge_cost * m_ee_bfs->getDistance(x, y, z) : 0;
+        auto d = edge_cost * m_bfs->getDistance(x, y, z);
+        auto eed = factor_ee ? edge_cost * m_ee_bfs->getDistance(x, y, z) : 0;
         auto cost_pct = (float)combine_costs(d, eed) / (float)(max_cost);
 
         if (cost_pct > 1.0) {
@@ -276,7 +276,7 @@ auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
         color.b = clamp(color.b, 0.0f, 1.0f);
 
         Vector3 p;
-        grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
         points.push_back(p);
 
         colors.push_back(color);
@@ -286,86 +286,86 @@ auto MultiFrameBfsHeuristic::getValuesVisualization() const -> visual::Marker
 
     return visual::MakeCubesMarker(
             std::move(points),
-            0.5 * grid()->resolution(),
+            0.5 * m_grid->resolution(),
             std::move(colors),
-            grid()->getReferenceFrame(),
+            m_grid->getReferenceFrame(),
             "bfs_values");
 }
 
-int MultiFrameBfsHeuristic::getGoalHeuristic(int state_id, bool use_ee) const
+int MultiFrameBFSHeuristic::GetGoalHeuristic(int state_id)
 {
-    if (state_id == planningSpace()->getGoalStateID()) {
-        return 0;
-    }
-
-    int h_planning_frame = 0;
-    if (m_pp) {
-        Vector3 p;
-        if (m_pp->projectToPoint(state_id, p)) {
-            Eigen::Vector3i dp;
-            grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
-            h_planning_frame = getBfsCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
-        }
-    }
-
-    int h_planning_link = 0;
-    if (use_ee && m_ers && m_fk_iface) {
-        const RobotState& state = m_ers->extractState(state_id);
-        auto pose = m_fk_iface->computeFK(state);
-        Eigen::Vector3i eex;
-        grid()->worldToGrid(
-                pose.translation()[0],
-                pose.translation()[1],
-                pose.translation()[2],
-                eex[0], eex[1], eex[2]);
-        h_planning_link = getBfsCostToGoal(*m_ee_bfs, eex[0], eex[1], eex[2]);
-    }
-
-    return combine_costs(h_planning_frame, h_planning_link);
+    return GetGoalHeuristicMF(this, state_id, true);
 }
 
-void MultiFrameBfsHeuristic::syncGridAndBfs()
+auto MultiFrameBFSHeuristic::GetMetricStartDistance(
+    double x, double y, double z) -> double
 {
-    const int xc = grid()->numCellsX();
-    const int yc = grid()->numCellsY();
-    const int zc = grid()->numCellsZ();
-    m_bfs.reset(new BFS_3D(xc, yc, zc));
-    m_ee_bfs.reset(new BFS_3D(xc, yc, zc));
-    const int cell_count = xc * yc * zc;
-    int wall_count = 0;
-    for (int z = 0; z < zc; ++z) {
-    for (int y = 0; y < yc; ++y) {
-    for (int x = 0; x < xc; ++x) {
-        const double radius = m_inflation_radius;
-        if (grid()->getDistance(x, y, z) <= radius) {
-            m_bfs->setWall(x, y, z);
-            m_ee_bfs->setWall(x, y, z);
-            ++wall_count;
-        }
-    }
-    }
-    }
-
-    SMPL_DEBUG_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
+    auto p = m_pp->ProjectToPoint(m_start_state_id);
+    auto sp = DiscretizePoint(m_grid, p);
+    auto disc_p = DiscretizePoint(m_grid, Vector3(x, y, z));
+    auto dp = sp - disc_p;
+    return m_grid->resolution() * (abs(dp.x()) + abs(dp.y()) + abs(dp.z()));
 }
 
-int MultiFrameBfsHeuristic::getBfsCostToGoal(
-    const BFS_3D& bfs, int x, int y, int z) const
+auto MultiFrameBFSHeuristic::GetMetricGoalDistance(
+    double x, double y, double z) -> double
 {
-    if (!bfs.inBounds(x, y, z)) {
-        return Infinity;
+    auto p = DiscretizePoint(m_grid, Vector3(x, y, z));
+    if (!m_bfs->inBounds(p.x(), p.y(), p.z())) {
+        return (double)BFS_3D::WALL * m_grid->resolution();
     }
-    else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
-        return Infinity;
-    }
-    else {
-        return m_cost_per_cell * bfs.getDistance(x, y, z);
-    }
+    return (double)m_bfs->getDistance(p.x(), p.y(), p.z()) * m_grid->resolution();
 }
 
-int MultiFrameBfsHeuristic::combine_costs(int c1, int c2) const
+bool MultiFrameBFSHeuristic::UpdateStart(int state_id)
 {
-    return c1 + c2;
+    m_start_state_id = state_id;
+    return true;
+}
+
+bool MultiFrameBFSHeuristic::UpdateGoal(GoalConstraint* goal)
+{
+    SMPL_DEBUG_NAMED(LOG, "Update goal");
+
+    auto* get_goal_position = goal->GetExtension<IGetPose>();
+    if (get_goal_position == NULL) {
+        return false;
+    }
+
+    auto goal_pose = get_goal_position->GetPose();
+
+    auto offset_pose = Affine3(
+            goal_pose *
+            Translation3(m_pos_offset[0], m_pos_offset[1], m_pos_offset[2]));
+
+    auto ogp = DiscretizePoint(m_grid, offset_pose.translation());
+    auto gp = DiscretizePoint(m_grid, goal_pose.translation());
+
+    SMPL_DEBUG_NAMED(LOG, "Setting the Two-Point BFS heuristic goals (%d, %d, %d), (%d, %d, %d)",
+            ogp.x(), ogp.y(), ogp.z(), gp.x(), gp.y(), gp.z());
+
+    if (m_bfs->inBounds(ogp.x(), ogp.y(), ogp.z()) &&
+        m_ee_bfs->inBounds(gp.x(), gp.y(), gp.z()))
+    {
+        m_bfs->run(ogp.x(), ogp.y(), ogp.z());
+        m_ee_bfs->run(gp.x(), gp.y(), gp.z());
+    } else {
+        SMPL_WARN_NAMED(LOG, "Heuristic goal is out of BFS bounds");
+    }
+
+    return true;
+}
+
+auto MultiFrameBFSHeuristic::GetExtension(size_t class_code) -> Extension*
+{
+    if (class_code == GetClassCode<Heuristic>() ||
+        class_code == GetClassCode<IGoalHeuristic>() ||
+        class_code == GetClassCode<IMetricGoalHeuristic>() ||
+        class_code == GetClassCode<IMetricStartHeuristic>())
+    {
+        return this;
+    }
+    return NULL;
 }
 
 } // namespace smpl

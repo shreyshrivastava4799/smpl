@@ -31,16 +31,19 @@
 
 #include <smpl/heuristic/sparse_egraph_dijkstra_heuristic.h>
 
+// system includes
 #include <boost/functional/hash.hpp>
 
+// project includes
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
-#include <smpl/debug/visualize.h>
-#include <smpl/debug/marker_utils.h>
 #include <smpl/debug/colors.h>
-#include <smpl/occupancy_grid.h>
+#include <smpl/debug/marker_utils.h>
+#include <smpl/debug/visualize.h>
 #include <smpl/graph/discrete_space.h>
 #include <smpl/graph/experience_graph_extension.h>
+#include <smpl/graph/goal_constraint.h>
+#include <smpl/occupancy_grid.h>
 #include <smpl/spatial.h>
 #include <smpl/stl/algorithm.h>
 
@@ -48,40 +51,51 @@ namespace smpl {
 
 static const char* LOG = "heuristic.egraph_bfs";
 
+static
+auto DiscretizePoint(const OccupancyGrid* grid, const Vector3& p)
+    -> Eigen::Vector3i
+{
+    auto dp = Eigen::Vector3i();
+    grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+    return dp;
+}
+
 auto SparseEGraphDijkstra3DHeuristic::Vector3iHash::operator()(
     const argument_type& s) const
     -> result_type
 {
-    std::size_t seed = 0;
+    auto seed = (std::size_t)0;
     boost::hash_combine(seed, std::hash<int>()(s.x()));
     boost::hash_combine(seed, std::hash<int>()(s.y()));
     boost::hash_combine(seed, std::hash<int>()(s.z()));
     return seed;
 }
 
-bool SparseEGraphDijkstra3DHeuristic::init(
-    RobotPlanningSpace* space,
+bool SparseEGraphDijkstra3DHeuristic::Init(
+    DiscreteSpace* space,
     const OccupancyGrid* grid)
 {
-    if (!grid) {
+    if (grid == NULL) {
         return false;
     }
 
-    if (!RobotHeuristic::init(space)) {
+    auto* project_to_point = space->GetExtension<IProjectToPoint>();
+    if (project_to_point == NULL) {
+        return false;
+    }
+    auto* egraph = space->GetExtension<IExperienceGraph>();
+    if (egraph == NULL) {
+        return false;
+    }
+
+    if (!Heuristic::Init(space)) {
         return false;
     }
 
     m_grid = grid;
 
-    m_pp = space->getExtension<PointProjectionExtension>();
-    m_eg = space->getExtension<ExperienceGraphExtension>();
-
-    if (!m_pp) {
-        SMPL_WARN_NAMED(LOG, "EgraphBfsHeuristic recommends PointProjectionExtension");
-    }
-    if (!m_eg) {
-        SMPL_WARN_NAMED(LOG, "EgraphBfsHeuristic recommends ExperienceGraphExtension");
-    }
+    m_pp = project_to_point;
+    m_eg = egraph;
 
     auto num_cells_x = m_grid->numCellsX() + 2;
     auto num_cells_y = m_grid->numCellsY() + 2;
@@ -91,7 +105,7 @@ bool SparseEGraphDijkstra3DHeuristic::init(
 
     SMPL_INFO("Create dijkstra distance grid of size %zu x %zu x %zu", num_cells_x, num_cells_y, num_cells_z);
 
-    syncGridAndDijkstra();
+    SyncGridAndDijkstra();
 
     auto add_wall = [&](int x, int y, int z) {
         m_dist_grid(x, y, z).dist = Wall;
@@ -120,70 +134,63 @@ bool SparseEGraphDijkstra3DHeuristic::init(
     return true;
 }
 
-void SparseEGraphDijkstra3DHeuristic::setWeightEGraph(double w)
+void SparseEGraphDijkstra3DHeuristic::SyncGridAndDijkstra()
 {
-    m_eg_eps = w;
-    SMPL_INFO_NAMED(LOG, "egraph_epsilon: %0.3f", m_eg_eps);
+    auto xc = m_grid->numCellsX();
+    auto yc = m_grid->numCellsY();
+    auto zc = m_grid->numCellsZ();
+
+    auto cell_count = xc * yc * zc;
+
+    auto wall_count = 0;
+    for (auto x = 0; x < m_grid->numCellsX(); ++x) {
+    for (auto y = 0; y < m_grid->numCellsY(); ++y) {
+    for (auto z = 0; z < m_grid->numCellsZ(); ++z) {
+        if (m_grid->getDistance(x, y, z) <= m_inflation_radius) {
+            m_dist_grid(x + 1, y + 1, z + 1).dist = Wall;
+            ++wall_count;
+        }
+    }
+    }
+    }
+
+    SMPL_INFO_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
-void SparseEGraphDijkstra3DHeuristic::setInflationRadius(double radius)
+auto SparseEGraphDijkstra3DHeuristic::GetGrid() const -> const OccupancyGrid*
+{
+    return m_grid;
+}
+
+auto SparseEGraphDijkstra3DHeuristic::GetEGraphWeight() const -> double
+{
+    return m_eg_eps;
+}
+
+void SparseEGraphDijkstra3DHeuristic::SetEGraphWeight(double w)
+{
+    m_eg_eps = w;
+}
+
+auto SparseEGraphDijkstra3DHeuristic::GetInflationRadius() const ->double
+{
+    return m_inflation_radius;
+}
+
+void SparseEGraphDijkstra3DHeuristic::SetInflationRadius(double radius)
 {
     m_inflation_radius = radius;
 }
 
-void SparseEGraphDijkstra3DHeuristic::getEquivalentStates(
-    int state_id,
-    std::vector<int>& ids)
+auto SparseEGraphDijkstra3DHeuristic::GetWallsVisualization() -> visual::Marker
 {
-    Vector3 p;
-    m_pp->projectToPoint(state_id, p);
-    Eigen::Vector3i dp;
-    grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
-    if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
-        return;
-    }
-    dp += Eigen::Vector3i::Ones();
-
-    auto hit = m_heur_nodes.find(dp);
-    if (hit == m_heur_nodes.end()) {
-        return;
-    }
-
-    for (ExperienceGraph::node_id n : hit->second.up_nodes) {
-        int id = m_eg->getStateID(n);
-        if (id != state_id) {
-            ids.push_back(id);
-        }
-    }
-}
-
-void SparseEGraphDijkstra3DHeuristic::getShortcutSuccs(
-    int state_id,
-    std::vector<int>& shortcut_ids)
-{
-    std::vector<ExperienceGraph::node_id> egraph_nodes;
-    m_eg->getExperienceGraphNodes(state_id, egraph_nodes);
-
-    for (ExperienceGraph::node_id n : egraph_nodes) {
-        const int comp_id = m_component_ids[n];
-        for (ExperienceGraph::node_id nn : m_shortcut_nodes[comp_id]) {
-            int id = m_eg->getStateID(nn);
-            if (id != state_id) {
-                shortcut_ids.push_back(id);
-            }
-        }
-    }
-}
-
-auto SparseEGraphDijkstra3DHeuristic::getWallsVisualization() -> visual::Marker
-{
-    std::vector<Vector3> centers;
-    for (int x = 0; x < grid()->numCellsX(); x++) {
-    for (int y = 0; y < grid()->numCellsY(); y++) {
-    for (int z = 0; z < grid()->numCellsZ(); z++) {
+    auto centers = std::vector<Vector3>();
+    for (auto x = 0; x < m_grid->numCellsX(); x++) {
+    for (auto y = 0; y < m_grid->numCellsY(); y++) {
+    for (auto z = 0; z < m_grid->numCellsZ(); z++) {
         if (m_dist_grid.get(x + 1, y + 1, z + 1).dist == Wall) {
             Vector3 p;
-            grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             centers.push_back(p);
         }
     }
@@ -192,40 +199,38 @@ auto SparseEGraphDijkstra3DHeuristic::getWallsVisualization() -> visual::Marker
 
     SMPL_DEBUG_NAMED(LOG, "BFS Visualization contains %zu points", centers.size());
 
-    visual::Color color;
-    color.r = 100.0f / 255.0f;
-    color.g = 149.0f / 255.0f;
-    color.b = 238.0f / 255.0f;
-    color.a = 1.0f;
-
     auto cubes_marker = visual::MakeCubesMarker(
             centers,
-            grid()->resolution(),
-            color,
-            grid()->getReferenceFrame(),
+            m_grid->resolution(),
+            visual::MakeColorHexARGB(0xFF6495ED),
+            m_grid->getReferenceFrame(),
             "bfs_walls",
             0);
 
     return cubes_marker;
 }
 
-auto SparseEGraphDijkstra3DHeuristic::getValuesVisualization() -> visual::Marker
+auto SparseEGraphDijkstra3DHeuristic::GetValuesVisualization() -> visual::Marker
 {
     SMPL_INFO("Retrieve values visualization");
 
-    int start_heur = GetGoalHeuristic(planningSpace()->getStartStateID());
+    if (m_start_state_id < 0) {
+        return visual::MakeEmptyMarker();
+    }
 
-    int max_cost = (int)(1.1 * start_heur);
+    auto start_heur = GetGoalHeuristic(m_start_state_id);
 
-    std::vector<Vector3> points;
-    std::vector<visual::Color> colors;
-    for (int x = 0; x < grid()->numCellsX(); ++x) {
-    for (int y = 0; y < grid()->numCellsY(); ++y) {
-    for (int z = 0; z < grid()->numCellsZ(); ++z) {
-        Eigen::Vector3i dp(x, y, z);
+    auto max_cost = (int)(1.1 * start_heur);
+
+    auto points = std::vector<Vector3>();
+    auto colors = std::vector<visual::Color>();
+    for (auto x = 0; x < m_grid->numCellsX(); ++x) {
+    for (auto y = 0; y < m_grid->numCellsY(); ++y) {
+    for (auto z = 0; z < m_grid->numCellsZ(); ++z) {
+        auto dp = Eigen::Vector3i(x, y, z);
         dp += Eigen::Vector3i::Ones();
 
-        int d = getGoalHeuristic(dp);
+        auto d = GetGoalHeuristic(dp);
         auto cost_pct = (float)d / (float)max_cost;
 
         if (cost_pct > 1.0) {
@@ -239,7 +244,7 @@ auto SparseEGraphDijkstra3DHeuristic::getValuesVisualization() -> visual::Marker
         color.b = clamp(color.b, 0.0f, 1.0f);
 
         Vector3 p;
-        grid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+        m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
         points.push_back(p);
 
         colors.push_back(color);
@@ -249,68 +254,108 @@ auto SparseEGraphDijkstra3DHeuristic::getValuesVisualization() -> visual::Marker
 
     auto marker = MakeCubesMarker(
             std::move(points),
-            0.5 * grid()->resolution(),
+            0.5 * m_grid->resolution(),
             std::move(colors),
-            grid()->getReferenceFrame(),
+            m_grid->getReferenceFrame(),
             "h_values");
 
     SMPL_INFO("Retrieved values visualization with %zu points", boost::get<visual::CubeList>(marker.shape).points.size());
     return marker;
 }
 
-double SparseEGraphDijkstra3DHeuristic::getMetricStartDistance(
-    double x, double y, double z)
+void SparseEGraphDijkstra3DHeuristic::GetEquivalentStates(
+    int state_id,
+    std::vector<int>& ids)
 {
-    int start_id = planningSpace()->getStartStateID();
+    auto p = m_pp->ProjectToPoint(state_id);
+    auto dp = DiscretizePoint(m_grid, p);
+    if (!m_grid->isInBounds(dp.x(), dp.y(), dp.z())) {
+        return;
+    }
+    dp += Eigen::Vector3i::Ones();
 
-    if (!m_pp) {
-        return 0.0;
+    auto hit = m_heur_nodes.find(dp);
+    if (hit == m_heur_nodes.end()) {
+        return;
     }
 
-    Vector3 p;
-    if (!m_pp->projectToPoint(planningSpace()->getStartStateID(), p)) {
-        return 0.0;
+    for (auto n : hit->second.up_nodes) {
+        int id = m_eg->GetStateID(n);
+        if (id != state_id) {
+            ids.push_back(id);
+        }
+    }
+}
+
+void SparseEGraphDijkstra3DHeuristic::GetShortcutSuccs(
+    int state_id,
+    std::vector<int>& shortcut_ids)
+{
+    auto egraph_nodes = std::vector<ExperienceGraph::node_id>();
+    m_eg->GetExperienceGraphNodes(state_id, egraph_nodes);
+
+    for (auto n : egraph_nodes) {
+        auto comp_id = m_component_ids[n];
+        for (auto nn : m_shortcut_nodes[comp_id]) {
+            int id = m_eg->GetStateID(nn);
+            if (id != state_id) {
+                shortcut_ids.push_back(id);
+            }
+        }
+    }
+}
+
+int SparseEGraphDijkstra3DHeuristic::GetGoalHeuristic(int state_id)
+{
+    // project and discretize state
+    auto p = m_pp->ProjectToPoint(state_id);
+    auto dp = DiscretizePoint(m_grid, p);
+
+    if (!m_grid->isInBounds(dp.x(), dp.y(), dp.z())) {
+        return Infinity;
     }
 
-    int sx, sy, sz;
-    grid()->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
+    dp += Eigen::Vector3i::Ones();
+    return GetGoalHeuristic(dp);
+}
 
-    int gx, gy, gz;
-    grid()->worldToGrid(x, y, z, gx, gy, gz);
-
+auto SparseEGraphDijkstra3DHeuristic::GetMetricStartDistance(
+    double x, double y, double z) -> double
+{
+    auto p = m_pp->ProjectToPoint(m_start_state_id);
+    auto s = DiscretizePoint(m_grid, p);
+    auto g = DiscretizePoint(m_grid, Vector3(x, y, z));
     // compute the manhattan distance to the start cell
-    const int dx = sx - gx;
-    const int dy = sy - gy;
-    const int dz = sz - gz;
-    return grid()->resolution() * (abs(dx) + abs(dy) + abs(dz));
+    auto dx = Eigen::Vector3i(s - g);
+    return m_grid->resolution() * (abs(dx.x()) + abs(dx.y()) + abs(dx.z()));
 }
 
-double SparseEGraphDijkstra3DHeuristic::getMetricGoalDistance(
-    double x, double y, double z)
+auto SparseEGraphDijkstra3DHeuristic::GetMetricGoalDistance(
+    double x, double y, double z) -> double
 {
-    Vector3 gp(planningSpace()->goal().pose.translation());
-    Eigen::Vector3i dgp;
-    grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
-
-    Eigen::Vector3i dp;
-    grid()->worldToGrid(x, y, z, dp.x(), dp.y(), dp.z());
-
-    const Eigen::Vector3i d = dgp - dp;
-    return grid()->resolution() * (abs(d.x()) + abs(d.y() + abs(d.z())));
+    auto gp = m_get_goal_position->GetPosition();
+    auto dgp = DiscretizePoint(m_grid, gp);
+    auto dp = DiscretizePoint(m_grid, Vector3(x, y, z));
+    auto d = Eigen::Vector3i(dgp - dp);
+    return m_grid->resolution() * (abs(d.x()) + abs(d.y() + abs(d.z())));
 }
 
-auto SparseEGraphDijkstra3DHeuristic::getExtension(size_t class_code)
-    -> Extension*
+bool SparseEGraphDijkstra3DHeuristic::UpdateStart(int state_id)
 {
-    if (class_code == GetClassCode<ExperienceGraphHeuristicExtension>()) {
-        return this;
-    }
-    return nullptr;
+    m_start_state_id = state_id;
+    return true;
 }
 
-void SparseEGraphDijkstra3DHeuristic::updateGoal(const GoalConstraint& goal)
+bool SparseEGraphDijkstra3DHeuristic::UpdateGoal(GoalConstraint* goal)
 {
     SMPL_INFO_NAMED(LOG, "Update EGraphBfsHeuristic goal");
+
+    auto* get_goal_position = goal->GetExtension<IGetPosition>();
+    if (get_goal_position == NULL) {
+        return false;
+    }
+
+    m_get_goal_position = get_goal_position;
 
     m_open.clear();
 
@@ -325,16 +370,15 @@ void SparseEGraphDijkstra3DHeuristic::updateGoal(const GoalConstraint& goal)
     }
     }
 
-    projectExperienceGraph();
+    ProjectExperienceGraph();
 
-    Vector3 gp(goal.pose.translation());
+    auto gp = get_goal_position->GetPosition();
 
-    Eigen::Vector3i dgp;
-    grid()->worldToGrid(gp.x(), gp.y(), gp.z(), dgp.x(), dgp.y(), dgp.z());
+    auto dgp = DiscretizePoint(m_grid, gp);
 
     // precompute shortcuts
-    assert(m_component_ids.size() == m_eg->getExperienceGraph()->num_nodes());
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
+    assert(m_component_ids.size() == m_eg->GetExperienceGraph()->num_nodes());
+    auto* eg = m_eg->GetExperienceGraph();
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         int comp_id = m_component_ids[*nit];
@@ -344,15 +388,13 @@ void SparseEGraphDijkstra3DHeuristic::updateGoal(const GoalConstraint& goal)
         }
 
         // get the distance of this node to the goal
-        Vector3 p;
-        m_pp->projectToPoint(m_eg->getStateID(*nit), p);
+        auto p = m_pp->ProjectToPoint(m_eg->GetStateID(*nit));
 
-        const double dist = (gp - p).squaredNorm();
+        auto dist = (gp - p).squaredNorm();
 
-        Vector3 lp;
-        m_pp->projectToPoint(m_eg->getStateID(m_shortcut_nodes[comp_id].front()), lp);
+        auto lp = m_pp->ProjectToPoint(m_eg->GetStateID(m_shortcut_nodes[comp_id].front()));
 
-        const double curr_dist = (gp - lp).squaredNorm();
+        auto curr_dist = (gp - lp).squaredNorm();
 
         if (dist < curr_dist) {
             m_shortcut_nodes[comp_id].clear();
@@ -362,53 +404,43 @@ void SparseEGraphDijkstra3DHeuristic::updateGoal(const GoalConstraint& goal)
         }
     }
 
-    if (!grid()->isInBounds(dgp.x(), dgp.y(), dgp.z())) {
+    m_open.clear();
+
+    if (!m_grid->isInBounds(dgp.x(), dgp.y(), dgp.z())) {
         SMPL_WARN("Cell (%d, %d, %d) is outside heuristic bounds", dgp.x(), dgp.y(), dgp.z());
-        return;
+        return true;
     }
 
     dgp += Eigen::Vector3i::Ones();
 
-    m_open.clear();
-    Cell* c = &m_dist_grid(dgp.x(), dgp.y(), dgp.z());
+    auto* c = &m_dist_grid(dgp.x(), dgp.y(), dgp.z());
     c->dist = 0;
     m_open.push(c);
     m_open_cell_to_pos[c] = dgp;
 
     SMPL_INFO_NAMED(LOG, "Updated EGraphBfsHeuristic goal");
+    return true;
 }
 
-int SparseEGraphDijkstra3DHeuristic::GetGoalHeuristic(int state_id)
+auto SparseEGraphDijkstra3DHeuristic::GetExtension(size_t class_code)
+    -> Extension*
 {
-    // project and discretize state
-    Vector3 p;
-    m_pp->projectToPoint(state_id, p);
-    Eigen::Vector3i dp;
-    grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
-
-    if (!grid()->isInBounds(dp.x(), dp.y(), dp.z())) {
-        return Infinity;
+    if (class_code == GetClassCode<Heuristic>() ||
+        class_code == GetClassCode<IExperienceGraphHeuristic>() ||
+        class_code == GetClassCode<IGoalHeuristic>() ||
+        class_code == GetClassCode<IMetricStartHeuristic>() ||
+        class_code == GetClassCode<IMetricGoalHeuristic>())
+    {
+        return this;
     }
-
-    dp += Eigen::Vector3i::Ones();
-    return getGoalHeuristic(dp);
-}
-
-int SparseEGraphDijkstra3DHeuristic::GetStartHeuristic(int state_id)
-{
-    return 0;
-}
-
-int SparseEGraphDijkstra3DHeuristic::GetFromToHeuristic(int from_id, int to_id)
-{
-    return 0;
+    return NULL;
 }
 
 // Project experience graph states down to their 3D projections. Note that this
 // should be called once the goal is set in the environment as the projection to
 // 3D may be based off of the goal condition (for instance, the desired planning
 // frame is determined according to the planning link and a fixed offset)
-void SparseEGraphDijkstra3DHeuristic::projectExperienceGraph()
+void SparseEGraphDijkstra3DHeuristic::ProjectExperienceGraph()
 {
     m_heur_nodes.clear();
 
@@ -426,31 +458,29 @@ void SparseEGraphDijkstra3DHeuristic::projectExperienceGraph()
     // (3) maintain an external adjacency list mapping cells with projections
     // from experience graph states to adjacent cells (method used here)
     SMPL_INFO("Project experience graph into three-dimensional grid");
-    ExperienceGraph* eg = m_eg->getExperienceGraph();
-    if (!eg) {
+    auto* eg = m_eg->GetExperienceGraph();
+    if (eg == NULL) {
         SMPL_ERROR("Experience Graph Extended Planning Space has null Experience Graph");
         return;
     }
 
-    std::vector<Vector3> viz_points;
+    auto viz_points = std::vector<Vector3>();
 
     m_projected_nodes.resize(eg->num_nodes());
 
-    size_t proj_node_count = 0;
-    size_t proj_edge_count = 0;
+    auto proj_node_count = 0;
+    auto proj_edge_count = 0;
     auto nodes = eg->nodes();
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         // project experience graph state to point and discretize
-        int first_id = m_eg->getStateID(*nit);
+        auto first_id = m_eg->GetStateID(*nit);
         SMPL_DEBUG_STREAM_NAMED(LOG, "Project experience graph state " << first_id << " " << eg->state(*nit) << " into 3D");
-        Vector3 p;
-        m_pp->projectToPoint(first_id, p);
+        auto p = m_pp->ProjectToPoint(first_id);
         SMPL_DEBUG_NAMED(LOG, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
-        Eigen::Vector3i dp;
-        grid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+        auto dp = DiscretizePoint(m_grid, p);
 
         Vector3 viz_pt;
-        grid()->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x(), viz_pt.y(), viz_pt.z());
+        m_grid->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x(), viz_pt.y(), viz_pt.z());
         viz_points.push_back(viz_pt);
 
         dp += Eigen::Vector3i::Ones();
@@ -458,7 +488,7 @@ void SparseEGraphDijkstra3DHeuristic::projectExperienceGraph()
         m_projected_nodes[*nit] = dp;
 
         // insert node into down-projected experience graph
-        HeuristicNode empty;
+        auto empty = HeuristicNode();
         auto ent = m_heur_nodes.insert(std::make_pair(dp, std::move(empty)));
         auto eit = ent.first;
         if (ent.second) {
@@ -468,20 +498,18 @@ void SparseEGraphDijkstra3DHeuristic::projectExperienceGraph()
             SMPL_DEBUG_NAMED(LOG, "Duplicate down-projected cell (%d, %d, %d)", dp.x(), dp.y(), dp.z());
         }
 
-        HeuristicNode& hnode = eit->second;
+        auto& hnode = eit->second;
 
         hnode.up_nodes.push_back(*nit);
 
         auto adj = eg->adjacent_nodes(*nit);
         for (auto ait = adj.first; ait != adj.second; ++ait) {
             // project adjacent experience graph state and discretize
-            int second_id = m_eg->getStateID(*ait);
+            auto second_id = m_eg->GetStateID(*ait);
             SMPL_DEBUG_NAMED(LOG, "  Project experience graph edge to state %d", second_id);
-            Vector3 q;
-            m_pp->projectToPoint(second_id, q);
-            Eigen::Vector3i dq;
-            grid()->worldToGrid(q.x(), q.y(), q.z(), dq.x(), dq.y(), dq.z());
-            if (!grid()->isInBounds(dq.x(), dq.y(), dq.z())) {
+            auto q = m_pp->ProjectToPoint(second_id);
+            auto dq = DiscretizePoint(m_grid, q);
+            if (!m_grid->isInBounds(dq.x(), dq.y(), dq.z())) {
                 continue;
             }
             dq += Eigen::Vector3i::Ones();
@@ -501,17 +529,17 @@ void SparseEGraphDijkstra3DHeuristic::projectExperienceGraph()
 
     SMPL_INFO("Projected experience graph contains %zu nodes and %zu edges", proj_node_count, proj_edge_count);
 
-    int comp_count = 0;
+    auto comp_count = 0;
     m_component_ids.assign(eg->num_nodes(), -1);
     for (auto nit = nodes.first; nit != nodes.second; ++nit) {
         if (m_component_ids[*nit] != -1) {
             continue;
         }
 
-        std::vector<ExperienceGraph::node_id> frontier;
+        auto frontier = std::vector<ExperienceGraph::node_id>();
         frontier.push_back(*nit);
         while (!frontier.empty()) {
-            ExperienceGraph::node_id n = frontier.back();
+            auto n = frontier.back();
             frontier.pop_back();
 
             m_component_ids[n] = comp_count;
@@ -531,37 +559,31 @@ void SparseEGraphDijkstra3DHeuristic::projectExperienceGraph()
     m_shortcut_nodes.assign(comp_count, std::vector<ExperienceGraph::node_id>());
     SMPL_INFO("Experience graph contains %d components", comp_count);
 
-    visual::Color color;
-    color.r = (float)0xFF / (float)0xFF;
-    color.g = (float)0x8C / (float)0xFF;
-    color.b = (float)0x00 / (float)0xFF;
-    color.a = 1.0f;
-
     auto* vis_name = "egraph_projection";
     SV_SHOW_INFO_NAMED(
             vis_name,
             visual::MakeCubesMarker(
                     std::move(viz_points),
-                    grid()->resolution(),
-                    color,
-                    grid()->getReferenceFrame(),
+                    m_grid->resolution(),
+                    visual::MakeColorHexARGB(0xFFFF8C00),
+                    m_grid->getReferenceFrame(),
                     vis_name));
 }
 
-int SparseEGraphDijkstra3DHeuristic::getGoalHeuristic(const Eigen::Vector3i& dp)
+int SparseEGraphDijkstra3DHeuristic::GetGoalHeuristic(const Eigen::Vector3i& dp)
 {
     if (m_dist_grid.get(dp.x(), dp.y(), dp.z()).dist == Wall) {
         return Infinity;
     }
 
-    Cell* cell = &m_dist_grid(dp.x(), dp.y(), dp.z());
+    auto* cell = &m_dist_grid(dp.x(), dp.y(), dp.z());
 
-    static int last_expand_count = 0;
-    int expand_count = 0;
-    static int repeat_count = 1;
+    static auto last_expand_count = 0;
+    auto expand_count = 0;
+    static auto repeat_count = 1;
     while (cell->dist == Unknown && !m_open.empty()) {
         ++expand_count;
-        Cell* curr_cell = m_open.min();
+        auto* curr_cell = m_open.min();
         m_open.pop();
 
         auto pit = m_open_cell_to_pos.find(curr_cell);
@@ -578,11 +600,11 @@ int SparseEGraphDijkstra3DHeuristic::getGoalHeuristic(const Eigen::Vector3i& dp)
             auto& hnode = it->second;
             SMPL_DEBUG_NAMED(LOG, "  %zu adjacent egraph cells", hnode.edges.size());
             for (auto& adj : hnode.edges) {
-                Cell* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
+                auto* ncell = &m_dist_grid(adj.x(), adj.y(), adj.z());
 
                 auto dp = adj - pos;
-                int cost = (int)(1000.0 * std::sqrt((double)dp.squaredNorm()));
-                int new_cost = curr_cell->dist + cost;
+                auto cost = (int)(1000.0 * std::sqrt((double)dp.squaredNorm()));
+                auto new_cost = curr_cell->dist + cost;
                 if (new_cost < ncell->dist) {
                     ncell->dist = new_cost;
                     if (m_open.contains(ncell)) {
@@ -605,17 +627,17 @@ int SparseEGraphDijkstra3DHeuristic::getGoalHeuristic(const Eigen::Vector3i& dp)
                 continue;
             }
 
-            Eigen::Vector3i spos = pos + Eigen::Vector3i(dx, dy, dz);
+            auto spos = Eigen::Vector3i(pos + Eigen::Vector3i(dx, dy, dz));
 
-            Cell* ncell = &m_dist_grid(spos.x(), spos.y(), spos.z());
+            auto* ncell = &m_dist_grid(spos.x(), spos.y(), spos.z());
 
             // bounds and obstacle check
             if (ncell->dist == Wall) {
                 continue;
             }
 
-            int cost = (int)(m_eg_eps * 1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
-            int new_cost = curr_cell->dist + cost;
+            auto cost = (int)(m_eg_eps * 1000.0 * std::sqrt((double)(dx * dx + dy * dy + dz * dz)));
+            auto new_cost = curr_cell->dist + cost;
 
             if (new_cost < ncell->dist) {
                 ncell->dist = new_cost;
@@ -645,29 +667,6 @@ int SparseEGraphDijkstra3DHeuristic::getGoalHeuristic(const Eigen::Vector3i& dp)
         return Infinity;
     }
     return cell->dist;
-}
-
-void SparseEGraphDijkstra3DHeuristic::syncGridAndDijkstra()
-{
-    const int xc = grid()->numCellsX();
-    const int yc = grid()->numCellsY();
-    const int zc = grid()->numCellsZ();
-
-    const int cell_count = xc * yc * zc;
-
-    int wall_count = 0;
-    for (int x = 0; x < grid()->numCellsX(); ++x) {
-    for (int y = 0; y < grid()->numCellsY(); ++y) {
-    for (int z = 0; z < grid()->numCellsZ(); ++z) {
-        if (grid()->getDistance(x, y, z) <= m_inflation_radius) {
-            m_dist_grid(x + 1, y + 1, z + 1).dist = Wall;
-            ++wall_count;
-        }
-    }
-    }
-    }
-
-    SMPL_INFO_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
 } // namespace smpl

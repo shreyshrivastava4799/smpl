@@ -101,15 +101,15 @@ auto BFSHeuristic::GetGrid() const -> const OccupancyGrid*
 auto BFSHeuristic::GetWallsVisualization() const -> visual::Marker
 {
     auto centers = std::vector<Vector3>();
-    auto dimX = GetGrid()->numCellsX();
-    auto dimY = GetGrid()->numCellsY();
-    auto dimZ = GetGrid()->numCellsZ();
+    auto dimX = m_grid->numCellsX();
+    auto dimY = m_grid->numCellsY();
+    auto dimZ = m_grid->numCellsZ();
     for (auto x = 0; x < dimX; x++) {
     for (auto y = 0; y < dimY; y++) {
     for (auto z = 0; z < dimZ; z++) {
         if (m_bfs->isWall(x, y, z)) {
             Vector3 p;
-            GetGrid()->gridToWorld(x, y, z, p.x(), p.y(), p.z());
+            m_grid->gridToWorld(x, y, z, p.x(), p.y(), p.z());
             centers.push_back(p);
         }
     }
@@ -120,9 +120,9 @@ auto BFSHeuristic::GetWallsVisualization() const -> visual::Marker
 
     return visual::MakeCubesMarker(
             centers,
-            GetGrid()->resolution(),
+            m_grid->resolution(),
             visual::MakeColorHexARGB(0xFF6495ED),
-            GetGrid()->getReferenceFrame(),
+            m_grid->getReferenceFrame(),
             "bfs_walls");
 }
 
@@ -175,7 +175,7 @@ auto BFSHeuristic::GetValuesVisualization() -> visual::Marker
     };
 
     auto cells = std::queue<CostCell>();
-    auto visited = Grid3<bool>(GetGrid()->numCellsX(), GetGrid()->numCellsY(), GetGrid()->numCellsZ(), false);
+    auto visited = Grid3<bool>(m_grid->numCellsX(), m_grid->numCellsY(), m_grid->numCellsZ(), false);
     for (auto& cell : m_goal_cells) {
         if (!m_bfs->isWall(cell.x, cell.y, cell.z)) {
             visited(cell.x, cell.y, cell.z) = true;
@@ -202,7 +202,7 @@ auto BFSHeuristic::GetValuesVisualization() -> visual::Marker
             color.a = 1.0f;
 
             Vector3 p;
-            GetGrid()->gridToWorld(c.x, c.y, c.z, p.x(), p.y(), p.z());
+            m_grid->gridToWorld(c.x, c.y, c.z, p.x(), p.y(), p.z());
             points.push_back(p);
 
             colors.push_back(color);
@@ -241,23 +241,23 @@ auto BFSHeuristic::GetValuesVisualization() -> visual::Marker
 
     return visual::MakeCubesMarker(
             std::move(points),
-            0.5 * GetGrid()->resolution(),
+            0.5 * m_grid->resolution(),
             std::move(colors),
-            GetGrid()->getReferenceFrame(),
+            m_grid->getReferenceFrame(),
             "bfs_values");
 }
 
 void BFSHeuristic::SyncGridAndBFS()
 {
-    auto xc = GetGrid()->numCellsX();
-    auto yc = GetGrid()->numCellsY();
-    auto zc = GetGrid()->numCellsZ();
+    auto xc = m_grid->numCellsX();
+    auto yc = m_grid->numCellsY();
+    auto zc = m_grid->numCellsZ();
     m_bfs = make_unique<BFS_3D>(xc, yc, zc);
     auto wall_count = 0;
     for (auto x = 0; x < xc; ++x) {
     for (auto y = 0; y < yc; ++y) {
     for (auto z = 0; z < zc; ++z) {
-        if (GetGrid()->getDistance(x, y, z) <= m_inflation_radius) {
+        if (m_grid->getDistance(x, y, z) <= m_inflation_radius) {
             m_bfs->setWall(x, y, z);
             ++wall_count;
         }
@@ -274,7 +274,7 @@ int BFSHeuristic::GetGoalHeuristic(int state_id)
     auto p = m_project_to_point->ProjectToPoint(state_id);
 
     Eigen::Vector3i dp;
-    GetGrid()->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+    m_grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
     return GetBFSCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
 }
@@ -284,25 +284,25 @@ auto BFSHeuristic::GetMetricStartDistance(double x, double y, double z) -> doubl
     auto p = m_project_to_point->ProjectToPoint(m_start_state_id);
 
     int sx, sy, sz;
-    GetGrid()->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
+    m_grid->worldToGrid(p.x(), p.y(), p.z(), sx, sy, sz);
 
     int gx, gy, gz;
-    GetGrid()->worldToGrid(x, y, z, gx, gy, gz);
+    m_grid->worldToGrid(x, y, z, gx, gy, gz);
 
     auto dx = sx - gx;
     auto dy = sy - gy;
     auto dz = sz - gz;
-    return GetGrid()->resolution() * (std::abs(dx) + std::abs(dy) + std::abs(dz));
+    return m_grid->resolution() * (std::abs(dx) + std::abs(dy) + std::abs(dz));
 }
 
 auto BFSHeuristic::GetMetricGoalDistance(double x, double y, double z) -> double
 {
     int gx, gy, gz;
-    GetGrid()->worldToGrid(x, y, z, gx, gy, gz);
+    m_grid->worldToGrid(x, y, z, gx, gy, gz);
     if (!m_bfs->inBounds(gx, gy, gz)) {
-        return (double)BFS_3D::WALL * GetGrid()->resolution();
+        return (double)BFS_3D::WALL * m_grid->resolution();
     } else {
-        return (double)m_bfs->getDistance(gx, gy, gz) * GetGrid()->resolution();
+        return (double)m_bfs->getDistance(gx, gy, gz) * m_grid->resolution();
     }
 }
 
@@ -322,7 +322,7 @@ bool BFSHeuristic::UpdateGoal(GoalConstraint* goal)
         for (auto i = 0; i < poses.second; ++i) {
             auto& goal_pose = poses.first[i];
             int gx, gy, gz;
-            GetGrid()->worldToGrid(
+            m_grid->worldToGrid(
                     goal_pose.translation()[0],
                     goal_pose.translation()[1],
                     goal_pose.translation()[2],
@@ -354,7 +354,7 @@ bool BFSHeuristic::UpdateGoal(GoalConstraint* goal)
         // state to a goal position, since we can't reliably expect goal.pose
         // to be valid.
         int gx, gy, gz;
-        GetGrid()->worldToGrid(
+        m_grid->worldToGrid(
                 goal_pose.translation()[0],
                 goal_pose.translation()[1],
                 goal_pose.translation()[2],

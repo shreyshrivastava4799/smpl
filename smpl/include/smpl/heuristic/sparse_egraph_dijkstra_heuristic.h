@@ -40,6 +40,7 @@
 #include <Eigen/Core>
 
 // project includes
+#include <smpl/debug/marker.h>
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/heuristic/heuristic.h>
 #include <smpl/heuristic/egraph_heuristic.h>
@@ -48,67 +49,68 @@
 
 namespace smpl {
 
+class IExperienceGraph;
+class IGetPosition;
+class IProjectToPoint;
 class OccupancyGrid;
 
-class ExperienceGraphExtension;
-class PointProjectionExtension;
-class RobotPlanningSpace;
-
 class SparseEGraphDijkstra3DHeuristic :
-    public RobotHeuristic,
-    public ExperienceGraphHeuristicExtension
+    public Heuristic,
+    public IExperienceGraphHeuristic,
+    public IGoalHeuristic,
+    public IMetricStartHeuristic,
+    public IMetricGoalHeuristic
 {
 public:
 
-    bool init(RobotPlanningSpace* space, const OccupancyGrid* grid);
+    bool Init(DiscreteSpace* space, const OccupancyGrid* grid);
 
-    auto grid() const -> const OccupancyGrid* { return m_grid; }
+    void SyncGridAndDijkstra();
 
-    double weightEGraph() const { return m_eg_eps; }
-    void setWeightEGraph(double w);
+    auto GetGrid() const -> const OccupancyGrid*;
 
-    double inflationRadius() const { return m_inflation_radius; }
-    void setInflationRadius(double radius);
+    auto GetEGraphWeight() const ->double;
+    void SetEGraphWeight(double w);
 
-    auto getWallsVisualization() -> visual::Marker;
-    auto getValuesVisualization() -> visual::Marker;
+    double GetInflationRadius() const;
+    void SetInflationRadius(double radius);
 
-    /// \name Required Public Functions from ExperienceGraphHeuristicExtension
+    auto GetWallsVisualization() -> visual::Marker;
+    auto GetValuesVisualization() -> visual::Marker;
+
+    /// \name IExperienceGraphHeuristic Interface
     ///@{
-    void getEquivalentStates(int state_id, std::vector<int>& ids) override;
-    void getShortcutSuccs(int state_id, std::vector<int>& ids) override;
+    void GetEquivalentStates(int state_id, std::vector<int>& ids) final;
+    void GetShortcutSuccs(int state_id, std::vector<int>& ids) final;
     ///@}
 
-    /// \name Required Public Functions from RobotHeuristic
+    /// \name IGoalHeuristic Interface
     ///@{
-    double getMetricStartDistance(double x, double y, double z) override;
-    double getMetricGoalDistance(double x, double y, double z) override;
+    int GetGoalHeuristic(int state_id) final;
     ///@}
 
-    /// \name Required Public Functions from Extension
+    /// \name IMetricStartHeuristic Interface
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    auto GetMetricStartDistance(double x, double y, double z) -> double final;
     ///@}
 
-    /// \name Reimplemented Public Functions from RobotPlanningSpaceObserver
+    /// \name IMetricGoalHeuristic Interface
     ///@{
-    void updateGoal(const GoalConstraint& goal) override;
+    auto GetMetricGoalDistance(double x, double y, double z) -> double final;
     ///@}
 
-    /// \name Required Public Functions from Heuristic
+    /// \name Heuristic Interface
     ///@{
-    int GetGoalHeuristic(int state_id) override;
-    int GetStartHeuristic(int state_id) override;
-    int GetFromToHeuristic(int from_id, int to_id) override;
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
     ///@}
 
-private:
+    /// \name Extension Interface
+    ///@{
+    auto GetExtension(size_t class_code) -> Extension* final;
+    ///@}
 
-    static const int Unknown = std::numeric_limits<int>::max() >> 1;
-    static const int Wall = std::numeric_limits<int>::max();
-    static const int Infinity = Unknown;
-
-    const OccupancyGrid* m_grid = nullptr;
+public:
 
     struct Cell : public heap_element
     {
@@ -120,14 +122,37 @@ private:
         bool operator==(Cell o) const { return o.dist == dist; }
     };
 
-    SparseGrid<Cell> m_dist_grid;
-
     struct CellCompare
     {
         bool operator()(const Cell& a, const Cell& b) const {
             return a.dist < b.dist;
         }
     };
+
+    // map down-projected state cells to adjacent down-projected state cells
+    struct Vector3iHash
+    {
+        using argument_type = Eigen::Vector3i;
+        using result_type = std::size_t;
+
+        auto operator()(const argument_type& s) const -> result_type;
+    };
+
+    struct HeuristicNode
+    {
+        std::vector<ExperienceGraph::node_id> up_nodes;
+        std::vector<Eigen::Vector3i> edges;
+    };
+
+    static const int Unknown = std::numeric_limits<int>::max() >> 1;
+    static const int Wall = std::numeric_limits<int>::max();
+    static const int Infinity = Unknown;
+
+    const OccupancyGrid* m_grid = NULL;
+
+    SparseGrid<Cell> m_dist_grid;
+
+    int m_start_state_id = -1;
 
     double m_eg_eps = 1.0;
     double m_inflation_radius = 0.0;
@@ -143,17 +168,9 @@ private:
     // in the open list
     std::unordered_map<Cell*, Eigen::Vector3i> m_open_cell_to_pos;
 
-    PointProjectionExtension* m_pp = nullptr;
-    ExperienceGraphExtension* m_eg = nullptr;
-
-    // map down-projected state cells to adjacent down-projected state cells
-    struct Vector3iHash
-    {
-        typedef Eigen::Vector3i argument_type;
-        typedef std::size_t result_type;
-
-        result_type operator()(const argument_type& s) const;
-    };
+    IProjectToPoint* m_pp = NULL;
+    IExperienceGraph* m_eg = NULL;
+    IGetPosition* m_get_goal_position = NULL;
 
     // map from experience graph nodes to their heuristic cell coordinates
     std::vector<Eigen::Vector3i> m_projected_nodes;
@@ -162,19 +179,10 @@ private:
     std::vector<int> m_component_ids;
     std::vector<std::vector<ExperienceGraph::node_id>> m_shortcut_nodes;
 
-    struct HeuristicNode
-    {
-        std::vector<ExperienceGraph::node_id> up_nodes;
-
-        std::vector<Eigen::Vector3i> edges;
-    };
-
     hash_map<Eigen::Vector3i, HeuristicNode, Vector3iHash> m_heur_nodes;
 
-    void projectExperienceGraph();
-    int getGoalHeuristic(const Eigen::Vector3i& dp);
-
-    void syncGridAndDijkstra();
+    void ProjectExperienceGraph();
+    int GetGoalHeuristic(const Eigen::Vector3i& dp);
 };
 
 } // namespace smpl
