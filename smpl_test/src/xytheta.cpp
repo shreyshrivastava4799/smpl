@@ -34,7 +34,7 @@ const bool g_colorize = true;
 /// IForwardKinematics: forward kinematics interface required by much
 /// of smpl; trivial in this case to establish frame of reference
 class KinematicVehicleModel :
-//    public virtual smpl::RobotModel,
+    public virtual smpl::RobotModel,
     public smpl::IForwardKinematics
 {
 public:

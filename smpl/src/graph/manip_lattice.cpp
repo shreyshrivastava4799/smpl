@@ -584,7 +584,10 @@ bool ManipLattice::ExtractPath(
 
 bool ManipLattice::UpdateHeuristics(Heuristic** heuristics, int count)
 {
-    return m_action_space->UpdateHeuristics(heuristics, count);
+    if (!m_action_space->UpdateHeuristics(heuristics, count)) {
+        return false;
+    }
+    return DiscreteSpace::UpdateHeuristics(heuristics, count);
 }
 
 bool ManipLattice::UpdateStart(int state_id)

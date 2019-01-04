@@ -513,6 +513,14 @@ int WorkspaceLattice::GetTrueCost(int state_id, int succ_state_id)
 }
 
 
+bool WorkspaceLattice::UpdateHeuristics(Heuristic** heuristics, int count)
+{
+    if (!m_actions->UpdateHeuristics(heuristics, count)) {
+        return false;
+    }
+    return DiscreteSpace::UpdateHeuristics(heuristics, count);
+}
+
 bool WorkspaceLattice::UpdateStart(int state_id)
 {
     SMPL_DEBUG_NAMED(G_LOG, "set the start state");
@@ -531,11 +539,19 @@ bool WorkspaceLattice::UpdateStart(int state_id)
 
     SMPL_DEBUG_STREAM_NAMED(G_LOG, "  coord: " << state->coord);
 
+    if (!m_actions->UpdateStart(state_id)) {
+        return false;
+    }
+
     return DiscreteSpace::UpdateStart(state_id);
 }
 
 bool WorkspaceLattice::UpdateGoal(GoalConstraint* goal)
 {
+    if (!m_actions->UpdateGoal(goal)) {
+        return false;
+    }
+
     return DiscreteSpace::UpdateGoal(goal);
 }
 

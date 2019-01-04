@@ -9,15 +9,22 @@
 
 namespace smpl {
 
+class GoalConstraint;
+class Heuristic;
+
 class WorkspaceLatticeActionSpace
 {
 public:
 
-    virtual ~WorkspaceLatticeActionSpace() { }
+    virtual ~WorkspaceLatticeActionSpace();
 
     virtual void Apply(
         const WorkspaceLatticeState& state,
         std::vector<WorkspaceAction>& actions) = 0;
+
+    virtual bool UpdateHeuristics(Heuristic** heuristics, int count);
+    virtual bool UpdateStart(int state_id);
+    virtual bool UpdateGoal(GoalConstraint* goal);
 };
 
 } // namespace smpl
