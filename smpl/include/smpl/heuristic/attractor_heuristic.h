@@ -39,9 +39,7 @@ namespace smpl {
 
 class IExtractRobotState;
 
-class AttractorHeuristic :
-    public Heuristic,
-    public IGoalHeuristic
+class AttractorHeuristic : public Heuristic, public IGoalHeuristic
 {
 public:
 

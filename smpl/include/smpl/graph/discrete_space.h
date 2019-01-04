@@ -45,6 +45,7 @@ namespace smpl {
 class CollisionChecker;
 class GoalConstraint;
 class RobotModel;
+class Heuristic;
 
 class DiscreteSpace : public virtual Extension
 {
@@ -54,6 +55,7 @@ public:
 
     bool Init(RobotModel* robot, CollisionChecker* checker);
 
+    virtual bool UpdateHeuristics(Heuristic** heuristics, int count);
     virtual bool UpdateStart(int state_id);
     virtual bool UpdateGoal(GoalConstraint* goal);
 

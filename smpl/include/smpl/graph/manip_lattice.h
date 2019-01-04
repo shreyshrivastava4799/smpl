@@ -133,6 +133,7 @@ public:
 
     /// \name DiscreteSpace Interface
     ///@{
+    bool UpdateHeuristics(Heuristic** heuristics, int count) final;
     bool UpdateStart(int state_id) final;
     bool UpdateGoal(GoalConstraint* goal) final;
     ///@}

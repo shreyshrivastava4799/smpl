@@ -68,6 +68,31 @@ bool CostFunction::UpdateGoal(GoalConstraint* goal)
     return true;
 }
 
+// Check whether an action is valid. First checks the path segment between the
+// source state and the first waypoint on the action, and then checks each path
+// segment defined by the action.
+static
+bool IsActionValid(
+    CollisionChecker* checker,
+    const RobotState& src_state,
+    const ManipLatticeAction* action)
+{
+    // collision check the trajectory between the source state and the first waypoint
+    if (!checker->isStateToStateValid(src_state, action->motion[0])) {
+        return false;
+    }
+
+    for (auto i = 1; i < action->motion.size(); ++i) {
+        auto& prev_state = action->motion[i - 1];
+        auto& curr_state = action->motion[i];
+        if (!checker->isStateToStateValid(prev_state, curr_state)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int UniformCostFunction::GetActionCost(
     int state_id,
     const ManipLatticeAction* action,
@@ -80,22 +105,25 @@ int UniformCostFunction::GetActionCost(
     auto* checker = lattice->GetCollisionChecker();
     assert(checker != NULL);
 
-    // collision check the trajectory between the source state and the first waypoint
-    auto* state = lattice->GetHashEntry(state_id);
-    auto& src_state = state->state;
-    if (!checker->isStateToStateValid(src_state, action->motion[0])) {
+    auto* src_state = lattice->GetHashEntry(state_id);
+
+    if (!IsActionValid(checker, src_state->state, action)) {
         return 0;
     }
 
-    for (auto i = 1; i < action->motion.size(); ++i) {
-        auto& prev_state = action->motion[i - 1];
-        auto& curr_state = action->motion[i];
-        if (!checker->isStateToStateValid(prev_state, curr_state)) {
-            return 0;
-        }
-    }
-
     return this->cost_per_action;
+}
+
+auto GetL1Norm(const RobotState& dst, const RobotState& src) -> double
+{
+    auto d = 0.0;
+    for (auto i = 0; i < (int)src.size(); ++i) {
+        auto d1 = src[i];
+        auto d2 = dst[i];
+        auto dd = d2 - d1; // TODO: different variable types
+        d += std::fabs(dd);
+    }
+    return d;
 }
 
 int L1NormCostFunction::GetActionCost(
@@ -103,7 +131,38 @@ int L1NormCostFunction::GetActionCost(
     const ManipLatticeAction* action,
     int succ_id)
 {
-    return 0;
+    assert(!action->motion.empty());
+    auto* lattice = GetPlanningSpace();
+    auto* checker = lattice->GetCollisionChecker();
+    assert(checker != NULL);
+
+    auto* src_state = lattice->GetHashEntry(state_id);
+
+    if (!IsActionValid(checker, src_state->state, action)) {
+        return 0;
+    }
+
+    auto total = GetL1Norm(src_state->state, action->motion[0]);
+    for (auto i = 1; i < action->motion.size(); ++i) {
+        auto& prev = action->motion[i - 1];
+        auto& curr = action->motion[i];
+        total += GetL1Norm(curr, prev);
+    }
+
+    return (int)(FIXED_POINT_RATIO * total);
+}
+
+// TODO: some copypasta with jointspacedistheuristic
+auto GetL2Norm(const RobotState& dst, const RobotState& src) -> double
+{
+    auto d = 0.0;
+    for (auto i = 0; i < (int)src.size(); ++i) {
+        auto d1 = src[i];
+        auto d2 = dst[i];
+        auto dd = d2 - d1; // TODO: different variable types
+        d += dd * dd;
+    }
+    return std::sqrt(d);
 }
 
 int L2NormCostFunction::GetActionCost(
@@ -111,7 +170,37 @@ int L2NormCostFunction::GetActionCost(
     const ManipLatticeAction* action,
     int succ_id)
 {
-    return 0;
+    assert(!action->motion.empty());
+    auto* lattice = GetPlanningSpace();
+    auto* checker = lattice->GetCollisionChecker();
+    assert(checker != NULL);
+
+    auto* src_state = lattice->GetHashEntry(state_id);
+
+    if (!IsActionValid(checker, src_state->state, action)) {
+        return 0;
+    }
+
+    auto total = GetL2Norm(src_state->state, action->motion[0]);
+    for (auto i = 1; i < action->motion.size(); ++i) {
+        auto& prev = action->motion[i - 1];
+        auto& curr = action->motion[i];
+        total += GetL2Norm(curr, prev);
+    }
+
+    return (int)(FIXED_POINT_RATIO * total);
+}
+
+auto GetLInfNorm(const RobotState& dst, const RobotState& src) -> double
+{
+    auto d = 0.0;
+    for (auto i = 0; i < (int)src.size(); ++i) {
+        auto d1 = src[i];
+        auto d2 = dst[i];
+        auto dd = d2 - d1; // TODO: different variable types
+        d = std::max(d, std::fabs(dd));
+    }
+    return d;
 }
 
 int LInfNormCostFunction::GetActionCost(
@@ -119,7 +208,25 @@ int LInfNormCostFunction::GetActionCost(
     const ManipLatticeAction* action,
     int succ_id)
 {
-    return 0;
+    assert(!action->motion.empty());
+    auto* lattice = GetPlanningSpace();
+    auto* checker = lattice->GetCollisionChecker();
+    assert(checker != NULL);
+
+    auto* src_state = lattice->GetHashEntry(state_id);
+
+    if (!IsActionValid(checker, src_state->state, action)) {
+        return 0;
+    }
+
+    auto total = GetLInfNorm(src_state->state, action->motion[0]);
+    for (auto i = 1; i < action->motion.size(); ++i) {
+        auto& prev = action->motion[i - 1];
+        auto& curr = action->motion[i];
+        total += GetLInfNorm(curr, prev);
+    }
+
+    return (int)(FIXED_POINT_RATIO * total);
 }
 
 LazyCostFunction::~LazyCostFunction()

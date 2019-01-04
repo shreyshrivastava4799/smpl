@@ -478,12 +478,14 @@ void ManipLattice::GetSuccs(
 
         // check action for feasibility
         if (!IsActionWithinBounds(state->state, action.motion)) {
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      -> out of bounds");
             continue;
         }
 
         // add the successor state to the graph
         auto succ_state_id = ApplyTransition(this, action.motion);
         if (succ_state_id < 0) {
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      -> failed to create successor state");
             continue;
         }
 
@@ -492,7 +494,10 @@ void ManipLattice::GetSuccs(
         // compute the cost of the action
         auto cost = m_cost_fun->GetActionCost(state_id, &action, succ_state_id);
 
-        if (cost < 1) continue;
+        if (cost < 1) {
+            SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      -> infinite cost");
+            continue;
+        }
 
         succs->push_back(succ_state_id);
         costs->push_back(cost);
@@ -575,6 +580,11 @@ bool ManipLattice::ExtractPath(
     auto* vis_name = "goal_config";
     SV_SHOW_INFO_NAMED(vis_name, GetStateVisualization(path.back(), vis_name));
     return true;
+}
+
+bool ManipLattice::UpdateHeuristics(Heuristic** heuristics, int count)
+{
+    return m_action_space->UpdateHeuristics(heuristics, count);
 }
 
 bool ManipLattice::UpdateStart(int state_id)

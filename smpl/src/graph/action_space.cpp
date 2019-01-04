@@ -57,6 +57,11 @@ auto ActionSpace::GetPlanningSpace() const -> const ManipLattice*
     return m_space;
 }
 
+bool ActionSpace::UpdateHeuristics(Heuristic** heuristic, int count)
+{
+    return true;
+}
+
 bool ActionSpace::UpdateStart(int state_id)
 {
     return true;

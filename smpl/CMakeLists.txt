@@ -143,9 +143,9 @@ set(SMPL_LIBRARY_SOURCES
     src/graph/experience_graph.cpp
     src/graph/goal_constraint.cpp
     src/graph/manip_lattice.cpp
-    src/graph/manip_lattice_action_space.cpp
     src/graph/manip_lattice_egraph.cpp
     src/graph/manip_lattice_types.cpp
+    src/graph/manipulation_action_space.cpp
     src/graph/workspace_lattice.cpp
     src/graph/workspace_lattice_base.cpp
     src/graph/workspace_lattice_egraph.cpp

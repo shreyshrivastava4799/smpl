@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/manipulation_action_space.h>
 
 // standard includes
 #include <iostream>
@@ -145,6 +145,7 @@ auto ComputeAllActionMotions(
                     goal_dist <= actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE]
                 )
             );
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "short distance motions: %d", (int)short_dist_active);
     if (short_dist_active) {
         for (auto& mprim : actions->m_short_dist_mprims) {
             auto action = ApplyMotionPrimitive(state->state, mprim);
@@ -157,6 +158,7 @@ auto ComputeAllActionMotions(
             start_dist > actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE] &&
             goal_dist > actions->m_mprim_thresh[MotionPrimitive::LONG_DISTANCE];
 
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "long distance motions: %d", (int)long_dist_active);
     if (long_dist_active) {
         for (auto& mprim : actions->m_long_dist_mprims) {
             auto action = ApplyMotionPrimitive(state->state, mprim);
@@ -168,6 +170,7 @@ auto ComputeAllActionMotions(
             actions->m_get_goal_state != NULL &&
             actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_GOAL_CONFIG] &&
             goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_GOAL_CONFIG];
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "snap-to-goal-config: %d", (int)snap_to_goal_active);
     if (snap_to_goal_active) {
         auto goal_state = actions->m_get_goal_state->GetState();
         auto action = Action{ std::move(goal_state) };
@@ -177,21 +180,27 @@ auto ComputeAllActionMotions(
     if ((actions->m_get_goal_pose != NULL) & (actions->m_ik_iface != NULL)) {
         auto goal_pose = actions->m_get_goal_pose->GetPose();
 
-        if (actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ_RPY] &&
-            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ_RPY])
-        {
+        auto snap_to_xyzrpy_active =
+                actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ_RPY] &&
+                goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ_RPY];
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "snap-to-xyzrpy: %d", (int)snap_to_xyzrpy_active);
+        if (snap_to_xyzrpy_active) {
             ComputeIKAction(actions, state->state, goal_pose, ik_option::UNRESTRICTED, motions);
         }
 
-        if (actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ] &&
-            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ])
-        {
+        auto snap_to_xyz_active =
+                actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_XYZ] &&
+                goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_XYZ];
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "snap-to-xyz: %d", (int)snap_to_xyz_active);
+        if (snap_to_xyz_active) {
             ComputeIKAction(actions, state->state, goal_pose, ik_option::RESTRICT_RPY, motions);
         }
 
-        if (actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_RPY] &&
-            goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_RPY])
-        {
+        auto snap_to_rpy_active =
+                actions->m_mprim_enabled[MotionPrimitive::SNAP_TO_RPY] &&
+                goal_dist <= actions->m_mprim_thresh[MotionPrimitive::SNAP_TO_RPY];
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "snap-to-rpy: %d", (int)snap_to_rpy_active);
+        if (snap_to_rpy_active) {
             ComputeIKAction(actions, state->state, goal_pose, ik_option::RESTRICT_XYZ, motions);
         }
     }
@@ -199,7 +208,15 @@ auto ComputeAllActionMotions(
     return motions;
 }
 
-bool ManipulationActionSpace::Init(ManipLattice* space, Heuristic* heuristic)
+// IForwardKinematics is recommended on the ManipLattice's associated
+// RobotModel. This is used to determine distance to the start and the goal.
+// If this extension is not available, a distance of 0 will be assumed to the
+// start and the goal, which will cause adaptive motions to be generated from
+// every state.
+//
+// IInverseKinematics is recommended if the user wishes to use any ik-related
+// adaptive motions (snap-to-xyzrpy, snap-to-xyz, and snap-to-rpy).
+bool ManipulationActionSpace::Init(ManipLattice* space)
 {
     if (!ActionSpace::Init(space)) {
         return false;
@@ -219,9 +236,6 @@ bool ManipulationActionSpace::Init(ManipLattice* space, Heuristic* heuristic)
     if (m_ik_iface == NULL) {
         SMPL_WARN("Manip Lattice Action Set recommends IInverseKinematics");
     }
-
-    m_start_heuristic = heuristic->GetExtension<IMetricStartHeuristic>();
-    m_goal_heuristic = heuristic->GetExtension<IMetricGoalHeuristic>();
 
     return true;
 }
@@ -247,7 +261,7 @@ bool ManipulationActionSpace::Load(const std::string& action_filename)
     Clear();
 
     auto* f = fopen(action_filename.c_str(), "r");
-    if (!f) {
+    if (f == NULL) {
         SMPL_ERROR("Failed to open action set file. (file: '%s')", action_filename.c_str());
         return false;
     }
@@ -478,9 +492,9 @@ void ManipulationActionSpace::SetIKMotionRPYThreshold(double thresh)
     m_mprim_thresh[MotionPrimitive::SNAP_TO_RPY] = thresh;
 }
 
-/// Remove long and short motion primitives and disable adaptive motions.
+/// Remove long and short motion primitives and disable all adaptive motions.
 ///
-/// Thresholds for short distance and adaptive motions are retained
+/// Previous thresholds for short distance and adaptive motions are maintained
 void ManipulationActionSpace::Clear()
 {
     m_short_dist_mprims.clear();
@@ -488,6 +502,16 @@ void ManipulationActionSpace::Clear()
 
     std::fill(m_mprim_enabled, m_mprim_enabled + sizeof(m_mprim_enabled), false);
     m_mprim_enabled[MotionPrimitive::SHORT_DISTANCE] = true;
+}
+
+bool ManipulationActionSpace::UpdateHeuristics(Heuristic** heuristics, int count)
+{
+    if (count > 0) {
+        auto* h_first = heuristics[0];
+        m_start_heuristic = h_first->GetExtension<IMetricStartHeuristic>();
+        m_goal_heuristic = h_first->GetExtension<IMetricGoalHeuristic>();
+    }
+    return true;
 }
 
 bool ManipulationActionSpace::UpdateStart(int state_id)
@@ -502,7 +526,8 @@ bool ManipulationActionSpace::UpdateGoal(GoalConstraint* goal)
     return true;
 }
 
-auto ManipulationActionSpace::Apply(int state_id, ActionArray store) -> ActionArray
+auto ManipulationActionSpace::Apply(int state_id, ActionArray store)
+    -> ActionArray
 {
     auto* state = GetPlanningSpace()->GetHashEntry(state_id);
     auto motions = ComputeAllActionMotions(this, state);

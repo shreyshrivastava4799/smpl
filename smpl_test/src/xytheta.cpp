@@ -4,15 +4,17 @@
 #include <chrono>
 
 // system includes
+#define SMPL_CONSOLE_ROS
 #include <smpl/collision_checker.h>
 #include <smpl/console/ansi.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/graph/cost_function.h>
 #include <smpl/graph/manip_lattice.h>
-#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/manipulation_action_space.h>
 #include <smpl/graph/goal_constraint.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
+#include <smpl/heuristic/zero_heuristic.h>
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
 #include <smpl/search/arastar.h>
@@ -340,15 +342,21 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    const char* mprim_path = argv[1];
+    auto* mprim_path = argv[1];
     SMPL_INFO("Load motion primitives from %s", mprim_path);
 
-    // 1. Create Robot Model
+    ////////////////////////////////
+    // Initialize the Robot Model //
+    ////////////////////////////////
+
     auto robot_model = KinematicVehicleModel();
 
     auto res = 1.0; //0.02; // match resolution of grid and state space
 
-    // 2. Create and Initialize the Environment
+    //////////////////////////////////////
+    // Initialize the Collision Checker //
+    //////////////////////////////////////
+
     auto grid_res = res;
     auto world_size_x = 50.0;
     auto world_size_y = 50.0;
@@ -367,20 +375,23 @@ int main(int argc, char* argv[])
     SetupOccupancyGrid(grid);
     PrintGrid(std::cout, grid);
 
-    // 3. Create Collision Checker
     auto cc = GridCollisionChecker(&grid);
 
-    // 5. Create Action Space
+    ///////////////////////////////////
+    // Initialize the Discrete Space //
+    ///////////////////////////////////
+
+    auto resolutions = std::vector<double>{ res, res };
     auto actions = smpl::ManipulationActionSpace();
-
+#if 1
     auto cost_fun = smpl::L2NormCostFunction();
+#else
+    auto cost_fun = smpl::UniformCostFunction();
+    cost_fun.cost_per_action = 1000;
+#endif
 
-    // 6. Create Planning Space
     auto space = smpl::ManipLattice();
 
-    // 7. Initialize Manipulation Lattice with RobotModel, CollisionChecker,
-    // variable resolutions, and ActionSpace
-    auto resolutions = std::vector<double>{ res, res };
     if (!space.Init(&robot_model, &cc, resolutions, &actions, &cost_fun)) {
         SMPL_ERROR("Failed to initialize Manip Lattice");
         return 1;
@@ -388,47 +399,71 @@ int main(int argc, char* argv[])
 
     space.SetVisualizationFrameId("map"); // for correct rviz visualization
 
-    // 8. Initialize Manipulation Lattice Action Space
-
-    // associate actions with planning space
-    if (!actions.Init(&space, NULL)) { // FIXME
+    if (!actions.Init(&space)) {
         SMPL_ERROR("Failed to initialize Manip Lattice Action Space");
         return 1;
     }
 
-    // load primitives from file, whose path is stored on the param server
     if (!actions.Load(mprim_path)) {
         return 1;
     }
-//    PrintActionSpace(actions);
+    PrintActionSpace(actions);
 
-    // 9. Create Heuristic
+    if (!cost_fun.Init(&space)) {
+        SMPL_ERROR("Failed to initialize Cost Function");
+        return 1;
+    }
+
+    ////////////////////////////////////
+    // Initialize the Goal Constraint //
+    ////////////////////////////////////
+
+    auto goal = smpl::UniqueGoalState();
+    if (!goal.Init(&space)) {
+        SMPL_ERROR("Failed to initialize goal constraint");
+        return 1;
+    }
+
+    //////////////////////////////
+    // Initialize the Heuristic //
+    //////////////////////////////
+
+#if 1
     auto h = smpl::JointDistHeuristic();
+#else
+    auto h = smpl::ZeroHeuristic();
+#endif
     if (!h.Init(&space)) {
         SMPL_ERROR("Failed to initialize Joint Dist Heuristic");
         return 1;
     }
 
-    // 10. Associate Heuristic with Planning Space. In this case, Manip Lattice
-    // Action Space may use this to determine when to use adaptive motion
-    // primitives.
-//    space.insertHeuristic(&h);
+    //////////////////////////////////////////////
+    // Associate Heuristics with Discrete Space //
+    //////////////////////////////////////////////
 
-    // 11. Create Search, associated with the planning space and heuristic
+    // TODO: kinda lame that we have to maintain this pointer...maybe its worth
+    // having add/remove functions instead
+    smpl::Heuristic* hp = &h;
+    if (!space.UpdateHeuristics(&hp, 1)) {
+        SMPL_ERROR("Failed to update heuristics for some reason");
+        return 1;
+    }
+
+    ///////////////////////
+    // Initialize Search //
+    ///////////////////////
+
     auto search = smpl::ARAStar();
     if (!search.Init(&space, &h)) {
         SMPL_ERROR("Failed to initialize ARA*");
         return 1;
     }
 
-    // 12. Configure Search Behavior
-    search.SetInitialEps(5.0);
-    search.SetDeltaEpsilon(0.2);
+    /////////////////////////////
+    // Update Planning Problem //
+    /////////////////////////////
 
-    auto goal = smpl::UniqueGoalState();
-
-    // 13. Set start state and goal condition in the Planning Space and
-    // propagate state IDs to search
     auto start_x = 0.5 * world_size_x;
     auto start_y = 0.33 * world_size_y;
     auto start_state = space.GetDiscreteCenter({ start_x, start_y });
@@ -470,17 +505,26 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // 14. Plan a path
+    /////////////////
+    // Plan a path //
+    /////////////////
+
+#if 1
+    search.SetInitialEps(5.0);
+#else
+    search.SetInitialEps(1.0);
+#endif
+    search.SetDeltaEpsilon(0.2);
 
     auto search_params = smpl::ARAStar::TimeParameters();
     search_params.type = smpl::ARAStar::TimeParameters::TIME;
-    search_params.bounded = true;
+    search_params.bounded = false; //true;
     search_params.improve = true;
     search_params.max_allowed_time_init = std::chrono::seconds(1);
     search_params.max_allowed_time = std::chrono::seconds(1);
 
     auto then = std::chrono::high_resolution_clock::now();
-    std::vector<int> solution;
+    auto solution = std::vector<int>();
     int solcost;
     auto bret = (bool)search.Replan(search_params, &solution, &solcost);
     if (!bret) {
@@ -490,28 +534,43 @@ int main(int argc, char* argv[])
     auto now = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration<double>(now - then).count();
 
-    // 15. Extract path from Planning Space
+    //////////////////////////////////////
+    // Extract path from Planning Space //
+    //////////////////////////////////////
 
-    std::vector<smpl::RobotState> path;
+    auto path = std::vector<smpl::RobotState>();
     if (!space.ExtractPath(solution, path)) {
         SMPL_ERROR("Failed to extract path");
     }
 
+    auto print_solution = false;
+    auto print_path = false;
+    auto draw_path = true;
+
     SMPL_INFO("Path found!");
+    SMPL_INFO("  Solution Cost: %d", solcost);
+    SMPL_INFO("  Final Epsilon: %f", search.GetSolutionEps());
     SMPL_INFO("  Planning Time: %0.3f", elapsed);
     SMPL_INFO("  Expansion Count (total): %d", search.GetNumExpansions());
     SMPL_INFO("  Expansion Count (initial): %d", search.GetNumExpansionsInitialEps());
+
     SMPL_INFO("  Solution (%zu)", solution.size());
-//    for (int id : solution) {
-//        SMPL_INFO("    %d", id);
-//    }
+    if (print_solution) {
+        for (auto state_id : solution) {
+            SMPL_INFO("    %d", state_id);
+        }
+    }
     SMPL_INFO("  Path (%zu)", path.size());
 
-    PrintSolution(std::cout, grid, path);
+    if (print_path) {
+        for (auto& point : path) {
+            SMPL_INFO("    (x: %0.3f, y: %0.3f)", point[0], point[1]);
+        }
+    }
 
-//    for (const smpl::RobotState& point : path) {
-//        SMPL_INFO("    (x: %0.3f, y: %0.3f)", point[0], point[1]);
-//    }
+    if (draw_path) {
+        PrintSolution(std::cout, grid, path);
+    }
 
     return 0;
 }

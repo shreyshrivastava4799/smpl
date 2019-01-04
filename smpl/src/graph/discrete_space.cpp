@@ -37,6 +37,11 @@ DiscreteSpace::~DiscreteSpace()
 {
 }
 
+bool DiscreteSpace::UpdateHeuristics(Heuristic** heuristic, int count)
+{
+    return true;
+}
+
 bool DiscreteSpace::UpdateStart(int state_id)
 {
     return true;

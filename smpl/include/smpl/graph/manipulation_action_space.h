@@ -80,7 +80,7 @@ class ManipulationActionSpace : public ActionSpace
 {
 public:
 
-    bool Init(ManipLattice* space, Heuristic* heuristic);
+    bool Init(ManipLattice* space);
 
     // Load short- and long- distance motion primitives from file
     bool Load(const std::string& action_filename);
@@ -128,6 +128,7 @@ public:
 
     /// \name ActionSpace Interface
     ///@{
+    bool UpdateHeuristics(Heuristic** heuristics, int count) final;
     bool UpdateStart(int state_id) final;
     bool UpdateGoal(GoalConstraint* goal) final;
 

@@ -39,6 +39,7 @@
 namespace smpl {
 
 class GoalConstraint;
+class Heuristic;
 class ManipLattice;
 struct ManipLatticeState;
 
@@ -55,6 +56,7 @@ public:
     auto GetPlanningSpace() -> ManipLattice*;
     auto GetPlanningSpace() const -> const ManipLattice*;
 
+    virtual bool UpdateHeuristics(Heuristic** heuristics, int count);
     virtual bool UpdateStart(int state_id);
     virtual bool UpdateGoal(GoalConstraint* goal);
 
