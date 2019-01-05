@@ -11,6 +11,7 @@
 #include <smpl/extension.h>
 #include <smpl/spatial.h>
 #include <smpl/types.h>
+#include <smpl/debug/marker.h>
 
 namespace smpl {
 
@@ -179,6 +180,8 @@ public:
 
     auto GetPose() -> Affine3 final;
     auto GetPosition() -> Vector3 final;
+
+    auto GetVisualization(const std::string& frame_id) const -> std::vector<visual::Marker>;
 
     bool IsGoal(int state_id) final;
 

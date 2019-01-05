@@ -5,7 +5,7 @@
 
 #define SV_PACKAGE_NAME "smpl_test"
 #include <smpl/debug/visualize.h>
-#include <smpl/debug/visualizer_ros.h>
+#include <smpl_ros/debug/visualizer_ros.h>
 
 auto MakeCubeMarker(double t) -> smpl::visual::Marker
 {

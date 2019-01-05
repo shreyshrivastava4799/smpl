@@ -578,6 +578,12 @@ PlannerImpl::PlannerImpl(
     }
 
     {
+        auto set = [&](bool val) { this->actions.EnableLongMotions(val); };
+        auto get = [&]() { return this->actions.AreLongMotionsEnabled(); };
+        planner->params().declareParam<double>("use_long_dist_mprims", set, get);
+    }
+
+    {
         auto set = [&](bool val) { this->actions.EnableIKMotionXYZ(val); };
         auto get = [&]() { return this->actions.IsIKMotionXYZEnabled(); };
         planner->params().declareParam<double>("use_xyz_snap_mprim", set, get);
@@ -596,9 +602,9 @@ PlannerImpl::PlannerImpl(
     }
 
     {
-        auto set = [&](bool val) { this->actions.EnableLongMotions(val); };
-        auto get = [&]() { return this->actions.AreLongMotionsEnabled(); };
-        planner->params().declareParam<double>("use_long_dist_mprims", set, get);
+        auto set = [&](double val) { this->actions.SetLongMotionThreshold(val); };
+        auto get = [&]() { return this->actions.GetLongMotionThreshold(); };
+        planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
     }
 
     {
@@ -620,15 +626,9 @@ PlannerImpl::PlannerImpl(
     }
 
     {
-        auto set = [&](double val) { this->actions.SetLongMotionThreshold(val); };
-        auto get = [&]() { return this->actions.GetLongMotionThreshold(); };
-        planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
-    }
-
-    {
         auto set = [&](bool val) { this->actions.EnableMultipleIKSolutions(val); };
         auto get = [&]() { return this->actions.IsMultipleIKSolutionsEnabled(); };
-        planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
+        planner->params().declareParam<bool>("use_multiple_ik_solutions", set, get);
     }
 
     // declare heuristic parameters...
@@ -754,6 +754,8 @@ auto MakeSMPLGoal(
             this_goal->tolerance.rpy[1] = pose_goal->orientation_tolerance[1];
             this_goal->tolerance.rpy[2] = pose_goal->orientation_tolerance[2];
 
+            SV_SHOW_INFO_NAMED("pose_goal", this_goal->GetVisualization("map"));
+
             return std::move(this_goal);
         }
     }   // fallthrough
@@ -854,6 +856,10 @@ auto PlannerImpl::solve(
     SMPL_DEBUG("Received goal of type %s", to_cstring(abstract_goal->getType()));
 
     auto goal = MakeSMPLGoal(this, ompl_space, abstract_goal.get());
+    if (!goal->Init(&this->space)) {
+        SMPL_WARN("Failed to initialize goal");
+        return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);
+    }
 
     if (!this->space.UpdateGoal(goal.get())) {
         SMPL_WARN("Failed to set goal");

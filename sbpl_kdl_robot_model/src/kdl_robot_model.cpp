@@ -99,9 +99,9 @@ bool InitKDLRobotModel(
     const std::string& tip_link,
     int free_angle)
 {
-    ROS_INFO("Initialize KDL Robot Model");
+    ROS_DEBUG("Initialize KDL Robot Model");
 
-    ROS_INFO("Initialize URDF from string");
+    ROS_DEBUG("Initialize URDF from string");
     ::urdf::Model urdf;
     if (!urdf.initString(robot_description)) {
         ROS_ERROR("Failed to parse the URDF.");
@@ -118,7 +118,7 @@ bool InitKDLRobotModel(
     const std::string& tip_link,
     int free_angle)
 {
-    ROS_INFO("Initialize Robot Model");
+    ROS_DEBUG("Initialize Robot Model");
     auto j_world = urdf::JointSpec();
     j_world.name = "map";
     j_world.origin = smpl::Affine3::Identity(); // IMPORTANT
@@ -136,19 +136,19 @@ bool InitKDLRobotModel(
         return false; // this shouldn't happen if the chain initialized successfully
     }
 
-    ROS_INFO("Initialize KDL tree");
+    ROS_DEBUG("Initialize KDL tree");
     if (!kdl_parser::treeFromUrdfModel(*urdf, model->tree)) {
         ROS_ERROR("Failed to parse the kdl tree from robot description.");
         return false;
     }
 
-    ROS_INFO("Initialize KDL chain (%s, %s)", base_link.c_str(), tip_link.c_str());
+    ROS_DEBUG("Initialize KDL chain (%s, %s)", base_link.c_str(), tip_link.c_str());
     if (!model->tree.getChain(base_link, tip_link, model->chain)) {
         ROS_ERROR("Failed to fetch the KDL chain for the robot. (root: %s, tip: %s)", base_link.c_str(), tip_link.c_str());
         return false;
     }
 
-    ROS_INFO("Gather joints in chain");
+    ROS_DEBUG("Gather joints in chain");
     auto planning_joints = std::vector<std::string>();
     for (auto i = (unsigned)0; i < model->chain.getNrOfSegments(); ++i) {
         auto& segment = model->chain.getSegment(i);
@@ -164,7 +164,7 @@ bool InitKDLRobotModel(
         planning_joints.push_back(child_joint_name);
     }
 
-    ROS_INFO("Initialize URDF Robot Model with planning joints = %s", to_string(planning_joints).c_str());
+    ROS_DEBUG("Initialize URDF Robot Model with planning joints = %s", to_string(planning_joints).c_str());
     if (!urdf::Init(&model->urdf_model, &model->robot_model, &planning_joints)) {
         ROS_ERROR("Failed to initialize URDF Robot Model");
         return false;
@@ -172,20 +172,20 @@ bool InitKDLRobotModel(
 
     model->setPlanningJoints(planning_joints);
 
-    ROS_INFO("Initialize planning link");
+    ROS_DEBUG("Initialize planning link");
     // do this after we've initialized the URDFRobotModel...
     model->urdf_model.planning_link = GetLink(&model->robot_model, &tip_link);
     if (model->urdf_model.planning_link == NULL) {
         return false; // this shouldn't happen either
     }
 
-    ROS_INFO("Initialize FK Position solver");
+    ROS_DEBUG("Initialize FK Position solver");
     model->fk_solver = make_unique<KDL::ChainFkSolverPos_recursive>(model->chain);
 
-    ROS_INFO("Initialize IK Velocity solver");
+    ROS_DEBUG("Initialize IK Velocity solver");
     model->ik_vel_solver = make_unique<KDL::ChainIkSolverVel_pinv>(model->chain);
 
-    ROS_INFO("Initialize IK Position solver");
+    ROS_DEBUG("Initialize IK Position solver");
     KDL::JntArray q_min(model->jointVariableCount());
     KDL::JntArray q_max(model->jointVariableCount());
     for (size_t i = 0; i < model->jointVariableCount(); ++i) {
@@ -209,7 +209,7 @@ bool InitKDLRobotModel(
             model->max_iterations,
             model->kdl_eps);
 
-    ROS_INFO("Initialize IK search parameters");
+    ROS_DEBUG("Initialize IK search parameters");
     model->jnt_pos_in.resize(model->chain.getNrOfJoints());
     model->jnt_pos_out.resize(model->chain.getNrOfJoints());
     if (free_angle == -1) {
@@ -218,6 +218,11 @@ bool InitKDLRobotModel(
     model->free_angle = free_angle;
     model->search_discretization = 0.02;
     model->timeout = 0.005;
+}
+
+auto GetRobotModel(const KDLRobotModel* model) -> const urdf::RobotModel*
+{
+    return &model->robot_model;
 }
 
 auto GetBaseLink(const KDLRobotModel* model) -> const std::string&
@@ -325,7 +330,8 @@ bool ComputeIK(
     }
 
     // transform into kinematics and convert to kdl
-    auto* T_map_kinematics = GetLinkTransform(&model->urdf_model.robot_state, model->kinematics_link);
+    auto* T_map_kinematics = GetUpdatedLinkTransform(
+            &model->urdf_model.robot_state, model->kinematics_link);
     auto frame_des = KDL::Frame();
     tf::transformEigenToKDL(T_map_kinematics->inverse() * pose, frame_des);
 
@@ -368,12 +374,9 @@ bool ComputeIK(
     }
 
     if (loop_time >= model->timeout) {
-        ROS_DEBUG("IK Timed out in %f seconds", model->timeout);
-        return false;
-    } else {
-        ROS_DEBUG("No IK solution was found");
         return false;
     }
+
     return false;
 }
 

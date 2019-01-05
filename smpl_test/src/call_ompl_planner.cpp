@@ -24,9 +24,10 @@
 #include <sbpl_collision_checking/collision_space.h>
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <smpl/angles.h>
-#include <smpl/debug/visualizer_ros.h>
+#include <smpl_ros/debug/visualizer_ros.h>
 #include <smpl/distance_map/euclid_distance_map.h>
 #include <smpl/planning_params.h>
+#include <smpl/stl/memory.h>
 #include <smpl_ompl_interface/ompl_interface.h>
 #include <urdf_parser/urdf_parser.h>
 
@@ -194,8 +195,6 @@ bool ReadInitialConfiguration(
 struct RobotModelConfig
 {
     std::string group_name;
-    std::vector<std::string> planning_joints;
-    std::string planning_link;
     std::string kinematics_frame;
     std::string chain_tip_link;
 };
@@ -206,27 +205,6 @@ bool ReadRobotModelConfig(const ros::NodeHandle &nh, RobotModelConfig &config)
     if (!nh.getParam("group_name", config.group_name)) {
         ROS_ERROR("Failed to read 'group_name' from the param server");
         return false;
-    }
-
-    std::string planning_joint_list;
-    if (!nh.getParam("planning_joints", planning_joint_list)) {
-        ROS_ERROR("Failed to read 'planning_joints' from the param server");
-        return false;
-    }
-
-    if (!nh.getParam("planning_link", config.planning_link)) {
-        ROS_ERROR("Failed to read 'planning_link' from the param server");
-        return false;
-    }
-
-    std::stringstream joint_name_stream(planning_joint_list);
-    while (joint_name_stream.good() && !joint_name_stream.eof()) {
-        std::string jname;
-        joint_name_stream >> jname;
-        if (jname.empty()) {
-            continue;
-        }
-        config.planning_joints.push_back(jname);
     }
 
     // only required for generic kdl robot model?
@@ -243,7 +221,7 @@ struct PlannerConfig
     bool use_xyz_snap_mprim;
     bool use_rpy_snap_mprim;
     bool use_xyzrpy_snap_mprim;
-    bool use_short_dist_mprims;
+    bool use_long_dist_mprims;
     double xyz_snap_dist_thresh;
     double rpy_snap_dist_thresh;
     double xyzrpy_snap_dist_thresh;
@@ -263,6 +241,11 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
         return false;
     }
 
+    if (!nh.getParam("use_long_dist_mprims", config.use_long_dist_mprims)) {
+        ROS_ERROR("Failed to read param 'use_long_dist_mprims' from the param server");
+        return false;
+    }
+
     if (!nh.getParam("use_xyz_snap_mprim", config.use_xyz_snap_mprim)) {
         ROS_ERROR("Failed to read param 'use_xyz_snap_mprim' from the param server");
         return false;
@@ -278,8 +261,8 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
         return false;
     }
 
-    if (!nh.getParam("use_short_dist_mprims", config.use_short_dist_mprims)) {
-        ROS_ERROR("Failed to read param 'use_short_dist_mprims' from the param server");
+    if (!nh.getParam("short_dist_mprims_thresh", config.short_dist_mprims_thresh)) {
+        ROS_ERROR("Failed to read param 'use_xyz_snap_mprim' from the param server");
         return false;
     }
 
@@ -298,11 +281,6 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
         return false;
     }
 
-    if (!nh.getParam("short_dist_mprims_thresh", config.short_dist_mprims_thresh)) {
-        ROS_ERROR("Failed to read param 'use_xyz_snap_mprim' from the param server");
-        return false;
-    }
-
     return true;
 }
 
@@ -314,21 +292,14 @@ auto SetupRobotModel(const std::string& urdf, const RobotModelConfig &config)
         return NULL;
     }
 
-    std::unique_ptr<smpl::KDLRobotModel> rm;
+    auto rm = smpl::make_unique<smpl::KDLRobotModel>();
 
-    rm.reset(new smpl::KDLRobotModel);
-
-    if (!rm->init(urdf, config.kinematics_frame, config.chain_tip_link)) {
+    if (!InitKDLRobotModel(rm.get(), urdf, config.kinematics_frame, config.chain_tip_link)) {
         ROS_ERROR("Failed to initialize robot model.");
         return NULL;
     }
 
-    if (!smpl::urdf::SetPlanningLink(rm.get(), &config.planning_link)) {
-        ROS_ERROR("Failed to set planning link to '%s'", config.planning_link.c_str());
-        return NULL;
-    }
-
-    return std::move(rm);
+    return rm;
 }
 
 auto ConstructStateSpace(
@@ -532,6 +503,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    auto rm = SetupRobotModel(robot_description, robot_config);
+    if (rm == NULL) {
+        ROS_ERROR("Failed to set up Robot Model");
+        return 1;
+    }
+
     ////////////////////
     // Occupancy Grid //
     ////////////////////
@@ -583,7 +560,7 @@ int main(int argc, char* argv[])
             robot_description,
             cc_conf,
             robot_config.group_name,
-            robot_config.planning_joints))
+            GetPlanningJoints(rm.get())))
     {
         ROS_ERROR("Failed to initialize Collision Space");
         return 1;
@@ -616,12 +593,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    auto rm = SetupRobotModel(robot_description, robot_config);
-    if (!rm) {
-        ROS_ERROR("Failed to set up Robot Model");
-        return 1;
-    }
-
     // Read in start state from file and update the scene...
     // Start state is also required by the planner...
     moveit_msgs::RobotState start_state;
@@ -632,9 +603,9 @@ int main(int argc, char* argv[])
 
     // Set reference state in the robot planning model...
     smpl::urdf::RobotState reference_state;
-    InitRobotState(&reference_state, &rm->m_robot_model);
+    InitRobotState(&reference_state, GetRobotModel(rm.get()));
     for (auto i = 0; i < start_state.joint_state.name.size(); ++i) {
-        auto* var = GetVariable(&rm->m_robot_model, &start_state.joint_state.name[i]);
+        auto* var = GetVariable(GetRobotModel(rm.get()), &start_state.joint_state.name[i]);
         if (var == NULL) {
             ROS_WARN("Failed to do the thing");
             continue;
@@ -671,7 +642,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto state_space = ConstructStateSpace(*urdf, robot_config.planning_joints);
+    auto state_space = ConstructStateSpace(*urdf, GetPlanningJoints(rm.get()));
 
     ompl::geometric::SimpleSetup ss(state_space);
 
@@ -704,14 +675,14 @@ int main(int argc, char* argv[])
     // Set all planner params
     // TODO: handle discretization parameters
     planner->params().setParam("mprim_filename", planning_config.mprim_filename);
+    planner->params().setParam("use_long_dist_mprims", planning_config.use_long_dist_mprims ? "1" : "0");
     planner->params().setParam("use_xyz_snap_mprim", planning_config.use_xyz_snap_mprim ? "1" : "0");
     planner->params().setParam("use_rpy_snap_mprim", planning_config.use_rpy_snap_mprim ? "1" : "0");
     planner->params().setParam("use_xyzrpy_snap_mprim", planning_config.use_xyzrpy_snap_mprim ? "1" : "0");
-    planner->params().setParam("use_short_dist_mprims", planning_config.use_short_dist_mprims ? "1" : "0");
+    planner->params().setParam("short_dist_mprims_thresh", std::to_string(planning_config.short_dist_mprims_thresh));
     planner->params().setParam("xyz_snap_dist_thresh", std::to_string(planning_config.xyz_snap_dist_thresh));
     planner->params().setParam("rpy_snap_dist_thresh", std::to_string(planning_config.rpy_snap_dist_thresh));
     planner->params().setParam("xyzrpy_snap_dist_thresh", std::to_string(planning_config.xyzrpy_snap_dist_thresh));
-    planner->params().setParam("short_dist_mprims_thresh", std::to_string(planning_config.short_dist_mprims_thresh));
     planner->params().setParam("epsilon", "100.0");
     planner->params().setParam("search_mode", "0");
     planner->params().setParam("allow_partial_solutions", "0");
@@ -771,7 +742,7 @@ int main(int argc, char* argv[])
                 Eigen::AngleAxisd(goal[5], Eigen::Vector3d::UnitX());
     }
 
-    auto* goal_condition = new smpl::PoseGoal(
+    auto* goal_condition = new smpl::OMPLPoseGoal(
             ss.getSpaceInformation(), goal_pose);
 //    goal_condition->position_tolerance = Eigen::Vector3d(0.015, 0.015, 0.015);
     goal_condition->position_tolerance = Eigen::Vector3d(0.02, 0.02, 0.02);

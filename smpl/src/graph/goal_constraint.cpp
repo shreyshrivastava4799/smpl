@@ -4,6 +4,7 @@
 #include <smpl/angles.h>
 #include <smpl/robot_model.h>
 #include <smpl/graph/discrete_space.h>
+#include <smpl/debug/marker_utils.h>
 
 namespace smpl {
 
@@ -305,6 +306,11 @@ auto PoseGoal::GetPose() -> Affine3
 auto PoseGoal::GetPosition() -> Vector3
 {
     return pose.translation();
+}
+
+auto PoseGoal::GetVisualization(const std::string& frame_id) const -> std::vector<visual::Marker>
+{
+    return visual::MakePoseMarkers(this->pose, frame_id, "pose_goal");
 }
 
 bool PoseGoal::IsGoal(int state_id)

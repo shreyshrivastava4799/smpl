@@ -10,22 +10,27 @@ find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
 find_package(Eigen3 REQUIRED)
 
-find_package(catkin REQUIRED)
-#find_package(catkin
-#    REQUIRED
-#    COMPONENTS
+find_package(catkin
+    REQUIRED
+    COMPONENTS
+        smpl_ros
+        eigen_conversions
+        kdl_conversions
+        octomap_msgs
 #        geometry_msgs
-#        leatherman
+        leatherman
+        smpl_ros
 #        moveit_msgs
 #        moveit_ros_planning
-#        roscpp
-#        sbpl_collision_checking
-#        sbpl_kdl_robot_model
-#        smpl_ompl_interface
-#        visualization_msgs)
+        roscpp
+        sbpl_collision_checking
+        sbpl_kdl_robot_model
+        smpl_ompl_interface
+        visualization_msgs)
 
 find_package(OMPL REQUIRED)
 find_package(smpl REQUIRED)
+find_package(urdfdom REQUIRED)
 
 catkin_package()
 
@@ -84,12 +89,12 @@ install(
 # catkin package tests #
 ########################
 
-#add_executable(debug_vis_demo src/debug_vis_demo.cpp)
-#target_include_directories(
-#    debug_vis_demo SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS} ${smpl_ros_INCLUDE_DIRS})
-#target_link_libraries(
-#    debug_vis_demo PRIVATE ${roscpp_LIBRARIES} ${smpl_ros_LIBRARIES} smpl::smpl)
-#
+add_executable(debug_vis_demo src/debug_vis_demo.cpp)
+target_include_directories(
+    debug_vis_demo SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS} ${smpl_ros_INCLUDE_DIRS})
+target_link_libraries(
+    debug_vis_demo PRIVATE ${roscpp_LIBRARIES} ${smpl_ros_LIBRARIES} smpl::smpl)
+
 #add_executable(callPlanner src/call_planner.cpp src/collision_space_scene.cpp)
 #target_include_directories(
 #    callPlanner
@@ -118,35 +123,37 @@ install(
 #        ${smpl_ros_LIBRARIES}
 #        ${visualization_msgs_LIBRARIES}
 #        smpl::smpl)
-#
-#add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
-#target_include_directories(
-#    call_ompl_planner
-#    SYSTEM PRIVATE
-#        ${OMPL_INCLUDE_DIRS}
-#        ${eigen_conversions_INCLUDE_DIRS}
-#        ${kdl_conversions_INCLUDE_DIRS}
-#        ${leatherman_INCLUDE_DIRS}
-#        ${octomap_msgs_INCLUDE_DIRS}
-#        ${roscpp_INCLUDE_DIRS}
-#        ${sbpl_collision_checking_INCLUDE_DIRS}
-#        ${sbpl_kdl_robot_model_INCLUDE_DIRS}
-#        ${smpl_ros_INCLUDE_DIRS}
-#        ${urdfdom_INCLUDE_DIRS})
-#target_link_libraries(
-#    call_ompl_planner
-#        ${OMPL_LIBRARIES}
-#        ${eigen_conversions_LIBRARIES}
-#        ${kdl_conversions_LIBRARIES}
-#        ${leatherman_LIBRARIES}
-#        ${octomap_msgs_LIBRARIES}
-#        ${roscpp_LIBRARIES}
-#        ${sbpl_collision_checking_LIBRARIES}
-#        ${sbpl_kdl_robot_model_LIBRARIES}
-#        ${smpl_ros_LIBRARIES}
-#        ${urdfdom_LIBRARIES}
-#        smpl::smpl)
-#
+
+add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
+target_include_directories(
+    call_ompl_planner
+    SYSTEM PRIVATE
+        ${OMPL_INCLUDE_DIRS}
+        ${eigen_conversions_INCLUDE_DIRS}
+        ${kdl_conversions_INCLUDE_DIRS}
+        ${leatherman_INCLUDE_DIRS}
+        ${octomap_msgs_INCLUDE_DIRS}
+        ${roscpp_INCLUDE_DIRS}
+        ${sbpl_collision_checking_INCLUDE_DIRS}
+        ${sbpl_kdl_robot_model_INCLUDE_DIRS}
+        ${smpl_ros_INCLUDE_DIRS}
+        ${smpl_ompl_interface_INCLUDE_DIRS}
+        ${urdfdom_INCLUDE_DIRS})
+target_link_libraries(
+    call_ompl_planner
+        ${OMPL_LIBRARIES}
+        ${eigen_conversions_LIBRARIES}
+        ${kdl_conversions_LIBRARIES}
+        ${leatherman_LIBRARIES}
+        ${octomap_msgs_LIBRARIES}
+        ${roscpp_LIBRARIES}
+        ${sbpl_collision_checking_LIBRARIES}
+        ${smpl_ompl_interface_LIBRARIES}
+        ${sbpl_kdl_robot_model_LIBRARIES}
+        ${smpl_ros_LIBRARIES}
+        ${urdfdom_LIBRARIES}
+        smpl::smpl)
+
 #add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)
 #target_include_directories(
 #    occupancy_grid_test

@@ -270,7 +270,9 @@ int BFSHeuristic::GetGoalHeuristic(int state_id)
     Eigen::Vector3i dp;
     m_grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
 
-    return GetBFSCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
+    auto h = GetBFSCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
+    SMPL_DEBUG_NAMED(LOG, "H(%d) = %d", state_id, h);
+    return h;
 }
 
 auto BFSHeuristic::GetMetricStartDistance(double x, double y, double z) -> double

@@ -70,6 +70,8 @@ bool InitKDLRobotModel(
     const std::string& tip_link,
     int free_angle = -1);
 
+auto GetRobotModel(const KDLRobotModel* model) -> const urdf::RobotModel*;
+
 auto GetBaseLink(const KDLRobotModel* model) -> const std::string&;
 auto GetPlanningLink(const KDLRobotModel* model) -> const std::string&;
 
