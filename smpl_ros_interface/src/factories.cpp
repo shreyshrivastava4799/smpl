@@ -1,11 +1,15 @@
-#include <smpl/ros/factories.h>
+#include <smpl_ros_interface/factories.h>
+
+#define WORKING_DEV 0
 
 // system includes
+#include <smpl/angles.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
 #include <smpl/graph/adaptive_workspace_lattice.h>
+#include <smpl/graph/cost_function.h>
 #include <smpl/graph/manip_lattice.h>
-#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/manipulation_action_space.h>
 #include <smpl/graph/manip_lattice_egraph.h>
 #include <smpl/graph/simple_workspace_lattice_action_space.h>
 #include <smpl/graph/workspace_lattice.h>
@@ -17,37 +21,42 @@
 #include <smpl/heuristic/generic_egraph_heuristic.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/multi_frame_bfs_heuristic.h>
+#include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
+#if WORKING_DEV
 #include <smpl/search/adaptive_planner.h>
+#endif
 #include <smpl/search/arastar.h>
+#if WORKING_DEV
 #include <smpl/search/awastar.h>
 #include <smpl/search/experience_graph_planner.h>
+#endif
 #include <smpl/stl/memory.h>
 
 namespace smpl {
 
 static const char* PI_LOGGER = "simple";
 
-struct ManipLatticeActionSpaceParams
+struct ManipulationActionSpaceParams
 {
     std::string mprim_filename;
     bool use_multiple_ik_solutions = false;
     bool use_xyz_snap_mprim;
     bool use_rpy_snap_mprim;
     bool use_xyzrpy_snap_mprim;
-    bool use_short_dist_mprims;
+    bool use_long_dist_mprims;
     double xyz_snap_thresh;
     double rpy_snap_thresh;
     double xyzrpy_snap_thresh;
-    double short_dist_mprims_thresh;
+    double long_dist_mprims_thresh;
 };
 
-// Lookup parameters for ManipLatticeActionSpace, setting reasonable defaults
+// Lookup parameters for ManipulationActionSpace, setting reasonable defaults
 // for missing parameters. Return false if any required parameter is not found.
 static
-bool GetManipLatticeActionSpaceParams(
-    ManipLatticeActionSpaceParams& params,
+bool GetManipulationActionSpaceParams(
+    ManipulationActionSpaceParams& params,
     const PlanningParams& pp)
 {
     if (!pp.getParam("mprim_filename", params.mprim_filename)) {
@@ -60,12 +69,12 @@ bool GetManipLatticeActionSpaceParams(
     pp.param("use_xyz_snap_mprim", params.use_xyz_snap_mprim, false);
     pp.param("use_rpy_snap_mprim", params.use_rpy_snap_mprim, false);
     pp.param("use_xyzrpy_snap_mprim", params.use_xyzrpy_snap_mprim, false);
-    pp.param("use_short_dist_mprims", params.use_short_dist_mprims, false);
+    pp.param("use_long_dist_mprims", params.use_long_dist_mprims, false);
 
     pp.param("xyz_snap_dist_thresh", params.xyz_snap_thresh, 0.0);
     pp.param("rpy_snap_dist_thresh", params.rpy_snap_thresh, 0.0);
     pp.param("xyzrpy_snap_dist_thresh", params.xyzrpy_snap_thresh, 0.0);
-    pp.param("short_dist_mprims_thresh", params.short_dist_mprims_thresh, 0.0);
+    pp.param("long_dist_mprims_thresh", params.long_dist_mprims_thresh, 0.0);
     return true;
 }
 
@@ -73,10 +82,10 @@ template <class T>
 static auto ParseMapFromString(const std::string& s)
     -> std::unordered_map<std::string, T>
 {
-    std::unordered_map<std::string, T> map;
+    auto map = std::unordered_map<std::string, T>();
     std::istringstream ss(s);
-    std::string key;
-    T value;
+    auto key = std::string();
+    auto value = T();
     while (ss >> key >> value) {
         map.insert(std::make_pair(key, value));
     }
@@ -104,6 +113,31 @@ bool IsMultiDOFJointVariable(
     }
 }
 
+static
+void PrintActionSpace(const smpl::ManipulationActionSpace& actions)
+{
+    SMPL_INFO("Action Space:");
+    for (int i = 0; i < smpl::MotionPrimitive::Type::NUMBER_OF_MPRIM_TYPES; ++i) {
+        auto prim_type = (smpl::MotionPrimitive::Type)i;
+        if (actions.IsMotionTypeEnabled(prim_type)) {
+            SMPL_INFO("  %s enabled @ %0.3f",
+                    to_cstring(prim_type),
+                    actions.GetMotionTypeThreshold(prim_type));
+        } else {
+            SMPL_INFO("  %s disabled", to_cstring(prim_type));
+        }
+    }
+
+    SMPL_INFO("short distance motion primitives:");
+    for (auto& prim : actions.m_short_dist_mprims) {
+        SMPL_INFO_STREAM("  " << prim.action);
+    }
+    SMPL_INFO("long distance motion primitives:");
+    for (auto& prim : actions.m_long_dist_mprims) {
+        SMPL_INFO_STREAM("  " << prim.action);
+    }
+}
+
 auto MakeManipLattice(
     RobotModel* robot,
     CollisionChecker* checker,
@@ -117,10 +151,10 @@ auto MakeManipLattice(
 
     auto resolutions = std::vector<double>(robot->jointVariableCount());
 
-    std::string disc_string;
+    auto disc_string = std::string();
     if (!params.getParam("discretization", disc_string)) {
         SMPL_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
-        return nullptr;
+        return NULL;
     }
 
     auto disc = ParseMapFromString<double>(disc_string);
@@ -128,21 +162,22 @@ auto MakeManipLattice(
 
     for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
         auto& vname = robot->getPlanningJoints()[vidx];
-        std::string joint_name, local_name;
+        auto joint_name = std::string();
+        auto local_name = std::string();
         if (IsMultiDOFJointVariable(vname, &joint_name, &local_name)) {
             // adjust variable name if a variable of a multi-dof joint
             auto mdof_vname = joint_name + "_" + local_name;
             auto dit = disc.find(mdof_vname);
             if (dit == end(disc)) {
                 SMPL_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
-                return nullptr;
+                return NULL;
             }
             resolutions[vidx] = dit->second;
         } else {
             auto dit = disc.find(vname);
             if (dit == end(disc)) {
                 SMPL_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
-                return nullptr;
+                return NULL;
             }
             resolutions[vidx] = dit->second;
         }
@@ -150,9 +185,9 @@ auto MakeManipLattice(
         SMPL_DEBUG_NAMED(PI_LOGGER, "resolution(%s) = %0.3f", vname.c_str(), resolutions[vidx]);
     }
 
-    ManipLatticeActionSpaceParams action_params;
-    if (!GetManipLatticeActionSpaceParams(action_params, params)) {
-        return nullptr;
+    auto action_params = ManipulationActionSpaceParams();
+    if (!GetManipulationActionSpaceParams(action_params, params)) {
+        return NULL;
     }
 
     ////////////////////
@@ -160,61 +195,51 @@ auto MakeManipLattice(
     ////////////////////
 
     // helper struct to couple the lifetime of ManipLattice and
-    // ManipLatticeActionSpace
+    // ManipulationActionSpace
     struct SimpleManipLattice : public ManipLattice {
-        ManipLatticeActionSpace actions;
+        ManipulationActionSpace actions;
+        UniformCostFunction cost_fun;
     };
 
     auto space = make_unique<SimpleManipLattice>();
 
-    if (!space->init(robot, checker, resolutions, &space->actions)) {
+    if (!space->Init(robot, checker, resolutions, &space->actions, &space->cost_fun)) {
         SMPL_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manip Lattice");
-        return nullptr;
+        return NULL;
     }
 
-    if (!space->actions.init(space.get())) {
-        SMPL_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manip Lattice Action Space");
-        return nullptr;
+    if (!space->actions.Init(space.get())) {
+        SMPL_ERROR_NAMED(PI_LOGGER, "Failed to initialize Manipulation Action Space");
+        return NULL;
     }
 
     if (grid) {
-        space->setVisualizationFrameId(grid->getReferenceFrame());
+        space->SetVisualizationFrameId(grid->getReferenceFrame());
     }
 
     auto& actions = space->actions;
-    actions.useMultipleIkSolutions(action_params.use_multiple_ik_solutions);
-    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ, action_params.use_xyz_snap_mprim);
-    actions.useAmp(MotionPrimitive::SNAP_TO_RPY, action_params.use_rpy_snap_mprim);
-    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.use_xyzrpy_snap_mprim);
-    actions.useAmp(MotionPrimitive::SHORT_DISTANCE, action_params.use_short_dist_mprims);
-    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ, action_params.xyz_snap_thresh);
-    actions.ampThresh(MotionPrimitive::SNAP_TO_RPY, action_params.rpy_snap_thresh);
-    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.xyzrpy_snap_thresh);
-    actions.ampThresh(MotionPrimitive::SHORT_DISTANCE, action_params.short_dist_mprims_thresh);
+    actions.EnableMultipleIKSolutions(action_params.use_multiple_ik_solutions);
+    actions.EnableIKMotionXYZ(action_params.use_xyz_snap_mprim);
+    actions.EnableIKMotionRPY(action_params.use_rpy_snap_mprim);
+    actions.EnableIKMotionXYZRPY(action_params.use_xyzrpy_snap_mprim);
+    actions.EnableLongMotions(action_params.use_long_dist_mprims);
+    actions.SetIKMotionXYZThreshold(action_params.xyz_snap_thresh);
+    actions.SetIKMotionRPYThreshold(action_params.rpy_snap_thresh);
+    actions.SetIKMotionXYZRPYThreshold(action_params.xyzrpy_snap_thresh);
+    actions.SetLongMotionThreshold(action_params.long_dist_mprims_thresh);
 
-    if (!actions.load(action_params.mprim_filename)) {
+    if (!actions.Load(action_params.mprim_filename)) {
         SMPL_ERROR("Failed to load actions from file '%s'", action_params.mprim_filename.c_str());
-        return nullptr;
+        return NULL;
     }
 
-    SMPL_DEBUG_NAMED(PI_LOGGER, "Action Set:");
-    for (auto ait = actions.begin(); ait != actions.end(); ++ait) {
-        SMPL_DEBUG_NAMED(PI_LOGGER, "  type: %s", to_cstring(ait->type));
-        if (ait->type == MotionPrimitive::SNAP_TO_RPY) {
-            SMPL_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", actions.useAmp(MotionPrimitive::SNAP_TO_RPY) ? "true" : "false");
-            SMPL_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", actions.ampThresh(MotionPrimitive::SNAP_TO_RPY));
-        } else if (ait->type == MotionPrimitive::SNAP_TO_XYZ) {
-            SMPL_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", actions.useAmp(MotionPrimitive::SNAP_TO_XYZ) ? "true" : "false");
-            SMPL_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ));
-        } else if (ait->type == MotionPrimitive::SNAP_TO_XYZ_RPY) {
-            SMPL_DEBUG_NAMED(PI_LOGGER, "    enabled: %s", actions.useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY) ? "true" : "false");
-            SMPL_DEBUG_NAMED(PI_LOGGER, "    thresh: %0.3f", actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY));
-        } else if (ait->type == MotionPrimitive::LONG_DISTANCE ||
-            ait->type == MotionPrimitive::SHORT_DISTANCE)
-        {
-            SMPL_DEBUG_STREAM_NAMED(PI_LOGGER, "    action: " << ait->action);
-        }
+    PrintActionSpace(actions);
+
+    if (!space->cost_fun.Init(space.get())) {
+        SMPL_ERROR_NAMED(PI_LOGGER, "Failed to initialize Uniform Cost Function");
+        return NULL;
     }
+    space->cost_fun.cost_per_action = 1000;
 
     return std::move(space);
 }
@@ -235,7 +260,7 @@ auto MakeManipLatticeEGraph(
     std::string disc_string;
     if (!params.getParam("discretization", disc_string)) {
         SMPL_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
-        return nullptr;
+        return NULL;
     }
     auto disc = ParseMapFromString<double>(disc_string);
     SMPL_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
@@ -245,14 +270,14 @@ auto MakeManipLatticeEGraph(
         auto dit = disc.find(vname);
         if (dit == end(disc)) {
             SMPL_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
-            return nullptr;
+            return NULL;
         }
         resolutions[vidx] = dit->second;
     }
 
-    ManipLatticeActionSpaceParams action_params;
-    if (!GetManipLatticeActionSpaceParams(action_params, params)) {
-        return nullptr; // errors logged within
+    auto action_params = ManipulationActionSpaceParams();
+    if (!GetManipulationActionSpaceParams(action_params, params)) {
+        return NULL; // errors logged within
     }
 
     ////////////////////
@@ -260,42 +285,50 @@ auto MakeManipLatticeEGraph(
     ////////////////////
 
     // helper struct to couple the lifetime of ManipLatticeEgraph and
-    // ManipLatticeActionSpace
-    struct SimpleManipLatticeEgraph : public ManipLatticeEgraph {
-        ManipLatticeActionSpace actions;
+    // ManipulationActionSpace
+    struct SimpleManipLatticeEgraph : public ManipLatticeEGraph
+    {
+        ManipulationActionSpace actions;
+        UniformCostFunction cost_fun;
     };
 
     auto space = make_unique<SimpleManipLatticeEgraph>();
 
-    if (!space->init(robot, checker, resolutions, &space->actions)) {
+    if (!space->Init(robot, checker, resolutions, &space->actions, &space->cost_fun)) {
         SMPL_ERROR("Failed to initialize Manip Lattice Egraph");
-        return nullptr;
+        return NULL;
     }
 
-    if (!space->actions.init(space.get())) {
+    if (!space->actions.Init(&space->m_lattice)) {
         SMPL_ERROR("Failed to initialize Manip Lattice Action Space");
-        return nullptr;
+        return NULL;
     }
 
     auto& actions = space->actions;
-    actions.useMultipleIkSolutions(action_params.use_multiple_ik_solutions);
-    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ, action_params.use_xyz_snap_mprim);
-    actions.useAmp(MotionPrimitive::SNAP_TO_RPY, action_params.use_rpy_snap_mprim);
-    actions.useAmp(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.use_xyzrpy_snap_mprim);
-    actions.useAmp(MotionPrimitive::SHORT_DISTANCE, action_params.use_short_dist_mprims);
-    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ, action_params.xyz_snap_thresh);
-    actions.ampThresh(MotionPrimitive::SNAP_TO_RPY, action_params.rpy_snap_thresh);
-    actions.ampThresh(MotionPrimitive::SNAP_TO_XYZ_RPY, action_params.xyzrpy_snap_thresh);
-    actions.ampThresh(MotionPrimitive::SHORT_DISTANCE, action_params.short_dist_mprims_thresh);
-    if (!actions.load(action_params.mprim_filename)) {
+    actions.EnableLongMotions(action_params.use_long_dist_mprims);
+    actions.EnableMultipleIKSolutions(action_params.use_multiple_ik_solutions);
+    actions.EnableIKMotionXYZ(action_params.use_xyz_snap_mprim);
+    actions.EnableIKMotionRPY(action_params.use_rpy_snap_mprim);
+    actions.EnableIKMotionXYZRPY(action_params.use_xyzrpy_snap_mprim);
+    actions.SetIKMotionXYZThreshold(action_params.xyz_snap_thresh);
+    actions.SetIKMotionRPYThreshold(action_params.rpy_snap_thresh);
+    actions.SetIKMotionXYZRPYThreshold(action_params.xyzrpy_snap_thresh);
+    actions.SetLongMotionThreshold(action_params.long_dist_mprims_thresh);
+    if (!actions.Load(action_params.mprim_filename)) {
         SMPL_ERROR("Failed to load actions from file '%s'", action_params.mprim_filename.c_str());
-        return nullptr;
+        return NULL;
     }
 
-    std::string egraph_path;
+    if (!space->cost_fun.Init(&space->m_lattice)) {
+        SMPL_ERROR("Failed to initialize Cost Function");
+        return NULL;
+    }
+    space->cost_fun.cost_per_action = 1000;
+
+    auto egraph_path = std::string();
     if (params.getParam("egraph_path", egraph_path)) {
         // warning printed within, allow to fail silently
-        (void)space->loadExperienceGraph(egraph_path);
+        (void)space->LoadExperienceGraph(egraph_path);
     } else {
         SMPL_WARN("No experience graph file parameter");
     }
@@ -307,10 +340,10 @@ static
 bool GetWorkspaceLatticeParams(
     const PlanningParams& params,
     const RobotModel* robot,
-    const RedundantManipulatorInterface* rmi,
-    WorkspaceLatticeBase::Params* wsp)
+    const IRedundantManipulator* rmi,
+    WorkspaceProjectionParams* wsp)
 {
-    std::string disc_string;
+    auto disc_string = std::string();
     if (!params.getParam("discretization", disc_string)) {
         SMPL_ERROR_NAMED(PI_LOGGER, "Parameter 'discretization' not found in planning params");
         return false;
@@ -371,13 +404,13 @@ auto MakeWorkspaceLattice(
 {
     SMPL_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
 
-    auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
-    if (!rmi) {
+    auto* rmi = robot->GetExtension<IRedundantManipulator>();
+    if (rmi == NULL) {
         SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return NULL;
     }
 
-    WorkspaceLatticeBase::Params wsp;
+    auto wsp = WorkspaceProjectionParams();
     if (!GetWorkspaceLatticeParams(params, robot, rmi, &wsp)) {
         return NULL;
     }
@@ -388,7 +421,7 @@ auto MakeWorkspaceLattice(
     };
 
     auto space = make_unique<SimpleWorkspaceLattice>();
-    if (!space->init(robot, checker, wsp, &space->actions)) {
+    if (!space->Init(robot, checker, wsp, &space->actions)) {
         SMPL_ERROR("Failed to initialize Workspace Lattice");
         return NULL;
     }
@@ -397,7 +430,7 @@ auto MakeWorkspaceLattice(
         return NULL;
     }
 
-    space->setVisualizationFrameId(grid->getReferenceFrame());
+    space->SetVisualizationFrameId(grid->getReferenceFrame());
 
     return std::move(space);
 }
@@ -411,13 +444,13 @@ auto MakeWorkspaceLatticeEGraph(
 {
     SMPL_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice E-Graph");
 
-    auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
-    if (!rmi) {
+    auto* rmi = robot->GetExtension<IRedundantManipulator>();
+    if (rmi == NULL) {
         SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return NULL;
     }
 
-    WorkspaceLatticeBase::Params wsp;
+    auto wsp = WorkspaceProjectionParams();
     if (!GetWorkspaceLatticeParams(params, robot, rmi, &wsp)) {
         return NULL;
     }
@@ -428,21 +461,21 @@ auto MakeWorkspaceLatticeEGraph(
     };
 
     auto space = make_unique<SimpleWorkspaceLatticeEGraph>();
-    if (!space->init(robot, checker, wsp, &space->actions)) {
+    if (!space->Init(robot, checker, wsp, &space->actions)) {
         SMPL_ERROR("Failed to initialize Workspace Lattice");
-        return nullptr;
-    }
-
-    if (!InitSimpleWorkspaceLatticeActions(space.get(), &space->actions)) {
         return NULL;
     }
 
-    space->setVisualizationFrameId(grid->getReferenceFrame());
+    if (!InitSimpleWorkspaceLatticeActions(&space->m_lattice, &space->actions)) {
+        return NULL;
+    }
 
-    std::string egraph_path;
+    space->m_lattice.SetVisualizationFrameId(grid->getReferenceFrame());
+
+    auto egraph_path = std::string();
     if (params.getParam("egraph_path", egraph_path)) {
         // warning printed within, allow to fail silently
-        (void)space->loadExperienceGraph(egraph_path);
+        (void)space->LoadExperienceGraph(egraph_path);
     } else {
         SMPL_WARN("No experience graph file parameter");
     }
@@ -458,7 +491,7 @@ auto MakeAdaptiveWorkspaceLattice(
     -> std::unique_ptr<RobotPlanningSpace>
 {
     SMPL_INFO_NAMED(PI_LOGGER, "Initialize Workspace Lattice");
-    WorkspaceLatticeBase::Params wsp;
+    auto wsp = WorkspaceProjectionParams();
     wsp.res_x = grid->resolution();
     wsp.res_y = grid->resolution();
     wsp.res_z = grid->resolution();
@@ -466,17 +499,17 @@ auto MakeAdaptiveWorkspaceLattice(
     wsp.P_count = 19; //180 + 1;
     wsp.Y_count = 36; //360;
 
-    auto* rmi = robot->getExtension<RedundantManipulatorInterface>();
-    if (!rmi) {
+    auto* rmi = robot->GetExtension<IRedundantManipulator>();
+    if (rmi == NULL) {
         SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
-        return nullptr;
+        return NULL;
     }
-    wsp.free_angle_res.resize(rmi->redundantVariableCount(), angles::to_radians(1.0));
+    wsp.free_angle_res.resize(rmi->redundantVariableCount(), to_radians(1.0));
 
     auto space = make_unique<AdaptiveWorkspaceLattice>();
-    if (!space->init(robot, checker, wsp, grid)) {
+    if (!space->Init(robot, checker, wsp, grid)) {
         SMPL_ERROR("Failed to initialize Workspace Lattice");
-        return nullptr;
+        return NULL;
     }
 
     return std::move(space);
@@ -488,13 +521,13 @@ auto MakeMultiFrameBFSHeuristic(
     const OccupancyGrid* grid)
     -> std::unique_ptr<RobotHeuristic>
 {
-    auto h = make_unique<MultiFrameBfsHeuristic>();
-    h->setCostPerCell(params.cost_per_cell);
+    auto h = make_unique<MultiFrameBFSHeuristic>();
+    h->SetCostPerCell(params.cost_per_cell);
     double inflation_radius;
     params.param("bfs_inflation_radius", inflation_radius, 0.0);
-    h->setInflationRadius(inflation_radius);
-    if (!h->init(space, grid)) {
-        return nullptr;
+    h->SetInflationRadius(inflation_radius);
+    if (!h->Init(space, grid)) {
+        return NULL;
     }
 
     double offset_x, offset_y, offset_z;
@@ -518,7 +551,7 @@ auto MakeBFSHeuristic(
     params.param("bfs_inflation_radius", inflation_radius, 0.0);
     h->setInflationRadius(inflation_radius);
     if (!h->init(space, grid)) {
-        return nullptr;
+        return NULL;
     }
     return std::move(h);
 };
@@ -531,7 +564,7 @@ auto MakeEuclidDistHeuristic(
     auto h = make_unique<EuclidDistHeuristic>();
 
     if (!h->init(space)) {
-        return nullptr;
+        return NULL;
     }
 
     double wx, wy, wz, wr;
@@ -554,7 +587,7 @@ auto MakeJointDistHeuristic(
 {
     auto h = make_unique<JointDistHeuristic>();
     if (!h->init(space)) {
-        return nullptr;
+        return NULL;
     }
     return std::move(h);
 };
@@ -572,7 +605,7 @@ auto MakeDijkstraEgraphHeuristic3D(
     params.param("bfs_inflation_radius", inflation_radius, 0.0);
     h->setInflationRadius(inflation_radius);
     if (!h->init(space, grid)) {
-        return nullptr;
+        return NULL;
     }
 
     double egw;
@@ -593,7 +626,7 @@ auto MakeJointDistEGraphHeuristic(
 
     auto h = make_unique<JointDistEGraphHeuristic>();
     if (!h->init(space, &h->jd)) {
-        return nullptr;
+        return NULL;
     }
 
     double egw;
@@ -651,6 +684,7 @@ auto MakeARAStar(
     return std::move(search);
 }
 
+#if WORKING_DEV
 auto MakeAWAStar(
     RobotPlanningSpace* space,
     RobotHeuristic* heuristic,
@@ -663,6 +697,7 @@ auto MakeAWAStar(
     search->set_initialsolution_eps(epsilon);
     return std::move(search);
 }
+#endif
 
 auto MakeMHAStar(
     RobotPlanningSpace* space,
@@ -706,6 +741,7 @@ auto MakeMHAStar(
     return std::move(search);
 }
 
+#if WORKING_DEV
 auto MakeLARAStar(
     RobotPlanningSpace* space,
     RobotHeuristic* heuristic,
@@ -722,7 +758,9 @@ auto MakeLARAStar(
     search->set_search_mode(search_mode);
     return std::move(search);
 }
+#endif
 
+#if WORKING_DEV
 auto MakeEGWAStar(
     RobotPlanningSpace* space,
     RobotHeuristic* heuristic,
@@ -737,7 +775,9 @@ auto MakeEGWAStar(
 
     return std::move(search);
 }
+#endif
 
+#if WORKING_DEV
 auto MakePADAStar(
     RobotPlanningSpace* space,
     RobotHeuristic* heuristic,
@@ -771,6 +811,7 @@ auto MakePADAStar(
 
     return std::move(search);
 }
+#endif
 
 } // namespace smpl
 

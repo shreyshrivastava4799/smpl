@@ -21,13 +21,13 @@ namespace detail {
 struct PlannerImpl;
 } // namespace detail
 
-struct PoseGoal : public ompl::base::Goal
+struct OMPLPoseGoal : public ompl::base::Goal
 {
     Eigen::Affine3d pose;
     Eigen::Vector3d position_tolerance;
     Eigen::Vector3d orientation_tolerance;
 
-    PoseGoal(
+    OMPLPoseGoal(
         const ompl::base::SpaceInformationPtr& si,
         const Eigen::Affine3d& pose = Eigen::Affine3d::Identity());
 

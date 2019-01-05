@@ -5,8 +5,6 @@
 #include <memory>
 #include <string>
 
-class SBPLPlanner;
-
 namespace smpl {
 
 class CollisionChecker;
@@ -14,7 +12,8 @@ class OccupancyGrid;
 class PlanningParams;
 class RobotPlanningSpace;
 class RobotModel;
-class RobotHeuristic;
+class Heuristic;
+class Search;
 
 bool IsMultiDOFJointVariable(
     const std::string& name,
@@ -68,34 +67,34 @@ auto MakeMultiFrameBFSHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& params,
     const OccupancyGrid* grid)
-    -> std::unique_ptr<RobotHeuristic>;
+    -> std::unique_ptr<Heuristic>;
 
 auto MakeBFSHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& param,
     const OccupancyGrid* grid)
-    -> std::unique_ptr<RobotHeuristic>;
+    -> std::unique_ptr<Heuristic>;
 
 auto MakeEuclidDistHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& params)
-    -> std::unique_ptr<RobotHeuristic>;
+    -> std::unique_ptr<Heuristic>;
 
 auto MakeJointDistHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& params)
-    -> std::unique_ptr<RobotHeuristic>;
+    -> std::unique_ptr<Heuristic>;
 
 auto MakeDijkstraEgraphHeuristic3D(
     RobotPlanningSpace* space,
     const PlanningParams& params,
     const OccupancyGrid* grid)
-    -> std::unique_ptr<RobotHeuristic>;
+    -> std::unique_ptr<Heuristic>;
 
 auto MakeJointDistEGraphHeuristic(
     RobotPlanningSpace* space,
     const PlanningParams& params)
-    -> std::unique_ptr<RobotHeuristic>;
+    -> std::unique_ptr<Heuristic>;
 
 //////////////////////
 // Search Factories //
@@ -103,39 +102,39 @@ auto MakeJointDistEGraphHeuristic(
 
 auto MakeARAStar(
     RobotPlanningSpace* space,
-    RobotHeuristic* heuristic,
+    Heuristic* heuristic,
     const PlanningParams& params)
-    -> std::unique_ptr<SBPLPlanner>;
+    -> std::unique_ptr<Search>;
 
 auto MakeAWAStar(
     RobotPlanningSpace* space,
-    RobotHeuristic* heuristic,
+    Heuristic* heuristic,
     const PlanningParams& params)
-    -> std::unique_ptr<SBPLPlanner>;
+    -> std::unique_ptr<Search>;
 
 auto MakeMHAStar(
     RobotPlanningSpace* space,
-    RobotHeuristic* heuristic,
+    Heuristic* heuristic,
     const PlanningParams& params)
-    -> std::unique_ptr<SBPLPlanner>;
+    -> std::unique_ptr<Search>;
 
 auto MakeLARAStar(
     RobotPlanningSpace* space,
-    RobotHeuristic* heuristic,
+    Heuristic* heuristic,
     const PlanningParams& params)
-    -> std::unique_ptr<SBPLPlanner>;
+    -> std::unique_ptr<Search>;
 
 auto MakeEGWAStar(
     RobotPlanningSpace* space,
-    RobotHeuristic* heuristic,
+    Heuristic* heuristic,
     const PlanningParams& params)
-    -> std::unique_ptr<SBPLPlanner>;
+    -> std::unique_ptr<Search>;
 
 auto MakePADAStar(
     RobotPlanningSpace* space,
-    RobotHeuristic* heuristic,
+    Heuristic* heuristic,
     const PlanningParams& params)
-    -> std::unique_ptr<SBPLPlanner>;
+    -> std::unique_ptr<Search>;
 
 } // namespace smpl
 

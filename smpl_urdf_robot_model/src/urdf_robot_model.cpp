@@ -13,7 +13,7 @@ bool Init(
     const std::vector<std::string>* planning_joint_names)
 {
     URDFRobotModel urdf_model;
-    std::vector<std::string> planning_variables;
+    auto planning_variables = std::vector<std::string>();
 
     for (auto& joint_name : *planning_joint_names) {
         auto* joint = GetJoint(robot_model, &joint_name);
@@ -143,10 +143,10 @@ bool URDFRobotModel::checkJointLimits(
     return true;
 }
 
-auto URDFRobotModel::getExtension(size_t class_code) -> smpl::Extension*
+auto URDFRobotModel::GetExtension(size_t class_code) -> smpl::Extension*
 {
     if (class_code == smpl::GetClassCode<smpl::RobotModel>()) return this;
-    if (class_code == smpl::GetClassCode<smpl::ForwardKinematicsInterface>()) return this;
+    if (class_code == smpl::GetClassCode<smpl::IForwardKinematics>()) return this;
     return NULL;
 }
 

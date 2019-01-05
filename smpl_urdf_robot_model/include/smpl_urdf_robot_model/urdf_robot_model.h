@@ -14,7 +14,7 @@ struct RobotModel;
 
 struct URDFRobotModel :
     public virtual smpl::RobotModel,
-    public virtual smpl::ForwardKinematicsInterface
+    public virtual smpl::IForwardKinematics
 {
     struct VariableProperties
     {
@@ -48,7 +48,7 @@ struct URDFRobotModel :
         const smpl::RobotState& state,
         bool verbose = false) override;
 
-    auto getExtension(size_t class_code) -> smpl::Extension* override;
+    auto GetExtension(size_t class_code) -> smpl::Extension* final;
 };
 
 bool Init(

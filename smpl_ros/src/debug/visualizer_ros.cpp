@@ -1,9 +1,9 @@
-#include <smpl/debug/visualizer_ros.h>
+#include <smpl_ros/debug/visualizer_ros.h>
 
 // standard includes
 #include <sstream>
 
-#include <smpl/debug/marker_conversions.h>
+#include <smpl_ros/debug/marker_conversions.h>
 
 namespace smpl {
 

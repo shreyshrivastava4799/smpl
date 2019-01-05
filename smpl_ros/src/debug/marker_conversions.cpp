@@ -1,4 +1,4 @@
-#include <smpl/debug/marker_conversions.h>
+#include <smpl_ros/debug/marker_conversions.h>
 
 namespace smpl {
 namespace visual {

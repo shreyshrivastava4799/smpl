@@ -30,7 +30,7 @@
 /// \author Benjamin Cohen
 /// \author Andrew Dornbush
 
-#include <smpl/ros/planner_interface.h>
+#include <smpl_ros_interface/planner_interface.h>
 
 // standard includes
 #include <assert.h>
@@ -40,12 +40,10 @@
 #include <utility>
 
 // system includes
-#include <Eigen/Dense>
 #include <boost/filesystem.hpp>
 #include <boost/regex.hpp>
 #include <eigen_conversions/eigen_msg.h>
 #include <leatherman/utils.h>
-#include <sbpl/planners/mhaplanner.h>
 #include <smpl/angles.h>
 #include <smpl/console/console.h>
 #include <smpl/console/nonstd.h>
@@ -441,7 +439,7 @@ void ConvertJointVariablePathToJointTrajectory(
                 } else if (local_name == "trans_z") {
                     p.transforms[tidx].translation.z = point[vidx];
                 } else if (local_name == "theta") {
-                    Eigen::Quaterniond q(Eigen::AngleAxisd(point[vidx], Eigen::Vector3d::UnitZ()));
+                    auto q = smpl::Quaternion(smpl::AngleAxis(point[vidx], smpl::Vector3::UnitZ()));
                     tf::quaternionEigenToMsg(q, p.transforms[tidx].rotation);
                 } else if (local_name == "rot_w") {
                     p.transforms[tidx].rotation.w = point[vidx];
@@ -802,8 +800,8 @@ bool ExtractJointStateGoal(
 
     SMPL_INFO_NAMED(PI_LOGGER, "Set goal configuration");
 
-    RobotState sbpl_angle_goal(model->jointVariableCount(), 0);
-    RobotState sbpl_angle_tolerance(model->jointVariableCount(), angles::to_radians(3.0));
+    auto sbpl_angle_goal = RobotState(model->jointVariableCount(), 0);
+    auto sbpl_angle_tolerance = RobotState(model->jointVariableCount(), angles::to_radians(3.0));
 
     if (goal_constraints.joint_constraints.size() < model->jointVariableCount()) {
         SMPL_WARN_NAMED(PI_LOGGER, "Insufficient joint constraints specified (%zu < %zu)!", goal_constraints.joint_constraints.size(), model->jointVariableCount());
@@ -845,7 +843,7 @@ bool ExtractJointStateGoal(
     if (fk_iface) {
         goal.pose = fk_iface->computeFK(goal.angles);
     } else {
-        goal.pose = Eigen::Affine3d::Identity();
+        goal.pose = smpl::Affine3::Identity();
     }
 
     return true;
@@ -854,7 +852,7 @@ bool ExtractJointStateGoal(
 static
 bool ExtractGoalPoseFromGoalConstraints(
     const moveit_msgs::Constraints& constraints,
-    Eigen::Affine3d& goal_pose)
+    smpl::Affine3& goal_pose)
 {
     assert(!constraints.position_constraints.empty() &&
             constraints.orientation_constraints.empty());
@@ -874,14 +872,14 @@ bool ExtractGoalPoseFromGoalConstraints(
     auto& primitive_pose = position_constraint.constraint_region.primitive_poses.front();
 
     // undo the translation
-    Eigen::Affine3d T_planning_eef; // T_planning_off * T_off_eef;
+    smpl::Affine3 T_planning_eef; // T_planning_off * T_off_eef;
     tf::poseMsgToEigen(primitive_pose, T_planning_eef);
-    Eigen::Vector3d eef_pos(T_planning_eef.translation());
+    smpl::Vector3 eef_pos(T_planning_eef.translation());
 
-    Eigen::Quaterniond eef_orientation;
+    smpl::Quaternion eef_orientation;
     tf::quaternionMsgToEigen(orientation_constraint.orientation, eef_orientation);
 
-    goal_pose = Eigen::Translation3d(eef_pos) * eef_orientation;
+    goal_pose = smpl::Translation3(eef_pos) * eef_orientation;
     return true;
 }
 
@@ -952,7 +950,7 @@ bool ExtractPoseGoal(
 
     SMPL_INFO_NAMED(PI_LOGGER, "Setting goal position");
 
-    Eigen::Affine3d goal_pose;
+    smpl::Affine3 goal_pose;
     if (!ExtractGoalPoseFromGoalConstraints(goal_constraints, goal_pose)) {
         SMPL_WARN_NAMED(PI_LOGGER, "Failed to extract goal pose from goal constraints");
         return false;
@@ -985,7 +983,7 @@ bool ExtractPosesGoal(
     goal.poses.reserve(v_goal_constraints.size());
     for (size_t i = 0; i < v_goal_constraints.size(); ++i) {
         auto& constraints = v_goal_constraints[i];
-        Eigen::Affine3d goal_pose;
+        smpl::Affine3 goal_pose;
         if (!ExtractGoalPoseFromGoalConstraints(constraints, goal_pose)) {
             SMPL_WARN_NAMED(PI_LOGGER, "Failed to extract goal pose from goal constraints");
             return false;

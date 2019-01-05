@@ -36,105 +36,178 @@
 // standard includes
 #include <memory>
 #include <string>
+#include <vector>
 
 // system includes
 #include <kdl/chain.hpp>
-#include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/chainiksolverpos_nr_jl.hpp>
-#include <kdl/chainiksolvervel_pinv.hpp>
 #include <kdl/jntarray.hpp>
 #include <kdl/tree.hpp>
 #include <smpl/robot_model.h>
 #include <smpl_urdf_robot_model/smpl_urdf_robot_model.h>
-#include <urdf/model.h>
+
+namespace KDL {
+class ChainFkSolverPos_recursive;
+class ChainIkSolverVel_pinv;
+class ChainIkSolverPos_NR_JL;
+} // namespace KDL
 
 namespace smpl {
 
+class KDLRobotModel;
+
+bool InitKDLRobotModel(
+    KDLRobotModel* model,
+    const std::string& robot_description,
+    const std::string& base_link,
+    const std::string& tip_link,
+    int free_angle = -1);
+
+auto GetBaseLink(const KDLRobotModel* model) -> const std::string&;
+auto GetPlanningLink(const KDLRobotModel* model) -> const std::string&;
+
+int GetJointCount(const KDLRobotModel* model);
+auto GetPlanningJoints(const KDLRobotModel* model) -> const std::vector<std::string>&;
+
+int GetJointVariableCount(const KDLRobotModel* model);
+int GetRedundantVariableCount(const KDLRobotModel* model);
+int GetRedundantVariableIndex(const KDLRobotModel* model, int vidx);
+
+bool HasPosLimit(const KDLRobotModel* model, int jidx);
+bool IsContinuous(const KDLRobotModel* model, int jidx);
+double GetMinPosLimit(const KDLRobotModel* model, int jidx);
+double GetMaxPosLimit(const KDLRobotModel* model, int jidx);
+double GetVelLimit(const KDLRobotModel* model, int jidx);
+double GetAccLimit(const KDLRobotModel* model, int jidx);
+
+void SetReferenceState(KDLRobotModel* model, const double* positions);
+
+bool CheckJointLimits(
+    KDLRobotModel* model,
+    const smpl::RobotState& state,
+    bool verbose = false);
+
+auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state) -> smpl::Affine3;
+
+bool ComputeIKSearch(
+    KDLRobotModel* model,
+    const smpl::Affine3& pose,
+    const RobotState& start,
+    RobotState& solution);
+
+void PrintRobotModelInformation(const KDLRobotModel* model);
+
+bool ComputeIK(
+    KDLRobotModel* model,
+    const smpl::Affine3& pose,
+    const RobotState& start,
+    RobotState& solution,
+    ik_option::IkOption option = ik_option::UNRESTRICTED);
+
+bool ComputeIK(
+    KDLRobotModel* model,
+    const smpl::Affine3& pose,
+    const RobotState& start,
+    std::vector<RobotState>& solutions,
+    ik_option::IkOption option = ik_option::UNRESTRICTED);
+
+bool ComputeFastIK(
+    KDLRobotModel* model,
+    const smpl::Affine3& pose,
+    const RobotState& start,
+    RobotState& solution);
+
+auto GetExtension(KDLRobotModel* model, size_t class_code) -> Extension*;
+
 class KDLRobotModel :
-    public virtual urdf::URDFRobotModel,
-    public virtual InverseKinematicsInterface,
-    public virtual RedundantManipulatorInterface
+    public virtual RobotModel,
+    public IForwardKinematics,
+    public IInverseKinematics,
+    public IRedundantManipulator
 {
 public:
 
-    static const int DEFAULT_FREE_ANGLE_INDEX = 2;
+    KDLRobotModel();
+    KDLRobotModel(KDLRobotModel&&);
 
-    bool init(
-        const std::string& robot_description,
-        const std::string& base_link,
-        const std::string& tip_link,
-        int free_angle = DEFAULT_FREE_ANGLE_INDEX);
+    ~KDLRobotModel();
 
-    auto getBaseLink() const -> const std::string&;
-    auto getPlanningLink() const -> const std::string&;
+    KDLRobotModel& operator=(KDLRobotModel&&);
 
-    bool computeIKSearch(
-        const Eigen::Affine3d& pose,
-        const RobotState& start,
-        RobotState& solution);
+    /// \name RobotModel Interface
+    ///@{
+    auto minPosLimit(int jidx) const -> double final;
+    auto maxPosLimit(int jidx) const -> double final;
+    bool hasPosLimit(int jidx) const final;
+    bool isContinuous(int jidx) const final;
+    auto velLimit(int jidx) const -> double final;
+    auto accLimit(int jidx) const -> double final;
+    bool checkJointLimits(const smpl::RobotState& state, bool verbose = false) final;
+    ///@}
 
-    void printRobotModelInformation();
+    /// \name IForwardKinematics Interface
+    ///@{
+    auto computeFK(const smpl::RobotState& state) -> smpl::Affine3 final;
+    ///@}
 
-    /// \name RedundantManipulatorInterface
-    /// @{
-    const int redundantVariableCount() const override { return 0; }
-    const int redundantVariableIndex(int vidx) const override { return 0.0; }
-    bool computeFastIK(
-        const Eigen::Affine3d& pose,
-        const RobotState& start,
-        RobotState& solution) override;
-    /// @}
-
-    /// \name InverseKinematicsInterface Interface
+    /// \name IInverseKinematics Interface
     ///@{
     bool computeIK(
-        const Eigen::Affine3d& pose,
+        const smpl::Affine3& pose,
         const RobotState& start,
         RobotState& solution,
-        ik_option::IkOption option = ik_option::UNRESTRICTED) override;
+        ik_option::IkOption option = ik_option::UNRESTRICTED) final;
 
     bool computeIK(
-        const Eigen::Affine3d& pose,
+        const smpl::Affine3& pose,
         const RobotState& start,
         std::vector<RobotState>& solutions,
-        ik_option::IkOption option = ik_option::UNRESTRICTED) override;
+        ik_option::IkOption option = ik_option::UNRESTRICTED) final;
     ///@}
+
+    /// \name IRedundantManipulator Interface
+    /// @{
+    const int redundantVariableCount() const final;
+    const int redundantVariableIndex(int vidx) const final;
+    bool computeFastIK(
+        const smpl::Affine3& pose,
+        const RobotState& start,
+        RobotState& solution) final;
+    /// @}
 
     /// \name Extension Interface
     ///@{
-    auto getExtension(size_t class_code) -> Extension* override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
 public:
 
-    ::urdf::Model m_urdf;
+    urdf::URDFRobotModel urdf_model;
 
-    urdf::RobotModel m_robot_model;
+    urdf::RobotModel robot_model;
 
-    const urdf::Link* m_kinematics_link = NULL;
+    const urdf::Link* kinematics_link = NULL;
 
-    std::string m_base_link;
-    std::string m_tip_link;
+    std::string base_link;
+    std::string tip_link;
 
-    KDL::Tree m_tree;
-    KDL::Chain m_chain;
-
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive>    m_fk_solver;
-    std::unique_ptr<KDL::ChainIkSolverVel_pinv>         m_ik_vel_solver;
-    std::unique_ptr<KDL::ChainIkSolverPos_NR_JL>        m_ik_solver;
+    KDL::Tree tree;
+    KDL::Chain chain;
+    std::unique_ptr<KDL::ChainFkSolverPos_recursive>    fk_solver;
+    std::unique_ptr<KDL::ChainIkSolverVel_pinv>         ik_vel_solver;
+    std::unique_ptr<KDL::ChainIkSolverPos_NR_JL>        ik_solver;
 
     // ik solver settings
-    int m_max_iterations;
-    double m_kdl_eps;
+    int     max_iterations;
+    double  kdl_eps;
 
     // temporary storage
-    KDL::JntArray m_jnt_pos_in;
-    KDL::JntArray m_jnt_pos_out;
+    KDL::JntArray jnt_pos_in;
+    KDL::JntArray jnt_pos_out;
 
     // ik search configuration
-    int m_free_angle;
-    double m_search_discretization;
-    double m_timeout;
+    int     free_angle;
+    double  search_discretization;
+    double  timeout;
 };
 
 } // namespace smpl

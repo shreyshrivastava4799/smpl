@@ -4,7 +4,7 @@
 // system includes
 #include <ros/ros.h>
 #include <smpl/debug/visualize.h>
-#include <smpl/debug/visualizer_ros.h>
+#include <smpl_ros/debug/visualizer_ros.h>
 #include <urdf_parser/urdf_parser.h>
 
 // project includes

@@ -22,12 +22,15 @@
 #include <smpl/console/nonstd.h>
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/manip_lattice.h>
-#include <smpl/graph/manip_lattice_action_space.h>
+#include <smpl/graph/manipulation_action_space.h>
+#include <smpl/graph/goal_constraint.h>
+#include <smpl/graph/cost_function.h>
 #include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/robot_model.h>
 #include <smpl/search/arastar.h>
 #include <smpl/stl/memory.h>
+#include <smpl/occupancy_grid.h>
 
 namespace smpl {
 namespace detail {
@@ -259,12 +262,13 @@ struct PlannerImpl
     std::string mprim_filename;
     smpl::ManipLattice space;
     smpl::ManipulationActionSpace actions;
+    smpl::UniformCostFunction cost_fun;
 
     // heuristic
-    std::unique_ptr<smpl::RobotHeuristic> heuristic;
+    std::unique_ptr<smpl::Heuristic> heuristic;
 
     // search
-    std::unique_ptr<smpl::ARAStar> search;
+    smpl::ARAStar search;
 
     OccupancyGrid* grid = NULL;
 
@@ -462,31 +466,32 @@ PlannerImpl::PlannerImpl(
 
     auto res = 0.05;
 
-    std::vector<double> resolutions;
+    auto resolutions = std::vector<double>();
     resolutions.resize(this->model.getPlanningJoints().size(), res);
-    if (!this->space.init(
+    if (!this->space.Init(
             &this->model,
             &this->checker,
             resolutions,
-            &this->actions))
+            &this->actions,
+            &this->cost_fun))
     {
         SMPL_WARN("Failed to initialize manip lattice");
         return;
     }
 
     if (grid != NULL) {
-        this->space.setVisualizationFrameId(grid->getReferenceFrame());
+        this->space.SetVisualizationFrameId(grid->getReferenceFrame());
     }
 
-    if (!this->actions.init(&this->space)) {
+    if (!this->actions.Init(&this->space)) {
         SMPL_WARN("Failed to initialize Manip Lattice Action Space");
         return;
     }
 
     for (int i = 0; i < (int)this->model.getPlanningJoints().size(); ++i) {
-        std::vector<double> mprim(this->model.getPlanningJoints().size(), 0.0);
+        auto mprim = std::vector<double>(this->model.getPlanningJoints().size(), 0.0);
         mprim[i] = res;
-        this->actions.addMotionPrim(mprim, false);
+        this->actions.AddMotionPrimitive(mprim, true);
     }
 
 #if 0
@@ -510,23 +515,28 @@ PlannerImpl::PlannerImpl(
     }
 #endif
 
+    if (!this->cost_fun.Init(&this->space)) {
+        SMPL_WARN("Failed to initialize Manip Lattice Action Space");
+        return;
+    }
+
     //////////////////////////
     // Initialize Heuristic //
     //////////////////////////
 
     if (planner_id.empty()) {
         this->heuristic = make_unique<JointDistHeuristic>();
-        if (!this->heuristic->init(&this->space)) {
+        if (!this->heuristic->Init(&this->space)) {
             return;
         }
     } else if (planner_id == "arastar.joint_dist.manip") {
         this->heuristic = make_unique<JointDistHeuristic>();
-        if (!this->heuristic->init(&this->space)) {
+        if (!this->heuristic->Init(&this->space)) {
             return;
         }
     } else if (planner_id == "arastar.bfs.manip") {
-        auto bfs_heuristic = make_unique<BfsHeuristic>();
-        if (!bfs_heuristic->init(&this->space, grid)) {
+        auto bfs_heuristic = make_unique<BFSHeuristic>();
+        if (!bfs_heuristic->Init(&this->space, grid)) {
             return;
         }
         this->heuristic = std::move(bfs_heuristic);
@@ -539,7 +549,10 @@ PlannerImpl::PlannerImpl(
     // Initialize the Search //
     ///////////////////////////
 
-    this->search = make_unique<ARAStar>(&this->space, this->heuristic.get());
+    if (!this->search.Init(&this->space, this->heuristic.get())) {
+        SMPL_ERROR("Failed to initialize search");
+        return;
+    }
 
     ////////////////////////
     // Declare Parameters //
@@ -549,14 +562,14 @@ PlannerImpl::PlannerImpl(
     for (auto i = 0; i < this->model.getPlanningJoints().size(); ++i) {
         auto& vname = this->model.getPlanningJoints()[i];
         auto set = [this](double discretization) { /* TODO */ };
-        auto get = [this, i]() { return this->space.resolutions()[i]; };
+        auto get = [this, i]() { return this->space.GetResolutions()[i]; };
         planner->params().declareParam<double>("discretization_" + vname, set, get);
     }
 
     // declare action space parameters...
     {
         auto set = [&](const std::string& val) {
-            if (this->actions.load(val)) {
+            if (this->actions.Load(val)) {
                 this->mprim_filename = val;
             }
         };
@@ -565,79 +578,73 @@ PlannerImpl::PlannerImpl(
     }
 
     {
-        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ, val); };
-        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ); };
+        auto set = [&](bool val) { this->actions.EnableIKMotionXYZ(val); };
+        auto get = [&]() { return this->actions.IsIKMotionXYZEnabled(); };
         planner->params().declareParam<double>("use_xyz_snap_mprim", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY, val); };
-        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_RPY); };
+        auto set = [&](bool val) { this->actions.EnableIKMotionRPY(val); };
+        auto get = [&]() { return this->actions.IsIKMotionRPYEnabled(); };
         planner->params().declareParam<double>("use_rpy_snap_mprim", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY, val); };
-        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY); };
+        auto set = [&](bool val) { this->actions.EnableIKMotionXYZRPY(val); };
+        auto get = [&]() { return this->actions.IsIKMotionXYZRPYEnabled(); };
         planner->params().declareParam<double>("use_xyzrpy_snap_mprim", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->actions.useAmp(smpl::MotionPrimitive::SHORT_DISTANCE, val); };
-        auto get = [&]() { return this->actions.useAmp(smpl::MotionPrimitive::SHORT_DISTANCE); };
-        planner->params().declareParam<double>("use_short_dist_mprims", set, get);
+        auto set = [&](bool val) { this->actions.EnableLongMotions(val); };
+        auto get = [&]() { return this->actions.AreLongMotionsEnabled(); };
+        planner->params().declareParam<double>("use_long_dist_mprims", set, get);
     }
 
     {
-        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ, val); };
-        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ); };
+        auto set = [&](double val) { this->actions.SetIKMotionXYZThreshold(val); };
+        auto get = [&]() { return this->actions.GetIKMotionXYZThreshold(); };
         planner->params().declareParam<double>("xyz_snap_dist_thresh", set, get);
     }
 
     {
-        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY, val); };
-        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY); };
+        auto set = [&](double val) { this->actions.SetIKMotionRPYThreshold(val); };
+        auto get = [&]() { return this->actions.GetIKMotionRPYThreshold(); };
         planner->params().declareParam<double>("rpy_snap_dist_thresh", set, get);
     }
 
     {
-        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY, val); };
-        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_RPY); };
-        planner->params().declareParam<double>("rpy_snap_dist_thresh", set, get);
-    }
-
-    {
-        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY, val); };
-        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SNAP_TO_XYZ_RPY); };
+        auto set = [&](double val) { this->actions.SetIKMotionXYZRPYThreshold(val); };
+        auto get = [&]() { return this->actions.GetIKMotionXYZRPYThreshold(); };
         planner->params().declareParam<double>("xyzrpy_snap_dist_thresh", set, get);
     }
 
     {
-        auto set = [&](double val) { this->actions.ampThresh(smpl::MotionPrimitive::SHORT_DISTANCE, val); };
-        auto get = [&]() { return this->actions.ampThresh(smpl::MotionPrimitive::SHORT_DISTANCE); };
+        auto set = [&](double val) { this->actions.SetLongMotionThreshold(val); };
+        auto get = [&]() { return this->actions.GetLongMotionThreshold(); };
         planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->actions.useMultipleIkSolutions(val); };
-        auto get = [&]() { return this->actions.useMultipleIkSolutions(); };
+        auto set = [&](bool val) { this->actions.EnableMultipleIKSolutions(val); };
+        auto get = [&]() { return this->actions.IsMultipleIKSolutionsEnabled(); };
         planner->params().declareParam<double>("short_dist_mprims_thresh", set, get);
     }
 
     // declare heuristic parameters...
 
     {
-        auto* bfs_heuristic = dynamic_cast<BfsHeuristic*>(this->heuristic.get());
+        auto* bfs_heuristic = dynamic_cast<BFSHeuristic*>(this->heuristic.get());
         if (bfs_heuristic != NULL) {
             {
-                auto set = [bfs_heuristic](double val) { bfs_heuristic->setInflationRadius(val); };
-                auto get = [bfs_heuristic]() { return bfs_heuristic->inflationRadius(); };
+                auto set = [bfs_heuristic](double val) { bfs_heuristic->SetInflationRadius(val); };
+                auto get = [bfs_heuristic]() { return bfs_heuristic->GetInflationRadius(); };
                 planner->params().declareParam<double>("bfs_inflation_radius", set, get);
             }
 
             {
-                auto set = [bfs_heuristic](int val) { bfs_heuristic->setCostPerCell(val); };
-                auto get = [bfs_heuristic]() { return bfs_heuristic->costPerCell(); };
+                auto set = [bfs_heuristic](int val) { bfs_heuristic->SetCostPerCell(val); };
+                auto get = [bfs_heuristic]() { return bfs_heuristic->GetCostPerCell(); };
                 planner->params().declareParam<int>("bfs_cost_per_cell", set, get);
             }
         }
@@ -646,50 +653,50 @@ PlannerImpl::PlannerImpl(
     // declare search parameters...
 
     {
-        auto set = [&](double val) { this->search->set_initialsolution_eps(val); };
-        auto get = [&]() { return this->search->get_initial_eps(); };
+        auto set = [&](double val) { this->search.SetInitialEps(val); };
+        auto get = [&]() { return this->search.GetInitialEps(); };
         planner->params().declareParam<double>("epsilon", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->search->set_search_mode(val); };
+        auto set = [&](bool val) { this->search.SetSearchMode(val); };
         auto get = [&]() { return false; /* TODO */ };
         planner->params().declareParam<bool>("search_mode", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->search->allowPartialSolutions(val); };
-        auto get = [&]() { return this->search->allowPartialSolutions(); };
+        auto set = [&](bool val) { this->search.SetAllowPartialSolutions(val); };
+        auto get = [&]() { return this->search.AllowPartialSolutions(); };
         planner->params().declareParam<bool>("allow_partial_solutions", set, get);
     }
 
     {
-        auto set = [&](double val) { this->search->setTargetEpsilon(val); };
-        auto get = [&]() { return this->search->targetEpsilon(); };
+        auto set = [&](double val) { this->search.SetTargetEpsilon(val); };
+        auto get = [&]() { return this->search.GetTargetEpsilon(); };
         planner->params().declareParam<double>("target_epsilon", set, get);
     }
 
     {
-        auto set = [&](double val) { this->search->setDeltaEpsilon(val); };
-        auto get = [&]() { return this->search->deltaEpsilon(); };
+        auto set = [&](double val) { this->search.SetDeltaEpsilon(val); };
+        auto get = [&]() { return this->search.GetDeltaEpsilon(); };
         planner->params().declareParam<double>("delta_epsilon", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->search->setImproveSolution(val); };
-        auto get = [&]() { return this->search->improveSolution(); };
+        auto set = [&](bool val) { this->search.SetImproveSolution(val); };
+        auto get = [&]() { return this->search.ImproveSolution(); };
         planner->params().declareParam<double>("improve_solution", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->search->setBoundExpansions(val); };
-        auto get = [&]() { return this->search->boundExpansions(); };
+        auto set = [&](bool val) { this->search.SetBoundExpansions(val); };
+        auto get = [&]() { return this->search.BoundExpansions(); };
         planner->params().declareParam<bool>("bound_expansions", set, get);
     }
 
     {
-        auto set = [&](double val) { this->search->setAllowedRepairTime(val); };
-        auto get = [&]() { return this->search->allowedRepairTime(); };
+        auto set = [&](double val) { this->search.SetAllowedRepairTime(val); };
+        auto get = [&]() { return this->search.GetAllowedRepairTime(); };
         planner->params().declareParam<double>("repair_time", set, get);
     }
 
@@ -724,6 +731,66 @@ auto to_cstring(ompl::base::GoalType type) -> const char*
     }
 }
 
+static
+auto MakeSMPLGoal(
+    PlannerImpl* planner,
+    ompl::base::StateSpace* ompl_space,
+    ompl::base::Goal* abstract_goal)
+    -> std::unique_ptr<smpl::GoalConstraint>
+{
+    switch (abstract_goal->getType()) {
+    case ompl::base::GoalType::GOAL_ANY:
+    {
+        auto* pose_goal = dynamic_cast<OMPLPoseGoal*>(abstract_goal);
+        if (pose_goal != NULL) {
+            SMPL_INFO("Got ourselves a pose goal!");
+            auto this_goal = smpl::make_unique<smpl::PoseGoal>();
+
+            this_goal->pose = pose_goal->pose;
+            this_goal->tolerance.xyz[0] = pose_goal->position_tolerance[0];
+            this_goal->tolerance.xyz[1] = pose_goal->position_tolerance[1];
+            this_goal->tolerance.xyz[2] = pose_goal->position_tolerance[2];
+            this_goal->tolerance.rpy[0] = pose_goal->orientation_tolerance[0];
+            this_goal->tolerance.rpy[1] = pose_goal->orientation_tolerance[1];
+            this_goal->tolerance.rpy[2] = pose_goal->orientation_tolerance[2];
+
+            return std::move(this_goal);
+        }
+    }   // fallthrough
+    case ompl::base::GoalType::GOAL_REGION:
+    case ompl::base::GoalType::GOAL_SAMPLEABLE_REGION:
+    case ompl::base::GoalType::GOAL_STATES:
+    case ompl::base::GoalType::GOAL_LAZY_SAMPLES:
+    {
+        auto this_goal = smpl::make_unique<smpl::UserGoal>();
+        this_goal->check_goal = IsAnyGoal;
+        this_goal->check_goal_user = planner;
+        return std::move(this_goal);
+    }
+    case ompl::base::GoalType::GOAL_STATE:
+    {
+        auto* goal = static_cast<ompl::base::GoalState*>(abstract_goal);
+        auto goal_state = MakeStateSMPL(ompl_space, goal->getState());
+        SMPL_DEBUG_STREAM("goal state = " << goal_state);
+        auto this_goal = smpl::make_unique<smpl::JointStateGoal>();
+        this_goal->SetGoalState(goal_state);
+
+        // TODO: expose tolerance parameters or at least don't assume uniform discretization
+        auto tolerance = std::vector<double>(
+                goal_state.size(),
+                0.5 * planner->space.GetResolutions().front());
+        this_goal->SetGoalTolerance(tolerance);
+
+        return std::move(this_goal);
+    }
+    default:
+        SMPL_WARN("Unrecognized OMPL goal type");
+        break;
+    }
+
+    return NULL;
+}
+
 auto PlannerImpl::solve(
     OMPLPlanner* planner,
     const ompl::base::PlannerTerminationCondition& ptc)
@@ -752,90 +819,61 @@ auto PlannerImpl::solve(
         auto* start = pdef->getStartState(0);
         auto start_state = MakeStateSMPL(ompl_space, start);
         SMPL_DEBUG_STREAM("start state = " << start_state);
-        if (!this->space.setStart(start_state)) {
-            SMPL_WARN("Failed to set start state");
+
+        auto start_state_id = this->space.GetStateID(start_state);
+        if (start_state_id < 0) {
             return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_START);
         }
 
-        this->heuristic->updateStart(start_state);
+        if (!this->space.UpdateStart(start_state_id)) {
+            return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_START);
+        }
+
+        if (!this->heuristic->UpdateStart(start_state_id)) {
+            return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_START);
+        }
+
+        if (!this->search.UpdateStart(start_state_id)) {
+            return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_START);
+        }
     }
 
     ////////////////////////
     // Set the goal state //
     ////////////////////////
 
-    {
-        smpl::GoalConstraint goal_condition;
+    // Inheritance hierarchy for goal types:
+    // GoalAny
+    //      GoalRegion
+    //          GoalSampleableRegion
+    //              GoalState
+    //              GoalStates
+    //                  GoalLazySamples
 
-        // Inheritance hierarchy for goal types:
-        // GoalAny
-        //      GoalRegion
-        //          GoalSampleableRegion
-        //              GoalState
-        //              GoalStates
-        //                  GoalLazySamples
+    auto& abstract_goal = pdef->getGoal();
+    SMPL_DEBUG("Received goal of type %s", to_cstring(abstract_goal->getType()));
 
-        auto& abstract_goal = pdef->getGoal();
-        SMPL_DEBUG("Received goal of type %s", to_cstring(abstract_goal->getType()));
+    auto goal = MakeSMPLGoal(this, ompl_space, abstract_goal.get());
 
-        switch (abstract_goal->getType()) {
-        case ompl::base::GoalType::GOAL_ANY:
-        {
-            auto* pose_goal = dynamic_cast<PoseGoal*>(abstract_goal.get());
-            if (pose_goal != NULL) {
-                SMPL_INFO("Got ourselves a pose goal!");
-                goal_condition.type = smpl::GoalType::XYZ_RPY_GOAL;
-                goal_condition.pose = pose_goal->pose;
-                goal_condition.xyz_tolerance[0] = pose_goal->position_tolerance[0];
-                goal_condition.xyz_tolerance[1] = pose_goal->position_tolerance[1];
-                goal_condition.xyz_tolerance[2] = pose_goal->position_tolerance[2];
-                goal_condition.rpy_tolerance[0] = pose_goal->orientation_tolerance[0];
-                goal_condition.rpy_tolerance[1] = pose_goal->orientation_tolerance[1];
-                goal_condition.rpy_tolerance[2] = pose_goal->orientation_tolerance[2];
-                break;
-            }
-        }
-        case ompl::base::GoalType::GOAL_REGION:
-        case ompl::base::GoalType::GOAL_SAMPLEABLE_REGION:
-        case ompl::base::GoalType::GOAL_STATES:
-        case ompl::base::GoalType::GOAL_LAZY_SAMPLES:
-        {
-            auto* goal = static_cast<ompl::base::Goal*>(abstract_goal.get());
-            goal_condition.type = smpl::GoalType::USER_GOAL_CONSTRAINT_FN;
-            goal_condition.check_goal = IsAnyGoal;
-            goal_condition.check_goal_user = planner;
-            break;
-        }
-        case ompl::base::GoalType::GOAL_STATE:
-        {
-            auto* goal = static_cast<ompl::base::GoalState*>(abstract_goal.get());
-            auto goal_state = MakeStateSMPL(ompl_space, goal->getState());
-            SMPL_DEBUG_STREAM("goal state = " << goal_state);
-            goal_condition.type = smpl::GoalType::JOINT_STATE_GOAL;
-            goal_condition.angles = goal_state;
-            // UGH
-            goal_condition.angle_tolerances.resize(
-                    goal_condition.angles.size(),
-                    0.5 * this->space.resolutions().front());
-            break;
-        }
-        default:
-            SMPL_WARN("Unrecognized OMPL goal type");
-            break;
-        }
-
-        if (!space.setGoal(goal_condition)) {
-            SMPL_WARN("Failed to set goal");
-            return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);
-        }
-
-        this->heuristic->updateGoal(goal_condition);
+    if (!this->space.UpdateGoal(goal.get())) {
+        SMPL_WARN("Failed to set goal");
+        return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);
     }
 
-    auto* bfs_heuristic = dynamic_cast<BfsHeuristic*>(this->heuristic.get());
+    if (!this->heuristic->UpdateGoal(goal.get())) {
+        SMPL_WARN("Failed to set goal");
+        return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);
+    }
+
+    if (!this->search.UpdateGoal(goal.get())) {
+        SMPL_WARN("Failed to set goal");
+        return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);
+    }
+
+    auto* bfs_heuristic = dynamic_cast<BFSHeuristic*>(this->heuristic.get());
     if (bfs_heuristic != NULL) {
-        SV_SHOW_DEBUG_NAMED("bfs_walls", bfs_heuristic->getWallsVisualization());
-        SV_SHOW_DEBUG_NAMED("bfs_values", bfs_heuristic->getValuesVisualization());
+        SV_SHOW_DEBUG_NAMED("bfs_walls", bfs_heuristic->GetWallsVisualization());
+        SV_SHOW_DEBUG_NAMED("bfs_values", bfs_heuristic->GetValuesVisualization());
     }
 
     //////////////////
@@ -844,32 +882,27 @@ auto PlannerImpl::solve(
 
     // TODO: hmmm, is this needed? this should probably be part of clear()
     // and allow the state of the search to persist between calls
-    this->search->force_planning_from_scratch();
+    this->search.ForcePlanningFromScratch();
 
-    smpl::ARAStar::TimeParameters time_params;
-    time_params.bounded = this->search->boundExpansions();
-    time_params.improve = this->search->improveSolution();
+    auto time_params = smpl::ARAStar::TimeParameters();
+    time_params.bounded = this->search.BoundExpansions();
+    time_params.improve = this->search.ImproveSolution();
     time_params.type = smpl::ARAStar::TimeParameters::USER;
     time_params.timed_out_fun = [&]() { return ptc.eval(); };
 
-    auto start_id = space.getStartStateID();
-    auto goal_id = space.getGoalStateID();
-    this->search->set_start(start_id);
-    this->search->set_goal(goal_id);
-
-    std::vector<int> solution;
-    int cost;
-    auto res = this->search->replan(time_params, &solution, &cost);
+    auto solution = std::vector<int>();
+    auto cost = 0;
+    auto res = this->search.Replan(time_params, &solution, &cost);
 
     if (!res) {
         SMPL_WARN("Failed to find solution");
         return ompl::base::PlannerStatus(ompl::base::PlannerStatus::TIMEOUT);
     }
 
-    SMPL_DEBUG("Expands: %d", this->search->get_n_expands());
-    SMPL_DEBUG("Expands (Init): %d", this->search->get_n_expands_init_solution());
-    SMPL_DEBUG("Epsilon: %f", this->search->get_final_epsilon());
-    SMPL_DEBUG("Epsilon (Init): %f", this->search->get_initial_eps());
+    SMPL_DEBUG("Expands: %d", this->search.GetNumExpansions());
+    SMPL_DEBUG("Expands (Init): %d", this->search.GetNumExpansionsInitialEps());
+    SMPL_DEBUG("Epsilon: %f", this->search.GetSolutionEps());
+    SMPL_DEBUG("Epsilon (Init): %f", this->search.GetInitialEps());
 
 #if 0
     // TODO: hidden ARA*-specific return codes
@@ -893,8 +926,8 @@ auto PlannerImpl::solve(
     // Convert discrete state path to continuous state path //
     //////////////////////////////////////////////////////////
 
-    std::vector<smpl::RobotState> path;
-    if (!space.extractPath(solution, path)) {
+    auto path = std::vector<smpl::RobotState>();
+    if (!space.ExtractPath(solution, path)) {
         return ompl::base::PlannerStatus::CRASH;
     }
 
@@ -963,7 +996,7 @@ void SetOccupancyGrid(PlannerImpl* planner, OccupancyGrid* grid)
 // OMPLPlanner Implementation //
 ////////////////////////////////
 
-PoseGoal::PoseGoal(
+OMPLPoseGoal::OMPLPoseGoal(
     const ompl::base::SpaceInformationPtr& si,
     const Eigen::Affine3d& pose)
 :
@@ -972,7 +1005,7 @@ PoseGoal::PoseGoal(
 {
 }
 
-bool PoseGoal::isSatisfied(const ompl::base::State* state) const
+bool OMPLPoseGoal::isSatisfied(const ompl::base::State* state) const
 {
     // TODO: is this useful generally to anyone? This class gets converted to
     // smpl's internal goal representation anyway

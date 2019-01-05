@@ -394,6 +394,16 @@ void WorkspaceLatticeEGraph::ClearExperienceGraph()
     m_state_to_egraph_node.clear();
 }
 
+auto WorkspaceLatticeEGraph::GetVisualizationFrameId() const -> const std::string&
+{
+    return m_lattice.GetVisualizationFrameId();
+}
+
+void WorkspaceLatticeEGraph::SetVisualizationFrameId(const std::string& frame_id)
+{
+    return m_lattice.SetVisualizationFrameId(frame_id);
+}
+
 // Load the experience graph from a database of paths:
 // 1. Convert the raw path to an ExperienceGraph, which captures the
 // connectivity of the demonstration (some states are retained as unique nodes

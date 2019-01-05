@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/ros/propagation_distance_field.h>
+#include <smpl_ros/ros/propagation_distance_field.h>
 
 // standard includes
 #include <cmath>

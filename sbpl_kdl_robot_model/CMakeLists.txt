@@ -4,6 +4,7 @@ project(sbpl_kdl_robot_model)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 find_package(
@@ -18,6 +19,7 @@ find_package(
         urdf)
 
 find_package(orocos_kdl REQUIRED)
+
 find_package(smpl REQUIRED)
 
 catkin_package(
@@ -28,24 +30,54 @@ catkin_package(
     CATKIN_DEPENDS
         roscpp
         smpl_urdf_robot_model
-        urdf
     DEPENDS
         orocos_kdl
         smpl)
 
-include_directories(include)
-include_directories(SYSTEM ${catkin_INCLUDE_DIRS})
-include_directories(SYSTEM ${orocos_kdl_INCLUDE_DIRS})
-
 add_library(sbpl_kdl_robot_model src/kdl_robot_model.cpp)
-target_link_libraries(sbpl_kdl_robot_model ${catkin_LIBRARIES})
-target_link_libraries(sbpl_kdl_robot_model ${orocos_kdl_LIBRARIES})
-target_link_libraries(sbpl_kdl_robot_model smpl::smpl)
+
+target_include_directories(sbpl_kdl_robot_model PUBLIC include)
+target_include_directories(
+    sbpl_kdl_robot_model
+    SYSTEM PUBLIC
+        ${orocos_kdl_INCLUDE_DIRS}
+        ${smpl_urdf_robot_model_INCLUDE_DIRS})
+target_include_directories(
+    sbpl_kdl_robot_model
+    SYSTEM PRIVATE
+        ${eigen_conversions_INCLUDE_DIRS}
+        ${kdl_parser_INCLUDE_DIRS}
+        ${leatherman_INCLUDE_DIRS}
+        ${roscpp_INCLUDE_DIRS}
+        ${urdf_INCLUDE_DIRS})
+
+target_link_libraries(
+    sbpl_kdl_robot_model
+    PUBLIC
+        ${orocos_kdl_LIBRARIES}
+        ${smpl_urdf_robot_model_LIBRARIES}
+        smpl::smpl)
+target_link_libraries(
+    sbpl_kdl_robot_model
+    PRIVATE
+        ${eigen_conversions_LIBRARIES}
+        ${kdl_parser_LIBRARIES}
+        ${leatherman_LIBRARIES}
+        ${roscpp_LIBRARIES}
+        ${urdf_LIBRARIES})
 
 add_executable(test_kdl src/test_kdl_robot_model.cpp)
-target_link_libraries(test_kdl sbpl_kdl_robot_model)
-target_link_libraries(test_kdl ${leatherman_LIBRARIES})
-target_link_libraries(test_kdl ${roscpp_LIBRARIES})
+target_include_directories(
+    test_kdl
+    PRIVATE
+        ${leatherman_INCLUDE_DIRS}
+        ${roscpp_INCLUDE_DIRS})
+target_link_libraries(
+    test_kdl
+    PRIVATE
+        sbpl_kdl_robot_model
+        ${leatherman_LIBRARIES}
+        ${roscpp_LIBRARIES})
 
 install(
     DIRECTORY include/sbpl_kdl_robot_model/

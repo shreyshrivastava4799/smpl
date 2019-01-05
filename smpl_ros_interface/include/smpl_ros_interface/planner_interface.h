@@ -40,30 +40,22 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Dense>
 #include <moveit_msgs/MotionPlanRequest.h>
 #include <moveit_msgs/MotionPlanResponse.h>
 #include <moveit_msgs/PlanningScene.h>
 #include <moveit_msgs/RobotState.h>
 #include <moveit_msgs/RobotTrajectory.h>
-#include <sbpl/headers.h>
-#include <trajectory_msgs/JointTrajectoryPoint.h>
-#include <visualization_msgs/MarkerArray.h>
-
-// project includes
-#include <smpl/collision_checker.h>
-#include <smpl/forward.h>
-#include <smpl/occupancy_grid.h>
 #include <smpl/planning_params.h>
-#include <smpl/robot_model.h>
 #include <smpl/debug/marker.h>
-
-class SBPLPlanner;
 
 namespace smpl {
 
+class Search;
 class RobotPlanningSpace;
+class RobotModel;
 class Heuristic;
+class CollisionChecker;
+class OccupancyGrid;
 
 using PlanningSpaceFactory = std::function<
         std::unique_ptr<RobotPlanningSpace>(
@@ -74,8 +66,8 @@ using HeuristicFactory = std::function<
                 RobotPlanningSpace*, const PlanningParams&)>;
 
 using PlannerFactory = std::function<
-        std::unique_ptr<SBPLPlanner>(
-                RobotPlanningSpace*, RobotHeuristic*, const PlanningParams&)>;
+        std::unique_ptr<Search>(
+                RobotPlanningSpace*, Heuristic*, const PlanningParams&)>;
 
 using GoalConstraints = std::vector<moveit_msgs::Constraints>;
 
@@ -107,10 +99,10 @@ public:
         moveit_msgs::MotionPlanResponse& res) const;
 
     auto space() const -> const RobotPlanningSpace* { return m_pspace.get(); }
-    auto search() const -> const SBPLPlanner* { return m_planner.get(); }
+    auto search() const -> const Search* { return m_planner.get(); }
 
     using heuristic_iterator =
-            std::map<std::string, std::unique_ptr<RobotHeuristic>>::const_iterator;
+            std::map<std::string, std::unique_ptr<Heuristic>>::const_iterator;
 
     auto heuristics() const -> std::pair<heuristic_iterator, heuristic_iterator> {
         return std::make_pair(begin(m_heuristics), end(m_heuristics));
@@ -147,7 +139,7 @@ protected:
     CollisionChecker* m_checker;
     OccupancyGrid* m_grid;
 
-    ForwardKinematicsInterface* m_fk_iface;
+    IForwardKinematics* m_fk_iface;
 
     PlanningParams m_params;
 
@@ -162,7 +154,7 @@ protected:
 
     std::unique_ptr<RobotPlanningSpace> m_pspace;
     std::map<std::string, std::unique_ptr<RobotHeuristic>> m_heuristics;
-    std::unique_ptr<SBPLPlanner> m_planner;
+    std::unique_ptr<Search> m_planner;
 
     int m_sol_cost;
 

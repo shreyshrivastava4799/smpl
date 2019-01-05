@@ -256,7 +256,7 @@ void PrintGrid(std::ostream& o, smpl::OccupancyGrid& grid)
 
 void PrintActionSpace(const smpl::ManipulationActionSpace& actions)
 {
-    SMPL_INFO("Action Set:");
+    SMPL_INFO("Action Space:");
     for (int i = 0; i < smpl::MotionPrimitive::Type::NUMBER_OF_MPRIM_TYPES; ++i) {
         auto prim_type = (smpl::MotionPrimitive::Type)i;
         if (actions.IsMotionTypeEnabled(prim_type)) {

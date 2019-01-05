@@ -62,6 +62,9 @@ public:
     void InsertExperienceGraphPath(const std::vector<smpl::RobotState>& path);
     void ClearExperienceGraph();
 
+    auto GetVisualizationFrameId() const -> const std::string&;
+    void SetVisualizationFrameId(const std::string& frame_id);
+
     /// \name IExperienceGraph Interface
     ///@{
     bool LoadExperienceGraph(const std::string& path) final;
