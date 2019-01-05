@@ -157,7 +157,7 @@ public:
     int Replan(const TimeParameters& params, std::vector<int>* solution, int* cost);
     ///@}
 
-private:
+public:
 
     struct SearchState : public heap_element
     {

@@ -32,7 +32,6 @@
 #include <smpl/heuristic/bfs_heuristic.h>
 
 // project includes
-#include <smpl/bfs3d/bfs3d.h>
 #include <smpl/console/console.h>
 #include <smpl/debug/colors.h>
 #include <smpl/debug/marker_utils.h>
@@ -46,11 +45,6 @@
 namespace smpl {
 
 static const char* LOG = "heuristic.bfs";
-
-BFSHeuristic::~BFSHeuristic()
-{
-    // empty to allow forward declaration of BFS_3D
-}
 
 bool BFSHeuristic::Init(DiscreteSpace* space, const OccupancyGrid* grid)
 {

@@ -38,13 +38,12 @@
 // project includes
 #include <smpl/debug/marker.h>
 #include <smpl/heuristic/heuristic.h>
+#include <smpl/bfs3d/bfs3d.h>
 
 namespace smpl {
 
 class IProjectToPoint;
 class OccupancyGrid;
-
-class BFS_3D;
 
 class BFSHeuristic :
     public Heuristic,
@@ -53,8 +52,6 @@ class BFSHeuristic :
     public IMetricStartHeuristic
 {
 public:
-
-    virtual ~BFSHeuristic();
 
     bool Init(DiscreteSpace* space, const OccupancyGrid* grid);
 

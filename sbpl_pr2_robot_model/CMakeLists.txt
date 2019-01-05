@@ -32,15 +32,40 @@ add_library(
     sbpl_pr2_robot_model
     src/sbpl_math.cpp
     src/orientation_solver.cpp
-    src/pr2_kdl_robot_model.cpp
-    src/ubr1_kdl_robot_model.cpp)
-target_include_directories(sbpl_pr2_robot_model PUBLIC include)
-target_include_directories(sbpl_pr2_robot_model SYSTEM PUBLIC ${catkin_INCLUDE_DIRS})
-target_include_directories(sbpl_pr2_robot_model SYSTEM PUBLIC ${orocos_kdl_INCLUDE_DIRS})
-target_link_libraries(sbpl_pr2_robot_model ${catkin_LIBRARIES})
-target_link_libraries(sbpl_pr2_robot_model ${orocos_kdl_LIBRARIES})
-target_link_libraries(sbpl_pr2_robot_model smpl::smpl)
+    src/pr2_robot_model.cpp)
+
 target_compile_options(sbpl_pr2_robot_model PUBLIC -std=c++11)
+
+target_include_directories(
+    sbpl_pr2_robot_model
+    PUBLIC
+        include)
+target_include_directories(
+    sbpl_pr2_robot_model
+    SYSTEM PUBLIC
+        ${pr2_arm_kinematics_INCLUDE_DIRS}
+        ${sbpl_kdl_robot_model_INCLUDE_DIRS})
+target_include_directories(
+    sbpl_pr2_robot_model
+    SYSTEM PRIVATE
+        ${orocos_kdl_INCLUDE_DIRS}
+        ${eigen_conversions_INCLUDE_DIRS}
+        ${roscpp_INCLUDE_DIRS}
+        ${leatherman_INCLUDE_DIRS})
+
+target_link_libraries(
+    sbpl_pr2_robot_model
+    PUBLIC
+        ${pr2_arm_kinematics_LIBRARIES}
+        ${sbpl_kdl_robot_model_LIBRARIES})
+target_link_libraries(
+    sbpl_pr2_robot_model
+    PRIVATE
+        ${orocos_kdl_LIBRARIES}
+        ${eigen_conversions_LIBRARIES}
+        ${roscpp_LIBRARIES}
+        ${leatherman_LIBRARIES}
+        smpl::smpl)
 
 install(
     DIRECTORY include/sbpl_pr2_robot_model/

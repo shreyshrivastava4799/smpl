@@ -77,6 +77,16 @@ bool ARAStar::Init(DiscreteSpace* space, Heuristic* heuristic)
     return true;
 }
 
+void ARAStar::SetAllowPartialSolutions(bool enabled)
+{
+    m_allow_partial_solutions = enabled;
+}
+
+bool ARAStar::AllowPartialSolutions() const
+{
+    return m_allow_partial_solutions;
+}
+
 void ARAStar::SetAllowedRepairTime(double allowed_time_secs)
 {
     m_time_params.max_allowed_time = to_duration(allowed_time_secs);

@@ -189,7 +189,7 @@ public:
 
     /// \name Required Functions from Extension
     ///@{
-    Extension* getExtension(size_t class_code) override;
+    auto GetExtension(size_t class_code) -> Extension* final;
     ///@}
 
     /// \name Required Functions from CollisionChecker

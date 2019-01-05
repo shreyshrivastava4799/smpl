@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2010, Benjamin Cohen, Andrew Dornbush
+// Copyright (c) 2010, Benjamin Cohen
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,101 +28,107 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Benjamin Cohen
-/// \author Andrew Dornbush
 
-#ifndef SBPL_KDL_ROBOT_MODEL_KDL_ROBOT_MODEL_H
-#define SBPL_KDL_ROBOT_MODEL_KDL_ROBOT_MODEL_H
+#ifndef SBPL_PR2_ROBOT_MODEL_PR2_KDL_ROBOT_MODEL_H
+#define SBPL_PR2_ROBOT_MODEL_PR2_KDL_ROBOT_MODEL_H
 
 // standard includes
 #include <memory>
 #include <string>
-#include <vector>
 
 // system includes
-#include <kdl/chain.hpp>
-#include <kdl/jntarray.hpp>
-#include <kdl/tree.hpp>
-#include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/chainiksolverpos_nr_jl.hpp>
-#include <kdl/chainiksolvervel_pinv.hpp>
-#include <smpl/robot_model.h>
-#include <smpl_urdf_robot_model/smpl_urdf_robot_model.h>
+#include <pr2_arm_kinematics/pr2_arm_ik_solver.h>
+#include <sbpl_kdl_robot_model/kdl_robot_model.h>
 
-namespace urdf {
-class ModelInterface;
-} // namespace urdf
+// project includes
+#include <sbpl_pr2_robot_model/orientation_solver.h>
 
 namespace smpl {
 
-class KDLRobotModel;
+namespace urdf {
+struct Link;
+struct JointVariable;
+} // namespace urdf
 
-bool InitKDLRobotModel(
-    KDLRobotModel* model,
+// Implements the SMPL RobotModel interface and extensions for the PR2 arm.
+// Forward kinematics are provided by an embedded KDLRobotModel (which itself
+// provides them via URDFRobotModel). 6-DOF Inverse kinematics are provided by
+// an embedded PR2ArmIKSolver and 3-DOF Orientation-only inverse kinematics are
+// provided by a custom RPYSolver implementation. Any missing inverse kinematics
+// capabilities (misconfigured rpy solver or other ik constraints) are forwarded
+// to KDLRobotModel, which may or may not be able to support them.
+class PR2RobotModel;
+
+bool InitPR2RobotModel(
+    PR2RobotModel* model,
     const std::string& robot_description,
     const std::string& base_link,
     const std::string& tip_link,
     int free_angle = -1);
 
-bool InitKDLRobotModel(
-    KDLRobotModel* model,
-    const ::urdf::ModelInterface* urdf,
+bool InitPR2RobotModel(
+    PR2RobotModel* model,
+    const ::urdf::Model* urdf,
     const std::string& base_link,
     const std::string& tip_link,
     int free_angle = -1);
 
-auto GetBaseLink(const KDLRobotModel* model) -> const std::string&;
-auto GetPlanningLink(const KDLRobotModel* model) -> const std::string&;
+auto GetBaseLink(const PR2RobotModel* model) -> const std::string&;
+auto GetPlanningLink(const PR2RobotModel* model) -> const std::string&;
 
-int GetJointCount(const KDLRobotModel* model);
-auto GetPlanningJoints(const KDLRobotModel* model) -> const std::vector<std::string>&;
+int GetJointCount(const PR2RobotModel* model);
+auto GetPlanningJoints(const PR2RobotModel* model)
+    -> const std::vector<std::string>&;
 
-int GetJointVariableCount(const KDLRobotModel* model);
-auto GetPlanningJointVariables(const KDLRobotModel* model) -> const std::vector<std::string>&;
+int GetJointVariableCount(const PR2RobotModel* model);
+auto GetPlanningJointVariables(const PR2RobotModel* model)
+    -> const std::vector<std::string>&;
 
-int GetRedundantVariableCount(const KDLRobotModel* model);
-int GetRedundantVariableIndex(const KDLRobotModel* model, int vidx);
+int GetRedundantVariableCount(const PR2RobotModel* model);
+int GetRedundantVariableIndex(const PR2RobotModel* model, int vidx);
 
-bool HasPosLimit(const KDLRobotModel* model, int jidx);
-bool IsContinuous(const KDLRobotModel* model, int jidx);
-double GetMinPosLimit(const KDLRobotModel* model, int jidx);
-double GetMaxPosLimit(const KDLRobotModel* model, int jidx);
-double GetVelLimit(const KDLRobotModel* model, int jidx);
-double GetAccLimit(const KDLRobotModel* model, int jidx);
+bool HasPosLimit(const PR2RobotModel* model, int jidx);
+bool IsContinuous(const PR2RobotModel* model, int jidx);
+double GetMinPosLimit(const PR2RobotModel* model, int jidx);
+double GetMaxPosLimit(const PR2RobotModel* model, int jidx);
+double GetVelLimit(const PR2RobotModel* model, int jidx);
+double GetAccLimit(const PR2RobotModel* model, int jidx);
 
-void SetReferenceState(KDLRobotModel* model, const double* positions);
+void SetReferenceState(PR2RobotModel* model, const double* positions);
 
 bool CheckJointLimits(
-    KDLRobotModel* model,
+    PR2RobotModel* model,
     const smpl::RobotState& state,
     bool verbose = false);
 
-auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state) -> smpl::Affine3;
+auto ComputeFK(PR2RobotModel* model, const smpl::RobotState& state)
+    -> smpl::Affine3;
 
-void PrintRobotModelInformation(const KDLRobotModel* model);
+void PrintRobotModelInformation(const PR2RobotModel* model);
 
 bool ComputeIK(
-    KDLRobotModel* model,
+    PR2RobotModel* model,
     const smpl::Affine3& pose,
     const RobotState& start,
     RobotState& solution,
     ik_option::IkOption option = ik_option::UNRESTRICTED);
 
 bool ComputeIK(
-    KDLRobotModel* model,
+    PR2RobotModel* model,
     const smpl::Affine3& pose,
     const RobotState& start,
     std::vector<RobotState>& solutions,
     ik_option::IkOption option = ik_option::UNRESTRICTED);
 
 bool ComputeFastIK(
-    KDLRobotModel* model,
+    PR2RobotModel* model,
     const smpl::Affine3& pose,
     const RobotState& start,
     RobotState& solution);
 
-auto GetExtension(KDLRobotModel* model, size_t class_code) -> Extension*;
+auto GetExtension(PR2RobotModel* model, size_t class_code) -> Extension*;
 
-class KDLRobotModel :
+class PR2RobotModel :
     public virtual RobotModel,
     public IForwardKinematics,
     public IInverseKinematics,
@@ -178,33 +184,16 @@ public:
 
 public:
 
-    urdf::URDFRobotModel urdf_model;
+    KDLRobotModel kdl_model;
+    int free_angle;
 
-    urdf::RobotModel robot_model;
+    std::unique_ptr<pr2_arm_kinematics::PR2ArmIKSolver> pr2_ik_solver;
 
-    const urdf::Link* kinematics_link = NULL;
+    std::unique_ptr<RPYSolver> rpy_solver;
 
-    std::string base_link;
-    std::string tip_link;
-
-    KDL::Tree tree;
-    KDL::Chain chain;
-    std::unique_ptr<KDL::ChainFkSolverPos_recursive>    fk_solver;
-    std::unique_ptr<KDL::ChainIkSolverVel_pinv>         ik_vel_solver;
-    std::unique_ptr<KDL::ChainIkSolverPos_NR_JL>        ik_solver;
-
-    // ik solver settings
-    int     max_iterations;
-    double  kdl_eps;
-
-    // temporary storage
-    KDL::JntArray jnt_pos_in;
-    KDL::JntArray jnt_pos_out;
-
-    // ik search configuration
-    int     free_angle;
-    double  search_discretization;
-    double  timeout;
+    const urdf::Link*           forearm_roll_link;
+    const urdf::JointVariable*  wrist_pitch_joint;
+    const urdf::Link*           end_effector_link;
 };
 
 } // namespace smpl

@@ -34,9 +34,6 @@
 
 // system includes
 #include <eigen_conversions/eigen_kdl.h>
-#include <kdl/chainfksolverpos_recursive.hpp>
-#include <kdl/chainiksolverpos_nr_jl.hpp>
-#include <kdl/chainiksolvervel_pinv.hpp>
 #include <kdl/frames.hpp>
 #include <kdl_parser/kdl_parser.hpp>
 #include <leatherman/print.h>
@@ -111,13 +108,23 @@ bool InitKDLRobotModel(
         return false;
     }
 
+    return InitKDLRobotModel(model, &urdf, base_link, tip_link, free_angle);
+}
+
+bool InitKDLRobotModel(
+    KDLRobotModel* model,
+    const ::urdf::ModelInterface* urdf,
+    const std::string& base_link,
+    const std::string& tip_link,
+    int free_angle)
+{
     ROS_INFO("Initialize Robot Model");
     auto j_world = urdf::JointSpec();
     j_world.name = "map";
     j_world.origin = smpl::Affine3::Identity(); // IMPORTANT
     j_world.axis = smpl::Vector3::Zero();
     j_world.type = urdf::JointType::Floating;
-    if (!urdf::InitRobotModel(&model->robot_model, &urdf, &j_world)) {
+    if (!urdf::InitRobotModel(&model->robot_model, urdf, &j_world)) {
         ROS_ERROR("Failed to initialize Robot Model");
         return false;
     }
@@ -130,7 +137,7 @@ bool InitKDLRobotModel(
     }
 
     ROS_INFO("Initialize KDL tree");
-    if (!kdl_parser::treeFromUrdfModel(urdf, model->tree)) {
+    if (!kdl_parser::treeFromUrdfModel(*urdf, model->tree)) {
         ROS_ERROR("Failed to parse the kdl tree from robot description.");
         return false;
     }
@@ -211,7 +218,6 @@ bool InitKDLRobotModel(
     model->free_angle = free_angle;
     model->search_discretization = 0.02;
     model->timeout = 0.005;
-    return true;
 }
 
 auto GetBaseLink(const KDLRobotModel* model) -> const std::string&
@@ -237,6 +243,11 @@ auto GetPlanningJoints(const KDLRobotModel* model) -> const std::vector<std::str
 int GetJointVariableCount(const KDLRobotModel* model)
 {
     return GetJointCount(model);
+}
+
+auto GetPlanningJointVariables(const KDLRobotModel* model) -> const std::vector<std::string>&
+{
+    return model->getPlanningJoints();
 }
 
 int GetRedundantVariableCount(const KDLRobotModel* model)
@@ -297,12 +308,22 @@ auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state) -> smpl::Aff
     return model->urdf_model.computeFK(state);
 }
 
-bool ComputeIKSearch(
+void PrintRobotModelInformation(const KDLRobotModel* model)
+{
+    leatherman::printKDLChain(model->chain, "robot_model");
+}
+
+bool ComputeIK(
     KDLRobotModel* model,
     const smpl::Affine3& pose,
     const RobotState& start,
-    RobotState& solution)
+    RobotState& solution,
+    ik_option::IkOption option)
 {
+    if (option != ik_option::UNRESTRICTED) {
+        return false;
+    }
+
     // transform into kinematics and convert to kdl
     auto* T_map_kinematics = GetLinkTransform(&model->urdf_model.robot_state, model->kinematics_link);
     auto frame_des = KDL::Frame();
@@ -356,25 +377,6 @@ bool ComputeIKSearch(
     return false;
 }
 
-void PrintRobotModelInformation(const KDLRobotModel* model)
-{
-    leatherman::printKDLChain(model->chain, "robot_model");
-}
-
-bool ComputeIK(
-    KDLRobotModel* model,
-    const smpl::Affine3& pose,
-    const RobotState& start,
-    RobotState& solution,
-    ik_option::IkOption option)
-{
-    if (option != ik_option::UNRESTRICTED) {
-        return false;
-    }
-
-    return ComputeIKSearch(model, pose, start, solution);
-}
-
 bool ComputeIK(
     KDLRobotModel* model,
     const smpl::Affine3& pose,
@@ -425,27 +427,11 @@ bool ComputeFastIK(
 
 auto GetExtension(KDLRobotModel* model, size_t class_code) -> Extension*
 {
+    if (class_code == GetClassCode<IForwardKinematics>()) return model;
     if (class_code == GetClassCode<IInverseKinematics>()) return model;
-    return model->urdf_model.GetExtension(class_code);
+    if (class_code == GetClassCode<IRedundantManipulator>()) return model;
+    return NULL;
 }
-
-// Apparently, this default constructor is required because the implicitly-
-// generated default constructor may potentially throw an exception during the
-// initialization of one of its members, in which case it may need to delete the
-// unique_ptr member as part of cleanup. After removing everything from this
-// class except the unique_ptr member, and removing all of its bases, I'm
-// failing to see what else could potentially throw an exception and why the
-// implicitly constructor isn't noexcept. Also, why doesn't this happen in
-// BFSHeuristic, which forward declares BFS_3D for its unique_ptr?
-KDLRobotModel::KDLRobotModel() { }
-
-KDLRobotModel::KDLRobotModel(KDLRobotModel&&) = default;
-
-KDLRobotModel::~KDLRobotModel()
-{
-}
-
-KDLRobotModel& KDLRobotModel::operator=(KDLRobotModel&&) = default;
 
 auto KDLRobotModel::minPosLimit(int jidx) const -> double
 {

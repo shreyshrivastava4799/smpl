@@ -44,8 +44,9 @@
 #include <leatherman/print.h>
 #include <leatherman/viz.h>
 #include <smpl/angles.h>
-#include <smpl/debug/marker_conversions.h>
+#include <smpl_ros/debug/marker_conversions.h>
 
+// project includes
 #include <sbpl_collision_checking/shapes.h>
 
 namespace smpl {
@@ -389,7 +390,7 @@ bool CollisionSpace::collisionDetails(
     return m_scm->collisionDetails(*m_rcs, *m_abcs, m_gidx, details);
 }
 
-Extension* CollisionSpace::getExtension(size_t class_code)
+auto CollisionSpace::GetExtension(size_t class_code) -> Extension*
 {
     if (class_code == GetClassCode<CollisionChecker>()) {
         return this;

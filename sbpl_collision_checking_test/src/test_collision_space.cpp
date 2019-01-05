@@ -39,10 +39,10 @@
 #include <moveit_msgs/PlanningScene.h>
 #include <smpl/occupancy_grid.h>
 #include <sbpl_collision_checking/collision_space.h>
-#include <smpl/ros/propagation_distance_field.h>
+#include <smpl_ros/ros/propagation_distance_field.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <smpl/debug/visualize.h>
-#include <smpl/debug/visualizer_ros.h>
+#include <smpl_ros/debug/visualizer_ros.h>
 
 int main(int argc, char **argv)
 {
