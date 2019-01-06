@@ -96,8 +96,7 @@ auto URDFRobotModel::computeFK(const smpl::RobotState& state)
     -> Eigen::Affine3d
 {
     UpdateState(this, &state);
-    UpdateLinkTransform(&this->robot_state, this->planning_link);
-    return *GetLinkTransform(&this->robot_state, this->planning_link);
+    return *GetUpdatedLinkTransform(&this->robot_state, this->planning_link);
 }
 
 double URDFRobotModel::minPosLimit(int jidx) const

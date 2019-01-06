@@ -33,7 +33,7 @@
 #include <smpl/occupancy_grid.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <smpl/debug/visualize.h>
-#include <smpl/debug/visualizer_ros.h>
+#include <smpl_ros/debug/visualizer_ros.h>
 #include <smpl/geometry/voxelize.h>
 
 int main(int argc, char* argv[])

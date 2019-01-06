@@ -340,7 +340,7 @@ bool ComputeIK(
         model->jnt_pos_in(i) = start[i];
     }
 
-    // must be normalized for CartToJntSearch
+    // must be normalized for CartToJnt
     NormalizeAngles(model, &model->jnt_pos_in);
 
     auto initial_guess = model->jnt_pos_in(model->free_angle);
@@ -360,9 +360,10 @@ bool ComputeIK(
         if (model->ik_solver->CartToJnt(model->jnt_pos_in, frame_des, model->jnt_pos_out) >= 0) {
             NormalizeAngles(model, &model->jnt_pos_out);
             solution.resize(start.size());
-            for (size_t i = 0; i < solution.size(); ++i) {
+            for (auto i = 0; i < solution.size(); ++i) {
                 solution[i] = model->jnt_pos_out(i);
             }
+
             return true;
         }
         if (!getCount(count, num_positive_increments, -num_negative_increments)) {
@@ -371,10 +372,6 @@ bool ComputeIK(
         model->jnt_pos_in(model->free_angle) = initial_guess + model->search_discretization * count;
         ROS_DEBUG("%d, %f", count, model->jnt_pos_in(model->free_angle));
         loop_time = to_seconds(smpl::clock::now() - start_time);
-    }
-
-    if (loop_time >= model->timeout) {
-        return false;
     }
 
     return false;

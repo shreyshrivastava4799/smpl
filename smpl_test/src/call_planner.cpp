@@ -55,6 +55,7 @@
 
 #include "collision_space_scene.h"
 #include "pr2_allowed_collision_pairs.h"
+#include "test_scenario.h"
 
 auto format(std::ostream& o, const geometry_msgs::Point& p) -> std::ostream&
 {
@@ -117,225 +118,6 @@ void FillGoalConstraint(
     goals.orientation_constraints[0].absolute_z_axis_tolerance = 0.05;
 
     ROS_INFO("Done packing the goal constraints message.");
-}
-
-auto GetCollisionCube(
-    const geometry_msgs::Pose& pose,
-    std::vector<double>& dims,
-    const std::string& frame_id,
-    const std::string& id)
-    -> moveit_msgs::CollisionObject
-{
-    auto object = moveit_msgs::CollisionObject();
-    object.id = id;
-    object.operation = moveit_msgs::CollisionObject::ADD;
-    object.header.frame_id = frame_id;
-    object.header.stamp = ros::Time::now();
-
-    auto box_object = shape_msgs::SolidPrimitive();
-    box_object.type = shape_msgs::SolidPrimitive::BOX;
-    box_object.dimensions.resize(3);
-    box_object.dimensions[0] = dims[0];
-    box_object.dimensions[1] = dims[1];
-    box_object.dimensions[2] = dims[2];
-
-    object.primitives.push_back(box_object);
-    object.primitive_poses.push_back(pose);
-    return object;
-}
-
-auto GetCollisionCubes(
-    std::vector<std::vector<double>>& objects,
-    std::vector<std::string>& object_ids,
-    const std::string& frame_id)
-    -> std::vector<moveit_msgs::CollisionObject>
-{
-    std::vector<moveit_msgs::CollisionObject> objs;
-    std::vector<double> dims(3,0);
-    geometry_msgs::Pose pose;
-    pose.orientation.x = 0;
-    pose.orientation.y = 0;
-    pose.orientation.z = 0;
-    pose.orientation.w = 1;
-
-    if (object_ids.size() != objects.size()) {
-        ROS_INFO("object id list is not same length as object list. exiting.");
-        return objs;
-    }
-
-    for (size_t i = 0; i < objects.size(); i++) {
-        pose.position.x = objects[i][0];
-        pose.position.y = objects[i][1];
-        pose.position.z = objects[i][2];
-        dims[0] = objects[i][3];
-        dims[1] = objects[i][4];
-        dims[2] = objects[i][5];
-
-        objs.push_back(GetCollisionCube(pose, dims, frame_id, object_ids.at(i)));
-    }
-    return objs;
-}
-
-auto GetCollisionObjects(
-    const std::string& filename,
-    const std::string& frame_id)
-    -> std::vector<moveit_msgs::CollisionObject>
-{
-    char sTemp[1024];
-    int num_obs = 0;
-    std::vector<std::string> object_ids;
-    std::vector<std::vector<double> > objects;
-    std::vector<moveit_msgs::CollisionObject> objs;
-
-    FILE* fCfg = fopen(filename.c_str(), "r");
-
-    if (fCfg == NULL) {
-        ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
-        return objs;
-    }
-
-    // get number of objects
-    if (fscanf(fCfg,"%s",sTemp) < 1) {
-        printf("Parsed string has length < 1.\n");
-    }
-
-    num_obs = atoi(sTemp);
-
-    ROS_INFO("%i objects in file",num_obs);
-
-    //get {x y z dimx dimy dimz} for each object
-    objects.resize(num_obs);
-    object_ids.clear();
-    for (int i=0; i < num_obs; ++i) {
-        if (fscanf(fCfg,"%s",sTemp) < 1) {
-            printf("Parsed string has length < 1.\n");
-        }
-        object_ids.push_back(sTemp);
-
-        objects[i].resize(6);
-        for (int j=0; j < 6; ++j)
-        {
-            if (fscanf(fCfg,"%s",sTemp) < 1) {
-                printf("Parsed string has length < 1.\n");
-            }
-            if (!feof(fCfg) && strlen(sTemp) != 0) {
-                objects[i][j] = atof(sTemp);
-            }
-        }
-    }
-
-    return GetCollisionCubes(objects, object_ids, frame_id);
-}
-
-bool ReadInitialConfiguration(
-    ros::NodeHandle& nh,
-    moveit_msgs::RobotState& state)
-{
-    XmlRpc::XmlRpcValue xlist;
-
-    // joint_state
-    if (nh.hasParam("initial_configuration/joint_state")) {
-        nh.getParam("initial_configuration/joint_state", xlist);
-
-        if (xlist.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-            ROS_WARN("initial_configuration/joint_state is not an array.");
-        }
-
-        if (xlist.size() > 0) {
-            for (int i = 0; i < xlist.size(); ++i) {
-                state.joint_state.name.push_back(std::string(xlist[i]["name"]));
-
-                if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
-                    state.joint_state.position.push_back(double(xlist[i]["position"]));
-                }
-                else {
-                    ROS_DEBUG("Doubles in the yaml file have to contain decimal points. (Convert '0' to '0.0')");
-                    if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeInt) {
-                        int pos = xlist[i]["position"];
-                        state.joint_state.position.push_back(double(pos));
-                    }
-                }
-            }
-        }
-    }
-    else {
-        ROS_WARN("initial_configuration/joint_state is not on the param server.");
-    }
-
-    // multi_dof_joint_state
-    if (nh.hasParam("initial_configuration/multi_dof_joint_state")) {
-        nh.getParam("initial_configuration/multi_dof_joint_state", xlist);
-
-        if (xlist.getType() == XmlRpc::XmlRpcValue::TypeArray) {
-            if (xlist.size() != 0) {
-                auto &multi_dof_joint_state = state.multi_dof_joint_state;
-                multi_dof_joint_state.joint_names.resize(xlist.size());
-                multi_dof_joint_state.transforms.resize(xlist.size());
-                for (int i = 0; i < xlist.size(); ++i) {
-                    multi_dof_joint_state.joint_names[i] = std::string(xlist[i]["joint_name"]);
-
-                    Eigen::Quaterniond q;
-                    smpl::angles::from_euler_zyx(
-                            (double)xlist[i]["yaw"], (double)xlist[i]["pitch"], (double)xlist[i]["roll"], q);
-
-                    geometry_msgs::Quaternion orientation;
-                    tf::quaternionEigenToMsg(q, orientation);
-
-                    multi_dof_joint_state.transforms[i].translation.x = xlist[i]["x"];
-                    multi_dof_joint_state.transforms[i].translation.y = xlist[i]["y"];
-                    multi_dof_joint_state.transforms[i].translation.z = xlist[i]["z"];
-                    multi_dof_joint_state.transforms[i].rotation.w = orientation.w;
-                    multi_dof_joint_state.transforms[i].rotation.x = orientation.x;
-                    multi_dof_joint_state.transforms[i].rotation.y = orientation.y;
-                    multi_dof_joint_state.transforms[i].rotation.z = orientation.z;
-                }
-            } else {
-                ROS_WARN("initial_configuration/multi_dof_joint_state array is empty");
-            }
-        } else {
-            ROS_WARN("initial_configuration/multi_dof_joint_state is not an array.");
-        }
-    }
-
-    ROS_INFO("Read initial state containing %zu joints and %zu multi-dof joints", state.joint_state.name.size(), state.multi_dof_joint_state.joint_names.size());
-    return true;
-}
-
-struct RobotModelConfig
-{
-    std::string group_name;
-    std::vector<std::string> planning_joints;
-    std::string kinematics_frame;
-    std::string chain_tip_link;
-};
-
-bool ReadRobotModelConfig(const ros::NodeHandle &nh, RobotModelConfig &config)
-{
-    if (!nh.getParam("group_name", config.group_name)) {
-        ROS_ERROR("Failed to read 'group_name' from the param server");
-        return false;
-    }
-
-    std::string planning_joint_list;
-    if (!nh.getParam("planning_joints", planning_joint_list)) {
-        ROS_ERROR("Failed to read 'planning_joints' from the param server");
-        return false;
-    }
-
-    std::stringstream joint_name_stream(planning_joint_list);
-    while (joint_name_stream.good() && !joint_name_stream.eof()) {
-        std::string jname;
-        joint_name_stream >> jname;
-        if (jname.empty()) {
-            continue;
-        }
-        config.planning_joints.push_back(jname);
-    }
-
-    // only required for generic kdl robot model?
-    nh.getParam("kinematics_frame", config.kinematics_frame);
-    nh.getParam("chain_tip_link", config.chain_tip_link);
-    return true;
 }
 
 struct PlannerConfig
@@ -407,213 +189,32 @@ bool ReadPlannerConfig(const ros::NodeHandle &nh, PlannerConfig &config)
     return true;
 }
 
-auto SetupRobotModel(const std::string& urdf, const RobotModelConfig& config)
-    -> std::unique_ptr<smpl::KDLRobotModel>
-{
-    if (config.kinematics_frame.empty() || config.chain_tip_link.empty()) {
-        ROS_ERROR("Failed to retrieve param 'kinematics_frame' or 'chain_tip_link' from the param server");
-        return NULL;
-    }
-
-    ROS_INFO("Construct Generic KDL Robot Model");
-    std::unique_ptr<smpl::KDLRobotModel> rm(new smpl::KDLRobotModel);
-
-    if (!rm->init(urdf, config.kinematics_frame, config.chain_tip_link)) {
-        ROS_ERROR("Failed to initialize robot model.");
-        return NULL;
-    }
-
-    return std::move(rm);
-}
-
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "smpl_test");
-    ros::NodeHandle nh;
-    ros::NodeHandle ph("~");
 
-    ROS_INFO("Initialize visualizer");
-    smpl::VisualizerROS visualizer(nh, 100);
-    smpl::viz::set_visualizer(&visualizer);
-
-    // Let publishers set up
-    ros::Duration(1.0).sleep();
-
-    /////////////////
-    // Robot Model //
-    /////////////////
-
-    ROS_INFO("Load common parameters");
-
-    // Robot description required to initialize collision checker and robot
-    // model...
-    auto robot_description_key = "robot_description";
-    std::string robot_description_param;
-    if (!nh.searchParam(robot_description_key, robot_description_param)) {
-        ROS_ERROR("Failed to find 'robot_description' key on the param server");
+    auto scenario = TestScenario();
+    if (!InitTestScenario(&scenario)) {
+        SMPL_ERROR("Failed to initialize test scenario");
         return 1;
     }
-
-    std::string robot_description;
-    if (!nh.getParam(robot_description_param, robot_description)) {
-        ROS_ERROR("Failed to retrieve param 'robot_description' from the param server");
-        return 1;
-    }
-
-    RobotModelConfig robot_config;
-    if (!ReadRobotModelConfig(ros::NodeHandle("~robot_model"), robot_config)) {
-        ROS_ERROR("Failed to read robot model config from param server");
-        return 1;
-    }
-
-    // Everyone needs to know the name of the planning frame for reasons...
-    // ...frame_id for the occupancy grid (for visualization)
-    // ...frame_id for collision objects (must be the same as the grid, other than that, useless)
-    std::string planning_frame;
-    if (!ph.getParam("planning_frame", planning_frame)) {
-        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
-        return 1;
-    }
-
-    ////////////////////
-    // Occupancy Grid //
-    ////////////////////
-
-    ROS_INFO("Initialize Occupancy Grid");
-
-    auto df_size_x = 3.0;
-    auto df_size_y = 3.0;
-    auto df_size_z = 3.0;
-    auto df_res = 0.02;
-    auto df_origin_x = -0.75;
-    auto df_origin_y = -1.5;
-    auto df_origin_z = 0.0;
-    auto max_distance = 1.8;
-
-    using DistanceMapType = smpl::EuclidDistanceMap;
-
-    auto df = std::make_shared<DistanceMapType>(
-            df_origin_x, df_origin_y, df_origin_z,
-            df_size_x, df_size_y, df_size_z,
-            df_res,
-            max_distance);
-
-    auto ref_counted = false;
-    smpl::OccupancyGrid grid(df, ref_counted);
-
-    grid.setReferenceFrame(planning_frame);
-    SV_SHOW_INFO(grid.getBoundingBoxVisualization());
-
-    //////////////////////////////////
-    // Initialize Collision Checker //
-    //////////////////////////////////
-
-    ROS_INFO("Initialize collision checker");
-
-    // This whole manage storage for all the scene objects and must outlive
-    // its associated CollisionSpace instance.
-    CollisionSpaceScene scene;
-
-    smpl::collision::CollisionModelConfig cc_conf;
-    if (!smpl::collision::CollisionModelConfig::Load(ph, cc_conf)) {
-        ROS_ERROR("Failed to load Collision Model Config");
-        return 1;
-    }
-
-    smpl::collision::CollisionSpace cc;
-    if (!cc.init(
-            &grid,
-            robot_description,
-            cc_conf,
-            robot_config.group_name,
-            robot_config.planning_joints))
-    {
-        ROS_ERROR("Failed to initialize Collision Space");
-        return 1;
-    }
-
-    if (cc.robotCollisionModel()->name() == "pr2") {
-        smpl::collision::AllowedCollisionMatrix acm;
-        for (auto& pair : PR2AllowedCollisionPairs) {
-            acm.setEntry(pair.first, pair.second, true);
-        }
-        cc.setAllowedCollisionMatrix(acm);
-    }
-
-    /////////////////
-    // Setup Scene //
-    /////////////////
-
-    ROS_INFO("Initialize scene");
-
-    scene.SetCollisionSpace(&cc);
-
-    std::string object_filename;
-    ph.param<std::string>("object_filename", object_filename, "");
-
-    // Read in collision objects from file and add to the scene...
-    if (!object_filename.empty()) {
-        auto objects = GetCollisionObjects(object_filename, planning_frame);
-        for (auto& object : objects) {
-            scene.ProcessCollisionObjectMsg(object);
-        }
-    }
-
-    auto rm = SetupRobotModel(robot_description, robot_config);
-    if (!rm) {
-        ROS_ERROR("Failed to set up Robot Model");
-        return 1;
-    }
-
-    // Read in start state from file and update the scene...
-    // Start state is also required by the planner...
-    moveit_msgs::RobotState start_state;
-    if (!ReadInitialConfiguration(ph, start_state)) {
-        ROS_ERROR("Failed to get initial configuration.");
-        return 1;
-    }
-
-    // Set reference state in the robot planning model...
-    smpl::urdf::RobotState reference_state;
-    InitRobotState(&reference_state, &rm->m_robot_model);
-    for (auto i = 0; i < start_state.joint_state.name.size(); ++i) {
-        auto* var = GetVariable(&rm->m_robot_model, &start_state.joint_state.name[i]);
-        if (var == NULL) {
-            ROS_WARN("Failed to do the thing");
-            continue;
-        }
-        ROS_INFO("Set joint %s to %f", start_state.joint_state.name[i].c_str(), start_state.joint_state.position[i]);
-        SetVariablePosition(&reference_state, var, start_state.joint_state.position[i]);
-    }
-    SetReferenceState(rm.get(), GetVariablePositions(&reference_state));
-
-    // Set reference state in the collision model...
-    if (!scene.SetRobotState(start_state)) {
-        ROS_ERROR("Failed to set start state on Collision Space Scene");
-        return 1;
-    }
-
-    cc.setWorldToModelTransform(Eigen::Affine3d::Identity());
-
-    SV_SHOW_INFO(grid.getDistanceFieldVisualization(0.2));
-
-    SV_SHOW_INFO(cc.getCollisionRobotVisualization());
-    SV_SHOW_INFO(cc.getCollisionWorldVisualization());
-    SV_SHOW_INFO(cc.getOccupiedVoxelsVisualization());
 
     ///////////////////
     // Planner Setup //
     ///////////////////
 
-    PlannerConfig planning_config;
+    auto planning_config = PlannerConfig();
     if (!ReadPlannerConfig(ros::NodeHandle("~planning"), planning_config)) {
         ROS_ERROR("Failed to read planner config");
         return 1;
     }
 
-    smpl::PlannerInterface planner(rm.get(), &cc, &grid);
+    auto planner = smpl::PlannerInterface(
+            &scenario.planning_model,
+            &scenario.collision_model,
+            &scenario.grid);
 
-    smpl::PlanningParams params;
+    auto params = smpl::PlanningParams();
 
     params.addParam("discretization", planning_config.discretization);
     params.addParam("mprim_filename", planning_config.mprim_filename);
@@ -645,7 +246,7 @@ int main(int argc, char* argv[])
     // Planning //
     //////////////
 
-    std::vector<double> goal(6, 0);
+    auto goal = std::vector<double>(6, 0);
     ph.param("goal/x", goal[0], 0.0);
     ph.param("goal/y", goal[1], 0.0);
     ph.param("goal/z", goal[2], 0.0);
@@ -653,8 +254,8 @@ int main(int argc, char* argv[])
     ph.param("goal/pitch", goal[4], 0.0);
     ph.param("goal/yaw", goal[5], 0.0);
 
-    moveit_msgs::MotionPlanRequest req;
-    moveit_msgs::MotionPlanResponse res;
+    auto req = moveit_msgs::MotionPlanRequest();
+    auto res = moveit_msgs::MotionPlanResponse();
 
     ph.param("allowed_planning_time", req.allowed_planning_time, 10.0);
     req.goal_constraints.resize(1);
@@ -671,7 +272,7 @@ int main(int argc, char* argv[])
 
     // plan
     ROS_INFO("Calling solve...");
-    moveit_msgs::PlanningScene planning_scene;
+    auto planning_scene = moveit_msgs::PlanningScene();
     planning_scene.robot_state = start_state;
     if (!planner.solve(planning_scene, req, res)) {
         ROS_ERROR("Failed to plan.");
@@ -691,7 +292,7 @@ int main(int argc, char* argv[])
 
     ROS_INFO("Animate path");
 
-    size_t pidx = 0;
+    auto pidx = 0;
     while (ros::ok()) {
         auto& point = res.trajectory.joint_trajectory.points[pidx];
         auto markers = cc.getCollisionRobotVisualization(point.positions);

@@ -124,6 +124,32 @@ target_link_libraries(
 #        ${visualization_msgs_LIBRARIES}
 #        smpl::smpl)
 
+add_library(test_scenario src/test_scenario.cpp src/collision_space_scene.cpp)
+target_compile_options(test_scenario PRIVATE -Wfatal-errors)
+target_include_directories(
+    test_scenario
+    SYSTEM PUBLIC
+        ${moveit_msgs_INCLUDE_DIRS}
+        ${eigen_conversions_INCLUDE_DIRS}
+        ${roscpp_INCLUDE_DIRS}
+        ${sbpl_collision_checking_INCLUDE_DIRS}
+        ${sbpl_kdl_robot_model_INCLUDE_DIRS}
+        ${smpl_ros_INCLUDE_DIRS})
+target_link_libraries(
+    test_scenario
+    PUBLIC
+    ${moveit_msgs_LIBRARIES}
+    ${eigen_conversions_LIBRARIES}
+    ${roscpp_LIBRARIES}
+    ${sbpl_collision_checking_LIBRARIES}
+    ${sbpl_kdl_robot_model_LIBRARIES}
+    smpl::smpl
+    ${smpl_ros_LIBRARIES})
+
+add_executable(test_ara_bfs_jsl src/test_ara_bfs_jsl.cpp)
+target_include_directories(test_ara_bfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
+target_link_libraries(test_ara_bfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
+
 add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
 target_include_directories(
     call_ompl_planner
@@ -154,20 +180,20 @@ target_link_libraries(
         ${urdfdom_LIBRARIES}
         smpl::smpl)
 
-#add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)
-#target_include_directories(
-#    occupancy_grid_test
-#    SYSTEM PRIVATE
-#        ${roscpp_INCLUDE_DIRS}
-#        ${visualization_msgs_INCLUDE_DIRS}
-#        ${smpl_ros_INCLUDE_DIRS})
-#target_link_libraries(
-#    occupancy_grid_test PRIVATE
-#        ${roscpp_LIBRARIES}
-#        ${visualization_msgs_LIBRARIES}
-#        ${smpl_ros_LIBRARIES}
-#        smpl::smpl)
-#
-#install(
-#    TARGETS debug_vis_demo callPlanner call_ompl_planner occupancy_grid_test
-#    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+add_executable(occupancy_grid_test src/occupancy_grid_test.cpp)
+target_include_directories(
+    occupancy_grid_test
+    SYSTEM PRIVATE
+        ${roscpp_INCLUDE_DIRS}
+        ${visualization_msgs_INCLUDE_DIRS}
+        ${smpl_ros_INCLUDE_DIRS})
+target_link_libraries(
+    occupancy_grid_test PRIVATE
+        ${roscpp_LIBRARIES}
+        ${visualization_msgs_LIBRARIES}
+        ${smpl_ros_LIBRARIES}
+        smpl::smpl)
+
+install(
+    TARGETS debug_vis_demo call_ompl_planner occupancy_grid_test #callPlanner
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
