@@ -79,7 +79,7 @@ public:
     size_t jointVariableCount() const { return planning_joints_.size(); }
 
     void setPlanningJoints(const std::vector<std::string>& joints);
-    const std::vector<std::string>& getPlanningJoints() const;
+    auto getPlanningJoints() const -> const std::vector<std::string>&;
 
 protected:
 

@@ -44,7 +44,7 @@
 #include <smpl/types.h>
 #include <smpl/graph/motion_primitive.h>
 #include <smpl/graph/discrete_space.h>
-#include <smpl/graph/workspace_lattice_base.h>
+#include <smpl/graph/workspace_projection.h>
 #include <smpl/graph/workspace_lattice_types.h>
 
 namespace smpl {

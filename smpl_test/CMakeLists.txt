@@ -25,6 +25,7 @@ find_package(catkin
         roscpp
         sbpl_collision_checking
         sbpl_kdl_robot_model
+        sbpl_pr2_robot_model
         smpl_ompl_interface
         visualization_msgs)
 
@@ -129,6 +130,7 @@ target_compile_options(test_scenario PRIVATE -Wfatal-errors)
 target_include_directories(
     test_scenario
     SYSTEM PUBLIC
+        ${sbpl_pr2_robot_model_INCLUDE_DIRS}
         ${moveit_msgs_INCLUDE_DIRS}
         ${eigen_conversions_INCLUDE_DIRS}
         ${roscpp_INCLUDE_DIRS}
@@ -138,6 +140,7 @@ target_include_directories(
 target_link_libraries(
     test_scenario
     PUBLIC
+    ${sbpl_pr2_robot_model_LIBRARIES}
     ${moveit_msgs_LIBRARIES}
     ${eigen_conversions_LIBRARIES}
     ${roscpp_LIBRARIES}
@@ -149,6 +152,10 @@ target_link_libraries(
 add_executable(test_ara_bfs_jsl src/test_ara_bfs_jsl.cpp)
 target_include_directories(test_ara_bfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
 target_link_libraries(test_ara_bfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
+
+add_executable(test_ara_bfs_wsl src/test_ara_bfs_wsl.cpp)
+target_include_directories(test_ara_bfs_wsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
+target_link_libraries(test_ara_bfs_wsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
 
 add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
 target_include_directories(

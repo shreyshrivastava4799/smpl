@@ -5,10 +5,9 @@
 
 // system includes
 #include <ros/ros.h>
-#include <smpl/graph/cost_function.h>
+#include <smpl/graph/workspace_lattice.h>
 #include <smpl/graph/goal_constraint.h>
-#include <smpl/graph/manip_lattice.h>
-#include <smpl/graph/manipulation_action_space.h>
+#include <smpl/graph/simple_workspace_lattice_action_space.h>
 #include <smpl/heuristic/bfs_heuristic.h>
 #include <smpl/search/arastar.h>
 
@@ -17,61 +16,72 @@
 
 int main(int argc, char* argv[])
 {
-    ros::init(argc, argv, "test_ara_bfs_jsl");
+    ros::init(argc, argv, "test_ara_bfs_wsl");
     ros::NodeHandle ph("~");
 
-    auto scenario = TestScenarioKDL();
+    auto scenario = TestScenarioPR2();
     InitTestScenario(&scenario);
 
-    auto resolutions = std::vector<double>(
-            GetJointVariableCount(&scenario.planning_model),
-            smpl::to_radians(2.0));
+    // some cool numbers that evenly divide 360
 
-    auto actions = smpl::ManipulationActionSpace();
-    auto cost_fun = smpl::UniformCostFunction();
-    auto graph = smpl::ManipLattice();
+    // m degrees/disc = n discrete values
+    // 1 = 360
+    // 2 = 180
+    // 3 = 120
+    // 4 = 90
+    // 5 = 72
+    // 6 = 60
+    // 8 = 45
+    // 9 = 40
+    // 10 = 36
+    // 12 = 30
+    // 15 = 24
+    // 18 = 20
+
+    // TODO: initialize and configure
+    auto resolutions = smpl::WorkspaceProjectionParams();
+    resolutions.res_x = 0.02;
+    resolutions.res_y = 0.02;
+    resolutions.res_z = 0.02;
+    resolutions.R_count = 36;
+    resolutions.P_count = 19;
+    resolutions.Y_count = 36;
+    resolutions.free_angle_res = { smpl::to_radians(1.0) };
+
+    // TODO: configure
+    auto actions = smpl::SimpleWorkspaceLatticeActionSpace();
+
+    // TODO: implement cost functions for workspace lattice
+
+    auto graph = smpl::WorkspaceLattice();
 
     if (!graph.Init(
             &scenario.planning_model,
             &scenario.collision_model,
             resolutions,
-            &actions,
-            &cost_fun))
+            &actions))
     {
         SMPL_ERROR("Failed to initialize Manip Lattice");
         return 1;
     }
 
+#if 0
     if (!actions.Init(&graph)) {
         SMPL_ERROR("Failed to initialize Manipulation Action Space");
         return 1;
     }
-
-    auto mprim_filename = std::string();
-    if (!ph.getParam("planning/mprim_filename", mprim_filename)) {
-        ROS_ERROR("Failed to read param 'mprim_filename' from the param server");
+#else
+    // TODO: weird name
+    if (!InitSimpleWorkspaceLatticeActions(&graph, &actions)) {
+        SMPL_ERROR("Failed to initialize Simple Workspace Lattice Action Space");
         return 1;
     }
+#endif
 
-    if (!actions.Load(mprim_filename)) {
-        SMPL_ERROR("Failed to load motion primitives");
-        return 1;
-    }
-
-    actions.EnableLongMotions(true);
-    actions.EnableIKMotionXYZ(false);
-    actions.EnableIKMotionRPY(false);
-    actions.EnableIKMotionXYZRPY(true);
-
-    actions.SetLongMotionThreshold(0.4);
-    actions.SetIKMotionXYZRPYThreshold(0.02);
-
-    if (!cost_fun.Init(&graph)) {
-        SMPL_ERROR("Failed to initialize Uniform Cost Function");
-        return 1;
-    }
-
-    cost_fun.cost_per_action = 1000;
+    // NOTE: SimpleWorkspaceLatticeActionSpace really isn't that simple. It
+    // includes an adaptive ik motion that is automatically enabled
+    actions.m_ik_amp_enabled = true;
+    actions.m_ik_amp_thresh = 0.05;
 
     auto heuristic = smpl::BFSHeuristic();
     if (!heuristic.Init(&graph, &scenario.grid)) {
@@ -170,6 +180,8 @@ int main(int argc, char* argv[])
     ////////////////////////////
     // Finally, plan the path //
     ////////////////////////////
+
+    SMPL_WARN("PLAN!");
 
     auto time_params = smpl::ARAStar::TimeParameters();
     time_params.bounded = true;

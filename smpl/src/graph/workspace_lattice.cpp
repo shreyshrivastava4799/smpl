@@ -555,13 +555,14 @@ bool WorkspaceLattice::UpdateGoal(GoalConstraint* goal)
     return DiscreteSpace::UpdateGoal(goal);
 }
 
-auto WorkspaceLattice::GetExtension(size_t class_code) -> Extension*
+auto WorkspaceLattice::GetExtension(size_t class_id) -> Extension*
 {
-    if (class_code == GetClassCode<DiscreteSpace>() ||
-        class_code == GetClassCode<RobotPlanningSpace>() ||
-        class_code == GetClassCode<IProjectToPose>() ||
-        class_code == GetClassCode<IProjectToPoint>() ||
-        class_code == GetClassCode<IExtractRobotState>())
+    if (class_id == GetClassCode<DiscreteSpace>() ||
+        class_id == GetClassCode<RobotPlanningSpace>() ||
+        class_id == GetClassCode<IProjectToPose>() ||
+        class_id == GetClassCode<IProjectToPoint>() ||
+        class_id == GetClassCode<IExtractRobotState>() ||
+        class_id == GetClassCode<ISearchable>())
     {
         return this;
     }

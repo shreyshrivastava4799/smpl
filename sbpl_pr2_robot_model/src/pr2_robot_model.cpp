@@ -128,11 +128,13 @@ bool InitPR2RobotModel(
         return false;
     }
 
+    model->setPlanningJoints(GetPlanningJoints(&model->kdl_model));
+
     ROS_INFO("Initialize PR2 Arm IK Solver");
     auto search_discretization_angle = 0.02;
     auto pr2_ik_solver = smpl::make_unique<pr2_arm_kinematics::PR2ArmIKSolver>(
             urdf, base_link, tip_link, search_discretization_angle, free_angle);
-    if (pr2_ik_solver->active_) {
+    if (!pr2_ik_solver->active_) {
         ROS_WARN("Failed to initialize PR2 Arm IK Solver");
         return false;
     }
@@ -144,9 +146,9 @@ bool InitPR2RobotModel(
 
     if (tip_link == "r_gripper_palm_link" || tip_link == "l_gripper_palm_link") {
         ROS_INFO("Initialize PR2 RPY Solver");
-        std::string forearm_roll_link_name;
-        std::string wrist_pitch_joint_name;
-        std::string end_effector_link_name;
+        auto forearm_roll_link_name = std::string();
+        auto wrist_pitch_joint_name = std::string();
+        auto end_effector_link_name = std::string();
         if (base_link.substr(0, 1) == "r") {
             forearm_roll_link_name = "r_forearm_roll_link";
             wrist_pitch_joint_name = "r_wrist_flex_joint";
@@ -186,6 +188,7 @@ bool InitPR2RobotModel(
                 wrist_min_limit, wrist_max_limit);
     }
 
+    model->pr2_ik_solver = std::move(pr2_ik_solver);
     model->rpy_solver = std::move(rpy_solver);
     model->forearm_roll_link = forearm_roll_link;
     model->wrist_pitch_joint = wrist_var;

@@ -49,15 +49,18 @@ static const char* LOG = "heuristic.bfs";
 bool BFSHeuristic::Init(DiscreteSpace* space, const OccupancyGrid* grid)
 {
     if (grid == NULL) {
+        SMPL_WARN("Occupancy Grid is null");
         return false;
     }
 
     auto project_to_point = space->GetExtension<IProjectToPoint>();
     if (project_to_point == NULL) {
+        SMPL_WARN("BFS Heuristic requires IProjectToPoint extension");
         return false;
     }
 
     if (!Heuristic::Init(space)) {
+        SMPL_WARN("Failed to initialize Heuristic");
         return false;
     }
 

@@ -29,7 +29,7 @@
 
 /// \author Andrew Dornbush
 
-#include <smpl/graph/workspace_lattice_base.h>
+#include <smpl/graph/workspace_projection.h>
 
 // project includes
 #include <smpl/angles.h>

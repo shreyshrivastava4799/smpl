@@ -42,7 +42,7 @@
 #include <smpl/graph/adaptive_graph_extension.h>
 #include <smpl/graph/discrete_space.h>
 #include <smpl/graph/motion_primitive.h>
-#include <smpl/graph/workspace_lattice_base.h>
+#include <smpl/graph/workspace_projection.h>
 #include <smpl/grid/grid.h>
 #include <smpl/types.h>
 

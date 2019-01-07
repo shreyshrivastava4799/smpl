@@ -76,10 +76,12 @@ auto GetBaseLink(const KDLRobotModel* model) -> const std::string&;
 auto GetPlanningLink(const KDLRobotModel* model) -> const std::string&;
 
 int GetJointCount(const KDLRobotModel* model);
-auto GetPlanningJoints(const KDLRobotModel* model) -> const std::vector<std::string>&;
+auto GetPlanningJoints(const KDLRobotModel* model)
+    -> const std::vector<std::string>&;
 
 int GetJointVariableCount(const KDLRobotModel* model);
-auto GetPlanningJointVariables(const KDLRobotModel* model) -> const std::vector<std::string>&;
+auto GetPlanningJointVariables(const KDLRobotModel* model)
+    -> const std::vector<std::string>&;
 
 int GetRedundantVariableCount(const KDLRobotModel* model);
 int GetRedundantVariableIndex(const KDLRobotModel* model, int vidx);

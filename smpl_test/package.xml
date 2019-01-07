@@ -21,6 +21,7 @@
     <depend>sbpl_collision_checking</depend>
     <depend>sbpl_collision_checking_test</depend>
     <depend>sbpl_kdl_robot_model</depend>
+    <depend>sbpl_pr2_robot_model</depend>
     <depend>smpl</depend>
     <depend>smpl_ompl_interface</depend>
     <depend>smpl_ros</depend>
