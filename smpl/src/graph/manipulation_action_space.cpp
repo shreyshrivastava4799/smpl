@@ -109,6 +109,7 @@ auto GetStartAndGoalDistances(
         return std::make_pair(0.0, 0.0);
     }
 
+    // TODO: why not use project-to-point here?
     auto pose = actions->m_fk_iface->computeFK(state);
 
     auto start_dist = 0.0;
