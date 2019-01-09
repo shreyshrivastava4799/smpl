@@ -9,8 +9,9 @@
 #include <smpl/graph/goal_constraint.h>
 #include <smpl/graph/manip_lattice.h>
 #include <smpl/graph/manipulation_action_space.h>
-#include <smpl/heuristic/bfs_heuristic.h>
+#include <smpl/heuristic/joint_dist_heuristic.h>
 #include <smpl/search/arastar.h>
+#include <smpl_urdf_robot_model/robot_state_visualization.h> // TODO: for visualization that should be part of JointStateGoal
 
 // project includes
 #include "test_scenario.h"
@@ -73,18 +74,11 @@ int main(int argc, char* argv[])
 
     cost_fun.cost_per_action = 1000;
 
-    auto heuristic = smpl::BFSHeuristic();
-    if (!heuristic.Init(&graph, &scenario.grid)) {
+    auto heuristic = smpl::JointDistHeuristic();
+    if (!heuristic.Init(&graph)) {
         SMPL_ERROR("Failed to initialize BFS Heuristic");
         return 1;
     }
-
-    heuristic.SetInflationRadius(0.04);
-    heuristic.SetCostPerCell(100);
-
-    // TODO: this is kinda dumb to have to remember to do this
-    heuristic.SyncGridAndBFS();
-    SV_SHOW_DEBUG(heuristic.GetWallsVisualization());
 
     auto* h = (smpl::Heuristic*)&heuristic;
     if (!graph.UpdateHeuristics(&h, 1)) {
@@ -106,7 +100,7 @@ int main(int argc, char* argv[])
     search.SetImproveSolution(false);
     search.SetBoundExpansions(true);
 
-    auto goal = smpl::PoseGoal();
+    auto goal = smpl::JointStateGoal();
     if (!goal.Init(&graph)) {
         SMPL_ERROR("Failed to initialize the goal");
         return 1;
@@ -145,21 +139,58 @@ int main(int argc, char* argv[])
     // Update the goal //
     /////////////////////
 
-    double goal_vals[6];
-    ph.param("goal/x",      goal_vals[0], 0.0);
-    ph.param("goal/y",      goal_vals[1], 0.0);
-    ph.param("goal/z",      goal_vals[2], 0.0);
-    ph.param("goal/roll",   goal_vals[3], 0.0);
-    ph.param("goal/pitch",  goal_vals[4], 0.0);
-    ph.param("goal/yaw",    goal_vals[5], 0.0);
+    // right arm tuck pose
+    double goal_state[] =
+    {
+        /* r_shoulder_pan_joint */ -0.023593,
+        /* r_shoulder_lift_joint */ 1.10728,
+        /* r_upper_arm_roll_joint */ -1.55669,
+        /* r_forearm_roll_joint */ -1.4175,
+        /* r_elbow_flex_joint */ -2.12441,
+        /* r_wrist_flex_joint */ -1.8417,
+        /* r_wrist_roll_joint */ 0.21436,
+    };
 
-    goal.pose = smpl::MakeAffine(
-            goal_vals[0], goal_vals[1], goal_vals[2],
-            goal_vals[5], goal_vals[4], goal_vals[3]);
-    goal.tolerance.xyz[0] = goal.tolerance.xyz[1] = goal.tolerance.xyz[2] = 0.015;
-    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(1.0);
+#if 0 // left arm tuck pose
+    <group_state name="tuck_left_arm" group="left_arm">
+        <joint name="l_elbow_flex_joint" value="-1.68339" />
+        <joint name="l_forearm_roll_joint" value="-1.73434" />
+        <joint name="l_shoulder_lift_joint" value="1.24853" />
+        <joint name="l_shoulder_pan_joint" value="0.06024" />
+        <joint name="l_upper_arm_roll_joint" value="1.78907" />
+        <joint name="l_wrist_flex_joint" value="-0.0962141" />
+        <joint name="l_wrist_roll_joint" value="-0.0864407" />
+    </group_state>
+#endif
 
-    SV_SHOW_INFO_NAMED("pose_goal", goal.GetVisualization("odom_combined"));
+    goal.SetGoalState(std::vector<double>(
+            goal_state,
+            goal_state + sizeof(goal_state) / sizeof(goal_state[0])));
+
+    auto goal_tolerance =
+    {
+        smpl::to_radians(2.0),
+        smpl::to_radians(2.0),
+        smpl::to_radians(2.0),
+        smpl::to_radians(2.0),
+        smpl::to_radians(2.0),
+        smpl::to_radians(2.0),
+        smpl::to_radians(2.0),
+    };
+
+    goal.SetGoalTolerance(goal_tolerance);
+
+    // TODO: GetVisualization on JointStateGoal?
+    auto full_state_vis = scenario.planning_model.urdf_model.robot_state;
+    for (auto i = 0; i < GetJointVariableCount(&scenario.planning_model); ++i) {
+        auto& var_name = GetPlanningJointVariables(&scenario.planning_model)[i];
+        auto* var = GetVariable(&scenario.planning_model.robot_model, &var_name);
+        assert(var != NULL);
+        SetVariablePosition(&full_state_vis, var, goal_state[i]);
+    }
+
+    UpdateTransforms(&full_state_vis);
+    SV_SHOW_INFO_NAMED("joint_goal", MakeRobotVisualization(&full_state_vis, smpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f }, "odom_combined", "joint_goal"));
 
     if (!graph.UpdateGoal(&goal) ||
         !heuristic.UpdateGoal(&goal) ||
@@ -168,8 +199,6 @@ int main(int argc, char* argv[])
         SMPL_ERROR("Failed to update the goal");
         return 1;
     }
-
-    SV_SHOW_DEBUG_NAMED("bfs_values", heuristic.GetValuesVisualization());
 
     ////////////////////////////
     // Finally, plan the path //

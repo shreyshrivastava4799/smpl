@@ -179,7 +179,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    SV_SHOW_INFO_NAMED("bfs_values", heuristic.GetValuesVisualization());
+    SV_SHOW_DEBUG_NAMED("bfs_values", heuristic.GetValuesVisualization());
 
     ////////////////////////////
     // Finally, plan the path //

@@ -34,7 +34,7 @@ public:
     auto GetPlanningSpace() -> DiscreteSpace*;
     auto GetPlanningSpace() const -> const DiscreteSpace*;
 
-private:
+public:
 
     DiscreteSpace* m_space;
 };
@@ -89,7 +89,7 @@ public:
 
     auto GetExtension(size_t class_id) -> Extension* final;
 
-private:
+public:
 
     int m_goal_state_id = -1;
 
@@ -126,7 +126,7 @@ public:
 
     auto GetExtension(size_t class_id) -> Extension* final;
 
-private:
+public:
 
     IExtractRobotState* m_extract_state = NULL;
     IForwardKinematics* m_fk = NULL;
@@ -155,7 +155,7 @@ public:
 
     auto GetExtension(size_t class_id) -> Extension* final;
 
-private:
+public:
 
     IProjectToPoint* m_project_to_point = NULL;
 };
@@ -187,7 +187,7 @@ public:
 
     auto GetExtension(size_t class_id) -> Extension* final;
 
-private:
+public:
 
     IProjectToPose* m_project_to_pose = NULL;
 };
@@ -212,7 +212,7 @@ public:
 
     auto GetExtension(size_t class_id) -> Extension* final;
 
-private:
+public:
 
     IProjectToPose* m_project_to_pose = NULL;
 };
@@ -232,7 +232,7 @@ public:
 
     auto GetExtension(size_t class_id) -> Extension* final;
 
-private:
+public:
 
     IExtractRobotState* m_extract_state = 0;
 };

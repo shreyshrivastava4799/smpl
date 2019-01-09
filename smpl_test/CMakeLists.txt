@@ -157,6 +157,10 @@ add_executable(test_ara_bfs_wsl src/test_ara_bfs_wsl.cpp)
 target_include_directories(test_ara_bfs_wsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
 target_link_libraries(test_ara_bfs_wsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
 
+add_executable(test_ara_jd_jsl src/test_ara_jd_jsl.cpp)
+target_include_directories(test_ara_jd_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
+target_link_libraries(test_ara_jd_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
+
 add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
 target_include_directories(
     call_ompl_planner

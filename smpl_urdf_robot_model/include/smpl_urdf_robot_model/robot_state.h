@@ -168,10 +168,10 @@ struct RobotState
 
     // self-references => non-copyable
     RobotState() = default;
-    RobotState(const RobotState&) = delete;
+    RobotState(const RobotState&);
     RobotState(RobotState&&) = default;
-    RobotState& operator=(const RobotState&) = delete;
-    RobotState& operator=(RobotState&&) = default;
+    auto operator=(const RobotState&) -> RobotState&;
+    auto operator=(RobotState&&) -> RobotState& = default;
 };
 
 } // namespace urdf

@@ -731,6 +731,32 @@ bool IsDirty(const RobotState* state)
             state->dirty_collisions_joint != NULL;
 }
 
+RobotState::RobotState(const RobotState& o)
+{
+    *this = o;
+}
+
+auto RobotState::operator=(const RobotState& o) -> RobotState&
+{
+    this->model = o.model;
+
+    this->values = o.values;
+    this->positions = this->values.data() + (o.positions - o.values.data());
+    this->velocities = this->values.data() + (o.velocities - o.values.data());
+    this->accelerations = this->values.data() + (o.accelerations - o.values.data());
+
+    this->transforms = o.transforms;
+    this->link_transforms = this->transforms.data() + (o.link_transforms - o.transforms.data());
+    this->joint_transforms = this->transforms.data() + (o.joint_transforms - o.transforms.data());
+    this->link_collision_transforms = this->transforms.data() + (o.link_collision_transforms - o.transforms.data());
+    this->link_visual_transforms = this->transforms.data() + (o.link_visual_transforms - o.transforms.data());
+
+    this->dirty_links_joint = o.dirty_links_joint;
+    this->dirty_collisions_joint = o.dirty_collisions_joint;
+    this->dirty_visuals_joint = o.dirty_visuals_joint;
+    return *this;
+}
+
 } // namespace urdf
 } // namespace smpl
 
