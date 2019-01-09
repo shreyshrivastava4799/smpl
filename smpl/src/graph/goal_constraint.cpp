@@ -371,33 +371,4 @@ auto MultiPoseGoal::GetExtension(size_t class_id) -> Extension*
     return NULL;
 }
 
-//////////////
-// UserGoal //
-//////////////
-
-bool UserGoal::Init(DiscreteSpace* space)
-{
-    auto* extract_state = space->GetExtension<IExtractRobotState>();
-    if (extract_state == NULL) return false;
-
-    if (!GoalConstraint::Init(space)) return false;
-
-    m_extract_state = extract_state;
-    return true;
-}
-
-bool UserGoal::IsGoal(int state_id)
-{
-    auto& state = m_extract_state->ExtractState(state_id);
-    return check_goal(check_goal_user, state);
-}
-
-auto UserGoal::GetExtension(size_t class_id) -> Extension*
-{
-    if (class_id == GetClassCode<GoalConstraint>()) {
-        return this;
-    }
-    return NULL;
-}
-
 } // namespace smpl

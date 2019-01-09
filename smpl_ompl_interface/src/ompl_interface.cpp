@@ -703,12 +703,51 @@ PlannerImpl::PlannerImpl(
     this->initialized = true;
 }
 
-bool IsAnyGoal(void* user, const smpl::RobotState& state)
+struct AnyGoal;
+
+static bool Init(AnyGoal* goal, DiscreteSpace* space);
+static bool IsGoal(AnyGoal* goal, int state_id);
+static auto GetExtension(AnyGoal* goal, size_t class_id) -> smpl::Extension*;
+
+struct AnyGoal : public smpl::GoalConstraint
 {
-    auto* planner = static_cast<OMPLPlanner*>(user);
-    auto* space = planner->getSpaceInformation()->getStateSpace().get();
-    return planner->getProblemDefinition()->getGoal()->isSatisfied(
+    IExtractRobotState* extract_state = NULL;
+    OMPLPlanner* planner = NULL;
+
+    bool Init(DiscreteSpace* space) final { return ::smpl::detail::Init(this, space); }
+    bool IsGoal(int state_id) final { return ::smpl::detail::IsGoal(this, state_id); }
+    auto GetExtension(size_t class_id) -> smpl::Extension* final { return ::smpl::detail::GetExtension(this, class_id); }
+};
+
+bool Init(AnyGoal* goal, DiscreteSpace* space)
+{
+    auto* extractor = space->GetExtension<IExtractRobotState>();
+    if (extractor == NULL) {
+        return false;
+    }
+
+    if (!goal->smpl::GoalConstraint::Init(space)) {
+        return false;
+    }
+
+    goal->extract_state = extractor;
+    return true;
+}
+
+bool IsGoal(AnyGoal* goal, int state_id)
+{
+    auto& state = goal->extract_state->ExtractState(state_id);
+    auto* space = goal->planner->getSpaceInformation()->getStateSpace().get();
+    return goal->planner->getProblemDefinition()->getGoal()->isSatisfied(
             MakeStateOMPL(space, state));
+}
+
+auto GetExtension(AnyGoal* goal, size_t class_id) -> smpl::Extension*
+{
+    if (class_id == smpl::GetClassCode<smpl::GoalConstraint>()) {
+        return goal;
+    }
+    return NULL;
 }
 
 auto to_cstring(ompl::base::GoalType type) -> const char*
@@ -733,7 +772,8 @@ auto to_cstring(ompl::base::GoalType type) -> const char*
 
 static
 auto MakeSMPLGoal(
-    PlannerImpl* planner,
+    OMPLPlanner* planner,
+    PlannerImpl* impl,
     ompl::base::StateSpace* ompl_space,
     ompl::base::Goal* abstract_goal)
     -> std::unique_ptr<smpl::GoalConstraint>
@@ -764,9 +804,8 @@ auto MakeSMPLGoal(
     case ompl::base::GoalType::GOAL_STATES:
     case ompl::base::GoalType::GOAL_LAZY_SAMPLES:
     {
-        auto this_goal = smpl::make_unique<smpl::UserGoal>();
-        this_goal->check_goal = IsAnyGoal;
-        this_goal->check_goal_user = planner;
+        auto this_goal = smpl::make_unique<AnyGoal>();
+        this_goal->planner = planner;
         return std::move(this_goal);
     }
     case ompl::base::GoalType::GOAL_STATE:
@@ -780,7 +819,7 @@ auto MakeSMPLGoal(
         // TODO: expose tolerance parameters or at least don't assume uniform discretization
         auto tolerance = std::vector<double>(
                 goal_state.size(),
-                0.5 * planner->space.GetResolutions().front());
+                0.5 * impl->space.GetResolutions().front());
         this_goal->SetGoalTolerance(tolerance);
 
         return std::move(this_goal);
@@ -855,7 +894,7 @@ auto PlannerImpl::solve(
     auto& abstract_goal = pdef->getGoal();
     SMPL_DEBUG("Received goal of type %s", to_cstring(abstract_goal->getType()));
 
-    auto goal = MakeSMPLGoal(this, ompl_space, abstract_goal.get());
+    auto goal = MakeSMPLGoal(planner, this, ompl_space, abstract_goal.get());
     if (!goal->Init(&this->space)) {
         SMPL_WARN("Failed to initialize goal");
         return ompl::base::PlannerStatus(ompl::base::PlannerStatus::INVALID_GOAL);

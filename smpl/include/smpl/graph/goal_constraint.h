@@ -217,26 +217,6 @@ public:
     IProjectToPose* m_project_to_pose = NULL;
 };
 
-using GoalConstraintFn = bool (*)(void* user, const RobotState& state);
-
-class UserGoal : public GoalConstraint
-{
-public:
-
-    GoalConstraintFn check_goal = NULL;
-    void* check_goal_user = NULL;
-
-    bool Init(DiscreteSpace* space) final;
-
-    bool IsGoal(int state_id) final;
-
-    auto GetExtension(size_t class_id) -> Extension* final;
-
-public:
-
-    IExtractRobotState* m_extract_state = 0;
-};
-
 } // namespace smpl
 
 #endif
