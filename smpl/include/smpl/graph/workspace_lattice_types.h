@@ -35,7 +35,7 @@ struct WorkspaceLatticeState
     RobotState state;
 };
 
-std::ostream& operator<<(std::ostream& o, const WorkspaceLatticeState& s);
+auto operator<<(std::ostream& o, const WorkspaceLatticeState& s) -> std::ostream&;
 
 inline
 bool operator==(const WorkspaceLatticeState& a, const WorkspaceLatticeState& b)

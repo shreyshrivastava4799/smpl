@@ -8,6 +8,8 @@
 namespace smpl {
 
 struct WorkspaceLattice;
+class IMetricGoalHeuristic;
+class IGetPose;
 
 class SimpleWorkspaceLatticeActionSpace : public WorkspaceLatticeActionSpace
 {
@@ -20,7 +22,16 @@ public:
 
     void Apply(
         const WorkspaceLatticeState& state,
-        std::vector<WorkspaceAction>& actions) override;
+        std::vector<WorkspaceAction>& actions) final;
+
+    bool UpdateHeuristics(Heuristic** heuristic, int count) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
+
+public:
+
+    IMetricGoalHeuristic* m_goal_heuristic = NULL;
+
+    IGetPose* m_get_goal_pose = NULL;
 };
 
 bool InitSimpleWorkspaceLatticeActions(

@@ -8,6 +8,8 @@
 #include <smpl/graph/workspace_lattice.h>
 #include <smpl/heuristic/heuristic.h>
 #include <smpl/planning_params.h>
+#include <smpl/heuristic/heuristic.h>
+#include <smpl/graph/goal_constraint.h>
 
 namespace smpl {
 
@@ -36,9 +38,9 @@ bool InitSimpleWorkspaceLatticeActions(
 
 #if 0
     // create 26-connected position motions
-    for (int dx = -1; dx <= 1; ++dx) {
-    for (int dy = -1; dy <= 1; ++dy) {
-    for (int dz = -1; dz <= 1; ++dz) {
+    for (auto dx = -1; dx <= 1; ++dx) {
+    for (auto dy = -1; dy <= 1; ++dy) {
+    for (auto dz = -1; dz <= 1; ++dz) {
         if (dx == 0 && dy == 0 && dz == 0) {
             continue;
         }
@@ -56,7 +58,7 @@ bool InitSimpleWorkspaceLatticeActions(
     add_xyz_prim(0, 0, -1);
 
     // create 2-connected motions for rotation and free angle motions
-    for (int a = 3; a < space->m_proj.dof_count; ++a) {
+    for (auto a = 3; a < space->m_proj.dof_count; ++a) {
         std::vector<double> d(space->m_proj.dof_count, 0.0);
 
         d[a] = space->m_proj.res[a] * -1;
@@ -107,23 +109,46 @@ void SimpleWorkspaceLatticeActionSpace::Apply(
         actions.push_back(std::move(action));
     }
 
-#if 0
-    if (m_ik_amp_enabled && space->numHeuristics() > 0) {
-        auto* h = space->heuristic(0);
-        auto goal_dist = h->getMetricGoalDistance(
+    if (m_ik_amp_enabled &
+        (m_goal_heuristic != NULL) &
+        (m_get_goal_pose != NULL))
+    {
+        SMPL_DEBUG("attempt ik");
+        auto goal_dist = m_goal_heuristic->GetMetricGoalDistance(
                 cont_state[FK_PX], cont_state[FK_PY], cont_state[FK_PZ]);
         if (goal_dist < m_ik_amp_thresh) {
-            RobotState ik_sol;
-            if (space->m_ik_iface->computeIK(space->goal().pose, state.state, ik_sol)) {
-                WorkspaceState final_state;
-                space->stateRobotToWorkspace(ik_sol, final_state);
-                WorkspaceAction action(1);
-                action[0] = final_state;
+            SMPL_DEBUG("try ik");
+            auto ik_sol = RobotState();
+            auto goal_pose = m_get_goal_pose->GetPose();
+            if (space->m_proj.ik_iface->computeIK(
+                    goal_pose, state.state, ik_sol))
+            {
+                SMPL_DEBUG(" -> ik succeeded");
+                auto final_state = WorkspaceState();
+                StateRobotToWorkspace(&space->m_proj, ik_sol, final_state);
+                auto action = WorkspaceAction(1);
+                action[0] = std::move(final_state);
                 actions.push_back(std::move(action));
             }
         }
     }
-#endif
+}
+
+bool SimpleWorkspaceLatticeActionSpace::UpdateHeuristics(
+    Heuristic** heuristics,
+    int count)
+{
+    if (count > 0) {
+        auto* h_first = heuristics[0];
+        m_goal_heuristic = h_first->GetExtension<IMetricGoalHeuristic>();
+    }
+    return true;
+}
+
+bool SimpleWorkspaceLatticeActionSpace::UpdateGoal(GoalConstraint* goal)
+{
+    m_get_goal_pose = goal->GetExtension<IGetPose>();
+    return true;
 }
 
 } // namespace smpl

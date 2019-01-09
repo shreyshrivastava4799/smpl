@@ -38,7 +38,7 @@ bool WithinOrientationTolerance(
     auto qg = Quaternion(B.rotation());
     auto q = Quaternion(A.rotation());
     auto dist = GetAngularDistance(q, qg);
-    return dist < tol[0];
+    return dist <= tol[0];
 }
 
 static

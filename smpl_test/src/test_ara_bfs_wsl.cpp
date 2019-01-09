@@ -43,10 +43,10 @@ int main(int argc, char* argv[])
     resolutions.res_x = 0.02;
     resolutions.res_y = 0.02;
     resolutions.res_z = 0.02;
-    resolutions.R_count = 36;
-    resolutions.P_count = 19;
-    resolutions.Y_count = 36;
-    resolutions.free_angle_res = { smpl::to_radians(1.0) };
+    resolutions.R_count = 24;   // 15 degree
+    resolutions.P_count = 13;   // 15 degree
+    resolutions.Y_count = 24;   // 15 degree
+    resolutions.free_angle_res = { smpl::to_radians(15.0) };
 
     // TODO: configure
     auto actions = smpl::SimpleWorkspaceLatticeActionSpace();
@@ -91,6 +91,10 @@ int main(int argc, char* argv[])
 
     heuristic.SetInflationRadius(0.04);
     heuristic.SetCostPerCell(100);
+
+    // TODO: this is kinda dumb to have to remember to do this
+    heuristic.SyncGridAndBFS();
+    SV_SHOW_DEBUG(heuristic.GetWallsVisualization());
 
     auto* h = (smpl::Heuristic*)&heuristic;
     if (!graph.UpdateHeuristics(&h, 1)) {
@@ -162,8 +166,8 @@ int main(int argc, char* argv[])
     goal.pose = smpl::MakeAffine(
             goal_vals[0], goal_vals[1], goal_vals[2],
             goal_vals[5], goal_vals[4], goal_vals[3]);
-    goal.tolerance.xyz[0] = goal.tolerance.xyz[1] = goal.tolerance.xyz[2] = 0.015;
-    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(1.0);
+    goal.tolerance.xyz[0] = goal.tolerance.xyz[1] = goal.tolerance.xyz[2] = 0.02; // 0.015;
+    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(5.0); //smpl::to_radians(1.0);
 
     SV_SHOW_INFO_NAMED("pose_goal", goal.GetVisualization("odom_combined"));
 
@@ -186,8 +190,8 @@ int main(int argc, char* argv[])
     auto time_params = smpl::ARAStar::TimeParameters();
     time_params.bounded = true;
     time_params.improve = false; //true;
-    // time_params.type = smpl::ARAStar::TimeParameters::TIME;
-    time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
+    time_params.type = smpl::ARAStar::TimeParameters::TIME;
+    // time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
     time_params.max_expansions_init = 1000000;
     time_params.max_expansions = 2000;
     time_params.max_allowed_time_init = std::chrono::seconds(30);
@@ -200,6 +204,8 @@ int main(int argc, char* argv[])
         SMPL_ERROR("Failed to find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
         return 1;
     }
+
+    SMPL_INFO("Found find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
 
     auto path = std::vector<smpl::RobotState>();
     if (!graph.ExtractPath(solution, path)) {

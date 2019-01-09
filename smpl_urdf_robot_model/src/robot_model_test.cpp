@@ -15,6 +15,11 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "robot_model_test");
     ros::NodeHandle nh;
 
+    if (argc < 2) {
+        printf("Usage: robot_model_test <path/to/urdf>\n");
+        return 0;
+    }
+
     smpl::VisualizerROS visualizer;
     smpl::visual::set_visualizer(&visualizer);
     ros::Duration(1.0).sleep(); // give the publisher time to set up

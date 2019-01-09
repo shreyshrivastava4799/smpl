@@ -82,6 +82,10 @@ int main(int argc, char* argv[])
     heuristic.SetInflationRadius(0.04);
     heuristic.SetCostPerCell(100);
 
+    // TODO: this is kinda dumb to have to remember to do this
+    heuristic.SyncGridAndBFS();
+    SV_SHOW_DEBUG(heuristic.GetWallsVisualization());
+
     auto* h = (smpl::Heuristic*)&heuristic;
     if (!graph.UpdateHeuristics(&h, 1)) {
         SMPL_ERROR("Failed to associate BFS Heuristic with Manip Lattice");
@@ -188,6 +192,8 @@ int main(int argc, char* argv[])
         SMPL_ERROR("Failed to find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
         return 1;
     }
+
+    SMPL_INFO("Found find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
 
     auto path = std::vector<smpl::RobotState>();
     if (!graph.ExtractPath(solution, path)) {

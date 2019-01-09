@@ -462,7 +462,7 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
 
         auto ipath = std::vector<RobotState>();
         if (!cc.interpolatePath(curr, next, ipath)) {
-            SMPL_ERROR("Failed to interpolate between waypoint %zu and %zu because it's infeasible given the limits.", i, i + 1);
+            SMPL_ERROR("Failed to interpolate between waypoint %d and %d because it's infeasible given the limits.", i, i + 1);
             return false;
         }
 

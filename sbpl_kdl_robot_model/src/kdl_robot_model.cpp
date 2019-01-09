@@ -186,9 +186,9 @@ bool InitKDLRobotModel(
     model->ik_vel_solver = make_unique<KDL::ChainIkSolverVel_pinv>(model->chain);
 
     ROS_DEBUG("Initialize IK Position solver");
-    KDL::JntArray q_min(model->jointVariableCount());
-    KDL::JntArray q_max(model->jointVariableCount());
-    for (size_t i = 0; i < model->jointVariableCount(); ++i) {
+    auto q_min = KDL::JntArray(model->jointVariableCount());
+    auto q_max = KDL::JntArray(model->jointVariableCount());
+    for (auto i = 0; i < model->jointVariableCount(); ++i) {
         if (model->urdf_model.vprops[i].continuous) {
             q_min(i) = -M_PI;
             q_max(i) = M_PI;

@@ -283,9 +283,7 @@ bool CheckJointLimits(
     return CheckJointLimits(&model->kdl_model, state, verbose);
 }
 
-auto ComputeFK(
-    PR2RobotModel* model,
-    const smpl::RobotState& state)
+auto ComputeFK(PR2RobotModel* model, const smpl::RobotState& state)
     -> smpl::Affine3
 {
     return ComputeFK(&model->kdl_model, state);
@@ -418,7 +416,7 @@ bool ComputeIK(
         }
 
         CopyJntArrayToState(&model->kdl_model.jnt_pos_out, &solution);
-        break;
+        return true;
     }
     }
 
