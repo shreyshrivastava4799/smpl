@@ -10,12 +10,9 @@
     <include file="$(find smpl_test)/launch/test_common.launch.xml"/>
 
     <node name="test_planner" pkg="smpl_test" type="test_ara_bfs_jsl" launch-prefix="$(arg launch-prefix)">
-        <!-- planner params -->
         <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
         <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
         <param name="allowed_planning_time" value="15.0"/>
-
-        <!-- 4. the scenario: partially the scene, partially the goal -->
         <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
     </node>
 </launch>

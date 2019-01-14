@@ -9,9 +9,7 @@
 
     <include file="$(find smpl_test)/launch/test_common.launch.xml"/>
 
-    <node name="test_planner" pkg="smpl_test" type="test_ara_jd_jsl" launch-prefix="$(arg launch-prefix)">
-        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
-        <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+    <node name="test_planner" pkg="smpl_test" type="test_ara_ed_wsl" launch-prefix="$(arg launch-prefix)">
         <param name="allowed_planning_time" value="15.0"/>
         <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
     </node>
