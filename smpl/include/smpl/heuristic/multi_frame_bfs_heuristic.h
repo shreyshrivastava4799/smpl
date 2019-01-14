@@ -33,10 +33,10 @@
 #define SMPL_MULTI_FRAME_BFS_HEURISTIC_H
 
 // standard includes
-#include <limits>
 #include <memory>
 
 // project includes
+#include <smpl/bfs3d/bfs3d.h>
 #include <smpl/debug/marker.h>
 #include <smpl/heuristic/heuristic.h>
 
@@ -56,8 +56,6 @@ class MultiFrameBFSHeuristic :
     public IMetricStartHeuristic
 {
 public:
-
-    ~MultiFrameBFSHeuristic();
 
     bool Init(DiscreteSpace* space, const OccupancyGrid* grid);
 
@@ -102,7 +100,7 @@ public:
 
 public:
 
-    static constexpr auto Infinity = std::numeric_limits<int>::max() >> 1;
+    static constexpr auto Infinity = ((1 << 16) - 1);
 
     const OccupancyGrid* m_grid = NULL;
 

@@ -36,9 +36,9 @@
 #include <memory>
 
 // project includes
+#include <smpl/bfs3d/bfs3d.h>
 #include <smpl/debug/marker.h>
 #include <smpl/heuristic/heuristic.h>
-#include <smpl/bfs3d/bfs3d.h>
 
 namespace smpl {
 

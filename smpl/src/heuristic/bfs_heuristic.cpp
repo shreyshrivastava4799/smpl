@@ -46,6 +46,15 @@ namespace smpl {
 
 static const char* LOG = "heuristic.bfs";
 
+static
+auto DiscretizePoint(const OccupancyGrid* grid, const Vector3& p)
+    -> Eigen::Vector3i
+{
+    auto dp = Eigen::Vector3i();
+    grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+    return dp;
+}
+
 bool BFSHeuristic::Init(DiscreteSpace* space, const OccupancyGrid* grid)
 {
     if (grid == NULL) {
@@ -270,8 +279,7 @@ int BFSHeuristic::GetGoalHeuristic(int state_id)
 {
     auto p = m_project_to_point->ProjectToPoint(state_id);
 
-    Eigen::Vector3i dp;
-    m_grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
+    auto dp = DiscretizePoint(m_grid, p);
 
     auto h = GetBFSCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
     SMPL_DEBUG_NAMED(LOG, "H(%d) = %d", state_id, h);
@@ -296,13 +304,11 @@ auto BFSHeuristic::GetMetricStartDistance(double x, double y, double z) -> doubl
 
 auto BFSHeuristic::GetMetricGoalDistance(double x, double y, double z) -> double
 {
-    int gx, gy, gz;
-    m_grid->worldToGrid(x, y, z, gx, gy, gz);
-    if (!m_bfs->inBounds(gx, gy, gz)) {
+    auto p = DiscretizePoint(m_grid, Vector3(x, y, z));
+    if (!m_bfs->inBounds(p.x(), p.y(), p.z())) {
         return (double)BFS_3D::WALL * m_grid->resolution();
-    } else {
-        return (double)m_bfs->getDistance(gx, gy, gz) * m_grid->resolution();
     }
+    return (double)m_bfs->getDistance(p.x(), p.y(), p.z()) * m_grid->resolution();
 }
 
 bool BFSHeuristic::UpdateStart(int state_id)
@@ -348,27 +354,17 @@ bool BFSHeuristic::UpdateGoal(GoalConstraint* goal)
     auto* get_pose = goal->GetExtension<IGetPose>();
     if (get_pose != NULL) {
         auto goal_pose = get_pose->GetPose();
-        // TODO: This assumes goal.pose is initialized, regardless of what kind
-        // of goal this is. For joint state goals, we should project the start
-        // state to a goal position, since we can't reliably expect goal.pose
-        // to be valid.
-        int gx, gy, gz;
-        m_grid->worldToGrid(
-                goal_pose.translation()[0],
-                goal_pose.translation()[1],
-                goal_pose.translation()[2],
-                gx, gy, gz);
+        auto gp = DiscretizePoint(m_grid, goal_pose.translation());
+        SMPL_DEBUG_NAMED(LOG, "Setting the BFS heuristic goal (%d, %d, %d)", gp.x(), gp.y(), gp.z());
 
-        SMPL_DEBUG_NAMED(LOG, "Setting the BFS heuristic goal (%d, %d, %d)", gx, gy, gz);
-
-        if (!m_bfs->inBounds(gx, gy, gz)) {
+        if (!m_bfs->inBounds(gp.x(), gp.y(), gp.z())) {
             SMPL_WARN_NAMED(LOG, "Heuristic goal is out of BFS bounds");
             return true; // graceful failure here
         }
 
-        m_goal_cells.emplace_back(gx, gy, gz);
+        m_goal_cells.emplace_back(gp.x(), gp.y(), gp.z());
 
-        m_bfs->run(gx, gy, gz);
+        m_bfs->run(gp.x(), gp.y(), gp.z());
         return true;
     }
 

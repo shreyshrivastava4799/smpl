@@ -44,6 +44,7 @@
 #include <smpl/occupancy_grid.h>
 #include <smpl/robot_model.h>
 #include <smpl/stl/algorithm.h>
+#include <smpl/stl/memory.h>
 
 namespace smpl {
 
@@ -96,11 +97,6 @@ int GetGoalHeuristicMF(
     return combine_costs(h_planning_frame, h_planning_link);
 }
 
-MultiFrameBFSHeuristic::~MultiFrameBFSHeuristic()
-{
-    // empty to allow forward declaration of BFS_3D
-}
-
 bool MultiFrameBFSHeuristic::Init(
     DiscreteSpace* space,
     const OccupancyGrid* grid)
@@ -144,15 +140,13 @@ void MultiFrameBFSHeuristic::SyncGridAndBFS()
     auto xc = m_grid->numCellsX();
     auto yc = m_grid->numCellsY();
     auto zc = m_grid->numCellsZ();
-    m_bfs.reset(new BFS_3D(xc, yc, zc));
-    m_ee_bfs.reset(new BFS_3D(xc, yc, zc));
-    auto cell_count = xc * yc * zc;
+    m_bfs = make_unique<BFS_3D>(xc, yc, zc);
+    m_ee_bfs = make_unique<BFS_3D>(xc, yc, zc);
     auto wall_count = 0;
-    for (auto z = 0; z < zc; ++z) {
-    for (auto y = 0; y < yc; ++y) {
     for (auto x = 0; x < xc; ++x) {
-        auto radius = m_inflation_radius;
-        if (m_grid->getDistance(x, y, z) <= radius) {
+    for (auto y = 0; y < yc; ++y) {
+    for (auto z = 0; z < zc; ++z) {
+        if (m_grid->getDistance(x, y, z) <= m_inflation_radius) {
             m_bfs->setWall(x, y, z);
             m_ee_bfs->setWall(x, y, z);
             ++wall_count;
@@ -161,6 +155,7 @@ void MultiFrameBFSHeuristic::SyncGridAndBFS()
     }
     }
 
+    auto cell_count = xc * yc * zc;
     SMPL_DEBUG_NAMED(LOG, "%d/%d (%0.3f%%) walls in the bfs heuristic", wall_count, cell_count, 100.0 * (double)wall_count / cell_count);
 }
 
