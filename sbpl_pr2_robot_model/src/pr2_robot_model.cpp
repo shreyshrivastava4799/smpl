@@ -139,6 +139,8 @@ bool InitPR2RobotModel(
         return false;
     }
 
+    model->free_angle = free_angle;
+
     auto rpy_solver = std::unique_ptr<RPYSolver>();
     const urdf::Link* forearm_roll_link = NULL;
     const urdf::JointVariable* wrist_var = NULL;

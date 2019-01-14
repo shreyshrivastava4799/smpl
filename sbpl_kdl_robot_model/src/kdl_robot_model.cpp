@@ -308,7 +308,8 @@ bool CheckJointLimits(
     return model->urdf_model.checkJointLimits(state, verbose);
 }
 
-auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state) -> smpl::Affine3
+auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state)
+    -> smpl::Affine3
 {
     return model->urdf_model.computeFK(state);
 }
@@ -357,7 +358,9 @@ bool ComputeIK(
                     model->search_discretization);
 
     while (loop_time < model->timeout) {
-        if (model->ik_solver->CartToJnt(model->jnt_pos_in, frame_des, model->jnt_pos_out) >= 0) {
+        if (model->ik_solver->CartToJnt(
+                model->jnt_pos_in, frame_des, model->jnt_pos_out) >= 0)
+        {
             NormalizeAngles(model, &model->jnt_pos_out);
             solution.resize(start.size());
             for (auto i = 0; i < solution.size(); ++i) {
@@ -366,6 +369,7 @@ bool ComputeIK(
 
             return true;
         }
+
         if (!getCount(count, num_positive_increments, -num_negative_increments)) {
             return false;
         }
@@ -399,19 +403,22 @@ bool ComputeFastIK(
     RobotState& solution)
 {
     // transform into kinematics frame and convert to kdl
-    auto* T_map_kinematics = GetLinkTransform(&model->urdf_model.robot_state, model->kinematics_link);
+    auto* T_map_kinematics = GetUpdatedLinkTransform(
+            &model->urdf_model.robot_state, model->kinematics_link);
     KDL::Frame frame_des;
     tf::transformEigenToKDL(T_map_kinematics->inverse() * pose, frame_des);
 
     // seed configuration
     for (size_t i = 0; i < start.size(); i++) {
-        model-> jnt_pos_in(i) = start[i];
+        model->jnt_pos_in(i) = start[i];
     }
 
     // must be normalized for CartToJntSearch
     NormalizeAngles(model, &model->jnt_pos_in);
 
-    if (model->ik_solver->CartToJnt(model->jnt_pos_in, frame_des, model->jnt_pos_out) < 0) {
+    if (model->ik_solver->CartToJnt(
+            model->jnt_pos_in, frame_des, model->jnt_pos_out) < 0)
+    {
         return false;
     }
 

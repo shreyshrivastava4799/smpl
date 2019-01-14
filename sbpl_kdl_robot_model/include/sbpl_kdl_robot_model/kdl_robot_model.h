@@ -182,17 +182,18 @@ public:
 
 public:
 
-    urdf::URDFRobotModel urdf_model;
-
     urdf::RobotModel robot_model;
-
-    const urdf::Link* kinematics_link = NULL;
 
     std::string base_link;
     std::string tip_link;
 
+    const urdf::Link* kinematics_link = NULL;
+
     KDL::Tree tree;
     KDL::Chain chain;
+
+    urdf::URDFRobotModel urdf_model;
+
     std::unique_ptr<KDL::ChainFkSolverPos_recursive>    fk_solver;
     std::unique_ptr<KDL::ChainIkSolverVel_pinv>         ik_vel_solver;
     std::unique_ptr<KDL::ChainIkSolverPos_NR_JL>        ik_solver;
