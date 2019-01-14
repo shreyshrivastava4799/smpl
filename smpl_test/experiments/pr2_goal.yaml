@@ -1,14 +1,3 @@
-initial_configuration:
-  joint_state:
-    - { name: torso_lift_joint,       position: 0.16825 }
-    - { name: r_shoulder_pan_joint,   position: 0 }
-    - { name: r_shoulder_lift_joint,  position: 0.0 }
-    - { name: r_upper_arm_roll_joint, position: 0.0 }
-    - { name: r_elbow_flex_joint,     position: -1.1356 } #-0.2 }
-    - { name: r_forearm_roll_joint,   position: 0.0 }
-    - { name: r_wrist_flex_joint,     position: -1.05 } #-0.2 }
-    - { name: r_wrist_roll_joint,     position: 0.0 }
-
 goal:
   x: 0.4
   y: -0.2
@@ -16,3 +5,4 @@ goal:
   roll: 0.0
   pitch: 0.0
   yaw: 0.0
+

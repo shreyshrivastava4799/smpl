@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
 
     auto resolutions = std::vector<double>(
             GetJointVariableCount(&scenario.planning_model),
-            smpl::to_radians(2.0));
+            smpl::to_radians(1.0));
 
     auto actions = smpl::ManipulationActionSpace();
     auto cost_fun = smpl::UniformCostFunction();
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
     actions.EnableIKMotionXYZRPY(true);
 
     actions.SetLongMotionThreshold(0.4);
-    actions.SetIKMotionXYZRPYThreshold(0.02);
+    actions.SetIKMotionXYZRPYThreshold(0.10); // 0.2 in call_planner
 
     if (!cost_fun.Init(&graph)) {
         SMPL_ERROR("Failed to initialize Uniform Cost Function");
@@ -111,20 +111,11 @@ int main(int argc, char* argv[])
     /////////////////////////
 
     auto start_state = smpl::RobotState();
-    for (auto& variable : GetPlanningJointVariables(&scenario.planning_model)) {
-        auto found = false;
-        for (auto i = 0; i < scenario.start_state.joint_state.name.size(); ++i) {
-            if (scenario.start_state.joint_state.name[i] == variable) {
-                start_state.push_back(scenario.start_state.joint_state.position[i]);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            ROS_ERROR("Missing joint variable in start state");
-            return 1;
-        }
-    }
+    auto success = false;
+    std::tie(start_state, success) = MakeRobotState(
+            &scenario.start_state, &scenario.planning_model);
+    if (!success) return 1;
+
     auto start_state_id = graph.GetStateID(start_state);
 
     if (!graph.UpdateStart(start_state_id) ||
@@ -151,17 +142,8 @@ int main(int argc, char* argv[])
         /* r_wrist_roll_joint */ 0.21436,
     };
 
-#if 0 // left arm tuck pose
-    <group_state name="tuck_left_arm" group="left_arm">
-        <joint name="l_elbow_flex_joint" value="-1.68339" />
-        <joint name="l_forearm_roll_joint" value="-1.73434" />
-        <joint name="l_shoulder_lift_joint" value="1.24853" />
-        <joint name="l_shoulder_pan_joint" value="0.06024" />
-        <joint name="l_upper_arm_roll_joint" value="1.78907" />
-        <joint name="l_wrist_flex_joint" value="-0.0962141" />
-        <joint name="l_wrist_roll_joint" value="-0.0864407" />
-    </group_state>
-#endif
+    // left arm tuck pose
+    // -1.68339, -1.73434, 1.24853, 0.06024, 1.78907, -0.0962141, -0.0864407,
 
     goal.SetGoalState(std::vector<double>(
             goal_state,
@@ -169,13 +151,13 @@ int main(int argc, char* argv[])
 
     auto goal_tolerance =
     {
-        smpl::to_radians(2.0),
-        smpl::to_radians(2.0),
-        smpl::to_radians(2.0),
-        smpl::to_radians(2.0),
-        smpl::to_radians(2.0),
-        smpl::to_radians(2.0),
-        smpl::to_radians(2.0),
+        smpl::to_radians(1.0),
+        smpl::to_radians(1.0),
+        smpl::to_radians(1.0),
+        smpl::to_radians(1.0),
+        smpl::to_radians(1.0),
+        smpl::to_radians(1.0),
+        smpl::to_radians(1.0),
     };
 
     goal.SetGoalTolerance(goal_tolerance);
@@ -206,10 +188,10 @@ int main(int argc, char* argv[])
 
     auto time_params = smpl::ARAStar::TimeParameters();
     time_params.bounded = true;
-    time_params.improve = false; //true;
-    // time_params.type = smpl::ARAStar::TimeParameters::TIME;
-    time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
-    time_params.max_expansions_init = 1000000;
+    time_params.improve = false;
+    time_params.type = smpl::ARAStar::TimeParameters::TIME;
+//    time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
+    time_params.max_expansions_init = 200000;
     time_params.max_expansions = 2000;
     time_params.max_allowed_time_init = std::chrono::seconds(30);
     time_params.max_allowed_time = std::chrono::seconds(1);
@@ -222,7 +204,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    SMPL_INFO("Found find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
+    SMPL_INFO("Found path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
 
     auto path = std::vector<smpl::RobotState>();
     if (!graph.ExtractPath(solution, path)) {
@@ -234,20 +216,9 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    SMPL_INFO("Animate path");
-
-    auto pidx = 0;
-    while (ros::ok()) {
-        auto& point = path[pidx];
-        auto markers = scenario.collision_model.getCollisionRobotVisualization(point);
-        for (auto& m : markers.markers) {
-            m.ns = "path_animation";
-        }
-        SV_SHOW_INFO(markers);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        pidx++;
-        pidx %= path.size();
-    }
-
-    return 0;
+    return AnimateSolution(
+            &scenario,
+            &scenario.planning_model.robot_model,
+            &scenario.planning_model,
+            &path);
 }

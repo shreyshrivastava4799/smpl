@@ -8,10 +8,21 @@
 #include <sbpl_kdl_robot_model/kdl_robot_model.h>
 #include <sbpl_pr2_robot_model/pr2_robot_model.h>
 #include <smpl/occupancy_grid.h>
+#include <smpl/types.h>
 #include <smpl_ros/debug/visualizer_ros.h>
 
 // project includes
 #include "collision_space_scene.h"
+
+namespace smpl {
+namespace urdf {
+struct RobotModel;
+}
+}
+
+namespace smpl {
+class RobotModel;
+}
 
 struct TestScenarioBase
 {
@@ -48,5 +59,16 @@ struct TestScenarioPR2 : TestScenarioBase
 
 bool InitTestScenario(TestScenarioKDL* scenario);
 bool InitTestScenario(TestScenarioPR2* scenario);
+
+auto MakeRobotState(
+    const moveit_msgs::RobotState* robot_state,
+    const smpl::RobotModel* model)
+    -> std::pair<smpl::RobotState, bool>;
+
+int AnimateSolution(
+    TestScenarioBase* scenario,
+    const smpl::urdf::RobotModel* robot_model,
+    smpl::RobotModel* planning_model,
+    const std::vector<smpl::RobotState>* path);
 
 #endif

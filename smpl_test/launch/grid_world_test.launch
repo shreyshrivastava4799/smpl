@@ -1,5 +1,9 @@
 <launch>
+    <arg name="debug" default="false"/>
+    <arg if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
+    <arg unless="$(arg debug)" name="launch-prefix" value=""/>
     <node name="grid_world_test" pkg="smpl_test" type="xytheta" output="screen"
-            args="$(find smpl_test)/config/xy_8_connected.mprim">
+            args="$(find smpl_test)/config/xy_8_connected.mprim"
+            launch-prefix="$(arg launch-prefix)">
     </node>
 </launch>

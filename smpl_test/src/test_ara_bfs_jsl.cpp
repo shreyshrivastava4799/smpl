@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 
     auto resolutions = std::vector<double>(
             GetJointVariableCount(&scenario.planning_model),
-            smpl::to_radians(2.0));
+            smpl::to_radians(1.0));
 
     auto actions = smpl::ManipulationActionSpace();
     auto cost_fun = smpl::UniformCostFunction();
@@ -64,7 +64,7 @@ int main(int argc, char* argv[])
     actions.EnableIKMotionXYZRPY(true);
 
     actions.SetLongMotionThreshold(0.4);
-    actions.SetIKMotionXYZRPYThreshold(0.02);
+    actions.SetIKMotionXYZRPYThreshold(0.10); // 0.2 in call_planner
 
     if (!cost_fun.Init(&graph)) {
         SMPL_ERROR("Failed to initialize Uniform Cost Function");
@@ -117,20 +117,11 @@ int main(int argc, char* argv[])
     /////////////////////////
 
     auto start_state = smpl::RobotState();
-    for (auto& variable : GetPlanningJointVariables(&scenario.planning_model)) {
-        auto found = false;
-        for (auto i = 0; i < scenario.start_state.joint_state.name.size(); ++i) {
-            if (scenario.start_state.joint_state.name[i] == variable) {
-                start_state.push_back(scenario.start_state.joint_state.position[i]);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            ROS_ERROR("Missing joint variable in start state");
-            return 1;
-        }
-    }
+    auto success = false;
+    std::tie(start_state, success) = MakeRobotState(
+            &scenario.start_state, &scenario.planning_model);
+    if (!success) return 1;
+
     auto start_state_id = graph.GetStateID(start_state);
 
     if (!graph.UpdateStart(start_state_id) ||
@@ -156,8 +147,10 @@ int main(int argc, char* argv[])
     goal.pose = smpl::MakeAffine(
             goal_vals[0], goal_vals[1], goal_vals[2],
             goal_vals[5], goal_vals[4], goal_vals[3]);
+
+    // similar to call_planner tolerance of (0.015, 0.05)
     goal.tolerance.xyz[0] = goal.tolerance.xyz[1] = goal.tolerance.xyz[2] = 0.015;
-    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(1.0);
+    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(3.0);
 
     SV_SHOW_INFO_NAMED("pose_goal", goal.GetVisualization("odom_combined"));
 
@@ -177,10 +170,10 @@ int main(int argc, char* argv[])
 
     auto time_params = smpl::ARAStar::TimeParameters();
     time_params.bounded = true;
-    time_params.improve = false; //true;
-    // time_params.type = smpl::ARAStar::TimeParameters::TIME;
-    time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
-    time_params.max_expansions_init = 1000000;
+    time_params.improve = false;
+    time_params.type = smpl::ARAStar::TimeParameters::TIME;
+//    time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
+    time_params.max_expansions_init = 200000;
     time_params.max_expansions = 2000;
     time_params.max_allowed_time_init = std::chrono::seconds(30);
     time_params.max_allowed_time = std::chrono::seconds(1);
@@ -193,7 +186,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    SMPL_INFO("Found find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
+    SMPL_INFO("Found path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
 
     auto path = std::vector<smpl::RobotState>();
     if (!graph.ExtractPath(solution, path)) {
@@ -205,20 +198,9 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    SMPL_INFO("Animate path");
-
-    auto pidx = 0;
-    while (ros::ok()) {
-        auto& point = path[pidx];
-        auto markers = scenario.collision_model.getCollisionRobotVisualization(point);
-        for (auto& m : markers.markers) {
-            m.ns = "path_animation";
-        }
-        SV_SHOW_INFO(markers);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        pidx++;
-        pidx %= path.size();
-    }
-
-    return 0;
+    return AnimateSolution(
+            &scenario,
+            &scenario.planning_model.robot_model,
+            &scenario.planning_model,
+            &path);
 }

@@ -22,33 +22,84 @@ int main(int argc, char* argv[])
     auto scenario = TestScenarioPR2();
     InitTestScenario(&scenario);
 
-    // some cool numbers that evenly divide 360
-
+    // some cool factors of 360. choose one of these for roll and yaw
     // m degrees/disc = n discrete values
-    // 1 = 360
-    // 2 = 180
-    // 3 = 120
-    // 4 = 90
-    // 5 = 72
-    // 6 = 60
-    // 8 = 45
-    // 9 = 40
-    // 10 = 36
-    // 12 = 30
-    // 15 = 24
-    // 18 = 20
+    // 1    value  = 360   degrees
+    // 2    values = 180   degrees
+    // 3    values = 120   degrees
+    // 4    values = 90    degrees
+    // 5    values = 72    degrees
+    // 6    values = 60    degrees
+    // 8    values = 45    degrees
+    // 9    values = 40    degrees
+    // 10   values = 36    degrees
+    // 12   values = 30    degrees
+    // 15   values = 24    degrees
+    // 18   values = 20    degrees
+    // 20   values = 18    degrees
+    // 24   values = 15    degrees
+    // 30   values = 12    degrees
+    // 36   values = 10    degrees
+    // 40   values = 9     degrees
+    // 45   values = 8     degrees
+    // 60   values = 6     degrees
+    // 72   values = 5     degrees
+    // 90   values = 4     degrees
+    // 120  values = 3     degrees
+    // 180  values = 2     degrees
+    // 360  values = 1     degree
+
+    // some cool factors of 180. choose one of these for pitch and add 1
+    // 1    value  = 180   degrees
+    // 2    values = 90    degrees
+    // 3    values = 60    degrees
+    // 4    values = 45    degrees
+    // 5    values = 36    degrees
+    // 6    values = 30    degrees
+    // 9    values = 20    degrees
+    // 10   values = 18    degrees
+    // 12   values = 30    degrees
+    // 15   values = 15    degrees
+    // 18   values = 10    degrees
+    // 20   values = 9     degrees
+    // 30   values = 6     degrees
+    // 36   values = 5     degrees
+    // 45   values = 4     degrees
+    // 60   values = 3     degrees
+    // 90   values = 2     degrees
+    // 180  values = 1     degrees
 
     // TODO: initialize and configure
     auto resolutions = smpl::WorkspaceProjectionParams();
     resolutions.res_x = 0.02;
     resolutions.res_y = 0.02;
     resolutions.res_z = 0.02;
-    resolutions.R_count = 24;   // 15 degree
-    resolutions.P_count = 13;   // 15 degree
-    resolutions.Y_count = 24;   // 15 degree
+#if 0
+    // 30 degree
+    resolutions.R_count = 12;
+    resolutions.P_count = 7;
+    resolutions.Y_count = 12;
+    resolutions.free_angle_res = { smpl::to_radians(30.0) };
+#elif 1
+    // 15 degree
+    resolutions.R_count = 24;
+    resolutions.P_count = 13;
+    resolutions.Y_count = 24;
     resolutions.free_angle_res = { smpl::to_radians(15.0) };
+#elif 0
+    // 10 degree
+    resolutions.R_count = 36;
+    resolutions.P_count = 19;
+    resolutions.Y_count = 36;
+    resolutions.free_angle_res = { smpl::to_radians(10.0) };
+#else
+    // 5 degree
+    resolutions.R_count = 72;
+    resolutions.P_count = 37;
+    resolutions.Y_count = 72;
+    resolutions.free_angle_res = { smpl::to_radians(5.0) };
+#endif
 
-    // TODO: configure
     auto actions = smpl::SimpleWorkspaceLatticeActionSpace();
 
     // TODO: implement cost functions for workspace lattice
@@ -61,22 +112,15 @@ int main(int argc, char* argv[])
             resolutions,
             &actions))
     {
-        SMPL_ERROR("Failed to initialize Manip Lattice");
+        SMPL_ERROR("Failed to initialize Workspace Lattice");
         return 1;
     }
 
-#if 0
-    if (!actions.Init(&graph)) {
-        SMPL_ERROR("Failed to initialize Manipulation Action Space");
-        return 1;
-    }
-#else
-    // TODO: weird name
+    // TODO: weird name, and inconsistent with Manip Lattice's ActionSpace
     if (!InitSimpleWorkspaceLatticeActions(&graph, &actions)) {
         SMPL_ERROR("Failed to initialize Simple Workspace Lattice Action Space");
         return 1;
     }
-#endif
 
     // NOTE: SimpleWorkspaceLatticeActionSpace really isn't that simple. It
     // includes an adaptive ik motion that is automatically enabled
@@ -98,7 +142,7 @@ int main(int argc, char* argv[])
 
     auto* h = (smpl::Heuristic*)&heuristic;
     if (!graph.UpdateHeuristics(&h, 1)) {
-        SMPL_ERROR("Failed to associate BFS Heuristic with Manip Lattice");
+        SMPL_ERROR("Failed to associate BFS Heuristic with Workspace Lattice");
         return 1;
     }
 
@@ -127,20 +171,11 @@ int main(int argc, char* argv[])
     /////////////////////////
 
     auto start_state = smpl::RobotState();
-    for (auto& variable : GetPlanningJointVariables(&scenario.planning_model)) {
-        auto found = false;
-        for (auto i = 0; i < scenario.start_state.joint_state.name.size(); ++i) {
-            if (scenario.start_state.joint_state.name[i] == variable) {
-                start_state.push_back(scenario.start_state.joint_state.position[i]);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            ROS_ERROR("Missing joint variable in start state");
-            return 1;
-        }
-    }
+    auto success = false;
+    std::tie(start_state, success) = MakeRobotState(
+            &scenario.start_state, &scenario.planning_model);
+    if (!success) return 1;
+
     auto start_state_id = graph.GetStateID(start_state);
 
     if (!graph.UpdateStart(start_state_id) ||
@@ -166,8 +201,9 @@ int main(int argc, char* argv[])
     goal.pose = smpl::MakeAffine(
             goal_vals[0], goal_vals[1], goal_vals[2],
             goal_vals[5], goal_vals[4], goal_vals[3]);
-    goal.tolerance.xyz[0] = goal.tolerance.xyz[1] = goal.tolerance.xyz[2] = 0.02; // 0.015;
-    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(5.0); //smpl::to_radians(1.0);
+    // similar to call_planner tolerance of (0.015, 0.05)
+    goal.tolerance.xyz[0] = goal.tolerance.xyz[1] = goal.tolerance.xyz[2] = 0.015;
+    goal.tolerance.rpy[0] = goal.tolerance.rpy[1] = goal.tolerance.rpy[2] = smpl::to_radians(3.0);
 
     SV_SHOW_INFO_NAMED("pose_goal", goal.GetVisualization("odom_combined"));
 
@@ -189,10 +225,10 @@ int main(int argc, char* argv[])
 
     auto time_params = smpl::ARAStar::TimeParameters();
     time_params.bounded = true;
-    time_params.improve = false; //true;
+    time_params.improve = false;
     time_params.type = smpl::ARAStar::TimeParameters::TIME;
     // time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
-    time_params.max_expansions_init = 1000000;
+    time_params.max_expansions_init = 200000;
     time_params.max_expansions = 2000;
     time_params.max_allowed_time_init = std::chrono::seconds(30);
     time_params.max_allowed_time = std::chrono::seconds(1);
@@ -205,7 +241,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    SMPL_INFO("Found find path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
+    SMPL_INFO("Found path after %d expansions in %f seconds", search.GetNumExpansions(), search.GetElapsedTime());
 
     auto path = std::vector<smpl::RobotState>();
     if (!graph.ExtractPath(solution, path)) {
@@ -217,20 +253,9 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    SMPL_INFO("Animate path");
-
-    auto pidx = 0;
-    while (ros::ok()) {
-        auto& point = path[pidx];
-        auto markers = scenario.collision_model.getCollisionRobotVisualization(point);
-        for (auto& m : markers.markers) {
-            m.ns = "path_animation";
-        }
-        SV_SHOW_INFO(markers);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        pidx++;
-        pidx %= path.size();
-    }
-
-    return 0;
+    return AnimateSolution(
+            &scenario,
+            &scenario.planning_model.kdl_model.robot_model,
+            &scenario.planning_model,
+            &path);
 }

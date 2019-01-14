@@ -1,0 +1,35 @@
+<launch>
+    <!-- 1. scene-->
+    <param name="object_filename" value="$(find smpl_test)/env/tabletop.env"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
+
+    <rosparam param="initial_configuration">
+        joint_state:
+            - { name: torso_lift_joint,       position: 0.16825 }
+            - { name: r_shoulder_pan_joint,   position: 0 }
+            - { name: r_shoulder_lift_joint,  position: 0.0 }
+            - { name: r_upper_arm_roll_joint, position: 0.0 }
+            - { name: r_elbow_flex_joint,     position: -1.1356 } #-0.2 }
+            - { name: r_forearm_roll_joint,   position: 0.0 }
+            - { name: r_wrist_flex_joint,     position: -1.05 } #-0.2 }
+            - { name: r_wrist_roll_joint,     position: 0.0 }
+    </rosparam>
+
+    <!-- for visualization -->
+
+    <!-- planning model -->
+    <rosparam param="robot_model">
+        kinematics_frame:
+            torso_lift_link
+        chain_tip_link:
+            r_gripper_palm_link
+    </rosparam>
+
+    <!-- planning collision model -->
+    <param name="planning_frame" value="odom_combined"/>
+    <param name="group_name" value="right_arm"/>
+    <rosparam command="load" file="$(find sbpl_collision_checking_test)/config/collision_model_pr2.yaml"/>
+
+    <param name="animate" value="false"/>
+</launch>

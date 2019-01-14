@@ -1,35 +1,15 @@
 <launch>
     <arg name="debug" default="false"/>
 
-    <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
-
-    <env name="CPUPROFILE" value="prof.out"/>
-
     <arg unless="$(arg debug)" name="launch-prefix" value=""/>
     <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
 
     <env name="SMPL_VISUALIZE_CONFIG_FILE" value="$(find smpl_test)/config/smpl_visual.ini"/>
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find smpl_test)/config/rosconsole.properties"/>
 
-    <node pkg="smpl_test" type="test_ara_bfs_jsl" name="test_ara_bfs_jsl" launch-prefix="$(arg launch-prefix)">
-        <!-- for visualization of the scene and the collision model -->
-        <param name="planning_frame" value="odom_combined"/>
+    <include file="$(find smpl_test)/launch/test_common.launch.xml"/>
 
-        <!-- 1. scene-->
-        <param name="object_filename" value="$(find smpl_test)/env/tabletop.env"/>
-
-        <!-- 2. planning model -->
-        <rosparam param="robot_model">
-            kinematics_frame:
-                torso_lift_link
-            chain_tip_link:
-                r_gripper_palm_link
-        </rosparam>
-
-        <!-- 3. collision detection parameters -->
-        <param name="group_name" value="right_arm"/>
-        <rosparam command="load" file="$(find sbpl_collision_checking_test)/config/collision_model_pr2.yaml"/>
-
+    <node name="test_planner" pkg="smpl_test" type="test_ara_bfs_jsl" launch-prefix="$(arg launch-prefix)">
         <!-- planner params -->
         <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
         <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
