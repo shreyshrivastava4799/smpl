@@ -1,0 +1,19 @@
+<launch>
+    <arg name="debug" default="false"/>
+
+    <arg unless="$(arg debug)" name="launch-prefix" value=""/>
+    <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
+
+    <env name="SMPL_VISUALIZE_CONFIG_FILE" value="$(find smpl_test)/config/smpl_visual.ini"/>
+    <env name="ROSCONSOLE_CONFIG_FILE" value="$(find smpl_test)/config/rosconsole.properties"/>
+
+    <include file="$(find smpl_test)/launch/test_common.launch.xml"/>
+
+    <node name="test_planner" pkg="smpl_test" type="test_ara_mfbfs_jsl" launch-prefix="$(arg launch-prefix)">
+        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
+        <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+        <param name="allowed_planning_time" value="15.0"/>
+        <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
+    </node>
+</launch>
+
