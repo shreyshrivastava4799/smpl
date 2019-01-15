@@ -63,7 +63,7 @@ auto ManipLatticeEGraph::RobotCoordHash::operator()(const argument_type& s) cons
     auto seed = (size_t)0;
     boost::hash_combine(seed, boost::hash_range(s.begin(), s.end()));
     return seed;
-
+}
 
 static
 bool FindShortestExperienceGraphPath(
