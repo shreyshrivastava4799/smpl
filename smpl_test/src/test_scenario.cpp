@@ -550,6 +550,36 @@ auto MakeRobotState(
     return std::make_pair(state, true);
 }
 
+int WritePathCSV(
+    const smpl::RobotModel* model,
+    const std::vector<smpl::RobotState>* path,
+    const char* filepath)
+{
+    auto* f = fopen(filepath, "w");
+    if (f == NULL) return -1;
+
+    for (auto i = 0; i < model->getPlanningJoints().size(); ++i) {
+        if (i != 0) {
+            if (fputs(",", f) < 0) return -1;
+        }
+        auto& var = model->getPlanningJoints()[i];
+        if (fputs(var.c_str(), f) < 0) return -1;
+    }
+    if (fputs("\n", f) < 0) return -1;
+    for (auto& point : *path) {
+        for (auto i = 0; i < point.size(); ++i) {
+            if (i != 0) {
+                if (fputs(",", f) < 0) return -1;
+            }
+            if (fprintf(f, "%f", point[i]) < 0) return -1;
+        }
+        if (fputs("\n", f) < 0) return -1;
+    }
+
+    fclose(f);
+    return 0;
+}
+
 int AnimateSolution(
     TestScenarioBase* scenario,
     const smpl::urdf::RobotModel* robot_model,

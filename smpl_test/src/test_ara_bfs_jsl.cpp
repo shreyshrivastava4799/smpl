@@ -194,6 +194,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+#if 0
+    WritePathCSV(&scenario.planning_model, &path, "trajectory.csv");
+#endif
+
     ///////////////////////////////////
     // Visualizations and Statistics //
     ///////////////////////////////////

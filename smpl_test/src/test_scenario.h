@@ -65,6 +65,11 @@ auto MakeRobotState(
     const smpl::RobotModel* model)
     -> std::pair<smpl::RobotState, bool>;
 
+int WritePathCSV(
+    const smpl::RobotModel* model,
+    const std::vector<smpl::RobotState>* path,
+    const char* filepath);
+
 int AnimateSolution(
     TestScenarioBase* scenario,
     const smpl::urdf::RobotModel* robot_model,
