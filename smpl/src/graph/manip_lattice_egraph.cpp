@@ -48,10 +48,14 @@
 #include <smpl/debug/visualize.h>
 #include <smpl/graph/action_space.h>
 #include <smpl/heap/intrusive_heap.h>
+#include <smpl/heuristic/egraph_heuristic.h>
+#include <smpl/heuristic/heuristic.h>
 #include <smpl/planning_params.h>
 #include <smpl/robot_model.h>
 
 namespace smpl {
+
+#define ENABLE_SNAP_SHORTCUT_ACTIONS 0
 
 auto ManipLatticeEGraph::RobotCoordHash::operator()(const argument_type& s) const ->
     result_type
@@ -59,7 +63,7 @@ auto ManipLatticeEGraph::RobotCoordHash::operator()(const argument_type& s) cons
     auto seed = (size_t)0;
     boost::hash_combine(seed, boost::hash_range(s.begin(), s.end()));
     return seed;
-}
+
 
 static
 bool FindShortestExperienceGraphPath(
@@ -208,6 +212,16 @@ bool ManipLatticeEGraph::Init(
     return DiscreteSpace::Init(robot, checker);
 }
 
+auto ManipLatticeEGraph::GetJointSpaceLattice() -> ManipLattice*
+{
+    return &this->m_lattice;
+}
+
+auto ManipLatticeEGraph::GetJointSpaceLattice() const -> const ManipLattice*
+{
+    return &this->m_lattice;
+}
+
 void ManipLatticeEGraph::PrintState(int state_id, bool verbose, FILE* f)
 {
     return m_lattice.PrintState(state_id, verbose, f);
@@ -235,7 +249,7 @@ bool ManipLatticeEGraph::ExtractPath(
     {
 //        assert(IsValidStateID(this, idpath[0]));
         auto* first_state = m_lattice.GetHashEntry(idpath[0]);
-        if (!first_state) {
+        if (first_state == NULL) {
             SMPL_ERROR_NAMED(G_LOG, "Failed to get state entry for state %d", idpath[0]);
             return false;
         }
@@ -258,14 +272,18 @@ bool ManipLatticeEGraph::ExtractPath(
             continue;
         }
 
+        if (m_egraph_heuristic == NULL) {
+            SMPL_ERROR_NAMED(G_LOG, "Failed to find valid goal successor during path extraction");
+            return false;
+        }
         // check for shortcut transition
-        auto pnit = std::find(begin(m_egraph_state_ids), end(m_egraph_state_ids), prev_id);
-        auto cnit = std::find(begin(m_egraph_state_ids), end(m_egraph_state_ids), curr_id);
-        if (pnit != end(m_egraph_state_ids) && cnit != end(m_egraph_state_ids)) {
-            auto pn = (ExperienceGraph::node_id)std::distance(m_egraph_state_ids.begin(), pnit);
-            auto cn = (ExperienceGraph::node_id)std::distance(m_egraph_state_ids.begin(), cnit);
+        auto pnit = m_state_to_node.find(prev_id);
+        auto cnit = m_state_to_node.find(curr_id);
+        if (pnit != end(m_state_to_node) && cnit != end(m_state_to_node)) {
+            auto pn = pnit->second;
+            auto cn = cnit->second;
 
-            SMPL_INFO("Check for shortcut from %d to %d (egraph %zu -> %zu)!", prev_id, curr_id, pn, cn);
+            SMPL_INFO("Check for shortcut from %d to %d (egraph %d -> %d)!", prev_id, curr_id, pn, cn);
 
             auto node_path = std::vector<ExperienceGraph::node_id>();
             if (FindShortestExperienceGraphPath(this, pn, cn, node_path)) {
@@ -306,7 +324,87 @@ void ManipLatticeEGraph::GetSuccs(
     std::vector<int>* succs,
     std::vector<int>* costs)
 {
-    return m_lattice.GetSuccs(state_id, succs, costs);
+    // bridge edges from e-graph states to regular states
+    // bridge edges from regular states to e-graph states
+    // edges between states in the experience graph
+    auto it = m_state_to_node.find(state_id);
+    if (it != end(m_state_to_node)) {
+        // this state is an e-graph state
+        auto egraph_node_id = it->second;
+        auto& egraph_state = m_egraph.state(egraph_node_id);
+
+        // return adjacent nodes in the experience graph as successors
+        // TODO; collision check this transition
+        auto adj = m_egraph.adjacent_nodes(egraph_node_id);
+        for (auto ait = adj.first; ait != adj.second; ++ait) {
+            auto adj_node_id = *ait;
+            auto adj_state_id = m_egraph_state_ids[adj_node_id];
+            succs->push_back(adj_state_id);
+            costs->push_back(1000);
+        }
+
+        // return regular states reachable using bridge transitions
+        // TODO: collision check this
+        auto egraph_coord = m_lattice.GetDiscreteState(egraph_state);
+        auto regular_id = m_lattice.GetHashEntry(egraph_coord);
+        if (regular_id >= 0) {
+            succs->push_back(regular_id);
+            costs->push_back(1000);
+        }
+    } else {
+        // this state is a regular state
+        m_lattice.GetSuccs(state_id, succs, costs);
+
+        // examine bridge transitions to all e-graph states within
+        // this state's discrete bin
+        auto& coord = m_lattice.m_states[state_id]->coord;
+        auto it = m_coord_to_nodes.find(coord);
+        if (it != end(m_coord_to_nodes)) {
+            for (auto egraph_node : it->second) {
+                auto egraph_state_id = m_egraph_state_ids[egraph_node];
+                succs->push_back(egraph_state_id);
+                costs->push_back(1000);
+            }
+        }
+    }
+
+    if (m_egraph_heuristic != NULL) {
+        auto snap_succs = std::vector<int>();
+        m_egraph_heuristic->GetEquivalentStates(state_id, snap_succs);
+
+        for (auto i = 0; i < snap_succs.size(); ++i) {
+            auto snap_id = snap_succs[i];
+            auto cost = 0;
+            if (!Snap(state_id, snap_id, cost)) {
+                continue;
+            }
+
+            succs->push_back(snap_id);
+            costs->push_back(cost);
+
+#if ENABLE_SNAP_SHORTCUT_ACTIONS
+            auto snap_shortcut_succs = std::vector<int>();
+            m_egraph_heuristic->GetShortcutSuccs(snap_id, snap_shortcut_succs);
+            if (!snap_shortcut_succs.empty()) {
+                SMPL_INFO("%zu snap shortcuts feasible", snap_shortcut_succs.size());
+            }
+#endif
+        }
+
+        auto shortcut_succs = std::vector<int>();
+        m_egraph_heuristic->GetShortcutSuccs(state_id, shortcut_succs);
+
+        for (auto i = 0; i < shortcut_succs.size(); ++i) {
+            auto shortcut_id = shortcut_succs[i];
+            auto cost = 0;
+            if (!Shortcut(state_id, shortcut_id, cost)) {
+                continue;
+            }
+
+            succs->push_back(shortcut_id);
+            costs->push_back(cost);
+        }
+    }
 }
 
 auto ManipLatticeEGraph::ProjectToPose(int state_id) -> Affine3
@@ -465,6 +563,26 @@ int ManipLatticeEGraph::GetStateID(ExperienceGraph::node_id n) const
     }
 }
 
+bool ManipLatticeEGraph::UpdateHeuristics(Heuristic** heuristics, int count)
+{
+    m_egraph_heuristic = NULL;
+    for (auto i = 0; i < count; ++i) {
+        auto* h = heuristics[i];
+        auto* egraph_heuristic = h->GetExtension<IExperienceGraphHeuristic>();
+        if (egraph_heuristic != NULL) {
+            m_egraph_heuristic = egraph_heuristic;
+            break;
+        }
+    }
+
+    return m_lattice.UpdateHeuristics(heuristics, count);
+}
+
+bool ManipLatticeEGraph::UpdateStart(int state_id)
+{
+    return m_lattice.UpdateStart(state_id);
+}
+
 bool ManipLatticeEGraph::UpdateGoal(GoalConstraint* goal)
 {
     return m_lattice.UpdateGoal(goal);
@@ -473,12 +591,25 @@ bool ManipLatticeEGraph::UpdateGoal(GoalConstraint* goal)
 auto ManipLatticeEGraph::GetExtension(size_t class_code) -> Extension*
 {
     if (class_code == GetClassCode<IExperienceGraph>() ||
-        class_code == GetClassCode<IExtractRobotState>())
+        class_code == GetClassCode<IExtractRobotState>() ||
+        class_code == GetClassCode<ISearchable>())
     {
         return this;
     }
 
     if (class_code == GetClassCode<IProjectToPose>()) {
+        if (m_project_to_pose == NULL) {
+            auto* project_to_pose = m_lattice.GetExtension<IProjectToPose>();
+            if (project_to_pose != NULL) {
+                m_project_to_pose = project_to_pose;
+                return this;
+            }
+        } else {
+            return this;
+        }
+    }
+
+    if (class_code == GetClassCode<IProjectToPoint>()) {
         if (m_project_to_pose == NULL) {
             auto* project_to_pose = m_lattice.GetExtension<IProjectToPose>();
             if (project_to_pose != NULL) {

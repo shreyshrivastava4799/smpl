@@ -44,28 +44,37 @@ class ActionSpace;
 class CollisionChecker;
 class CostFunction;
 class RobotModel;
+class IExperienceGraphHeuristic;
 
-// A graph composed of two sub-graphs, a typical joint-space lattice graph and
-// an experience graph represented as a dense set of states and edges.
+// A graph composed of two sub-graphs:
 //
-// The nodes in the graph are one of two types:
+//   (1) a joint-space lattice
+//   (2) a dense adjacency list that represents an experience graph
 //
-// (1) A state in the original joint-space lattice
+// There are two types of nodes:
+//
+// (1) A state in the joint-space lattice
 // (2) A state in the experience graph
 //
-// The following types of actions are available from each state:
+// There are at least 3 types of edges:
 //
-// (1) The original actions as defined by the joint-space lattice
-// (2) Edges between states in the experience graph
-// (3) Precomputed shortcut edges between states in the experience graph that
+// (1) Edges as defined in the joint-space lattice.
+// (2) Edges stored in the experience graph.
+// (3) Edges that bridge between joint-space lattice states and expeirence
+//     graph states that fall within the same discretization
+//
+// There are potentially 2 more types of edges:
+//
+// (1) Precomputed shortcut edges between states in the experience graph that
 //     represent paths through the experience graph that may quickly lead to
 //     the goal.
-// (4) "Snap motions" or adaptively-generated motions between
+// (2) "Snap motions" or adaptively-generated motions between
 //     original graph states and experience graph states, with similar
-//     heuristic values, to avoid local minima imposed by the experience-graph
-//     heuristic
-// (5) Bridge edges that connect original and experience graph states within
-//     the same discretization.
+//     heuristic values, to avoid local minima when the search tries to reach
+//     the experience-graph
+//
+// These edges are only available if one of the associated heuristics
+// has an IExperienceGraphHeuristic extension.
 class ManipLatticeEGraph :
     public DiscreteSpace,
     public RobotPlanningSpace,
@@ -83,17 +92,25 @@ public:
         ActionSpace* actions,
         CostFunction* cost_fun);
 
+    auto GetJointSpaceLattice() -> ManipLattice*;
+    auto GetJointSpaceLattice() const -> const ManipLattice*;
+
     void PrintState(int state_id, bool verbose, FILE* f = NULL);
 
     /// \name RobotPlanningSpace Interface
     ///@{
     int GetStateID(const RobotState& state) final;
-    bool ExtractPath(const std::vector<int>& ids, std::vector<RobotState>& path) final;
+    bool ExtractPath(
+        const std::vector<int>& ids,
+        std::vector<RobotState>& path) final;
     ///@}
 
     /// \name ISearchable
     ///@{
-    void GetSuccs(int state_id, std::vector<int>* succs, std::vector<int>* costs) final;
+    void GetSuccs(
+        int state_id,
+        std::vector<int>* succs,
+        std::vector<int>* costs) final;
     ///@}
 
     /// \name IProjectToPose Interface
@@ -125,6 +142,8 @@ public:
 
     /// \name DiscreteSpace Interface
     ///@{
+    bool UpdateHeuristics(Heuristic** heuristics, int count) final;
+    bool UpdateStart(int state_id) final;
     bool UpdateGoal(GoalConstraint* goal) final;
     ///@}
 
@@ -165,6 +184,8 @@ public:
 
     // map from experience graph node ids to state ids
     std::vector<int> m_egraph_state_ids;
+
+    IExperienceGraphHeuristic* m_egraph_heuristic = NULL;
 };
 
 } // namespace smpl

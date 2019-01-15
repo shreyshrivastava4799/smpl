@@ -61,6 +61,16 @@ auto DiscretizePoint(
     heur->m_grid->worldToGrid(p.x(), p.y(), p.z(), dp.x(), dp.y(), dp.z());
     return dp;
 }
+
+static
+auto RealizePoint(DijkstraEGraphHeuristic3D* heur, const Eigen::Vector3i& dp)
+    -> Vector3
+{
+    auto p = Vector3();
+    heur->m_grid->gridToWorld(dp.x(), dp.y(), dp.z(), p.x(), p.y(), p.z());
+    return p;
+}
+
 // Project experience graph states down to their 3D projections. Note that this
 // should be called once the goal is set in the environment as the projection to
 // 3D may be based off of the goal condition (for instance, the desired planning
@@ -105,8 +115,7 @@ void ProjectExperienceGraph(DijkstraEGraphHeuristic3D* heur)
         SMPL_DEBUG_NAMED(LOG, "Discretize point (%0.3f, %0.3f, %0.3f)", p.x(), p.y(), p.z());
         auto dp = DiscretizePoint(heur, p);
 
-        auto viz_pt = Vector3();
-        heur->m_grid->gridToWorld(dp.x(), dp.y(), dp.z(), viz_pt.x(), viz_pt.y(), viz_pt.z());
+        auto viz_pt = RealizePoint(heur, dp);
         viz_points.push_back(viz_pt);
 
         dp += Eigen::Vector3i::Ones();
@@ -153,7 +162,7 @@ void ProjectExperienceGraph(DijkstraEGraphHeuristic3D* heur)
         }
     }
 
-    SMPL_INFO("Projected experience graph contains %d nodes and %d edges", proj_node_count, proj_edge_count);
+    SMPL_INFO("Projected experience graph contains %d nodes and %d edges", proj_node_count, proj_edge_count >> 1);
 
     auto comp_count = 0;
     heur->m_component_ids.assign(eg->num_nodes(), -1);

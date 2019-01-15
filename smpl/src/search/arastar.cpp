@@ -68,10 +68,16 @@ bool ARAStar::Init(DiscreteSpace* space, Heuristic* heuristic)
     if (space == NULL || heuristic == NULL) return false;
 
     auto* searchable = space->GetExtension<ISearchable>();
-    if (searchable == NULL) return false;
+    if (searchable == NULL) {
+        SMPL_ERROR("ARA* requires an ISearchable extension to DiscreteSpace");
+        return false;
+    }
 
     auto* goal_heuristic = heuristic->GetExtension<IGoalHeuristic>();
-    if (goal_heuristic == NULL) return false;
+    if (goal_heuristic == NULL) {
+        SMPL_ERROR("ARA* requires an IGoalHeursitic extension to Heuristic");
+        return false;
+    }
 
     m_space = searchable;
     m_heur = goal_heuristic;

@@ -355,7 +355,7 @@ bool ComputeIK_RPY(
 }
 
 static
-void CopyJntArrayToState(const KDL::JntArray* q_in, std::vector<double>* q_out)
+void CopyJntArrayToState(const KDL::JntArray* q_in, RobotState* q_out)
 {
     q_out->resize(q_in->rows());
     for (auto i = 0; i < q_out->size(); ++i) {
@@ -364,7 +364,7 @@ void CopyJntArrayToState(const KDL::JntArray* q_in, std::vector<double>* q_out)
 }
 
 static
-void CopyStateToJntArray(const std::vector<double>* q_in, KDL::JntArray* q_out)
+void CopyStateToJntArray(const RobotState* q_in, KDL::JntArray* q_out)
 {
     assert(q_in->size() == q_out->rows());
     for (auto i = 0; i < q_in->size(); ++i) {
