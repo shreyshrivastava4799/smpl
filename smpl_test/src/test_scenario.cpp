@@ -530,7 +530,6 @@ int WritePathCSV(
         if (fputs("\n", f) < 0) return -1;
     }
 
-    fclose(f);
     return 0;
 }
 
