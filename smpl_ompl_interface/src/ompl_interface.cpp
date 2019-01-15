@@ -31,32 +31,10 @@
 #include <smpl/search/arastar.h>
 #include <smpl/stl/memory.h>
 #include <smpl/occupancy_grid.h>
+#include <smpl/defer.h>
 
 namespace smpl {
 namespace detail {
-
-// stolen defer from scdl
-template <class Callable>
-struct CallOnDestruct
-{
-    Callable c;
-    CallOnDestruct(Callable c) : c(c) { }
-    ~CallOnDestruct() { c(); }
-};
-
-template <class Callable>
-CallOnDestruct<Callable> MakeCallOnDestruct(Callable c) {
-    return CallOnDestruct<Callable>(c);
-}
-
-// preprocessor magic to get a prefix to concatenate with the __LINE__ macro
-#define MAKE_LINE_IDENT_JOIN_(a, b) a##b
-#define MAKE_LINE_IDENT_JOIN(a, b) MAKE_LINE_IDENT_JOIN_(a, b)
-#define MAKE_LINE_IDENT(prefix) MAKE_LINE_IDENT_JOIN(prefix, __LINE__)
-
-// create an obscurely named CallOnDestruct with an anonymous lambda that
-// executes the given statement sequence
-#define DEFER(fun) auto MAKE_LINE_IDENT(tmp_call_on_destruct_) = ::smpl::detail::MakeCallOnDestruct([&](){ fun; })
 
 ///////////////////////////////
 // RobotModel Implementation //

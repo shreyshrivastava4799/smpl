@@ -21,11 +21,11 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "test_ara_bfs_jsl");
     ros::NodeHandle ph("~");
 
-    auto scenario = TestScenarioKDL();
+    auto scenario = TestScenario();
     InitTestScenario(&scenario);
 
     auto resolutions = std::vector<double>(
-            GetJointVariableCount(&scenario.planning_model),
+            scenario.planning_model->jointVariableCount(),
             smpl::to_radians(1.0));
 
     auto actions = smpl::ManipulationActionSpace();
@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
     auto graph = smpl::ManipLattice();
 
     if (!graph.Init(
-            &scenario.planning_model,
+            scenario.planning_model.get(),
             &scenario.collision_model,
             resolutions,
             &actions,
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
     auto start_state = smpl::RobotState();
     auto success = false;
     std::tie(start_state, success) = MakeRobotState(
-            &scenario.start_state, &scenario.planning_model);
+            &scenario.start_state, scenario.planning_model.get());
     if (!success) return 1;
 
     auto start_state_id = graph.GetStateID(start_state);
@@ -145,9 +145,10 @@ int main(int argc, char* argv[])
     // left arm tuck pose
     // -1.68339, -1.73434, 1.24853, 0.06024, 1.78907, -0.0962141, -0.0864407,
 
-    goal.SetGoalState(std::vector<double>(
+    auto smpl_goal_state = std::vector<double>(
             goal_state,
-            goal_state + sizeof(goal_state) / sizeof(goal_state[0])));
+            goal_state + sizeof(goal_state) / sizeof(goal_state[0]));
+    goal.SetGoalState(smpl_goal_state);
 
     auto goal_tolerance =
     {
@@ -162,17 +163,16 @@ int main(int argc, char* argv[])
 
     goal.SetGoalTolerance(goal_tolerance);
 
-    // TODO: GetVisualization on JointStateGoal?
-    auto full_state_vis = scenario.planning_model.urdf_model.robot_state;
-    for (auto i = 0; i < GetJointVariableCount(&scenario.planning_model); ++i) {
-        auto& var_name = GetPlanningJointVariables(&scenario.planning_model)[i];
-        auto* var = GetVariable(&scenario.planning_model.robot_model, &var_name);
-        assert(var != NULL);
-        SetVariablePosition(&full_state_vis, var, goal_state[i]);
+    auto full_state_vis = scenario.planning_model->GetVisualization(smpl_goal_state);
+    auto id = (int32_t)0;
+    for (auto& marker : full_state_vis) {
+        marker.frame_id = "odom_combined";
+        marker.ns = "joint_goal";
+        marker.color = smpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f };
+        marker.id = id++;
     }
 
-    UpdateTransforms(&full_state_vis);
-    SV_SHOW_INFO_NAMED("joint_goal", MakeRobotVisualization(&full_state_vis, smpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f }, "odom_combined", "joint_goal"));
+    SV_SHOW_INFO_NAMED("joint_goal", full_state_vis);
 
     if (!graph.UpdateGoal(&goal) ||
         !heuristic.UpdateGoal(&goal) ||
@@ -216,9 +216,5 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    return AnimateSolution(
-            &scenario,
-            &scenario.planning_model.robot_model,
-            &scenario.planning_model,
-            &path);
+    return AnimateSolution(&scenario, scenario.planning_model.get(), &path);
 }

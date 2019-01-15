@@ -24,7 +24,13 @@ namespace smpl {
 class RobotModel;
 }
 
-struct TestScenarioBase
+// A common test scenario composed of:
+// (1) A scene (list of objects in an environment)
+// (2) A robot (kinematic object in the scene)
+// (3) An initial state for the robot
+// (4) A planning model (description of the space we're planning in)
+// (5) A planning-model-oriented collision detector
+struct TestScenario
 {
     ros::NodeHandle nh;
     ros::NodeHandle ph;
@@ -35,30 +41,15 @@ struct TestScenarioBase
 
     moveit_msgs::RobotState start_state;
 
+    std::unique_ptr<smpl::RobotModel> planning_model;
+
     smpl::OccupancyGrid grid;
     smpl::collision::CollisionSpace collision_model;
 
-    TestScenarioBase();
+    TestScenario();
 };
 
-// A common test scenario composed of:
-// (1) A scene (list of objects in an environment)
-// (2) A robot (kinematic object in the scene that we're planning for)
-// (3) An initial state for the robot
-// (4) A planning model (description of the space we're planning in)
-// (5) A planning-model-oriented collision detector
-struct TestScenarioKDL : TestScenarioBase
-{
-    smpl::KDLRobotModel planning_model;
-};
-
-struct TestScenarioPR2 : TestScenarioBase
-{
-    smpl::PR2RobotModel planning_model;
-};
-
-bool InitTestScenario(TestScenarioKDL* scenario);
-bool InitTestScenario(TestScenarioPR2* scenario);
+bool InitTestScenario(TestScenario* scenario);
 
 auto MakeRobotState(
     const moveit_msgs::RobotState* robot_state,
@@ -71,8 +62,7 @@ int WritePathCSV(
     const char* filepath);
 
 int AnimateSolution(
-    TestScenarioBase* scenario,
-    const smpl::urdf::RobotModel* robot_model,
+    TestScenario* scenario,
     smpl::RobotModel* planning_model,
     const std::vector<smpl::RobotState>* path);
 

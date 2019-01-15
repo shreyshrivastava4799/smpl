@@ -20,11 +20,11 @@ int main(int argc, char* argv[])
     ros::init(argc, argv, "test_ara_bfs_jsl");
     ros::NodeHandle ph("~");
 
-    auto scenario = TestScenarioKDL();
+    auto scenario = TestScenario();
     InitTestScenario(&scenario);
 
     auto resolutions = std::vector<double>(
-            GetJointVariableCount(&scenario.planning_model),
+            scenario.planning_model->jointVariableCount(),
             smpl::to_radians(1.0));
 
     auto actions = smpl::ManipulationActionSpace();
@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
     auto graph = smpl::ManipLattice();
 
     if (!graph.Init(
-            &scenario.planning_model,
+            scenario.planning_model.get(),
             &scenario.collision_model,
             resolutions,
             &actions,
@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
     auto start_state = smpl::RobotState();
     auto success = false;
     std::tie(start_state, success) = MakeRobotState(
-            &scenario.start_state, &scenario.planning_model);
+            &scenario.start_state, scenario.planning_model.get());
     if (!success) return 1;
 
     auto start_state_id = graph.GetStateID(start_state);
@@ -202,9 +202,5 @@ int main(int argc, char* argv[])
     // Visualizations and Statistics //
     ///////////////////////////////////
 
-    return AnimateSolution(
-            &scenario,
-            &scenario.planning_model.robot_model,
-            &scenario.planning_model,
-            &path);
+    return AnimateSolution(&scenario, scenario.planning_model.get(), &path);
 }

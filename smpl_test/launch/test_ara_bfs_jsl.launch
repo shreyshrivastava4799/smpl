@@ -10,6 +10,7 @@
     <include file="$(find smpl_test)/launch/test_common.launch.xml"/>
 
     <node name="test_planner" pkg="smpl_test" type="test_ara_bfs_jsl" launch-prefix="$(arg launch-prefix)">
+        <param name="robot_model_type" value="kdl"/>
         <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
         <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
         <param name="allowed_planning_time" value="15.0"/>

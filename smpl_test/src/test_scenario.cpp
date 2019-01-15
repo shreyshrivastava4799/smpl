@@ -11,18 +11,15 @@
 // system includes
 #include <eigen_conversions/eigen_msg.h>
 #include <smpl/distance_map/euclid_distance_map.h>
+#include <smpl/stl/memory.h>
 #include <smpl_urdf_robot_model/robot_state_visualization.h>
+#include <smpl/defer.h>
 
 // project includes
 #include "pr2_allowed_collision_pairs.h"
 
-// Configuration of the planning model
-struct RobotModelConfig
-{
-    std::string kinematics_frame;
-    std::string chain_tip_link;
-};
-
+// Search up the parameter hierarchy, find a key, and retrieve the parameter's
+// value.
 template <class T>
 bool FindParam(const ros::NodeHandle& nh, const std::string& key, T& out)
 {
@@ -40,14 +37,7 @@ bool FindParam(const ros::NodeHandle& nh, const std::string& key, T& out)
     return true;
 }
 
-static
-bool ReadRobotModelConfig(const ros::NodeHandle& nh, RobotModelConfig& config)
-{
-    if (!FindParam(nh, "robot_model/kinematics_frame", config.kinematics_frame)) return false;
-    if (!FindParam(nh, "robot_model/chain_tip_link", config.chain_tip_link)) return false;
-    return true;
-}
-
+// Read the initial configuration of the robot from the param server.
 static
 bool ReadInitialConfiguration(
     ros::NodeHandle& nh,
@@ -117,7 +107,7 @@ bool ReadInitialConfiguration(
 }
 
 static
-auto GetCollisionCube(
+auto MakeCollisionCube(
     const geometry_msgs::Pose& pose,
     std::vector<double>& dims,
     const std::string& frame_id,
@@ -142,39 +132,7 @@ auto GetCollisionCube(
     return object;
 }
 
-static
-auto GetCollisionCubes(
-    std::vector<std::vector<double>>& objects,
-    std::vector<std::string>& object_ids,
-    const std::string& frame_id)
-    -> std::vector<moveit_msgs::CollisionObject>
-{
-    auto objs = std::vector<moveit_msgs::CollisionObject>();
-    auto dims = std::vector<double>(3, 0);
-    auto pose = geometry_msgs::Pose();
-    pose.orientation.x = 0;
-    pose.orientation.y = 0;
-    pose.orientation.z = 0;
-    pose.orientation.w = 1;
-
-    if (object_ids.size() != objects.size()) {
-        ROS_INFO("object id list is not same length as object list. exiting.");
-        return objs;
-    }
-
-    for (size_t i = 0; i < objects.size(); i++) {
-        pose.position.x = objects[i][0];
-        pose.position.y = objects[i][1];
-        pose.position.z = objects[i][2];
-        dims[0] = objects[i][3];
-        dims[1] = objects[i][4];
-        dims[2] = objects[i][5];
-
-        objs.push_back(GetCollisionCube(pose, dims, frame_id, object_ids.at(i)));
-    }
-    return objs;
-}
-
+// Read a list of collision objects from file.
 static
 auto GetCollisionObjects(
     const std::string& filename,
@@ -182,12 +140,12 @@ auto GetCollisionObjects(
     -> std::vector<moveit_msgs::CollisionObject>
 {
     char sTemp[1024];
-    int num_obs = 0;
-    std::vector<std::string> object_ids;
-    std::vector<std::vector<double> > objects;
-    std::vector<moveit_msgs::CollisionObject> objs;
+    auto num_obs = 0;
+    auto object_ids = std::vector<std::string>();
+    auto objects = std::vector<std::vector<double>>();
+    auto objs = std::vector<moveit_msgs::CollisionObject>();
 
-    FILE* fCfg = fopen(filename.c_str(), "r");
+    auto* fCfg = fopen(filename.c_str(), "r");
 
     if (fCfg == NULL) {
         ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
@@ -224,23 +182,129 @@ auto GetCollisionObjects(
         }
     }
 
-    return GetCollisionCubes(objects, object_ids, frame_id);
+    auto dims = std::vector<double>(3, 0);
+    auto pose = geometry_msgs::Pose();
+    pose.orientation.x = 0;
+    pose.orientation.y = 0;
+    pose.orientation.z = 0;
+    pose.orientation.w = 1;
+
+    if (object_ids.size() != objects.size()) {
+        ROS_INFO("object id list is not same length as object list. exiting.");
+        return objs;
+    }
+
+    for (size_t i = 0; i < objects.size(); i++) {
+        pose.position.x = objects[i][0];
+        pose.position.y = objects[i][1];
+        pose.position.z = objects[i][2];
+        dims[0] = objects[i][3];
+        dims[1] = objects[i][4];
+        dims[2] = objects[i][5];
+
+        objs.push_back(MakeCollisionCube(pose, dims, frame_id, object_ids.at(i)));
+    }
+    return objs;
+}
+
+// Search for the URDF on the param server using a common key.
+static
+auto GetRobotDescription(const ros::NodeHandle& nh) -> std::pair<std::string, bool>
+{
+    auto robot_description_key = "robot_description";
+    auto robot_description = std::string();
+    if (!FindParam(nh, robot_description_key, robot_description)) {
+        return std::make_pair("", false);
+    }
+    return std::make_pair(std::move(robot_description), true);
+}
+
+static
+auto MakeRobotModel(
+    const std::string& type,
+    const ros::NodeHandle& nh,
+    const moveit_msgs::RobotState* start_state)
+    -> std::unique_ptr<smpl::RobotModel>
+{
+    if (type == "kdl") {
+        auto kdl_model = smpl::make_unique<smpl::KDLRobotModel>();
+
+        auto robot_description = std::string();
+        auto found = false;
+        std::tie(robot_description, found) = GetRobotDescription(nh);
+        if (!found) {
+            return false;
+        }
+
+        auto kinematics_frame = std::string();
+        auto chain_tip_link = std::string();
+
+        if (!FindParam(nh, "robot_model/kinematics_frame", kinematics_frame)) return false;
+        if (!FindParam(nh, "robot_model/chain_tip_link", chain_tip_link)) return false;
+
+        ROS_INFO("Construct KDL Robot Model");
+        if (!InitKDLRobotModel(
+                kdl_model.get(),
+                robot_description,
+                kinematics_frame,
+                chain_tip_link))
+        {
+            ROS_ERROR("Failed to initialize robot model");
+            return false;
+        }
+
+        auto reference_state = smpl::urdf::RobotState();
+        InitRobotState(&reference_state, &kdl_model->robot_model, start_state);
+        SetReferenceState(kdl_model.get(), GetVariablePositions(&reference_state));
+        return std::move(kdl_model);
+    } else if (type == "pr2") {
+        auto pr2_model = smpl::make_unique<smpl::PR2RobotModel>();
+
+        auto robot_description = std::string();
+        auto found = false;
+        std::tie(robot_description, found) = GetRobotDescription(nh);
+        if (!found) {
+            return false;
+        }
+
+        auto kinematics_frame = std::string();
+        auto chain_tip_link = std::string();
+
+        if (!FindParam(nh, "robot_model/kinematics_frame", kinematics_frame)) return false;
+        if (!FindParam(nh, "robot_model/chain_tip_link", chain_tip_link)) return false;
+
+        ROS_INFO("Construct KDL Robot Model");
+        if (!InitPR2RobotModel(
+                pr2_model.get(),
+                robot_description,
+                kinematics_frame,
+                chain_tip_link))
+        {
+            ROS_ERROR("Failed to initialize robot model");
+            return false;
+        }
+
+        auto reference_state = smpl::urdf::RobotState();
+        InitRobotState(&reference_state, &pr2_model->kdl_model.robot_model, start_state);
+        SetReferenceState(pr2_model.get(), GetVariablePositions(&reference_state));
+        return std::move(pr2_model);
+    } else {
+        return NULL;
+    }
 }
 
 /////////////////////////
 // Interface Functions //
 /////////////////////////
 
-TestScenarioBase::TestScenarioBase() :
+TestScenario::TestScenario() :
     ph("~"),
     visualizer(nh, 100)
 {
 }
 
-// Perform initialization of a Test Scenario that is independent of the
-// specific RobotModel implementation being used.
-static
-bool InitTestScenarioPrePlanningModel(TestScenarioBase* scenario)
+// Initialize a scenario from the parameters on the param server.
+bool InitTestScenario(TestScenario* scenario)
 {
     smpl::viz::set_visualizer(&scenario->visualizer);
     ros::Duration(0.1).sleep(); // let the publisher setup
@@ -254,25 +318,22 @@ bool InitTestScenarioPrePlanningModel(TestScenarioBase* scenario)
         return false;
     }
 
-    return true;
-}
+    //////////////////////
+    // Init Robot Model //
+    //////////////////////
 
-static
-auto GetRobotDescription(const ros::NodeHandle& nh) -> std::pair<std::string, bool>
-{
-    auto robot_description_key = "robot_description";
-    auto robot_description = std::string();
-    if (!FindParam(nh, robot_description_key, robot_description)) {
-        return std::make_pair("", false);
+    auto robot_model_type = std::string();
+    if (!FindParam(scenario->ph, "robot_model_type", robot_model_type)) {
+        return false;
     }
-    return std::make_pair(std::move(robot_description), true);
-}
 
-static
-bool InitTestScenarioPostPlanningModel(
-    TestScenarioBase* scenario,
-    smpl::RobotModel* planning_model)
-{
+    scenario->planning_model = MakeRobotModel(
+            robot_model_type, scenario->ph, &scenario->start_state);
+    if (scenario->planning_model == NULL) {
+        ROS_ERROR("Failed to create Robot Model");
+        return false;
+    }
+
     auto planning_frame = std::string();
     if (!FindParam(scenario->ph, "planning_frame", planning_frame)) {
         ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
@@ -348,7 +409,7 @@ bool InitTestScenarioPostPlanningModel(
             robot_description,
             cc_conf,
             group_name,
-            planning_model->getPlanningJoints()))
+            scenario->planning_model->getPlanningJoints()))
     {
         ROS_ERROR("Failed to initialize Collision Space");
         return false;
@@ -394,6 +455,9 @@ bool InitTestScenarioPostPlanningModel(
     return true;
 }
 
+// Initialize an smpl::urdf::RobotState and set its initial state from a
+// moveit_msgs::RobotState.
+static
 bool InitRobotState(
     smpl::urdf::RobotState* robot_state,
     const smpl::urdf::RobotModel* robot_model,
@@ -413,117 +477,6 @@ bool InitRobotState(
         SetVariablePosition(robot_state, var, state_msg->joint_state.position[i]);
     }
     return true;
-}
-
-bool InitTestScenario(TestScenarioKDL* scenario)
-{
-    if (!InitTestScenarioPrePlanningModel(scenario)) {
-        return false; // errors logged within
-    }
-
-    auto robot_description = std::string();
-    auto found = false;
-    std::tie(robot_description, found) = GetRobotDescription(scenario->ph);
-    if (!found) {
-        return false;
-    }
-
-    auto robot_config = RobotModelConfig();
-    if (!ReadRobotModelConfig(scenario->ph, robot_config)) {
-        ROS_ERROR("Failed to read robot model config from param server");
-        return false;
-    }
-
-    ROS_INFO("Construct KDL Robot Model");
-    if (!InitKDLRobotModel(
-            &scenario->planning_model,
-            robot_description,
-            robot_config.kinematics_frame,
-            robot_config.chain_tip_link))
-    {
-        ROS_ERROR("Failed to initialize robot model");
-        return false;
-    }
-
-    // Set reference state in the robot planning model...
-    auto reference_state = smpl::urdf::RobotState();
-    InitRobotState(&reference_state, &scenario->planning_model.robot_model, &scenario->start_state);
-    SetReferenceState(&scenario->planning_model, GetVariablePositions(&reference_state));
-
-    if (!InitTestScenarioPostPlanningModel(scenario, &scenario->planning_model)) {
-        return false; // errors logged within
-    }
-
-    return true;
-}
-
-bool InitTestScenario(TestScenarioPR2* scenario)
-{
-    if (!InitTestScenarioPrePlanningModel(scenario)) {
-        return false; // errors logged within
-    }
-
-    auto robot_description = std::string();
-    auto found = false;
-    std::tie(robot_description, found) = GetRobotDescription(scenario->ph);
-    if (!found) {
-        return false;
-    }
-
-    auto robot_config = RobotModelConfig();
-    if (!ReadRobotModelConfig(ros::NodeHandle(scenario->ph, "robot_model"), robot_config)) {
-        ROS_ERROR("Failed to read robot model config from param server");
-        return false;
-    }
-
-    ROS_INFO("Construct KDL Robot Model");
-    if (!InitPR2RobotModel(
-            &scenario->planning_model,
-            robot_description,
-            robot_config.kinematics_frame,
-            robot_config.chain_tip_link))
-    {
-        ROS_ERROR("Failed to initialize robot model");
-        return false;
-    }
-
-    // Set reference state in the robot planning model...
-    auto reference_state = smpl::urdf::RobotState();
-    InitRobotState(&reference_state, &scenario->planning_model.kdl_model.robot_model, &scenario->start_state);
-    SetReferenceState(&scenario->planning_model, GetVariablePositions(&reference_state));
-
-    if (!InitTestScenarioPostPlanningModel(scenario, &scenario->planning_model)) {
-        return false; // errors logged within
-    }
-
-    return true;
-}
-
-// Update the RobotState to include point. Maybe smpl::RobotModel should
-// include a visualization function, much like CollisionChecker.
-static
-void UpdateRobotState(
-    smpl::urdf::RobotState* robot_state,
-    const smpl::RobotModel* model,
-    const smpl::RobotState* state)
-{
-    for (auto i = 0; i < model->getPlanningJoints().size(); ++i) {
-        auto& var_name = model->getPlanningJoints()[i];
-        auto val = (*state)[i];
-        auto* var = GetVariable(GetRobotModel(robot_state), &var_name);
-        assert(var != NULL);
-        SetVariablePosition(robot_state, var, val);
-    }
-}
-
-static
-auto MakeRobotState(
-    const smpl::urdf::RobotState* robot_state,
-    const smpl::RobotModel* model)
-    -> smpl::RobotState
-{
-    auto state = smpl::RobotState();
-    return state;
 }
 
 auto MakeRobotState(
@@ -557,6 +510,7 @@ int WritePathCSV(
 {
     auto* f = fopen(filepath, "w");
     if (f == NULL) return -1;
+    DEFER(fclose(f));
 
     for (auto i = 0; i < model->getPlanningJoints().size(); ++i) {
         if (i != 0) {
@@ -581,36 +535,40 @@ int WritePathCSV(
 }
 
 int AnimateSolution(
-    TestScenarioBase* scenario,
-    const smpl::urdf::RobotModel* robot_model,
+    TestScenario* scenario,
     smpl::RobotModel* planning_model,
     const std::vector<smpl::RobotState>* path)
 {
     ROS_INFO("Animate path");
 
-    auto curr_state = smpl::urdf::RobotState();
-    if (!InitRobotState(&curr_state, robot_model, &scenario->start_state)) {
-        return 1;
-    }
-
     auto pidx = 0;
     while (ros::ok()) {
         auto& point = (*path)[pidx];
+        auto id = (int32_t)0;
+        auto robot_markers = planning_model->GetVisualization(point);
+        for (auto& marker : robot_markers) {
+            marker.ns = "path_animation";
+            marker.frame_id = "map";
+            marker.id = id++;
+            marker.color = smpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f };
+        }
+
 #if 1
-        auto markers = scenario->collision_model.getCollisionRobotVisualization(point);
-        for (auto& m : markers.markers) {
+        auto collision_markers = scenario->collision_model.getCollisionRobotVisualization(point);
+        for (auto& m : collision_markers.markers) {
             m.ns = "path_animation";
         }
 #else
-        auto markers = visualization_msgs::MarkerArray();
+        auto collision_markers = visualization_msgs::MarkerArray();
 #endif
+        for (auto& marker : collision_markers.markers) {
+            marker.ns = "path_animation";
+            marker.header.frame_id = "map";
+            marker.id = id++;
+        }
 
-        UpdateRobotState(&curr_state, planning_model, &point);
-        UpdateVisualBodyTransforms(&curr_state);
-        auto id = (int32_t)markers.markers.size();
-        SV_SHOW_INFO(MakeRobotVisualization(&curr_state, smpl::visual::Color{ 0.0f, 1.0f, 0.0f, 1.0f }, "map", "path_animation", &id));
-
-        SV_SHOW_INFO(markers);
+        SV_SHOW_INFO(robot_markers);
+        SV_SHOW_INFO(collision_markers);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         pidx++;
         pidx %= path->size();
@@ -618,3 +576,4 @@ int AnimateSolution(
 
     return 0;
 }
+
