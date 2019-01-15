@@ -326,6 +326,12 @@ bool CheckJointLimits(
     return model->urdf_model.checkJointLimits(state, verbose);
 }
 
+auto GetVisualization(KDLRobotModel* model, const smpl::RobotState& state)
+    -> std::vector<visual::Marker>
+{
+    return model->urdf_model.GetVisualization(state);
+}
+
 auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state)
     -> smpl::Affine3
 {
@@ -494,6 +500,12 @@ bool KDLRobotModel::checkJointLimits(
     bool verbose)
 {
     return ::smpl::CheckJointLimits(this, state, verbose);
+}
+
+auto KDLRobotModel::GetVisualization(const smpl::RobotState& state)
+    -> std::vector<visual::Marker>
+{
+    return ::smpl::GetVisualization(this, state);
 }
 
 auto KDLRobotModel::computeFK(const smpl::RobotState& state) -> smpl::Affine3

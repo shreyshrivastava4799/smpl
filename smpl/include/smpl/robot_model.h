@@ -44,6 +44,7 @@
 #include <smpl/extension.h>
 #include <smpl/spatial.h>
 #include <smpl/types.h>
+#include <smpl/debug/marker.h>
 
 namespace smpl {
 
@@ -80,6 +81,9 @@ public:
 
     void setPlanningJoints(const std::vector<std::string>& joints);
     auto getPlanningJoints() const -> const std::vector<std::string>&;
+
+    virtual auto GetVisualization(const RobotState& state)
+        -> std::vector<visual::Marker>;
 
 protected:
 

@@ -76,6 +76,12 @@ auto RobotModel::getPlanningJoints() const -> const std::vector<std::string>&
     return planning_joints_;
 }
 
+auto RobotModel::GetVisualization(const RobotState& state)
+    -> std::vector<visual::Marker>
+{
+    return { };
+}
+
 IForwardKinematics::~IForwardKinematics()
 {
 }

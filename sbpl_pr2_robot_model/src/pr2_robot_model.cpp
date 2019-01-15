@@ -285,6 +285,12 @@ bool CheckJointLimits(
     return CheckJointLimits(&model->kdl_model, state, verbose);
 }
 
+auto GetVisualization(PR2RobotModel* model, const smpl::RobotState& state)
+    -> std::vector<visual::Marker>
+{
+    return GetVisualization(&model->kdl_model, state);
+}
+
 auto ComputeFK(PR2RobotModel* model, const smpl::RobotState& state)
     -> smpl::Affine3
 {
@@ -515,6 +521,12 @@ bool PR2RobotModel::checkJointLimits(
     bool verbose)
 {
     return ::smpl::CheckJointLimits(this, state, verbose);
+}
+
+auto PR2RobotModel::GetVisualization(const smpl::RobotState& state)
+    -> std::vector<visual::Marker>
+{
+    return ::smpl::GetVisualization(this, state);
 }
 
 auto PR2RobotModel::computeFK(const smpl::RobotState& state) -> smpl::Affine3

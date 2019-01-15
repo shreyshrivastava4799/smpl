@@ -48,6 +48,9 @@ struct URDFRobotModel :
         const smpl::RobotState& state,
         bool verbose = false) override;
 
+    auto GetVisualization(const smpl::RobotState& state)
+        -> std::vector<visual::Marker> final;
+
     auto GetExtension(size_t class_code) -> smpl::Extension* final;
 };
 

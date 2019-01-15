@@ -3,6 +3,7 @@
 // project includes
 #include <smpl_urdf_robot_model/robot_state_bounds.h>
 #include <smpl_urdf_robot_model/robot_model.h>
+#include <smpl_urdf_robot_model/robot_state_visualization.h>
 
 namespace smpl {
 namespace urdf {
@@ -143,6 +144,17 @@ bool URDFRobotModel::checkJointLimits(
         }
     }
     return true;
+}
+
+auto URDFRobotModel::GetVisualization(const smpl::RobotState& state)
+    -> std::vector<visual::Marker>
+{
+    UpdateState(this, &state);
+    UpdateVisualBodyTransforms(&this->robot_state);
+    return MakeRobotVisualization(
+            &this->robot_state,
+            smpl::visual::Color{ 0.5f, 0.5f, 0.5f, 1.0f });
+
 }
 
 auto URDFRobotModel::GetExtension(size_t class_code) -> smpl::Extension*

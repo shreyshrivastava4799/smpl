@@ -100,6 +100,9 @@ bool CheckJointLimits(
     const smpl::RobotState& state,
     bool verbose = false);
 
+auto GetVisualization(KDLRobotModel* model, const smpl::RobotState& state)
+    -> std::vector<visual::Marker>;
+
 auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state) -> smpl::Affine3;
 
 void PrintRobotModelInformation(const KDLRobotModel* model);
@@ -143,6 +146,8 @@ public:
     auto velLimit(int jidx) const -> double final;
     auto accLimit(int jidx) const -> double final;
     bool checkJointLimits(const smpl::RobotState& state, bool verbose = false) final;
+    auto GetVisualization(const smpl::RobotState& state)
+        -> std::vector<visual::Marker> final;
     ///@}
 
     /// \name IForwardKinematics Interface
