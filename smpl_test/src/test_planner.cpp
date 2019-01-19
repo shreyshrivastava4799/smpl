@@ -17,6 +17,29 @@
 #include "test_scenario.h"
 #include "factories.h"
 
+auto MakeHeuristic(
+    const std::string& type,
+    smpl::DiscreteSpace* graph,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Heuristic>
+{
+    auto heuristic = std::unique_ptr<smpl::Heuristic>();
+    if (type == "bfs") {
+        heuristic = MakeBFSHeuristic(graph, nh);
+    } else if (type == "euclid_dist") {
+        heuristic = MakeEuclidDistHeuristic(graph, nh);
+    } else if (type == "joint_dist") {
+        heuristic = MakeJointDistHeuristic(graph, nh);
+    } else if (type == "dijkstra_egraph_3d") {
+        heuristic = MakeDijkstraEGraph3DHeuristic(graph, nh);
+    } else if (type == "multi_frame_bfs") {
+        heuristic = MakeMultiFrameBFSHeuristic(graph, nh);
+    } else {
+        SMPL_ERROR("Unrecognized heuristic type '%s'", type.c_str());
+    }
+    return heuristic;
+}
+
 int main(int argc, char* argv[])
 {
     ros::init(argc, argv, "test_planner");
@@ -73,40 +96,52 @@ int main(int argc, char* argv[])
     // Initialize the Heuristic //
     //////////////////////////////
 
-    auto heuristic_nh = ros::NodeHandle(ph, "heuristic");
-    auto heuristic_type = std::string();
-    if (!heuristic_nh.getParam("type", heuristic_type)) {
-        return 1;
-    }
-    SMPL_INFO("Heuristic type: %s", heuristic_type.c_str());
+    auto num_heuristics = 0;
+    ph.getParam("num_heuristics", num_heuristics);
 
-    auto heuristic = std::unique_ptr<smpl::Heuristic>();
-    if (heuristic_type == "bfs") {
-        heuristic = MakeBFSHeuristic(graph.get(), heuristic_nh);
-    } else if (heuristic_type == "euclid_dist") {
-        heuristic = MakeEuclidDistHeuristic(graph.get(), heuristic_nh);
-    } else if (heuristic_type == "joint_dist") {
-        heuristic = MakeJointDistHeuristic(graph.get(), heuristic_nh);
-    } else if (heuristic_type == "dijkstra_egraph_3d") {
-        heuristic = MakeDijkstraEGraph3DHeuristic(
-                graph.get(), heuristic_nh);
-    } else if (heuristic_type == "multi_frame_bfs") {
-        heuristic = MakeMultiFrameBFSHeuristic(graph.get(), heuristic_nh);
+    auto heuristics = std::vector<std::unique_ptr<smpl::Heuristic>>();
+    if (num_heuristics == 0) {
+        auto heuristic_nh = ros::NodeHandle(ph, "heuristic");
+        auto heuristic_type = std::string();
+        if (!heuristic_nh.getParam("type", heuristic_type)) {
+            return 1;
+        }
+        SMPL_INFO("Heuristic type: %s", heuristic_type.c_str());
+
+        auto heuristic = MakeHeuristic(heuristic_type, graph.get(), heuristic_nh);
+        if (heuristic == NULL) {
+            SMPL_ERROR("Failed to create heuristic");
+            return 1;
+        }
+        heuristics.push_back(std::move(heuristic));
     } else {
-        SMPL_ERROR("Unrecognized heuristic type '%s'", heuristic_type.c_str());
-        return 1;
-    }
-    if (heuristic == NULL) {
-        SMPL_ERROR("Failed to create heuristic");
-        return 1;
+        SMPL_INFO("Create %d heuristics", num_heuristics);
+        for (auto i = 0; i < num_heuristics; ++i) {
+            auto heuristic_nh = ros::NodeHandle(ph, "heuristic_" + std::to_string(i));
+            auto heuristic_type = std::string();
+            if (!heuristic_nh.getParam("type", heuristic_type)) {
+                return 1;
+            }
+            SMPL_INFO("Heuristic type: %s", heuristic_type.c_str());
+
+            auto heuristic = MakeHeuristic(heuristic_type, graph.get(), heuristic_nh);
+            if (heuristic == NULL) {
+                SMPL_ERROR("Failed to create heuristic");
+                return 1;
+            }
+            heuristics.push_back(std::move(heuristic));
+        }
     }
 
     /////////////////////////////////////
     // Associate Heuristics with Graph //
     /////////////////////////////////////
 
-    auto* h = heuristic.get();
-    if (!graph->UpdateHeuristics(&h, 1)) {
+    auto p_heuristics = std::vector<smpl::Heuristic*>();
+    for (auto& h : heuristics) {
+        p_heuristics.push_back(h.get());
+    }
+    if (!graph->UpdateHeuristics(p_heuristics.data(), (int)p_heuristics.size())) {
         SMPL_ERROR("Failed to associate heuristic with graph");
         return 1;
     }
@@ -122,10 +157,18 @@ int main(int argc, char* argv[])
     }
     SMPL_INFO("Search type: %s", search_type.c_str());
 
+    auto* h_first = p_heuristics[0];
+
     auto search = std::unique_ptr<smpl::Search>();
     if (search_type == "arastar") {
-        search = MakeARAStar(graph.get(), heuristic.get(), search_nh);
+        search = MakeARAStar(graph.get(), h_first, search_nh);
     } else if (search_type == "smhastar") {
+        search = MakeSMHAStar(
+                graph.get(),
+                p_heuristics[0],
+                &p_heuristics[1],
+                (int)p_heuristics.size() - 1,
+                search_nh);
     } else {
         SMPL_ERROR("Unrecognized search type '%s'", search_type.c_str());
         return 1;
@@ -153,11 +196,18 @@ int main(int argc, char* argv[])
 
     auto start_state_id = rps->GetStateID(start_state);
 
-    if (!graph->UpdateStart(start_state_id) ||
-        !heuristic->UpdateStart(start_state_id) ||
-        !search->UpdateStart(start_state_id))
-    {
-        SMPL_ERROR("Failed to update the start state");
+    if (!graph->UpdateStart(start_state_id)) {
+        SMPL_ERROR("Failed to update start in the graph");
+        return 1;
+    }
+    for (auto& h : heuristics) {
+        if (!h->UpdateStart(start_state_id)) {
+            SMPL_ERROR("Failed to update start in a heuristic");
+            return 1;
+        }
+    }
+    if (!search->UpdateStart(start_state_id)) {
+        SMPL_ERROR("Failed to update start in the search");
         return 1;
     }
 
@@ -187,11 +237,18 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    if (!graph->UpdateGoal(goal.get()) ||
-        !heuristic->UpdateGoal(goal.get()) ||
-        !search->UpdateGoal(goal.get()))
-    {
-        SMPL_ERROR("Failed to update the goal");
+    if (!graph->UpdateGoal(goal.get())) {
+        SMPL_ERROR("Failed to update goal in the graph");
+        return 1;
+    }
+    for (auto& h : heuristics) {
+        if (!h->UpdateGoal(goal.get())) {
+            SMPL_ERROR("Failed to update goal in a heuristic");
+            return 1;
+        }
+    }
+    if (!search->UpdateGoal(goal.get())) {
+        SMPL_ERROR("Failed to update goal in the search");
         return 1;
     }
 

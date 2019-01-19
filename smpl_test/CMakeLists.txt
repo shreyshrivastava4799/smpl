@@ -153,10 +153,6 @@ target_link_libraries(
     smpl::smpl
     ${smpl_ros_LIBRARIES})
 
-add_executable(test_smha_bfs_jsl src/test_smha_bfs_jsl.cpp)
-target_include_directories(test_smha_bfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_smha_bfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
 add_executable(test_planner src/test_planner.cpp)
 target_include_directories(test_planner SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
 target_link_libraries(test_planner PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)

@@ -96,7 +96,7 @@ auto MakeManipLattice(
     SMPL_INFO_STREAM("xyzrpy_snap_dist_thresh: " << ik_motion_xyzrpy_thresh);
 
     if (!nh.getParam("mprim_filename", mprim_filename)) {
-        ROS_ERROR("Failed to read param 'mprim_filename' from the param server");
+        SMPL_ERROR("Failed to read param 'mprim_filename' from the param server");
         return NULL;
     }
 
@@ -305,7 +305,7 @@ auto MakeManipLatticeEGraph(
 
     auto mprim_filename = std::string();
     if (!nh.getParam("mprim_filename", mprim_filename)) {
-        ROS_ERROR("Failed to read param 'mprim_filename' from the param server");
+        SMPL_ERROR("Failed to read param 'mprim_filename' from the param server");
         return NULL;
     }
 
@@ -550,8 +550,14 @@ auto MakeSMHAStar(
         return NULL;
     }
 
-    SetInitialEps(search.get(), 100.0);
-    SetInitialMHAEps(search.get(), 5.0);
+    auto w_heur_init = 1.0;
+    auto w_anchor_init = 1.0;
+
+    nh.getParam("w_heur_init", w_heur_init);
+    nh.getParam("w_anchor_init", w_anchor_init);
+
+    SetInitialEps(search.get(), w_heur_init);
+    SetInitialMHAEps(search.get(), w_anchor_init);
     return std::move(search);
 }
 
