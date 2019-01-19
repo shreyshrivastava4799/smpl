@@ -590,7 +590,8 @@ bool ManipLatticeEGraph::UpdateGoal(GoalConstraint* goal)
 
 auto ManipLatticeEGraph::GetExtension(size_t class_code) -> Extension*
 {
-    if (class_code == GetClassCode<IExperienceGraph>() ||
+    if (class_code == GetClassCode<RobotPlanningSpace>() ||
+        class_code == GetClassCode<IExperienceGraph>() ||
         class_code == GetClassCode<IExtractRobotState>() ||
         class_code == GetClassCode<ISearchable>())
     {
