@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
     }
 
     auto mprim_filename = std::string();
-    if (!ph.getParam("planning/mprim_filename", mprim_filename)) {
+    if (!ph.getParam("graph/mprim_filename", mprim_filename)) {
         ROS_ERROR("Failed to read param 'mprim_filename' from the param server");
         return 1;
     }
