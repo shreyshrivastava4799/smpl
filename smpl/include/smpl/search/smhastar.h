@@ -73,23 +73,23 @@ auto GetDeltaEpsilon(const SMHAStar* search) -> double;
 // iterations.
 void SetDeltaEpsilon(SMHAStar* search, double eps);
 
-// Get the weight applied to each inadmissible heuristic on the first search
+// Get the weight applied to each additional heuristic on the first search
 // iteration.
 auto GetInitialEps(const SMHAStar* search) -> double;
 
-// Set the weight applied to each inadmissible heuristic on the first search
+// Set the weight applied to each additional heuristic on the first search
 // iteration.
 void SetInitialEps(SMHAStar* search, double eps);
 
-// Get the weight used to control expansions from inadmissible search queues
+// Get the weight used to control expansions from additional search queues
 // with respect to the anchor heuristic.
 auto GetInitialMHAEps(const SMHAStar* search) -> double;
 
-// Set the weight used to control expansions from inadmissible search queues
+// Set the weight used to control expansions from additional search queues
 // with respect to the anchor heuristic.
 void SetInitialMHAEps(SMHAStar* search, double eps_mha);
 
-// Return the weight applied to each inadmissible heuristic on the last
+// Return the weight applied to each additional heuristic on the last
 // successful iteration. A value of 0 means no solution has been found.
 auto GetSolutionEps(const SMHAStar* search) -> double;
 
@@ -180,7 +180,6 @@ public:
     double w_heur_delta = 0.2;
 
     double w_anchor_init = 1.0;
-    int max_expansions = 0;
 
     /// current w_1
     double w_heur = 1.0;

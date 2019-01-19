@@ -125,7 +125,11 @@ target_link_libraries(
 #        ${visualization_msgs_LIBRARIES}
 #        smpl::smpl)
 
-add_library(test_scenario src/test_scenario.cpp src/collision_space_scene.cpp)
+add_library(
+    test_scenario
+    src/test_scenario.cpp
+    src/collision_space_scene.cpp
+    src/factories.cpp)
 target_compile_options(test_scenario PRIVATE -Wfatal-errors)
 target_include_directories(
     test_scenario
@@ -172,6 +176,10 @@ target_link_libraries(test_ara_mfbfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl 
 add_executable(test_ara_egd_egjsl src/test_ara_egd_egjsl.cpp)
 target_include_directories(test_ara_egd_egjsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
 target_link_libraries(test_ara_egd_egjsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
+
+add_executable(test_smha_bfs_jsl src/test_smha_bfs_jsl.cpp)
+target_include_directories(test_smha_bfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
+target_link_libraries(test_smha_bfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
 
 add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
 target_include_directories(

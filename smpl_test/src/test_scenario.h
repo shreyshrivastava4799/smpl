@@ -1,6 +1,11 @@
 #ifndef SMPL_TEST_TEST_SCENARIO_H
 #define SMPL_TEST_TEST_SCENARIO_H
 
+// standard includes
+#include <memory>
+#include <utility>
+#include <vector>
+
 // system includes
 #include <moveit_msgs/RobotState.h>
 #include <ros/ros.h>
@@ -22,6 +27,7 @@ struct RobotModel;
 
 namespace smpl {
 class RobotModel;
+class CollisionChecker;
 }
 
 // A common test scenario composed of:

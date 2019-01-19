@@ -11,8 +11,8 @@
 
     <node name="test_planner" pkg="smpl_test" type="test_ara_jd_jsl" launch-prefix="$(arg launch-prefix)">
         <param name="robot_model_type" value="kdl"/>
-        <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
-        <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+        <rosparam command="load" file="$(find smpl_test)/config/manip_lattice.yaml"/>
+        <param name="graph/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
         <param name="allowed_planning_time" value="15.0"/>
         <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
     </node>

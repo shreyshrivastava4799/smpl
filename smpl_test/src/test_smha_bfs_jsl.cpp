@@ -37,20 +37,23 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    auto heuristic = MakeBFSHeuristic(
-            graph.get(),
-            ros::NodeHandle(ph, "heuristic"));
-    if (heuristic == NULL) {
+    auto heur_0 = MakeBFSHeuristic(graph.get(), ros::NodeHandle(ph, "h_0"));
+    if (heur_0 == NULL) {
         return 1;
     }
 
-    auto* h = heuristic.get();
-    if (!graph->UpdateHeuristics(&h, 1)) {
+    auto heur_1 = MakeBFSHeuristic(graph.get(), ros::NodeHandle(ph, "h_1"));
+    if (heur_1 == NULL) {
+        return 1;
+    }
+
+    smpl::Heuristic* h[2] = { heur_0.get(), heur_1.get() };
+    if (!graph->UpdateHeuristics(h, 2)) {
         SMPL_ERROR("Failed to associate BFS Heuristic with Manip Lattice");
         return 1;
     }
 
-    auto search = MakeARAStar(graph.get(), heuristic.get(), ph);
+    auto search = MakeSMHAStar(graph.get(), h[0], &h[1], 1, ph);
     if (search == NULL) {
         return 1;
     }
@@ -73,7 +76,8 @@ int main(int argc, char* argv[])
     auto start_state_id = rps->GetStateID(start_state);
 
     if (!graph->UpdateStart(start_state_id) ||
-        !heuristic->UpdateStart(start_state_id) ||
+        !heur_0->UpdateStart(start_state_id) ||
+        !heur_1->UpdateStart(start_state_id) ||
         !search->UpdateStart(start_state_id))
     {
         SMPL_ERROR("Failed to update the start state");
@@ -90,7 +94,8 @@ int main(int argc, char* argv[])
     }
 
     if (!graph->UpdateGoal(goal.get()) ||
-        !heuristic->UpdateGoal(goal.get()) ||
+        !heur_0->UpdateGoal(goal.get()) ||
+        !heur_1->UpdateGoal(goal.get()) ||
         !search->UpdateGoal(goal.get()))
     {
         SMPL_ERROR("Failed to update the goal");
@@ -99,7 +104,7 @@ int main(int argc, char* argv[])
 
     SV_SHOW_DEBUG_NAMED(
             "bfs_values",
-            dynamic_cast<smpl::BFSHeuristic*>(heuristic.get())->GetValuesVisualization());
+            dynamic_cast<smpl::BFSHeuristic*>(heur_0.get())->GetValuesVisualization());
 
     ////////////////////////////
     // Finally, plan the path //
@@ -130,10 +135,6 @@ int main(int argc, char* argv[])
         SMPL_ERROR("Failed to extract path");
         return 1;
     }
-
-#if 0
-    WritePathCSV(&scenario.planning_model, &path, "trajectory.csv");
-#endif
 
     ///////////////////////////////////
     // Visualizations and Statistics //

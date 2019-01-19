@@ -65,7 +65,7 @@ auto GetTime() -> double
 static
 int NumHeuristics(const SMHAStar* search)
 {
-    return search->heur_count;
+    return search->heur_count + 1;
 }
 
 static
@@ -132,13 +132,13 @@ void ReinitState(SMHAStar* search, SMHAState* state, bool goal = false)
         state->closed_in_anc = false;
         state->closed_in_add = false;
 
-        for (auto i = 0; i < NumHeuristics(search); ++i) {
-            if (goal) {
-                state->od[i].h = 0;
-            } else {
+        if (goal) {
+            state->od[0].h = 0;
+        } else {
+            for (auto i = 0; i < NumHeuristics(search); ++i) {
                 state->od[i].h = ComputeHeuristic(search, state->state_id, i);
+                state->od[i].f = INFINITECOST;
             }
-            state->od[i].f = INFINITECOST;
         }
     }
 }
@@ -175,9 +175,9 @@ bool TimeLimitReached(const SMHAStar* search, const TimeoutCondition& timeout)
     }
     switch (timeout.type) {
     case TimeoutCondition::EXPANSIONS:
-        return search->num_expansions < timeout.max_expansions;
+        return search->num_expansions >= timeout.max_expansions_init;
     case TimeoutCondition::TIME:
-        return search->elapsed < to_seconds(timeout.max_allowed_time);
+        return search->elapsed >= to_seconds(timeout.max_allowed_time_init);
     case TimeoutCondition::USER:
         return timeout.timed_out_fun();
     }
@@ -409,16 +409,6 @@ void SetInitialMHAEps(SMHAStar* search, double eps)
     search->w_anchor_init = eps;
 }
 
-int GetMaxExpansions(const SMHAStar* search)
-{
-    return search->max_expansions;
-}
-
-void SetMaxExpansions(SMHAStar* search, int expansion_count)
-{
-    search->max_expansions = expansion_count;
-}
-
 auto GetSolutionEps(const SMHAStar* search) -> double
 {
     return search->w_heur_satisfied;
@@ -479,7 +469,6 @@ int Replan(
     SMPL_INFO_NAMED(LOG, "  Delta Epsilon: %0.3f", search->w_heur_delta);
     SMPL_INFO_NAMED(LOG, "MHA Search parameters:");
     SMPL_INFO_NAMED(LOG, "  MHA Epsilon: %0.3f", search->w_anchor_init);
-    SMPL_INFO_NAMED(LOG, "  Max Expansions: %d", search->max_expansions);
 
     // TODO: pick up from where last search left off and detect lazy
     // reinitializations
@@ -521,10 +510,9 @@ int Replan(
                 search->w_heur_satisfied = search->w_heur * search->w_anchor;
                 ExtractPath(search, solution, cost);
                 return 1;
-            } else {
-                auto* s = StateFromOpenState(search->open[0].min());
-                Expand(search, s, 0);
             }
+            auto* s = StateFromOpenState(search->open[0].min());
+            Expand(search, s, 0);
         }
 
         for (auto hidx = 1; hidx < NumHeuristics(search); ++hidx) {
@@ -543,19 +531,17 @@ int Replan(
                     search->w_heur_satisfied = search->w_heur * search->w_anchor;
                     ExtractPath(search, solution, cost);
                     return 1;
-                } else {
-                    auto* s = StateFromOpenState(search->open[hidx].min());
-                    Expand(search, s, hidx);
                 }
+                auto* s = StateFromOpenState(search->open[hidx].min());
+                Expand(search, s, hidx);
             } else {
                 if (search->best_goal.g <= GetMinF(search->open[0])) {
                     search->w_heur_satisfied = search->w_heur * search->w_anchor;
                     ExtractPath(search, solution, cost);
                     return 1;
-                } else {
-                    auto* s = StateFromOpenState(search->open[0].min());
-                    Expand(search, s, 0);
                 }
+                auto* s = StateFromOpenState(search->open[0].min());
+                Expand(search, s, 0);
             }
         }
         end_time = GetTime();
