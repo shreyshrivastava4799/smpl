@@ -38,9 +38,6 @@ class CollisionChecker;
 // (5) A planning-model-oriented collision detector
 struct TestScenario
 {
-    ros::NodeHandle nh;
-    ros::NodeHandle ph;
-
     smpl::VisualizerROS visualizer;
 
     CollisionSpaceScene scene;
@@ -51,11 +48,12 @@ struct TestScenario
 
     smpl::OccupancyGrid grid;
     smpl::collision::CollisionSpace collision_model;
-
-    TestScenario();
 };
 
-bool InitTestScenario(TestScenario* scenario);
+bool InitTestScenario(
+    TestScenario* scenario,
+    const ros::NodeHandle& nh = ros::NodeHandle(),
+    const ros::NodeHandle& ph = ros::NodeHandle("~"));
 
 auto MakeRobotState(
     const moveit_msgs::RobotState* robot_state,

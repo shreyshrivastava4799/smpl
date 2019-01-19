@@ -153,33 +153,13 @@ target_link_libraries(
     smpl::smpl
     ${smpl_ros_LIBRARIES})
 
-add_executable(test_ara_bfs_jsl src/test_ara_bfs_jsl.cpp)
-target_include_directories(test_ara_bfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_ara_bfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
-add_executable(test_ara_bfs_wsl src/test_ara_bfs_wsl.cpp)
-target_include_directories(test_ara_bfs_wsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_ara_bfs_wsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
-add_executable(test_ara_jd_jsl src/test_ara_jd_jsl.cpp)
-target_include_directories(test_ara_jd_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_ara_jd_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
-add_executable(test_ara_ed_wsl src/test_ara_ed_wsl.cpp)
-target_include_directories(test_ara_ed_wsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_ara_ed_wsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
-add_executable(test_ara_mfbfs_jsl src/test_ara_mfbfs_jsl.cpp)
-target_include_directories(test_ara_mfbfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_ara_mfbfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
-add_executable(test_ara_egd_egjsl src/test_ara_egd_egjsl.cpp)
-target_include_directories(test_ara_egd_egjsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
-target_link_libraries(test_ara_egd_egjsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
-
 add_executable(test_smha_bfs_jsl src/test_smha_bfs_jsl.cpp)
 target_include_directories(test_smha_bfs_jsl SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
 target_link_libraries(test_smha_bfs_jsl PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
+
+add_executable(test_planner src/test_planner.cpp)
+target_include_directories(test_planner SYSTEM PRIVATE ${roscpp_INCLUDE_DIRS})
+target_link_libraries(test_planner PRIVATE ${roscpp_LIBRARIES} smpl::smpl test_scenario)
 
 add_executable(call_ompl_planner src/call_ompl_planner.cpp src/collision_space_scene.cpp)
 target_include_directories(

@@ -14,6 +14,7 @@
 #include <smpl/stl/memory.h>
 #include <smpl_urdf_robot_model/robot_state_visualization.h>
 #include <smpl/defer.h>
+#include <smpl/console/console.h>
 
 // project includes
 #include "pr2_allowed_collision_pairs.h"
@@ -25,12 +26,12 @@ bool FindParam(const ros::NodeHandle& nh, const std::string& key, T& out)
 {
     auto full_param = std::string();
     if (!nh.searchParam(key, full_param)) {
-        ROS_WARN("Failed to find '%s' key on the param server", key.c_str());
+        SMPL_WARN("Failed to find '%s' key on the param server", key.c_str());
         return false;
     }
 
     if (!nh.getParam(full_param, out)) {
-        ROS_WARN("Failed to retrieve param '%s' from the param server", full_param.c_str());
+        SMPL_WARN("Failed to retrieve param '%s' from the param server", full_param.c_str());
         return false;
     }
 
@@ -40,14 +41,14 @@ bool FindParam(const ros::NodeHandle& nh, const std::string& key, T& out)
 // Read the initial configuration of the robot from the param server.
 static
 bool ReadInitialConfiguration(
-    ros::NodeHandle& nh,
+    const ros::NodeHandle& nh,
     moveit_msgs::RobotState& state)
 {
     // joint_state
     XmlRpc::XmlRpcValue xlist;
     if (FindParam(nh, "initial_configuration/joint_state", xlist)) {
         if (xlist.getType() != XmlRpc::XmlRpcValue::TypeArray) {
-            ROS_WARN("initial_configuration/joint_state is not an array.");
+            SMPL_WARN("initial_configuration/joint_state is not an array.");
         }
 
         if (xlist.size() > 0) {
@@ -57,7 +58,7 @@ bool ReadInitialConfiguration(
                 if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
                     state.joint_state.position.push_back(double(xlist[i]["position"]));
                 } else {
-                    ROS_DEBUG("Doubles in the yaml file have to contain decimal points. (Convert '0' to '0.0')");
+                    SMPL_DEBUG("Doubles in the yaml file have to contain decimal points. (Convert '0' to '0.0')");
                     if (xlist[i]["position"].getType() == XmlRpc::XmlRpcValue::TypeInt) {
                         int pos = xlist[i]["position"];
                         state.joint_state.position.push_back(double(pos));
@@ -66,7 +67,7 @@ bool ReadInitialConfiguration(
             }
         }
     } else {
-        ROS_WARN("initial_configuration/joint_state is not on the param server.");
+        SMPL_WARN("initial_configuration/joint_state is not on the param server.");
     }
 
     // multi_dof_joint_state
@@ -95,14 +96,14 @@ bool ReadInitialConfiguration(
                     multi_dof_joint_state.transforms[i].rotation.z = orientation.z;
                 }
             } else {
-                ROS_WARN("initial_configuration/multi_dof_joint_state array is empty");
+                SMPL_WARN("initial_configuration/multi_dof_joint_state array is empty");
             }
         } else {
-            ROS_WARN("initial_configuration/multi_dof_joint_state is not an array.");
+            SMPL_WARN("initial_configuration/multi_dof_joint_state is not an array.");
         }
     }
 
-    ROS_INFO("Read initial state containing %zu joints and %zu multi-dof joints", state.joint_state.name.size(), state.multi_dof_joint_state.joint_names.size());
+    SMPL_INFO("Read initial state containing %zu joints and %zu multi-dof joints", state.joint_state.name.size(), state.multi_dof_joint_state.joint_names.size());
     return true;
 }
 
@@ -148,7 +149,7 @@ auto GetCollisionObjects(
     auto* fCfg = fopen(filename.c_str(), "r");
 
     if (fCfg == NULL) {
-        ROS_INFO("ERROR: unable to open objects file. Exiting.\n");
+        SMPL_INFO("ERROR: unable to open objects file. Exiting.\n");
         return objs;
     }
 
@@ -159,7 +160,7 @@ auto GetCollisionObjects(
 
     num_obs = atoi(sTemp);
 
-    ROS_INFO("%i objects in file",num_obs);
+    SMPL_INFO("%i objects in file",num_obs);
 
     //get {x y z dimx dimy dimz} for each object
     objects.resize(num_obs);
@@ -190,7 +191,7 @@ auto GetCollisionObjects(
     pose.orientation.w = 1;
 
     if (object_ids.size() != objects.size()) {
-        ROS_INFO("object id list is not same length as object list. exiting.");
+        SMPL_INFO("object id list is not same length as object list. exiting.");
         return objs;
     }
 
@@ -242,14 +243,14 @@ auto MakeRobotModel(
         if (!FindParam(nh, "robot_model/kinematics_frame", kinematics_frame)) return false;
         if (!FindParam(nh, "robot_model/chain_tip_link", chain_tip_link)) return false;
 
-        ROS_INFO("Construct KDL Robot Model");
+        SMPL_INFO("Construct KDL Robot Model");
         if (!InitKDLRobotModel(
                 kdl_model.get(),
                 robot_description,
                 kinematics_frame,
                 chain_tip_link))
         {
-            ROS_ERROR("Failed to initialize robot model");
+            SMPL_ERROR("Failed to initialize robot model");
             return false;
         }
 
@@ -273,14 +274,14 @@ auto MakeRobotModel(
         if (!FindParam(nh, "robot_model/kinematics_frame", kinematics_frame)) return false;
         if (!FindParam(nh, "robot_model/chain_tip_link", chain_tip_link)) return false;
 
-        ROS_INFO("Construct KDL Robot Model");
+        SMPL_INFO("Construct KDL Robot Model");
         if (!InitPR2RobotModel(
                 pr2_model.get(),
                 robot_description,
                 kinematics_frame,
                 chain_tip_link))
         {
-            ROS_ERROR("Failed to initialize robot model");
+            SMPL_ERROR("Failed to initialize robot model");
             return false;
         }
 
@@ -297,14 +298,11 @@ auto MakeRobotModel(
 // Interface Functions //
 /////////////////////////
 
-TestScenario::TestScenario() :
-    ph("~"),
-    visualizer(nh, 100)
-{
-}
-
 // Initialize a scenario from the parameters on the param server.
-bool InitTestScenario(TestScenario* scenario)
+bool InitTestScenario(
+    TestScenario* scenario,
+    const ros::NodeHandle& nh,
+    const ros::NodeHandle& ph)
 {
     smpl::viz::set_visualizer(&scenario->visualizer);
     ros::Duration(0.1).sleep(); // let the publisher setup
@@ -313,8 +311,8 @@ bool InitTestScenario(TestScenario* scenario)
     // Load the scene //
     ////////////////////
 
-    if (!ReadInitialConfiguration(scenario->ph, scenario->start_state)) {
-        ROS_ERROR("Failed to get initial configuration.");
+    if (!ReadInitialConfiguration(ph, scenario->start_state)) {
+        SMPL_ERROR("Failed to get initial configuration.");
         return false;
     }
 
@@ -323,23 +321,23 @@ bool InitTestScenario(TestScenario* scenario)
     //////////////////////
 
     auto robot_model_type = std::string();
-    if (!FindParam(scenario->ph, "robot_model_type", robot_model_type)) {
+    if (!FindParam(ph, "robot_model_type", robot_model_type)) {
         return false;
     }
 
     scenario->planning_model = MakeRobotModel(
-            robot_model_type, scenario->ph, &scenario->start_state);
+            robot_model_type, ph, &scenario->start_state);
     if (scenario->planning_model == NULL) {
-        ROS_ERROR("Failed to create Robot Model");
+        SMPL_ERROR("Failed to create Robot Model");
         return false;
     }
 
     auto planning_frame = std::string();
-    if (!FindParam(scenario->ph, "planning_frame", planning_frame)) {
-        ROS_ERROR("Failed to retrieve param 'planning_frame' from the param server");
+    if (!FindParam(ph, "planning_frame", planning_frame)) {
+        SMPL_ERROR("Failed to retrieve param 'planning_frame' from the param server");
         return false;
     }
-    ROS_INFO("planning frame = %s", planning_frame.c_str());
+    SMPL_INFO("planning frame = %s", planning_frame.c_str());
 
     ////////////////////
     // Load the Robot //
@@ -356,7 +354,7 @@ bool InitTestScenario(TestScenario* scenario)
     // after the planning model is determined.
     auto robot_description = std::string();
     auto found = false;
-    std::tie(robot_description, found) = GetRobotDescription(scenario->ph);
+    std::tie(robot_description, found) = GetRobotDescription(ph);
     if (!found) {
         return false;
     }
@@ -366,7 +364,7 @@ bool InitTestScenario(TestScenario* scenario)
     ////////////////////////////////////////////////////////
 
     {
-        ROS_INFO("Initialize Occupancy Grid");
+        SMPL_INFO("Initialize Occupancy Grid");
 
         auto df_size_x = 3.0;
         auto df_size_y = 3.0;
@@ -393,14 +391,14 @@ bool InitTestScenario(TestScenario* scenario)
     }
 
     auto cc_conf = smpl::collision::CollisionModelConfig();
-    if (!smpl::collision::CollisionModelConfig::Load(scenario->ph, cc_conf)) {
-        ROS_ERROR("Failed to load Collision Model Config");
+    if (!smpl::collision::CollisionModelConfig::Load(ph, cc_conf)) {
+        SMPL_ERROR("Failed to load Collision Model Config");
         return false;
     }
 
     auto group_name = std::string();
-    if (!FindParam(scenario->ph, "group_name", group_name)) {
-        ROS_ERROR("Failed to read 'group_name' from the param server");
+    if (!FindParam(ph, "group_name", group_name)) {
+        SMPL_ERROR("Failed to read 'group_name' from the param server");
         return false;
     }
 
@@ -411,7 +409,7 @@ bool InitTestScenario(TestScenario* scenario)
             group_name,
             scenario->planning_model->getPlanningJoints()))
     {
-        ROS_ERROR("Failed to initialize Collision Space");
+        SMPL_ERROR("Failed to initialize Collision Space");
         return false;
     }
 
@@ -430,7 +428,7 @@ bool InitTestScenario(TestScenario* scenario)
     // CollisionSpaceScene initialization
     // Read in collision objects from file and add to the scene...
     auto object_filename = std::string();
-    FindParam(scenario->ph, "object_filename", object_filename);
+    FindParam(ph, "object_filename", object_filename);
 
     if (!object_filename.empty()) {
         auto objects = GetCollisionObjects(object_filename, planning_frame);
@@ -442,7 +440,7 @@ bool InitTestScenario(TestScenario* scenario)
     // Set reference state in the collision model...
     // TODO: this retention is also stupid?
     if (!scenario->scene.SetRobotState(scenario->start_state)) {
-        ROS_ERROR("Failed to set start state on Collision Space Scene");
+        SMPL_ERROR("Failed to set start state on Collision Space Scene");
         return false;
     }
 
@@ -464,16 +462,16 @@ bool InitRobotState(
     const moveit_msgs::RobotState* state_msg)
 {
     if (!InitRobotState(robot_state, robot_model)) {
-        ROS_ERROR("Failed to initialize Robot State");
+        SMPL_ERROR("Failed to initialize Robot State");
         return false;
     }
     for (auto i = 0; i < state_msg->joint_state.name.size(); ++i) {
         auto* var = GetVariable(robot_model, &state_msg->joint_state.name[i]);
         if (var == NULL) {
-            ROS_WARN("Variable '%s' not found in the Robot Model", state_msg->joint_state.name[i].c_str());
+            SMPL_WARN("Variable '%s' not found in the Robot Model", state_msg->joint_state.name[i].c_str());
             return false;
         }
-        ROS_INFO("Set joint %s to %f", state_msg->joint_state.name[i].c_str(), state_msg->joint_state.position[i]);
+        SMPL_INFO("Set joint %s to %f", state_msg->joint_state.name[i].c_str(), state_msg->joint_state.position[i]);
         SetVariablePosition(robot_state, var, state_msg->joint_state.position[i]);
     }
     return true;
@@ -495,7 +493,7 @@ auto MakeRobotState(
             }
         }
         if (!found) {
-            ROS_ERROR("Joint variable '%s' was not found in robot state", var_name.c_str());
+            SMPL_ERROR("Joint variable '%s' was not found in robot state", var_name.c_str());
             return std::make_pair(smpl::RobotState(), false);
         }
     }
@@ -538,7 +536,7 @@ int AnimateSolution(
     smpl::RobotModel* planning_model,
     const std::vector<smpl::RobotState>* path)
 {
-    ROS_INFO("Animate path");
+    SMPL_INFO("Animate path");
 
     auto pidx = 0;
     while (ros::ok()) {

@@ -11,10 +11,57 @@
 
     <node name="test_planner" pkg="smpl_test" type="test_ara_mfbfs_jsl" launch-prefix="$(arg launch-prefix)">
         <param name="robot_model_type" value="kdl"/>
-        <rosparam command="load" file="$(find smpl_test)/config/manip_lattice.yaml"/>
-        <param name="graph/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
+
+        <rosparam param="graph" subst_value="true">
+            type: manip_lattice
+            discretization:
+                r_shoulder_pan_joint    0.017453292519943295
+                r_shoulder_lift_joint   0.017453292519943295
+                r_upper_arm_roll_joint  0.017453292519943295
+                r_elbow_flex_joint      0.017453292519943295
+                r_forearm_roll_joint    0.017453292519943295
+                r_wrist_flex_joint      0.017453292519943295
+                r_wrist_roll_joint      0.017453292519943295
+            use_long_dist_mprims: true
+            use_xyz_snap_mprim: false
+            use_rpy_snap_mprim: false
+            use_xyzrpy_snap_mprim: true
+            short_dist_mprims_thresh: 0.4
+            xyz_snap_dist_thresh: 0.0
+            rpy_snap_dist_thresh: 0.0
+            xyzrpy_snap_dist_thresh: 0.1
+            mprim_filename: $(find smpl_test)/config/pr2.mprim
+        </rosparam>
+
+        <rosparam param="heuristic">
+            type: multi_frame_bfs
+            inflation_radius: 0.04
+            offset:
+                x: 0.18
+                y: 0.0
+                z: 0.0
+            cost_per_cell: 100
+        </rosparam>
+
+        <rosparam param="search">
+            type: arastar
+            initial_eps: 100.0
+            allow_partial_solutions: false
+            target_eps: 1.0
+            delta_eps: 1.0
+        </rosparam>
+
+        <rosparam param="goal">
+            type: pose
+            x: 0.4
+            y: -0.2
+            z: 0.36
+            roll: 0.0
+            pitch: 0.0
+            yaw: 0.0
+        </rosparam>
+
         <param name="allowed_planning_time" value="15.0"/>
-        <rosparam command="load" file="$(find smpl_test)/experiments/pr2_goal.yaml"/>
     </node>
 </launch>
 

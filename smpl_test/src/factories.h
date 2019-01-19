@@ -17,7 +17,39 @@ auto MakeManipLattice(
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::DiscreteSpace>;
 
+auto MakeWorkspaceLattice(
+    smpl::RobotModel* model,
+    smpl::CollisionChecker* checker,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::DiscreteSpace>;
+
+auto MakeManipLatticeEGraph(
+    smpl::RobotModel* model,
+    smpl::CollisionChecker* checker,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::DiscreteSpace>;
+
+auto MakeJointDistHeuristic(
+    smpl::DiscreteSpace* graph,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Heuristic>;
+
 auto MakeBFSHeuristic(
+    smpl::DiscreteSpace* graph,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Heuristic>;
+
+auto MakeMultiFrameBFSHeuristic(
+    smpl::DiscreteSpace* graph,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Heuristic>;
+
+auto MakeEuclidDistHeuristic(
+    smpl::DiscreteSpace* graph,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Heuristic>;
+
+auto MakeDijkstraEGraph3DHeuristic(
     smpl::DiscreteSpace* graph,
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::Heuristic>;
@@ -41,3 +73,7 @@ auto MakePoseGoal(
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::GoalConstraint>;
 
+auto MakeJointStateGoal(
+    smpl::DiscreteSpace* graph,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::GoalConstraint>;
