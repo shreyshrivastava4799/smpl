@@ -39,6 +39,7 @@
 // project includes
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/time.h>
+#include <smpl/search/search.h>
 
 namespace smpl {
 
@@ -80,23 +81,9 @@ struct StateChangeQuery;
 ///
 /// * The heuristics for any encountered states remain constant, unless the goal
 ///   state ID has changed.
-class ARAStar
+class ARAStar : public Search
 {
 public:
-
-    // parameters for controlling how long the search runs
-    struct TimeParameters
-    {
-        bool bounded;
-        bool improve;
-        enum TimingType { EXPANSIONS, TIME, USER } type;
-        int max_expansions_init;
-        int max_expansions;
-        clock::duration max_allowed_time_init;
-        clock::duration max_allowed_time;
-
-        std::function<bool()> timed_out_fun;
-    };
 
     ARAStar();
     ARAStar(ARAStar&&) = default;
@@ -136,17 +123,17 @@ public:
     ///@{
     double GetSolutionEps() const;
 
-    int GetNumExpansions() const;
+    int GetNumExpansions() final;
     int GetNumExpansionsInitialEps();
 
-    double GetElapsedTime();
+    double GetElapsedTime() final;
     double GetElapsedTimeInitialEps();
     ///@}
 
     /// \name Search Queries
     ///@{
-    bool UpdateStart(int state_id);
-    bool UpdateGoal(GoalConstraint* goal);
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
     void UpdateCosts(const StateChangeQuery& stateChange);
 
     void ForcePlanningFromScratch();
@@ -154,7 +141,7 @@ public:
 
     int Replan(double allowed_time_secs, std::vector<int>* solution);
     int Replan(double allowed_time_secs, std::vector<int>* solution, int* cost);
-    int Replan(const TimeParameters& params, std::vector<int>* solution, int* cost);
+    int Replan(const TimeoutCondition& timeout, std::vector<int>* solution, int* cost);
     ///@}
 
 public:
@@ -182,7 +169,7 @@ public:
     ISearchable* m_space = 0;
     IGoalHeuristic* m_heur = 0;
 
-    TimeParameters m_time_params;
+    TimeoutCondition m_time_params;
 
     double m_initial_eps = 1.0;
     double m_final_eps = 1.0;

@@ -202,7 +202,7 @@ int AdaptivePlanner::replan(
         m_adaptive_graph->setPlanMode();
         m_planner.force_planning_from_scratch();
         SMPL_INFO("Time remaining: %0.3fs. Plan low-dimensional path", time_remaining);
-        ARAStar::TimeParameters time_params = m_time_params.planning;
+        TimeoutCondition time_params = m_time_params.planning;
         time_params.max_allowed_time_init = to_duration(time_remaining);
         time_params.max_allowed_time = std::min(time_params.max_allowed_time, to_duration(time_remaining));
         res = m_planner.replan(time_params, &plan_path, &plan_cost);

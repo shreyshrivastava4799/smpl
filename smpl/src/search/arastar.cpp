@@ -55,7 +55,7 @@ ARAStar::ARAStar() :
 {
     m_time_params.bounded = true;
     m_time_params.improve = true;
-    m_time_params.type = TimeParameters::TIME;
+    m_time_params.type = TimeoutCondition::TIME;
     m_time_params.max_expansions_init = 0;
     m_time_params.max_expansions = 0;
     m_time_params.max_allowed_time_init = clock::duration::zero();
@@ -165,7 +165,7 @@ enum ReplanResultCode
 };
 
 int ARAStar::Replan(
-    const TimeParameters& params,
+    const TimeoutCondition& params,
     std::vector<int>* solution,
     int* cost)
 {
@@ -304,7 +304,7 @@ int ARAStar::Replan(
     std::vector<int>* solution,
     int* cost)
 {
-    TimeParameters tparams = m_time_params;
+    TimeoutCondition tparams = m_time_params;
     if (tparams.max_allowed_time_init == tparams.max_allowed_time) {
         // NOTE/TODO: this may lead to awkward behavior, if the caller sets the
         // allowed time to the current repair time, the repair time will begin
@@ -342,7 +342,7 @@ double ARAStar::GetSolutionEps() const
 }
 
 /// Return the number of expansions made in progress to the final solution.
-int ARAStar::GetNumExpansions() const
+int ARAStar::GetNumExpansions()
 {
     return m_expand_count;
 }
@@ -433,19 +433,19 @@ bool ARAStar::TimedOut(
     }
 
     switch (m_time_params.type) {
-    case TimeParameters::EXPANSIONS:
+    case TimeoutCondition::EXPANSIONS:
         if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
             return elapsed_expansions >= m_time_params.max_expansions_init;
         } else {
             return elapsed_expansions >= m_time_params.max_expansions;
         }
-    case TimeParameters::TIME:
+    case TimeoutCondition::TIME:
         if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
             return elapsed_time >= m_time_params.max_allowed_time_init;
         } else {
             return elapsed_time >= m_time_params.max_allowed_time;
         }
-    case TimeParameters::USER:
+    case TimeoutCondition::USER:
         return m_time_params.timed_out_fun();
     default:
         SMPL_ERROR_NAMED(SLOG, "Invalid timer type");

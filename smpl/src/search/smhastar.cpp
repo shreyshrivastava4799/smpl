@@ -46,11 +46,15 @@
 
 namespace smpl {
 
-constexpr auto INFINITECOST = 1000000000;
+////////////////////
+// Implementation //
+////////////////////
 
 static const char* LOG = "search.smhastar";
 static const char* ELOG = "search.smhastar.expansions";
 static const char* SLOG = "search.smhastar.successors";
+
+static constexpr auto INFINITECOST = 1000000000;
 
 static
 auto GetTime() -> double
@@ -61,17 +65,13 @@ auto GetTime() -> double
 static
 int NumHeuristics(const SMHAStar* search)
 {
-    return search->m_heur_count;
+    return search->heur_count;
 }
 
 static
 int ComputeHeuristic(SMHAStar* search, int state_id, int hidx)
 {
-    if (hidx == 0) {
-        return search->m_anchor->GetGoalHeuristic(state_id);
-    } else {
-        return search->m_heurs[hidx - 1]->GetGoalHeuristic(state_id);
-    }
+    return search->heurs[hidx]->GetGoalHeuristic(state_id);
 }
 
 static
@@ -94,24 +94,24 @@ void InitState(
 static
 auto GetState(SMHAStar* search, int state_id) -> SMHAState*
 {
-    if (search->m_search_states.size() <= state_id) {
-        search->m_search_states.resize(state_id + 1, NULL);
+    if (search->search_states.size() <= state_id) {
+        search->search_states.resize(state_id + 1, NULL);
     }
 
-    auto& state = search->m_search_states[state_id];
+    auto& state = search->search_states[state_id];
     if (state == NULL) {
         // overallocate search state for appropriate heuristic information
         auto state_size =
                 sizeof(SMHAState) +
-                sizeof(SMHAState::HeapData) * (search->m_heur_count);
+                sizeof(SMHAState::HeapData) * (search->heur_count);
         auto* s = (SMHAState*)malloc(state_size);
 
         new (s) SMHAState;
-        for (auto i = 0; i < search->m_heur_count; ++i) {
+        for (auto i = 0; i < search->heur_count; ++i) {
             new (&s->od[1 + i]) SMHAState::HeapData;
         }
 
-        auto mha_state_idx = (int)search->m_search_states.size();
+        auto mha_state_idx = (int)search->search_states.size();
         InitState(search, s, mha_state_idx, state_id);
 
         // map graph state to search state
@@ -124,8 +124,8 @@ auto GetState(SMHAStar* search, int state_id) -> SMHAState*
 static
 void ReinitState(SMHAStar* search, SMHAState* state, bool goal = false)
 {
-    if (state->call_number != search->m_call_number) {
-        state->call_number = search->m_call_number;
+    if (state->call_number != search->call_number) {
+        state->call_number = search->call_number;
         state->g = INFINITECOST;
         state->bp = NULL;
 
@@ -168,23 +168,26 @@ bool ClosedInAnySearch(const SMHAState* state)
 }
 
 static
-bool TimeLimitReached(const SMHAStar* search)
+bool TimeLimitReached(const SMHAStar* search, const TimeoutCondition& timeout)
 {
-    if (search->m_params.return_first_solution) {
-        return false;
-    } else if (search->m_params.max_time > 0.0 && search->m_elapsed >= search->m_params.max_time) {
-        return true;
-    } else if (search->m_max_expansions > 0 && search->m_num_expansions >= search->m_max_expansions) {
-        return true;
-    } else {
+    if (!timeout.bounded) {
         return false;
     }
+    switch (timeout.type) {
+    case TimeoutCondition::EXPANSIONS:
+        return search->num_expansions < timeout.max_expansions;
+    case TimeoutCondition::TIME:
+        return search->elapsed < to_seconds(timeout.max_allowed_time);
+    case TimeoutCondition::USER:
+        return timeout.timed_out_fun();
+    }
+    return false;
 }
 
 static
 int ComputeKey(const SMHAStar* search, SMHAState* state, int hidx)
 {
-    return (int)((double)state->g + search->m_eps * (double)state->od[hidx].h);
+    return (int)((double)state->g + search->w_heur * (double)state->od[hidx].h);
 }
 
 static
@@ -196,10 +199,10 @@ int GetMinF(const SMHAStar::OpenList& pq)
 static
 void InsertOrUpdate(SMHAStar* search, SMHAState* state, int hidx)
 {
-    if (search->m_open[hidx].contains(&state->od[hidx])) {
-        search->m_open[hidx].update(&state->od[hidx]);
+    if (search->open[hidx].contains(&state->od[hidx])) {
+        search->open[hidx].update(&state->od[hidx]);
     } else {
-        search->m_open[hidx].push(&state->od[hidx]);
+        search->open[hidx].push(&state->od[hidx]);
     }
 }
 
@@ -215,18 +218,18 @@ void Expand(SMHAStar* search, SMHAState* state, int hidx)
     } else {
         state->closed_in_add = true;
     }
-    ++search->m_num_expansions;
+    ++search->num_expansions;
 
     // remove s from all open lists
     for (auto i = 0; i < NumHeuristics(search); ++i) {
-        if (search->m_open[i].contains(&state->od[i])) {
-            search->m_open[i].erase(&state->od[i]);
+        if (search->open[i].contains(&state->od[i])) {
+            search->open[i].erase(&state->od[i]);
         }
     }
 
     auto succ_ids = std::vector<int>();
     auto costs = std::vector<int>();
-    search->m_space->GetSuccs(state->state_id, &succ_ids, &costs);
+    search->space->GetSuccs(state->state_id, &succ_ids, &costs);
     assert(succ_ids.size() == costs.size());
 
     for (auto sidx = 0; sidx < succ_ids.size(); ++sidx)  {
@@ -249,21 +252,21 @@ void Expand(SMHAStar* search, SMHAState* state, int hidx)
                 if (!ClosedInAddSearch(succ_state)) {
                     for (auto i = 1; i < NumHeuristics(search); ++i) {
                         auto fn = ComputeKey(search, succ_state, i);
-                        if (fn <= search->m_eps_mha * fanchor) {
+                        if (fn <= search->w_anchor * fanchor) {
                             succ_state->od[i].f = fn;
                             InsertOrUpdate(search, succ_state, i);
                             SMPL_DEBUG_NAMED(LOG, "  Update in search %d with f = %d", i, fn);
                         } else {
-                            SMPL_DEBUG_NAMED(LOG, "  Skipping update of in search %d (%0.3f > %0.3f)", i, (double)fn, search->m_eps_mha * fanchor);
+                            SMPL_DEBUG_NAMED(LOG, "  Skipping update of in search %d (%0.3f > %0.3f)", i, (double)fn, search->w_anchor * fanchor);
                         }
                     }
                 }
             }
-            if (search->m_goal->IsGoal(succ_ids[sidx])) {
+            if (search->goal->IsGoal(succ_ids[sidx])) {
                 // NOTE: This assignment will not assign the N additional
                 // heuristic values. It is fine to ignore those here, since
                 // they are not queried anywhere within the search.
-                search->m_best_goal = *succ_state;
+                search->best_goal = *succ_state;
             }
         }
     }
@@ -272,44 +275,10 @@ void Expand(SMHAStar* search, SMHAState* state, int hidx)
 }
 
 static
-bool CheckParams(const SMHAStar* search, const ReplanParams& params)
-{
-    if (params.initial_eps < 1.0) {
-        SMPL_ERROR("Initial Epsilon must be greater than or equal to 1");
-        return false;
-    }
-
-    if (params.final_eps > params.initial_eps) {
-        SMPL_ERROR("Final Epsilon must be less than or equal to initial epsilon");
-        return false;
-    }
-
-    if (params.dec_eps <= 0.0) {
-        SMPL_ERROR("Delta epsilon must be strictly positive");
-        return false;
-    }
-
-    if (search->m_initial_eps_mha < 1.0) {
-        SMPL_ERROR("MHA Epsilon must be greater than or equal to 1");
-        return false;
-    }
-
-    if (params.return_first_solution &&
-        params.max_time <= 0.0 &&
-        search->m_max_expansions <= 0)
-    {
-        SMPL_ERROR("Max Time or Max Expansions must be positive");
-        return false;
-    }
-
-    return true;
-}
-
-static
 void ClearOpenLists(SMHAStar* search)
 {
     for (auto i = 0; i < NumHeuristics(search); ++i) {
-        search->m_open[i].clear();
+        search->open[i].clear();
     }
 }
 
@@ -325,7 +294,7 @@ void Clear(SMHAStar* search)
     ClearOpenLists(search);
 
     // free states
-    for (auto& state : search->m_search_states) {
+    for (auto& state : search->search_states) {
         if (state != NULL) {
             free(state);
             state = NULL;
@@ -333,10 +302,10 @@ void Clear(SMHAStar* search)
     }
 
     // empty state table
-    search->m_search_states.clear();
+    search->search_states.clear();
 
-    search->m_start_state = NULL;
-    search->m_goal = NULL;
+    search->start_state = NULL;
+    search->goal = NULL;
 }
 
 static
@@ -345,7 +314,7 @@ void ExtractPath(SMHAStar* search, std::vector<int>* path, int* cost)
     SMPL_DEBUG_NAMED(LOG, "Extracting path");
     path->clear();
     *cost = 0;
-    for (auto* state = &search->m_best_goal; state != NULL; state = state->bp) {
+    for (auto* state = &search->best_goal; state != NULL; state = state->bp) {
         path->push_back(state->state_id);
         if (state->bp) {
             *cost += (state->g - state->bp->g);
@@ -355,35 +324,12 @@ void ExtractPath(SMHAStar* search, std::vector<int>* path, int* cost)
     std::reverse(begin(*path), end(*path));
 }
 
-SMHAStar::SMHAStar()
-{
-    // Overwrite default members for ReplanParams to represent a single optimal
-    // search
-    m_params.initial_eps = 1.0;
-    m_params.final_eps = 1.0;
-    m_params.dec_eps = 0.2; // NOTE: same initial epsilon delta as ARA*
-    m_params.return_first_solution = false;
-    m_params.max_time = 0.0;
-    m_params.repair_time = 0.0;
+///////////////
+// Interface //
+///////////////
 
-    m_eps_satisfied = (double)INFINITECOST;
-
-    /// Four Modes:
-    ///     Search Until Solution Bounded
-    ///     Search Until Solution Unbounded
-    ///     Improve Solution Bounded
-    ///     Improve Solution Unbounded
-}
-
-SMHAStar::~SMHAStar()
-{
-    Clear(this);
-    if (m_open != NULL) {
-        delete[] m_open;
-    }
-}
-
-bool SMHAStar::Init(
+bool Init(
+    SMHAStar* search,
     DiscreteSpace* space,
     Heuristic* anchor,
     Heuristic** heurs,
@@ -398,12 +344,16 @@ bool SMHAStar::Init(
         return false;
     }
 
+    auto goal_heuristics = std::vector<IGoalHeuristic*>();
+    goal_heuristics.reserve(heur_count + 1);
+
     auto* anchor_goal_heuristic = anchor->GetExtension<IGoalHeuristic>();
     if (anchor_goal_heuristic == NULL) {
         return false;
     }
 
-    auto goal_heuristics = std::vector<IGoalHeuristic*>();
+    goal_heuristics.push_back(anchor_goal_heuristic);
+
     for (auto i = 0; i < heur_count; ++i) {
         auto* goal_heuristic = heurs[i]->GetExtension<IGoalHeuristic>();
         if (goal_heuristic == NULL) {
@@ -412,268 +362,263 @@ bool SMHAStar::Init(
         goal_heuristics.push_back(goal_heuristic);
     }
 
-    m_space = searchable;
-    m_anchor = anchor_goal_heuristic;
-    m_heurs = std::move(goal_heuristics);
-    m_heur_count = heur_count;
-    m_open = new OpenList[heur_count + 1];
+    search->space = searchable;
+    search->heurs = std::move(goal_heuristics);
+    search->heur_count = heur_count;
+    search->open.resize(search->heur_count + 1);
     return true;
 }
 
-void SMHAStar::SetTargetEpsilon(double eps)
+auto GetTargetEpsilon(const SMHAStar* search) -> double
 {
-    m_params.final_eps = eps;
+    return search->w_heur_final;
 }
 
-auto SMHAStar::GetTargetEpsilon() const -> double
+void SetTargetEpsilon(SMHAStar* search, double eps)
 {
-    return m_params.final_eps;
+    search->w_heur_final = eps;
 }
 
-void SMHAStar::SetDeltaEpsilon(double eps)
+auto GetDeltaEpsilon(const SMHAStar* search) -> double
 {
-    m_params.dec_eps = eps;
+    return search->w_heur_delta;
 }
 
-auto SMHAStar::GetDeltaEpsilon() const -> double
+void SetDeltaEpsilon(SMHAStar* search, double eps)
 {
-    return m_params.dec_eps;
+    search->w_heur_delta = eps;
 }
 
-void SMHAStar::SetInitialEps(double eps)
+auto GetInitialEps(const SMHAStar* search) -> double
 {
-    m_params.initial_eps = eps;
+    return search->w_heur_init;
 }
 
-auto SMHAStar::GetInitialEps() const -> double
+void SetInitialEps(SMHAStar* search, double eps)
 {
-    return m_params.initial_eps;
+    search->w_heur_init = eps;
 }
 
-int SMHAStar::SetSearchMode(bool bSearchUntilFirstSolution)
+auto GetInitialMHAEps(const SMHAStar* search) -> double
 {
-    return m_params.return_first_solution = bSearchUntilFirstSolution;
+    return search->w_anchor_init;
 }
 
-void SMHAStar::SetInitialMHAEps(double eps)
+void SetInitialMHAEps(SMHAStar* search, double eps)
 {
-    m_initial_eps_mha = eps;
+    search->w_anchor_init = eps;
 }
 
-auto SMHAStar::GetInitialMHAEps() const -> double
+int GetMaxExpansions(const SMHAStar* search)
 {
-    return m_initial_eps_mha;
+    return search->max_expansions;
 }
 
-void SMHAStar::SetMaxExpansions(int expansion_count)
+void SetMaxExpansions(SMHAStar* search, int expansion_count)
 {
-    m_max_expansions = expansion_count;
+    search->max_expansions = expansion_count;
 }
 
-int SMHAStar::GetMaxExpansions() const
+auto GetSolutionEps(const SMHAStar* search) -> double
 {
-    return m_max_expansions;
+    return search->w_heur_satisfied;
 }
 
-void SMHAStar::SetMaxTime(double max_time)
+int GetNumExpansions(SMHAStar* search)
 {
-    m_params.max_time = max_time;
+    return search->num_expansions;
 }
 
-auto SMHAStar::GetMaxTime() const -> double
+int GetNumExpansionsInitialEps(const SMHAStar* search)
 {
-    return m_params.max_time;
+    return search->num_expansions;
 }
 
-auto SMHAStar::GetSolutionEps() const -> double
+auto GetElapsedTime(SMHAStar* search) -> double
 {
-    return m_eps_satisfied;
+    return search->elapsed;
 }
 
-int SMHAStar::GetNumExpansions() const
+auto GetElapsedTimeInitialEps(const SMHAStar* search) -> double
 {
-    return m_num_expansions;
+    return search->elapsed;
 }
 
-int SMHAStar::GetNumExpansionsInitialEps() const
+bool UpdateStart(SMHAStar* search, int start_state)
 {
-    return m_num_expansions;
-}
-
-auto SMHAStar::GetElapsedTime() const -> double
-{
-    return m_elapsed;
-}
-
-auto SMHAStar::GetElapsedTimeInitialEps() const -> double
-{
-    return m_elapsed;
-}
-
-bool SMHAStar::UpdateStart(int start_state)
-{
-    m_start_state = GetState(this, start_state);
-    if (m_start_state == NULL) {
+    search->start_state = GetState(search, start_state);
+    if (search->start_state == NULL) {
         return false;
     }
     return true;
 }
 
-bool SMHAStar::UpdateGoal(GoalConstraint* goal)
+bool UpdateGoal(SMHAStar* search, GoalConstraint* goal)
 {
-    m_goal = goal;
+    search->goal = goal;
     return true;
 }
 
-void SMHAStar::UpdateCosts(const StateChangeQuery& changes)
+void ForcePlanningFromScratch(SMHAStar* search)
 {
 }
 
-void SMHAStar::UpdateCosts()
+void ForcePlanningFromScratchAndFreeMemory(SMHAStar* search)
 {
 }
 
-void SMHAStar::ForcePlanningFromScratch()
-{
-}
-
-void SMHAStar::ForcePlanningFromScratchAndFreeMemory()
-{
-}
-
-int SMHAStar::Replan(double allowed_time, std::vector<int>* solution)
-{
-    int cost;
-    return Replan(allowed_time, solution, &cost);
-}
-
-int SMHAStar::Replan(
-    double allowed_time,
+int Replan(
+    SMHAStar* search,
+    const TimeoutCondition& timeout,
     std::vector<int>* solution,
     int* cost)
 {
-    ReplanParams params = m_params;
-    params.max_time = allowed_time;
-    return Replan(params, solution, cost);
-}
-
-int SMHAStar::Replan(ReplanParams params, std::vector<int>* solution)
-{
-    int cost;
-    return Replan(params, solution, &cost);
-}
-
-int SMHAStar::Replan(
-    ReplanParams params,
-    std::vector<int>* solution,
-    int* cost)
-{
-    if (!CheckParams(this, params)) { // errors printed within
-        return 0;
-    }
-
-    m_params = params;
-
     SMPL_INFO_NAMED(LOG, "Generic Search parameters:");
-    SMPL_INFO_NAMED(LOG, "  Initial Epsilon: %0.3f", m_params.initial_eps);
-    SMPL_INFO_NAMED(LOG, "  Final Epsilon: %0.3f", m_params.final_eps);
-    SMPL_INFO_NAMED(LOG, "  Delta Epsilon: %0.3f", m_params.dec_eps);
-    SMPL_INFO_NAMED(LOG, "  Return First Solution: %s", m_params.return_first_solution ? "true" : "false");
-    SMPL_INFO_NAMED(LOG, "  Max Time: %0.3f", m_params.max_time);
-    SMPL_INFO_NAMED(LOG, "  Repair Time: %0.3f", m_params.repair_time);
+    SMPL_INFO_NAMED(LOG, "  Initial Epsilon: %0.3f", search->w_heur_init);
+    SMPL_INFO_NAMED(LOG, "  Final Epsilon: %0.3f", search->w_heur_final);
+    SMPL_INFO_NAMED(LOG, "  Delta Epsilon: %0.3f", search->w_heur_delta);
     SMPL_INFO_NAMED(LOG, "MHA Search parameters:");
-    SMPL_INFO_NAMED(LOG, "  MHA Epsilon: %0.3f", m_initial_eps_mha);
-    SMPL_INFO_NAMED(LOG, "  Max Expansions: %d", m_max_expansions);
+    SMPL_INFO_NAMED(LOG, "  MHA Epsilon: %0.3f", search->w_anchor_init);
+    SMPL_INFO_NAMED(LOG, "  Max Expansions: %d", search->max_expansions);
 
     // TODO: pick up from where last search left off and detect lazy
     // reinitializations
-    ReinitSearch(this);
+    ReinitSearch(search);
 
-    m_eps = m_params.initial_eps;
-    m_eps_mha = m_initial_eps_mha;
-    m_eps_satisfied = (double)INFINITECOST;
+    search->w_heur = search->w_heur_init;
+    search->w_anchor = search->w_anchor_init;
+    search->w_heur_satisfied = 0.0;
 
     // reset time limits
-    m_num_expansions = 0;
-    m_elapsed = 0.0;
+    search->num_expansions = 0;
+    search->elapsed = 0.0;
 
     auto start_time = GetTime();
 
-    ++m_call_number;
-    ReinitState(this, &m_best_goal, true);
-    ReinitState(this, m_start_state);
-    m_start_state->g = 0;
+    ++search->call_number;
+    ReinitState(search, &search->best_goal, true);
+    ReinitState(search, search->start_state);
+    search->start_state->g = 0;
 
     // insert start state into all heaps with key(start, i) as priority
-    for (auto i = 0; i < NumHeuristics(this); ++i) {
-        auto key = ComputeKey(this, m_start_state, i);
-        m_start_state->od[i].f = key;
-        m_open[i].push(&m_start_state->od[i]);
-        SMPL_DEBUG_NAMED(LOG, "Inserted start state %d into search %d with f = %d", m_start_state->state_id, i, key);
+    for (auto i = 0; i < NumHeuristics(search); ++i) {
+        auto key = ComputeKey(search, search->start_state, i);
+        search->start_state->od[i].f = key;
+        search->open[i].push(&search->start_state->od[i]);
+        SMPL_DEBUG_NAMED(LOG, "Inserted start state %d into search %d with f = %d", search->start_state->state_id, i, key);
     }
 
     auto end_time = GetTime();
-    m_elapsed += (end_time - start_time);
+    search->elapsed += (end_time - start_time);
 
-    while (!m_open[0].empty() && !TimeLimitReached(this)) {
+    while (!search->open[0].empty() && !TimeLimitReached(search, timeout)) {
         start_time = GetTime();
 
         // special case for mha* without additional heuristics
-        if (NumHeuristics(this) == 1) {
+        if (NumHeuristics(search) == 1) {
             SMPL_WARN_ONCE("Running SMHA* with only the anchor search?");
-            if (m_best_goal.g <= GetMinF(m_open[0])) {
-                m_eps_satisfied = m_eps * m_eps_mha;
-                ExtractPath(this, solution, cost);
+            if (search->best_goal.g <= GetMinF(search->open[0])) {
+                search->w_heur_satisfied = search->w_heur * search->w_anchor;
+                ExtractPath(search, solution, cost);
                 return 1;
             } else {
-                auto* s = StateFromOpenState(m_open[0].min());
-                Expand(this, s, 0);
+                auto* s = StateFromOpenState(search->open[0].min());
+                Expand(search, s, 0);
             }
         }
 
-        for (auto hidx = 1; hidx < NumHeuristics(this); ++hidx) {
-            if (m_open[0].empty()) {
+        for (auto hidx = 1; hidx < NumHeuristics(search); ++hidx) {
+            if (search->open[0].empty()) {
                 break;
             }
 
-            if (!m_open[hidx].empty()) {
-                SMPL_DEBUG_NAMED(ELOG, "Compare search %d f_min %d against anchor f_min %d", hidx, GetMinF(m_open[hidx]), GetMinF(m_open[0]));
+            if (!search->open[hidx].empty()) {
+                SMPL_DEBUG_NAMED(ELOG, "Compare search %d f_min %d against anchor f_min %d", hidx, GetMinF(search->open[hidx]), GetMinF(search->open[0]));
             }
 
-            if (!m_open[hidx].empty() && GetMinF(m_open[hidx]) <=
-                m_eps_mha * GetMinF(m_open[0]))
+            if (!search->open[hidx].empty() && GetMinF(search->open[hidx]) <=
+                search->w_anchor * GetMinF(search->open[0]))
             {
-                if (m_best_goal.g <= GetMinF(m_open[hidx])) {
-                    m_eps_satisfied = m_eps * m_eps_mha;
-                    ExtractPath(this, solution, cost);
+                if (search->best_goal.g <= GetMinF(search->open[hidx])) {
+                    search->w_heur_satisfied = search->w_heur * search->w_anchor;
+                    ExtractPath(search, solution, cost);
                     return 1;
                 } else {
-                    auto* s = StateFromOpenState(m_open[hidx].min());
-                    Expand(this, s, hidx);
+                    auto* s = StateFromOpenState(search->open[hidx].min());
+                    Expand(search, s, hidx);
                 }
             } else {
-                if (m_best_goal.g <= GetMinF(m_open[0])) {
-                    m_eps_satisfied = m_eps * m_eps_mha;
-                    ExtractPath(this, solution, cost);
+                if (search->best_goal.g <= GetMinF(search->open[0])) {
+                    search->w_heur_satisfied = search->w_heur * search->w_anchor;
+                    ExtractPath(search, solution, cost);
                     return 1;
                 } else {
-                    auto* s = StateFromOpenState(m_open[0].min());
-                    Expand(this, s, 0);
+                    auto* s = StateFromOpenState(search->open[0].min());
+                    Expand(search, s, 0);
                 }
             }
         }
         end_time = GetTime();
-        m_elapsed += (end_time - start_time);
+        search->elapsed += (end_time - start_time);
     }
 
-    if (m_open[0].empty()) {
+    if (search->open[0].empty()) {
         SMPL_DEBUG_NAMED(LOG, "Anchor search exhausted");
     }
-    if (TimeLimitReached(this)) {
+    if (TimeLimitReached(search, timeout)) {
         SMPL_DEBUG_NAMED(LOG, "Time limit reached");
     }
 
     return 0;
+}
+
+bool SMHAStar::HeapCompare::operator()(
+    const SMHAState::HeapData& s, const SMHAState::HeapData& t) const
+{
+    return s.f < t.f;
+}
+
+SMHAStar::~SMHAStar()
+{
+    Clear(this);
+}
+
+int SMHAStar::GetNumExpansions()
+{
+    return ::smpl::GetNumExpansions(this);
+}
+
+auto SMHAStar::GetElapsedTime() -> double
+{
+    return ::smpl::GetElapsedTime(this);
+}
+
+bool SMHAStar::UpdateStart(int state_id)
+{
+    return ::smpl::UpdateStart(this, state_id);
+}
+
+bool SMHAStar::UpdateGoal(GoalConstraint* goal)
+{
+    return ::smpl::UpdateGoal(this, goal);
+}
+
+void SMHAStar::ForcePlanningFromScratch()
+{
+    return ::smpl::ForcePlanningFromScratch(this);
+}
+
+void SMHAStar::ForcePlanningFromScratchAndFreeMemory()
+{
+    return ::smpl::ForcePlanningFromScratchAndFreeMemory(this);
+}
+
+int SMHAStar::Replan(
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* cost)
+{
+    return ::smpl::Replan(this, timeout, solution, cost);
 }
 
 } // namespace smpl

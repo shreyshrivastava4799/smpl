@@ -37,15 +37,101 @@
 
 // project includes
 #include <smpl/heap/intrusive_heap.h>
+#include <smpl/search/search.h>
 
 namespace smpl {
 
 class DiscreteSpace;
 class GoalConstraint;
 class Heuristic;
+
+///////////////
+// Interface //
+///////////////
+
+class SMHAStar;
+
+// Initialize the search.
+bool Init(
+    SMHAStar* search,
+    DiscreteSpace* space,
+    Heuristic* anchor,
+    Heuristic** heurs,
+    int heur_count);
+
+// Get the heuristic weight that will terminate the search.
+auto GetTargetEpsilon(const SMHAStar* search) -> double;
+
+// Set the heuristic weight that will terminate the search.
+void SetTargetEpsilon(SMHAStar* search, double eps);
+
+// Get the amount by which the heuristic weight is decreased between search
+// iterations.
+auto GetDeltaEpsilon(const SMHAStar* search) -> double;
+
+// Set the amount by which the heuristic weight is decreased between search
+// iterations.
+void SetDeltaEpsilon(SMHAStar* search, double eps);
+
+// Get the weight applied to each inadmissible heuristic on the first search
+// iteration.
+auto GetInitialEps(const SMHAStar* search) -> double;
+
+// Set the weight applied to each inadmissible heuristic on the first search
+// iteration.
+void SetInitialEps(SMHAStar* search, double eps);
+
+// Get the weight used to control expansions from inadmissible search queues
+// with respect to the anchor heuristic.
+auto GetInitialMHAEps(const SMHAStar* search) -> double;
+
+// Set the weight used to control expansions from inadmissible search queues
+// with respect to the anchor heuristic.
+void SetInitialMHAEps(SMHAStar* search, double eps_mha);
+
+// Return the weight applied to each inadmissible heuristic on the last
+// successful iteration. A value of 0 means no solution has been found.
+auto GetSolutionEps(const SMHAStar* search) -> double;
+
+/// Get the number of expansions performed so far.
+int GetNumExpansions(SMHAStar* search);
+
+// Get the number of expansions performed so far on the first search iteration.
+int GetNumExpansionsInitialEps(const SMHAStar* search);
+
+// Return the time elapsed so far over all search iterations.
+auto GetElapsedTime(SMHAStar* search) -> double;
+
+// Return the time elapsed so far during the first search iteration.
+auto GetElapsedTimeInitialEps(const SMHAStar* search) -> double;
+
+// Update the search with a new start state.
+bool UpdateStart(SMHAStar* search, int state_id);
+
+// Update the goal condition with a new goal condition.
+bool UpdateGoal(SMHAStar* search, GoalConstraint* goal);
+
+// Force the search to plan from scratch.
+void ForcePlanningFromScratch(SMHAStar* search);
+
+// Force the search to plan from scratch and free all memory from previous
+// search iterations.
+void ForcePlanningFromScratchAndFreeMemory(SMHAStar* search);
+
+// Find a path from the current start state to a state satisfying the goal
+// condition. The search proceeds until a path is found, the timeout is reached
+// or no solution exists.
+int Replan(
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* cost);
+
+////////////////////
+// Implementation //
+////////////////////
+
 class IGoalHeuristic;
 class ISearchable;
-struct StateChangeQuery;
 
 struct SMHAState
 {
@@ -72,130 +158,71 @@ struct SMHAState
     HeapData od[1]; // overallocated for additional n heuristics
 };
 
-struct ReplanParams
-{
-    double initial_eps;
-    double final_eps;
-    double dec_eps;
-    bool return_first_solution;
-    double max_time;
-    double repair_time;
-
-    ReplanParams(double time)
-    {
-        max_time = time;
-        initial_eps = 5.0;
-        final_eps = 1.0;
-        dec_eps = 0.2;
-        return_first_solution = false;
-        repair_time = -1;
-    }
-};
-
-class SMHAStar
+class SMHAStar : public Search
 {
 public:
-
-    SMHAStar();
-
-    bool Init(
-        DiscreteSpace* space,
-        Heuristic* anchor,
-        Heuristic** heurs,
-        int heur_count);
-
-    ~SMHAStar();
-
-    /// \name Search Configuration
-    ///@{
-    void SetTargetEpsilon(double eps);
-    auto GetTargetEpsilon() const -> double;
-
-    auto GetDeltaEpsilon() const -> double;
-    void SetDeltaEpsilon(double eps);
-
-    void SetInitialEps(double eps);
-    auto GetInitialEps() const -> double;
-
-    int SetSearchMode(bool search_until_first_solution);
-
-    void SetInitialMHAEps(double eps_mha);
-    auto GetInitialMHAEps() const -> double;
-
-    void SetMaxExpansions(int expansion_count);
-    int GetMaxExpansions() const;
-
-    void SetMaxTime(double max_time);
-    auto GetMaxTime() const -> double;
-    ///@}
-
-    /// \name Search Statistics
-    ///@{
-    auto GetSolutionEps() const -> double;
-
-    int GetNumExpansions() const;
-    int GetNumExpansionsInitialEps() const;
-
-    auto GetElapsedTime() const -> double;
-    auto GetElapsedTimeInitialEps() const -> double;
-    ///@}
-
-    /// \name Search Queries
-    ///@{
-    bool UpdateStart(int state_id);
-    bool UpdateGoal(GoalConstraint* goal);
-
-    void UpdateCosts(const StateChangeQuery& changes);
-    void UpdateCosts();
-
-    void ForcePlanningFromScratch();
-    void ForcePlanningFromScratchAndFreeMemory();
-
-    int Replan(double allowed_time, std::vector<int>* solution);
-    int Replan(double allowed_time, std::vector<int>* solution, int* cost);
-    int Replan(ReplanParams params, std::vector<int>* solution);
-    int Replan(ReplanParams params, std::vector<int>* solution, int* cost);
-    ///@}
-
-    ISearchable* m_space = NULL;
-
-    IGoalHeuristic* m_anchor = NULL;
-    std::vector<IGoalHeuristic*> m_heurs;
-    int m_heur_count = 0;           ///< number of additional heuristics used
-
-    ReplanParams m_params = ReplanParams(0.0);
-    double m_initial_eps_mha = 1.0;
-    int m_max_expansions = 0;
-
-    double m_eps = 1.0;           ///< current w_1
-    double m_eps_mha = 1.0;       ///< current w_2
-
-    /// suboptimality bound satisfied by the last search
-    double m_eps_satisfied;
-
-    int m_num_expansions = 0;   ///< current number of expansion
-    double m_elapsed = 0.0;       ///< current amount of seconds
-
-    int m_call_number = 0;
-
-    SMHAState* m_start_state = NULL;
-
-    GoalConstraint* m_goal = NULL;
-    SMHAState m_best_goal;
-
-    std::vector<SMHAState*> m_search_states;
 
     struct HeapCompare
     {
         bool operator()(
-            const SMHAState::HeapData& s, const SMHAState::HeapData& t) const
-        {
-            return s.f < t.f;
-        }
+            const SMHAState::HeapData& s, const SMHAState::HeapData& t) const;
     };
 
+    ISearchable* space = NULL;
+
+    std::vector<IGoalHeuristic*> heurs;
+
+    /// number of additional heuristics used
+    int heur_count = 0;
+
+    double w_heur_init = 1.0;
+    double w_heur_final = 1.0;
+    double w_heur_delta = 0.2;
+
+    double w_anchor_init = 1.0;
+    int max_expansions = 0;
+
+    /// current w_1
+    double w_heur = 1.0;
+
+    /// current w_2
+    double w_anchor = 1.0;
+
+    /// suboptimality bound satisfied by the last search
+    double w_heur_satisfied = 0.0;
+
+    /// current number of expansion
+    int num_expansions = 0;
+
+    /// current amount of seconds
+    double elapsed = 0.0;
+
+    int call_number = 0;
+
+    SMHAState* start_state = NULL;
+
+    GoalConstraint* goal = NULL;
+    SMHAState best_goal;
+
+    std::vector<SMHAState*> search_states;
+
+    /// sequence of (heur_count + 1) open lists
     using OpenList = intrusive_heap<SMHAState::HeapData, HeapCompare>;
-    OpenList* m_open = NULL; ///< sequence of (m_heur_count + 1) open lists
+    std::vector<OpenList> open;
+
+    ~SMHAStar();
+
+    int GetNumExpansions() final;
+    auto GetElapsedTime() -> double final;
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
+    void ForcePlanningFromScratch() final;
+    void ForcePlanningFromScratchAndFreeMemory() final;
+
+    int Replan(
+        const TimeoutCondition& timeout,
+        std::vector<int>* solution,
+        int* cost) final;
 };
 
 } // namespace smpl

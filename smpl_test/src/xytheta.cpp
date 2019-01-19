@@ -516,8 +516,8 @@ int main(int argc, char* argv[])
 #endif
     search.SetDeltaEpsilon(0.2);
 
-    auto search_params = smpl::ARAStar::TimeParameters();
-    search_params.type = smpl::ARAStar::TimeParameters::TIME;
+    auto search_params = smpl::TimeoutCondition();
+    search_params.type = smpl::TimeoutCondition::TIME;
     search_params.bounded = false; //true;
     search_params.improve = true;
     search_params.max_allowed_time_init = std::chrono::seconds(1);

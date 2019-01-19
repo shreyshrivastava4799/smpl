@@ -54,8 +54,8 @@ public:
     {
         enum TimingType { EXPANSIONS, TIME };
 
-        ARAStar::TimeParameters planning;
-        ARAStar::TimeParameters tracking;
+        TimeoutCondition planning;
+        TimeoutCondition tracking;
     };
 
     AdaptivePlanner(RobotPlanningSpace* space, Heuristic* heur);

@@ -907,10 +907,10 @@ auto PlannerImpl::solve(
     // and allow the state of the search to persist between calls
     this->search.ForcePlanningFromScratch();
 
-    auto time_params = smpl::ARAStar::TimeParameters();
+    auto time_params = smpl::TimeoutCondition();
     time_params.bounded = this->search.BoundExpansions();
     time_params.improve = this->search.ImproveSolution();
-    time_params.type = smpl::ARAStar::TimeParameters::USER;
+    time_params.type = smpl::TimeoutCondition::USER;
     time_params.timed_out_fun = [&]() { return ptc.eval(); };
 
     auto solution = std::vector<int>();

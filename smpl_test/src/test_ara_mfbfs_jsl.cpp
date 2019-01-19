@@ -169,11 +169,11 @@ int main(int argc, char* argv[])
     // Finally, plan the path //
     ////////////////////////////
 
-    auto time_params = smpl::ARAStar::TimeParameters();
+    auto time_params = smpl::TimeoutCondition();
     time_params.bounded = true;
     time_params.improve = false;
-    time_params.type = smpl::ARAStar::TimeParameters::TIME;
-//    time_params.type = smpl::ARAStar::TimeParameters::EXPANSIONS;
+    time_params.type = smpl::TimeoutCondition::TIME;
+//    time_params.type = smpl::TimeoutCondition::EXPANSIONS;
     time_params.max_expansions_init = 200000;
     time_params.max_expansions = 2000;
     time_params.max_allowed_time_init = std::chrono::seconds(30);

@@ -797,13 +797,13 @@ auto MakePADAStar(
     AdaptivePlanner::TimeParameters tparams;
     tparams.planning.bounded = true;
     tparams.planning.improve = false;
-    tparams.planning.type = ARAStar::TimeParameters::TIME;
+    tparams.planning.type = TimeoutCondition::TIME;
     tparams.planning.max_allowed_time_init = clock::duration::zero();
     tparams.planning.max_allowed_time = clock::duration::zero();
 
     tparams.tracking.bounded = true;
     tparams.tracking.improve = false;
-    tparams.tracking.type = ARAStar::TimeParameters::TIME;
+    tparams.tracking.type = TimeoutCondition::TIME;
     tparams.tracking.max_allowed_time_init = std::chrono::seconds(5);
     tparams.tracking.max_allowed_time = clock::duration::zero();
 

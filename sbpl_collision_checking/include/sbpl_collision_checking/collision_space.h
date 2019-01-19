@@ -57,7 +57,9 @@
 namespace smpl {
 namespace collision {
 
-class CollisionSpace : public CollisionChecker
+class CollisionSpace :
+    public CollisionChecker,
+    public IOccupancyGridAccessor
 {
 public:
 
@@ -186,6 +188,11 @@ public:
         const std::vector<double>& state,
         CollisionDetails& details);
     bool collisionDetails(const double* state, CollisionDetails& details);
+
+    /// \name IOccupancyGridAccessor Interface
+    ///@{
+    auto GetGrid() const -> const OccupancyGrid* final;
+    ///@}
 
     /// \name Required Functions from Extension
     ///@{

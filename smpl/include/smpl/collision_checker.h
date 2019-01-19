@@ -44,6 +44,8 @@
 
 namespace smpl {
 
+class OccupancyGrid;
+
 class CollisionChecker : public virtual Extension
 {
 public:
@@ -109,6 +111,13 @@ public:
     virtual double distanceToCollision(
         const RobotState& start,
         const RobotState& finish) = 0;
+};
+
+class IOccupancyGridAccessor : public virtual Extension
+{
+public:
+
+    virtual auto GetGrid() const -> const OccupancyGrid* = 0;
 };
 
 } // namespace smpl

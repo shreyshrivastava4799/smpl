@@ -374,6 +374,11 @@ double CollisionSpace::collisionDistance(const double* state)
     return m_scm->collisionDistance(*m_rcs, *m_abcs, m_gidx);
 }
 
+auto CollisionSpace::GetGrid() const -> const OccupancyGrid*
+{
+    return m_grid;
+}
+
 bool CollisionSpace::collisionDetails(
     const std::vector<double>& state,
     CollisionDetails& details)
@@ -392,7 +397,9 @@ bool CollisionSpace::collisionDetails(
 
 auto CollisionSpace::GetExtension(size_t class_code) -> Extension*
 {
-    if (class_code == GetClassCode<CollisionChecker>()) {
+    if (class_code == GetClassCode<CollisionChecker>() ||
+        class_code == GetClassCode<IOccupancyGridAccessor>())
+    {
         return this;
     }
     return nullptr;
