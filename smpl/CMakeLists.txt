@@ -168,7 +168,7 @@ set(SMPL_LIBRARY_SOURCES
     src/search/arastar.cpp
 #    src/search/experience_graph_planner.cpp
 #    src/search/adaptive_planner.cpp
-#    src/search/lazy_arastar.cpp
+    src/search/lazy_arastar.cpp
 #    src/search/lazy_mhastar.cpp
     src/search/search.cpp
     src/search/smhastar.cpp

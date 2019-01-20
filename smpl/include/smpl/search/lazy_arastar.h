@@ -29,83 +29,125 @@
 
 /// \author Andrew Dornbush
 
-#include <stdlib.h>
+// standard includes
 #include <vector>
 
+// project includes
 #include <smpl/heap/intrusive_heap.h>
-#include <smpl/heuristic/heuristic.h>
-
-#include <smpl/search/lazy_search_interface.h>
+#include <smpl/search/search.h>
 
 namespace smpl {
 
-struct LazyARAStar;
+class DiscreteSpace;
+class Heuristic;
+class GoalConstraint;
+class ILazySearchable;
+class IGoalHeuristic;
 
-bool Init(
-    LazyARAStar& search,
-    ILazySuccFun* succ_fun,
-    RobotHeuristic* heuristic);
+class LARAStar;
+
+bool Init(LARAStar* search, DiscreteSpace* graph, Heuristic* heur);
+
+auto GetInitialEps(const LARAStar* search) -> double;
+void SetInitialEps(LARAStar* search, double eps);
+
+auto GetTargetEps(const LARAStar* search) -> double;
+void SetTargetEps(LARAStar* search, double eps);
+
+auto GetDeltaEps(const LARAStar* search) -> double;
+void SetDeltaEps(LARAStar* search, double eps);
+
+bool UpdateStart(LARAStar* search, int state_id);
+bool UpdateGoal(LARAStar* search, GoalConstraint* goal);
+
+void ForcePlanningFromScratch(LARAStar* search);
+void ForcePlanningFromScratchAndFreeMemory(LARAStar* search);
 
 int Replan(
-    LazyARAStar& search,
-    int start_id,
-    int goal_id,
-    std::vector<int>& solution,
-    int& cost);
+    LARAStar* search,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* cost);
 
-struct LazyARAStar
+auto GetSolutionEps(const LARAStar* search) -> double;
+
+int GetNumExpansions(const LARAStar* search);
+int GetNumExpansionsInitialEps(const LARAStar* search);
+
+auto GetElapsedTime(const LARAStar* search) -> double;
+auto GetElapsedTimeInitialEps(const LARAStar* search) -> double;
+
+struct LARAState;
+
+struct CandidatePred
 {
-    struct State;
+    LARAState* pred;
+    int32_t g;
+    bool true_cost;
+};
 
-    struct StateCompare {
-        const LazyARAStar* search_;
-        bool operator()(const State& s1, const State& s2) const;
+struct LARAState : public heap_element
+{
+    using lazy_list_type = std::vector<CandidatePred>;
+
+    lazy_list_type cands;
+
+    LARAState*  bp;             // current best predecessor
+    LARAState*  ebp;            // best predecessor upon expansion
+
+    int         state_id;       // graph state
+    int         h;              // heuristic value
+
+    int         g;              // current best cost-to-go
+    int         eg;             // cost-to-go at upon expansion
+
+    int         call_number;    // scenario when last reinitialized
+
+    bool        true_cost;
+    bool        closed;
+};
+
+class LARAStar : public Search
+{
+public:
+
+    struct StateCompare
+    {
+        const LARAStar* search_;
+        bool operator()(const LARAState& s1, const LARAState& s2) const;
     };
 
-    struct CandidatePred {
-        const State* pred;
-        int32_t g;
-        bool true_cost;
-    };
+    using open_list_type = intrusive_heap<LARAState, StateCompare>;
 
-    struct State : public heap_element {
-        using lazy_list_type = std::vector<CandidatePred>;
+    ILazySearchable*    graph = NULL;
+    IGoalHeuristic*     heur = NULL;
 
-        lazy_list_type  cands;
+    GoalConstraint* goal = NULL;
 
-        const State*    bp;             // current best predecessor
-        const State*    ebp;            // best predecessor upon expansion
+    double init_eps = 1.0;
+    double target_eps = 1.0;
+    double delta_eps = 1.0;
 
-        int32_t         graph_state;    // graph state
-        int32_t         h;              // heuristic value
+    std::vector<LARAState*> states;
 
-        int32_t         g;              // current best cost-to-go
-        int32_t         eg;             // cost-to-go at upon expansion
+    open_list_type open;
 
-        int32_t         call_number;    // scenario when last reinitialized
+    int last_start_state_id = -1;
+    int start_state_id = -1;
 
-        bool            true_cost;
-        bool            closed;
-    };
+    bool new_goal = true;
 
-    ILazySuccFun*           succ_fun_ = nullptr;
-    RobotHeuristic* heuristic_ = nullptr;
+    LARAState   best_goal;
 
-    std::vector<State*>     states_;
-    State*                  start_state_ = nullptr;
-    State*                  goal_state_ = nullptr;
+    int     call_number     = 0;
+    double  eps             = 1.0;
 
-    using open_list_type = intrusive_heap<State, StateCompare>;
-    open_list_type          open_;
+    std::vector<int> succs;
+    std::vector<int> costs;
+    std::vector<bool> true_costs;
 
-    int32_t                 call_number_    = 0;
-    double                  eps_            = 1.0;
-
-    std::vector<int> succs_;
-    std::vector<int> costs_;
-    std::vector<bool> true_costs_;
-
-    LazyARAStar() : open_(StateCompare{this}) { }
+    LARAStar();
+    ~LARAStar();
 };
 
 } // namespace smpl
