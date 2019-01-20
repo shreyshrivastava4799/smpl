@@ -87,7 +87,6 @@ void InitState(
     state->closed_in_add = false;
     for (auto i = 0; i < NumHeuristics(search); ++i) {
         state->od[i].me = state;
-        state->od[i].h = ComputeHeuristic(search, state->state_id, i);
     }
 }
 
@@ -134,6 +133,7 @@ void ReinitState(SMHAStar* search, SMHAState* state, bool goal = false)
 
         if (goal) {
             state->od[0].h = 0;
+            state->od[0].f = INFINITECOST;
         } else {
             for (auto i = 0; i < NumHeuristics(search); ++i) {
                 state->od[i].h = ComputeHeuristic(search, state->state_id, i);
@@ -213,11 +213,6 @@ void Expand(SMHAStar* search, SMHAState* state, int hidx)
 
     assert(!ClosedInAddSearch(state) || !ClosedInAncSearch(state));
 
-    if (hidx == 0) {
-        state->closed_in_anc = true;
-    } else {
-        state->closed_in_add = true;
-    }
     ++search->num_expansions;
 
     // remove s from all open lists
@@ -243,30 +238,31 @@ void Expand(SMHAStar* search, SMHAState* state, int hidx)
         if (new_g < succ_state->g) {
             succ_state->g = new_g;
             succ_state->bp = state;
-            if (!ClosedInAncSearch(succ_state)) {
-                auto fanchor = ComputeKey(search, succ_state, 0);
-                succ_state->od[0].f = fanchor;
-                InsertOrUpdate(search, succ_state, 0);
-                SMPL_DEBUG_NAMED(LOG, "  Update in search %d with f = %d", 0, fanchor);
-
-                if (!ClosedInAddSearch(succ_state)) {
-                    for (auto i = 1; i < NumHeuristics(search); ++i) {
-                        auto fn = ComputeKey(search, succ_state, i);
-                        if (fn <= search->w_anchor * fanchor) {
-                            succ_state->od[i].f = fn;
-                            InsertOrUpdate(search, succ_state, i);
-                            SMPL_DEBUG_NAMED(LOG, "  Update in search %d with f = %d", i, fn);
-                        } else {
-                            SMPL_DEBUG_NAMED(LOG, "  Skipping update of in search %d (%0.3f > %0.3f)", i, (double)fn, search->w_anchor * fanchor);
-                        }
-                    }
-                }
-            }
             if (search->goal->IsGoal(succ_ids[sidx])) {
                 // NOTE: This assignment will not assign the N additional
                 // heuristic values. It is fine to ignore those here, since
                 // they are not queried anywhere within the search.
                 search->best_goal = *succ_state;
+            }
+
+            if (ClosedInAncSearch(succ_state)) continue;
+
+            auto fanchor = ComputeKey(search, succ_state, 0);
+            succ_state->od[0].f = fanchor;
+            InsertOrUpdate(search, succ_state, 0);
+            SMPL_DEBUG_NAMED(LOG, "  Update in search %d with f = %d", 0, fanchor);
+
+            if (ClosedInAddSearch(succ_state)) continue;
+
+            for (auto i = 1; i < NumHeuristics(search); ++i) {
+                auto fn = ComputeKey(search, succ_state, i);
+                if (fn <= search->w_anchor * fanchor) {
+                    succ_state->od[i].f = fn;
+                    InsertOrUpdate(search, succ_state, i);
+                    SMPL_DEBUG_NAMED(LOG, "  Update in search %d with f = %d", i, fn);
+                } else {
+                    SMPL_DEBUG_NAMED(LOG, "  Skipping update of in search %d (%0.3f > %0.3f)", i, (double)fn, search->w_anchor * fanchor);
+                }
             }
         }
     }
@@ -366,6 +362,9 @@ bool Init(
     search->heurs = std::move(goal_heuristics);
     search->heur_count = heur_count;
     search->open.resize(search->heur_count + 1);
+
+    // to ensure reinitialization is triggered
+    search->best_goal.call_number = 0;
     return true;
 }
 
@@ -512,6 +511,7 @@ int Replan(
                 return 1;
             }
             auto* s = StateFromOpenState(search->open[0].min());
+            s->closed_in_anc = true;
             Expand(search, s, 0);
         }
 
@@ -533,6 +533,7 @@ int Replan(
                     return 1;
                 }
                 auto* s = StateFromOpenState(search->open[hidx].min());
+                s->closed_in_add = true;
                 Expand(search, s, hidx);
             } else {
                 if (search->best_goal.g <= GetMinF(search->open[0])) {
@@ -541,6 +542,7 @@ int Replan(
                     return 1;
                 }
                 auto* s = StateFromOpenState(search->open[0].min());
+                s->closed_in_anc = true;
                 Expand(search, s, 0);
             }
         }

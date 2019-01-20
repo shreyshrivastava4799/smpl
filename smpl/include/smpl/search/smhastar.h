@@ -59,20 +59,6 @@ bool Init(
     Heuristic** heurs,
     int heur_count);
 
-// Get the heuristic weight that will terminate the search.
-auto GetTargetEpsilon(const SMHAStar* search) -> double;
-
-// Set the heuristic weight that will terminate the search.
-void SetTargetEpsilon(SMHAStar* search, double eps);
-
-// Get the amount by which the heuristic weight is decreased between search
-// iterations.
-auto GetDeltaEpsilon(const SMHAStar* search) -> double;
-
-// Set the amount by which the heuristic weight is decreased between search
-// iterations.
-void SetDeltaEpsilon(SMHAStar* search, double eps);
-
 // Get the weight applied to each additional heuristic on the first search
 // iteration.
 auto GetInitialEps(const SMHAStar* search) -> double;
@@ -89,21 +75,19 @@ auto GetInitialMHAEps(const SMHAStar* search) -> double;
 // with respect to the anchor heuristic.
 void SetInitialMHAEps(SMHAStar* search, double eps_mha);
 
-// Return the weight applied to each additional heuristic on the last
-// successful iteration. A value of 0 means no solution has been found.
-auto GetSolutionEps(const SMHAStar* search) -> double;
+// Get the heuristic weight that will terminate the search.
+auto GetTargetEpsilon(const SMHAStar* search) -> double;
 
-/// Get the number of expansions performed so far.
-int GetNumExpansions(SMHAStar* search);
+// Set the heuristic weight that will terminate the search.
+void SetTargetEpsilon(SMHAStar* search, double eps);
 
-// Get the number of expansions performed so far on the first search iteration.
-int GetNumExpansionsInitialEps(const SMHAStar* search);
+// Get the amount by which the heuristic weight is decreased between search
+// iterations.
+auto GetDeltaEpsilon(const SMHAStar* search) -> double;
 
-// Return the time elapsed so far over all search iterations.
-auto GetElapsedTime(SMHAStar* search) -> double;
-
-// Return the time elapsed so far during the first search iteration.
-auto GetElapsedTimeInitialEps(const SMHAStar* search) -> double;
+// Set the amount by which the heuristic weight is decreased between search
+// iterations.
+void SetDeltaEpsilon(SMHAStar* search, double eps);
 
 // Update the search with a new start state.
 bool UpdateStart(SMHAStar* search, int state_id);
@@ -125,6 +109,22 @@ int Replan(
     const TimeoutCondition& timeout,
     std::vector<int>* solution,
     int* cost);
+
+// Return the weight applied to each additional heuristic on the last
+// successful iteration. A value of 0 means no solution has been found.
+auto GetSolutionEps(const SMHAStar* search) -> double;
+
+/// Get the number of expansions performed so far.
+int GetNumExpansions(SMHAStar* search);
+
+// Get the number of expansions performed so far on the first search iteration.
+int GetNumExpansionsInitialEps(const SMHAStar* search);
+
+// Return the time elapsed so far over all search iterations.
+auto GetElapsedTime(SMHAStar* search) -> double;
+
+// Return the time elapsed so far during the first search iteration.
+auto GetElapsedTimeInitialEps(const SMHAStar* search) -> double;
 
 ////////////////////
 // Implementation //

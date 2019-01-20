@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2017, Andrew Dornbush
+// Copyright (c) 2019, Andrew Dornbush
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,82 +28,66 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 /// \author Andrew Dornbush
-
-#ifndef SMPL_FMHASTAR_SEARCH_H
-#define SMPL_FMHASTAR_SEARCH_H
+#ifndef SMPL_MHASTAR_BASE_IMPL_H
+#define SMPL_MHASTAR_BASE_IMPL_H
 
 // standard includes
 #include <vector>
 
 // project includes
 #include <smpl/search/mhastar_base.h>
-#include <smpl/search/search.h>
 
 namespace smpl {
 
 class DiscreteSpace;
+class MHAStar;
 class Heuristic;
-class GoalConstraint;
+struct TimeoutCondition;
 
-class FMHAStar;
+auto operator<<(std::ostream& o, const MHASearchState& s) -> std::ostream&;
 
 bool Init(
-    FMHAStar* search,
+    MHAStar* search,
     DiscreteSpace* space,
     Heuristic* anchor,
     Heuristic** heurs,
     int num_heurs);
 
-auto GetInitialEps(const FMHAStar* search) -> double;
-void SetInitialEps(FMHAStar* search, double eps);
+auto GetInitialEps(const MHAStar* search) -> double;
+void SetInitialEps(MHAStar* search, double eps);
 
-auto GetTargetEps(const FMHAStar* search) -> double;
-void SetTargetEps(FMHAStar* search, double eps);
+auto GetTargetEps(const MHAStar* search) -> double;
+void SetTargetEps(MHAStar* search, double eps);
 
-auto GetDeltaEps(const FMHAStar* search) -> double;
-void SetDeltaEps(FMHAStar* search, double eps);
+auto GetDeltaEps(const MHAStar* search) -> double;
+void SetDeltaEps(MHAStar* search, double eps);
 
-bool UpdateStart(FMHAStar* search, int state_id);
-bool UpdateGoal(FMHAStar* search, GoalConstraint* goal);
+bool UpdateStart(MHAStar* search, int state_id);
+bool UpdateGoal(MHAStar* search, GoalConstraint* goal);
 
-void ForcePlanningFromScratch(FMHAStar* search);
-void ForcePlanningFromScratchAndFreeMemory(FMHAStar* search);
+void ForcePlanningFromScratch(MHAStar* search);
+void ForcePlanningFromScratchAndFreeMemory(MHAStar* search);
 
+template <class Derived>
 int Replan(
-    FMHAStar* search,
+    MHAStar* search,
+    Derived* derived,
     const TimeoutCondition& timeout,
     std::vector<int>* solution,
     int* solcost);
 
-auto GetSolutionEps(const FMHAStar* search) -> double;
+auto GetSolutionEps(const MHAStar* search) -> double;
 
-int GetNumExpansions(const FMHAStar* search);
-int GetNumExpansionsInitialEps(const FMHAStar* search);
+int GetNumExpansions(const MHAStar* search);
+int GetNumExpansionsInitialEps(const MHAStar* search);
 
-auto GetElapsedTime(const FMHAStar* search) -> double;
-auto GetElapsedTimeInitialEps(const FMHAStar* search) -> double;
+auto GetElapsedTime(const MHAStar* search) -> double;
+auto GetElapsedTimeInitialEps(const MHAStar* search) -> double;
 
-class FMHAStar : public Search
-{
-public:
-
-    MHAStar base;
-
-    bool UpdateStart(int state_id) final;
-    bool UpdateGoal(GoalConstraint* goal) final;
-
-    void ForcePlanningFromScratch() final;
-    void ForcePlanningFromScratchAndFreeMemory() final;
-
-    int Replan(
-        const TimeoutCondition& timeout,
-        std::vector<int>* solution,
-        int* solcost) final;
-
-    int GetNumExpansions() final;
-    auto GetElapsedTime() -> double final;
-};
+void Clear(MHAStar* search);
 
 } // namespace smpl
+
+#include "mhastar_base_impl.hpp"
 
 #endif

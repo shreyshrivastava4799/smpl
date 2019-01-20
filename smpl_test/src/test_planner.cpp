@@ -169,6 +169,20 @@ int main(int argc, char* argv[])
                 &p_heuristics[1],
                 (int)p_heuristics.size() - 1,
                 search_nh);
+    } else if (search_type == "fmhastar") {
+        search = MakeFMHAStar(
+                graph.get(),
+                p_heuristics[0],
+                &p_heuristics[1],
+                (int)p_heuristics.size() - 1,
+                search_nh);
+    } else if (search_type == "umhastar") {
+        search = MakeUMHAStar(
+                graph.get(),
+                p_heuristics[0],
+                &p_heuristics[1],
+                (int)p_heuristics.size() - 1,
+                search_nh);
     } else {
         SMPL_ERROR("Unrecognized search type '%s'", search_type.c_str());
         return 1;

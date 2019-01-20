@@ -68,6 +68,22 @@ auto MakeSMHAStar(
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::Search>;
 
+auto MakeFMHAStar(
+    smpl::DiscreteSpace* graph,
+    smpl::Heuristic* anchor,
+    smpl::Heuristic** heurs,
+    int num_heuristics,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Search>;
+
+auto MakeUMHAStar(
+    smpl::DiscreteSpace* graph,
+    smpl::Heuristic* anchor,
+    smpl::Heuristic** heurs,
+    int num_heuristics,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Search>;
+
 auto MakePoseGoal(
     smpl::DiscreteSpace* graph,
     const ros::NodeHandle& nh)

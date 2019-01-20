@@ -60,6 +60,8 @@ ARAStar::ARAStar() :
     m_time_params.max_expansions = 0;
     m_time_params.max_allowed_time_init = clock::duration::zero();
     m_time_params.max_allowed_time = clock::duration::zero();
+
+    // to ensure reinitialization is triggered
     m_best_goal.call_number = 0;
 }
 

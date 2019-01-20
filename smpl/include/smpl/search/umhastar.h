@@ -34,31 +34,72 @@
 
 // project includes
 #include <smpl/search/mhastar_base.h>
+#include <smpl/search/search.h>
 
 namespace smpl {
 
-class UMHAStar : public MHAStarBase<UMHAStar>
+class DiscreteSpace;
+class Heuristic;
+class GoalConstraint;
+
+class UMHAStar;
+
+bool Init(
+    UMHAStar* search,
+    DiscreteSpace* space,
+    Heuristic* anchor,
+    Heuristic** heurs,
+    int num_heurs);
+
+auto GetInitialEps(const UMHAStar* search) -> double;
+void SetInitialEps(UMHAStar* search, double eps);
+
+auto GetTargetEps(const UMHAStar* search) -> double;
+void SetTargetEps(UMHAStar* search, double eps);
+
+auto GetDeltaEps(const UMHAStar* search) -> double;
+void SetDeltaEps(UMHAStar* search, double eps);
+
+bool UpdateStart(UMHAStar* search, int state_id);
+bool UpdateGoal(UMHAStar* search, GoalConstraint* goal);
+
+void ForcePlanningFromScratch(UMHAStar* search);
+void ForcePlanningFromScratchAndFreeMemory(UMHAStar* search);
+
+int Replan(
+    UMHAStar* search,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost);
+
+auto GetSolutionEps(const UMHAStar* search) -> double;
+
+int GetNumExpansions(const UMHAStar* search);
+int GetNumExpansionsInitialEps(const UMHAStar* search);
+
+auto GetElapsedTime(const UMHAStar* search) -> double;
+auto GetElapsedTimeInitialEps(const UMHAStar* search) -> double;
+
+class UMHAStar : public Search
 {
 public:
 
-    UMHAStar(
-        DiscreteSpaceInformation* environment,
-        Heuristic* hanchor,
-        Heuristic** heurs,
-        int hcount);
+    MHAStar base;
+    int max_fval_closed_anc = 0;
 
-    friend class MHAStarBase<UMHAStar>;
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
 
-private:
+    void ForcePlanningFromScratch() final;
+    void ForcePlanningFromScratchAndFreeMemory() final;
 
-    int m_max_fval_closed_anc;
+    int Replan(
+        const TimeoutCondition& timeout,
+        std::vector<int>* solution,
+        int* solcost) final;
 
-    void reinitSearch();
-    void on_closed_anchor(MHASearchState* s);
-
-    int priority(MHASearchState* state);
-    bool terminated() const;
-    bool satisfies_p_criterion(MHASearchState* state) const;
+    int GetNumExpansions() final;
+    auto GetElapsedTime() -> double final;
 };
 
 } // namespace smpl

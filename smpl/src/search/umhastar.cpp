@@ -31,45 +31,173 @@
 
 #include <smpl/search/umhastar.h>
 
+#include "mhastar_base_impl.h"
+
 namespace smpl {
 
-UMHAStar::UMHAStar(
-    DiscreteSpaceInformation* environment,
-    Heuristic* hanchor,
-    Heuristic** heurs,
-    int hcount)
-:
-    MHAStarBase(environment, hanchor, heurs, hcount),
-    m_max_fval_closed_anc(0)
+static
+void onSearchReinitialized(UMHAStar* search)
 {
+    search->max_fval_closed_anc = search->base.start_state->od[0].f; //0;
 }
 
-void UMHAStar::reinitSearch()
+static
+void onClosedAnchor(UMHAStar* search, MHASearchState* s)
 {
-    m_max_fval_closed_anc = m_start_state->od[0].f; //0;
-}
-
-void UMHAStar::on_closed_anchor(MHASearchState* s)
-{
-    if (s->od[0].f > m_max_fval_closed_anc) {
-        m_max_fval_closed_anc = s->od[0].f;
+    if (s->od[0].f > search->max_fval_closed_anc) {
+        search->max_fval_closed_anc = s->od[0].f;
     }
 }
 
-int UMHAStar::priority(MHASearchState* state)
+static
+int priority(const UMHAStar* search, MHASearchState* state)
 {
-    return (int)((double)state->g + m_eps * (double)state->od[0].h);
+    return (int)((double)state->g + search->base.w_heur * (double)state->od[0].h);
 }
 
-bool UMHAStar::terminated() const
+static
+bool terminated(const UMHAStar* search)
 {
-    return m_goal_state->g <= m_eps * get_minf(m_open[0]);
+    auto f_min = search->base.open[0].min()->f;
+    return search->base.best_goal.g <= search->base.w_heur * f_min;
 }
 
-bool UMHAStar::satisfies_p_criterion(
-        MHASearchState* state) const
+static
+bool satisfies_p_criterion(const UMHAStar* search, MHASearchState* state)
 {
     return true;
+}
+
+bool Init(
+    UMHAStar* search,
+    DiscreteSpace* space,
+    Heuristic* anchor,
+    Heuristic** heurs,
+    int num_heurs)
+{
+    return Init(&search->base, space, anchor, heurs, num_heurs);
+}
+
+auto GetInitialEps(const UMHAStar* search) -> double
+{
+    return GetInitialEps(&search->base);
+}
+
+void SetInitialEps(UMHAStar* search, double eps)
+{
+    return SetInitialEps(&search->base, eps);
+}
+
+auto GetTargetEps(const UMHAStar* search) -> double
+{
+    return GetTargetEps(&search->base);
+}
+
+void SetTargetEps(UMHAStar* search, double eps)
+{
+    return SetTargetEps(&search->base, eps);
+}
+
+auto GetDeltaEps(const UMHAStar* search) -> double
+{
+    return GetDeltaEps(&search->base);
+}
+
+void SetDeltaEps(UMHAStar* search, double eps)
+{
+    return SetDeltaEps(&search->base, eps);
+}
+
+bool UpdateStart(UMHAStar* search, int state_id)
+{
+    return UpdateStart(&search->base, state_id);
+}
+
+bool UpdateGoal(UMHAStar* search, GoalConstraint* goal)
+{
+    return UpdateGoal(&search->base, goal);
+}
+
+void ForcePlanningFromScratch(UMHAStar* search)
+{
+    return ForcePlanningFromScratch(&search->base);
+}
+
+void ForcePlanningFromScratchAndFreeMemory(UMHAStar* search)
+{
+    return ForcePlanningFromScratchAndFreeMemory(&search->base);
+}
+
+int Replan(
+    UMHAStar* search,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost)
+{
+    return Replan(&search->base, search, timeout, solution, solcost);
+}
+
+auto GetSolutionEps(const UMHAStar* search) -> double
+{
+    return GetSolutionEps(&search->base);
+}
+
+int GetNumExpansions(const UMHAStar* search)
+{
+    return GetNumExpansions(&search->base);
+}
+
+int GetNumExpansionsInitialEps(const UMHAStar* search)
+{
+    return GetNumExpansionsInitialEps(&search->base);
+}
+
+auto GetElapsedTime(const UMHAStar* search) -> double
+{
+    return GetElapsedTime(&search->base);
+}
+
+auto GetElapsedTimeInitialEps(const UMHAStar* search) -> double
+{
+    return GetElapsedTimeInitialEps(&search->base);
+}
+
+bool UMHAStar::UpdateStart(int state_id)
+{
+    return ::smpl::UpdateStart(this, state_id);
+}
+
+bool UMHAStar::UpdateGoal(GoalConstraint* goal)
+{
+    return ::smpl::UpdateGoal(this, goal);
+}
+
+void UMHAStar::ForcePlanningFromScratch()
+{
+    return ::smpl::ForcePlanningFromScratch(this);
+}
+
+void UMHAStar::ForcePlanningFromScratchAndFreeMemory()
+{
+    return ::smpl::ForcePlanningFromScratchAndFreeMemory(this);
+}
+
+int UMHAStar::Replan(
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost)
+{
+    return ::smpl::Replan(this, timeout, solution, solcost);
+}
+
+int UMHAStar::GetNumExpansions()
+{
+    return ::smpl::GetNumExpansions(this);
+}
+
+auto UMHAStar::GetElapsedTime() -> double
+{
+    return ::smpl::GetElapsedTime(this);
 }
 
 } // namespace smpl

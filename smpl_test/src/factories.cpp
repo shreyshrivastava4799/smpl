@@ -22,6 +22,8 @@
 #include <smpl/robot_model.h>
 #include <smpl/search/arastar.h>
 #include <smpl/search/smhastar.h>
+#include <smpl/search/fmhastar.h>
+#include <smpl/search/umhastar.h>
 #include <smpl/stl/memory.h>
 
 auto MakeManipLattice(
@@ -540,12 +542,12 @@ auto MakeSMHAStar(
     smpl::DiscreteSpace* graph,
     smpl::Heuristic* anchor,
     smpl::Heuristic** heurs,
-    int num_heuristics,
+    int num_heurs,
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::Search>
 {
     auto search = smpl::make_unique<smpl::SMHAStar>();
-    if (!Init(search.get(), graph, anchor, heurs, num_heuristics)) {
+    if (!Init(search.get(), graph, anchor, heurs, num_heurs)) {
         SMPL_ERROR("Failed to initialize SMHA*");
         return NULL;
     }
@@ -558,6 +560,56 @@ auto MakeSMHAStar(
 
     SetInitialEps(search.get(), w_heur_init);
     SetInitialMHAEps(search.get(), w_anchor_init);
+    return std::move(search);
+}
+
+auto MakeFMHAStar(
+    smpl::DiscreteSpace* graph,
+    smpl::Heuristic* anchor,
+    smpl::Heuristic** heurs,
+    int num_heurs,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Search>
+{
+    auto search = smpl::make_unique<smpl::FMHAStar>();
+    if (!Init(search.get(), graph, anchor, heurs, num_heurs)) {
+        SMPL_ERROR("Failed to initialize SMHA*");
+        return NULL;
+    }
+
+    auto w_heur_init = 1.0;
+
+    nh.getParam("w_heur_init", w_heur_init);
+
+    SetInitialEps(search.get(), w_heur_init);
+    SetTargetEps(search.get(), 1.0);
+    SetDeltaEps(search.get(), 1.0);
+
+    return std::move(search);
+}
+
+auto MakeUMHAStar(
+    smpl::DiscreteSpace* graph,
+    smpl::Heuristic* anchor,
+    smpl::Heuristic** heurs,
+    int num_heurs,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Search>
+{
+    auto search = smpl::make_unique<smpl::UMHAStar>();
+    if (!Init(search.get(), graph, anchor, heurs, num_heurs)) {
+        SMPL_ERROR("Failed to initialize SMHA*");
+        return NULL;
+    }
+
+    auto w_heur_init = 1.0;
+
+    nh.getParam("w_heur_init", w_heur_init);
+
+    SetInitialEps(search.get(), w_heur_init);
+    SetTargetEps(search.get(), 1.0);
+    SetDeltaEps(search.get(), 1.0);
+
     return std::move(search);
 }
 
