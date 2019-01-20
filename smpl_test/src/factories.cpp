@@ -24,6 +24,7 @@
 #include <smpl/search/smhastar.h>
 #include <smpl/search/fmhastar.h>
 #include <smpl/search/umhastar.h>
+#include <smpl/search/mhastarpp.h>
 #include <smpl/stl/memory.h>
 
 auto MakeManipLattice(
@@ -613,6 +614,31 @@ auto MakeUMHAStar(
     return std::move(search);
 }
 
+auto MakeMHAStarPP(
+    smpl::DiscreteSpace* graph,
+    smpl::Heuristic* anchor,
+    smpl::Heuristic** heurs,
+    int num_heurs,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Search>
+{
+    auto search = smpl::make_unique<smpl::MHAStarPP>();
+    if (!Init(search.get(), graph, anchor, heurs, num_heurs)) {
+        SMPL_ERROR("Failed to initialize SMHA*");
+        return NULL;
+    }
+
+    auto w_heur_init = 1.0;
+
+    nh.getParam("w_heur_init", w_heur_init);
+
+    SetInitialEps(search.get(), w_heur_init);
+    SetTargetEps(search.get(), 1.0);
+    SetDeltaEps(search.get(), 1.0);
+
+    return std::move(search);
+}
+
 auto MakePoseGoal(smpl::DiscreteSpace* graph, const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::GoalConstraint>
 {
@@ -654,7 +680,6 @@ auto MakeJointStateGoal(
         return NULL;
     }
 
-    // right arm tuck pose
     auto goal_state = smpl::RobotState();
     if (!nh.getParam("state", goal_state)) {
         return NULL;

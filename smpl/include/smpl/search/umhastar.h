@@ -32,6 +32,9 @@
 #ifndef SMPL_UMHASTAR_H
 #define SMPL_UMHASTAR_H
 
+// system includes
+#include <vector>
+
 // project includes
 #include <smpl/search/mhastar_base.h>
 #include <smpl/search/search.h>

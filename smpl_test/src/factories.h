@@ -64,7 +64,7 @@ auto MakeSMHAStar(
     smpl::DiscreteSpace* graph,
     smpl::Heuristic* anchor,
     smpl::Heuristic** heurs,
-    int num_heuristics,
+    int num_heurs,
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::Search>;
 
@@ -72,7 +72,7 @@ auto MakeFMHAStar(
     smpl::DiscreteSpace* graph,
     smpl::Heuristic* anchor,
     smpl::Heuristic** heurs,
-    int num_heuristics,
+    int num_heurs,
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::Search>;
 
@@ -80,7 +80,15 @@ auto MakeUMHAStar(
     smpl::DiscreteSpace* graph,
     smpl::Heuristic* anchor,
     smpl::Heuristic** heurs,
-    int num_heuristics,
+    int num_heurs,
+    const ros::NodeHandle& nh)
+    -> std::unique_ptr<smpl::Search>;
+
+auto MakeMHAStarPP(
+    smpl::DiscreteSpace* graph,
+    smpl::Heuristic* anchor,
+    smpl::Heuristic** heurs,
+    int num_heurs,
     const ros::NodeHandle& nh)
     -> std::unique_ptr<smpl::Search>;
 

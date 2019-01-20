@@ -163,7 +163,7 @@ set(SMPL_LIBRARY_SOURCES
     src/search/fmhastar.cpp
     src/search/mhastar_base.cpp
 #    src/search/meta_mhastar_dts.cpp
-#    src/search/mhastarpp.cpp
+    src/search/mhastarpp.cpp
     src/search/umhastar.cpp
     src/search/arastar.cpp
 #    src/search/experience_graph_planner.cpp

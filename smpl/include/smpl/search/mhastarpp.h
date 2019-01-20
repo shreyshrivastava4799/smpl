@@ -32,33 +32,78 @@
 #ifndef SMPL_MHASTAR_PLUS_PLUS_H
 #define SMPL_MHASTAR_PLUS_PLUS_H
 
+// standard includes
+#include <vector>
+
+// project includes
 #include <smpl/search/mhastar_base.h>
+#include <smpl/search/search.h>
 
 namespace smpl {
 
-class MHAStarPP : public MHAStarBase<MHAStarPP>
+class DiscreteSpace;
+class Heuristic;
+class GoalConstraint;
+
+class MHAStarPP;
+
+bool Init(
+    MHAStarPP* search,
+    DiscreteSpace* space,
+    Heuristic* anchor,
+    Heuristic** heurs,
+    int num_heurs);
+
+auto GetInitialEps(const MHAStarPP* search) -> double;
+void SetInitialEps(MHAStarPP* search, double eps);
+
+auto GetTargetEps(const MHAStarPP* search) -> double;
+void SetTargetEps(MHAStarPP* search, double eps);
+
+auto GetDeltaEps(const MHAStarPP* search) -> double;
+void SetDeltaEps(MHAStarPP* search, double eps);
+
+bool UpdateStart(MHAStarPP* search, int state_id);
+bool UpdateGoal(MHAStarPP* search, GoalConstraint* goal);
+
+void ForcePlanningFromScratch(MHAStarPP* search);
+void ForcePlanningFromScratchAndFreeMemory(MHAStarPP* search);
+
+int Replan(
+    MHAStarPP* search,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost);
+
+auto GetSolutionEps(const MHAStarPP* search) -> double;
+
+int GetNumExpansions(const MHAStarPP* search);
+int GetNumExpansionsInitialEps(const MHAStarPP* search);
+
+auto GetElapsedTime(const MHAStarPP* search) -> double;
+auto GetElapsedTimeInitialEps(const MHAStarPP* search) -> double;
+
+class MHAStarPP : public Search
 {
 public:
 
-    MHAStarPP(
-        DiscreteSpaceInformation* environment,
-        Heuristic* hanchor,
-        Heuristic** heurs,
-        int hcount);
+    MHAStar base;
 
-    friend class MHAStarBase<MHAStarPP>;
+    int max_fval_closed_anc = 0;
 
-private:
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
 
-    int m_max_fval_closed_anc;
+    void ForcePlanningFromScratch() final;
+    void ForcePlanningFromScratchAndFreeMemory() final;
 
-    void reinitSearch();
-    void on_closed_anchor(MHASearchState* s);
-    void on_closed_inadmissible(MHASearchState* s);
+    int Replan(
+        const TimeoutCondition& timeout,
+        std::vector<int>* solution,
+        int* solcost) final;
 
-    int priority(MHASearchState* state);
-    bool terminated() const;
-    bool satisfies_p_criterion(MHASearchState* state) const;
+    int GetNumExpansions() final;
+    auto GetElapsedTime() -> double final;
 };
 
 } // namespace smpl

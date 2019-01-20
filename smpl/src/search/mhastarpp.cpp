@@ -31,47 +31,173 @@
 
 #include <smpl/search/mhastarpp.h>
 
+// standard includes
 #include <algorithm>
+
+// module includes
+#include "mhastar_base_impl.h"
 
 namespace smpl {
 
-MHAStarPP::MHAStarPP(
-    DiscreteSpaceInformation* environment,
-    Heuristic* hanchor,
-    Heuristic** heurs,
-    int hcount)
-:
-    MHAStarBase(environment, hanchor, heurs, hcount),
-    m_max_fval_closed_anc(0)
+void onSearchReinitialized(MHAStarPP* search)
 {
+    search->max_fval_closed_anc = search->base.start_state->od[0].f;
 }
 
-void MHAStarPP::reinitSearch()
+void onClosedAnchor(MHAStarPP* search, MHASearchState* s)
 {
-    m_max_fval_closed_anc = m_start_state->od[0].f; //0;
-}
-
-void MHAStarPP::on_closed_anchor(MHASearchState* s)
-{
-    if (s->od[0].f > m_max_fval_closed_anc) {
-        m_max_fval_closed_anc = s->od[0].f;
+    if (s->od[0].f > search->max_fval_closed_anc) {
+        search->max_fval_closed_anc = s->od[0].f;
     }
 }
 
-int MHAStarPP::priority(MHASearchState* state)
+int priority(const MHAStarPP* search, MHASearchState* state)
 {
-    return state->g + (int)(m_eps * state->od[0].h);
+    return state->g + (int)(search->base.w_heur * state->od[0].h);
 }
 
-bool MHAStarPP::terminated() const
+bool terminated(const MHAStarPP* search)
 {
-    return m_goal_state->g <= m_max_fval_closed_anc;
+    return search->base.best_goal.g <= search->max_fval_closed_anc;
 }
 
-bool MHAStarPP::satisfies_p_criterion(MHASearchState* state) const
+bool satisfies_p_criterion(const MHAStarPP* search, MHASearchState* state)
 {
-    return state->g + state->od[0].h <=
-            std::max(m_max_fval_closed_anc, m_open[0].min()->f);
+    auto f_min = search->base.open[0].min()->f;
+    return state->g + state->od[0].h <= std::max(search->max_fval_closed_anc, f_min);
 }
+
+bool Init(
+    MHAStarPP* search,
+    DiscreteSpace* space,
+    Heuristic* anchor,
+    Heuristic** heurs,
+    int num_heurs)
+{
+    return Init(&search->base, space, anchor, heurs, num_heurs);
+}
+
+auto GetInitialEps(const MHAStarPP* search) -> double
+{
+    return GetInitialEps(&search->base);
+}
+
+void SetInitialEps(MHAStarPP* search, double eps)
+{
+    return SetInitialEps(&search->base, eps);
+}
+
+auto GetTargetEps(const MHAStarPP* search) -> double
+{
+    return GetTargetEps(&search->base);
+}
+
+void SetTargetEps(MHAStarPP* search, double eps)
+{
+    return SetTargetEps(&search->base, eps);
+}
+
+auto GetDeltaEps(const MHAStarPP* search) -> double
+{
+    return GetDeltaEps(&search->base);
+}
+
+void SetDeltaEps(MHAStarPP* search, double eps)
+{
+    return SetDeltaEps(&search->base, eps);
+}
+
+bool UpdateStart(MHAStarPP* search, int state_id)
+{
+    return UpdateStart(&search->base, state_id);
+}
+
+bool UpdateGoal(MHAStarPP* search, GoalConstraint* goal)
+{
+    return UpdateGoal(&search->base, goal);
+}
+
+void ForcePlanningFromScratch(MHAStarPP* search)
+{
+    return ForcePlanningFromScratch(&search->base);
+}
+
+void ForcePlanningFromScratchAndFreeMemory(MHAStarPP* search)
+{
+    return ForcePlanningFromScratchAndFreeMemory(&search->base);
+}
+
+int Replan(
+    MHAStarPP* search,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost)
+{
+    return Replan(&search->base, search, timeout, solution, solcost);
+}
+
+auto GetSolutionEps(const MHAStarPP* search) -> double
+{
+    return GetSolutionEps(&search->base);
+}
+
+int GetNumExpansions(const MHAStarPP* search)
+{
+    return GetNumExpansions(&search->base);
+}
+
+int GetNumExpansionsInitialEps(const MHAStarPP* search)
+{
+    return GetNumExpansionsInitialEps(&search->base);
+}
+
+auto GetElapsedTime(const MHAStarPP* search) -> double
+{
+    return GetElapsedTime(&search->base);
+}
+
+auto GetElapsedTimeInitialEps(const MHAStarPP* search) -> double
+{
+    return GetElapsedTimeInitialEps(&search->base);
+}
+
+bool MHAStarPP::UpdateStart(int state_id)
+{
+    return ::smpl::UpdateStart(this, state_id);
+}
+
+bool MHAStarPP::UpdateGoal(GoalConstraint* goal)
+{
+    return ::smpl::UpdateGoal(this, goal);
+}
+
+void MHAStarPP::ForcePlanningFromScratch()
+{
+    return ::smpl::ForcePlanningFromScratch(this);
+}
+
+void MHAStarPP::ForcePlanningFromScratchAndFreeMemory()
+{
+    return ::smpl::ForcePlanningFromScratchAndFreeMemory(this);
+}
+
+int MHAStarPP::Replan(
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost)
+{
+    return ::smpl::Replan(this, timeout, solution, solcost);
+}
+
+int MHAStarPP::GetNumExpansions()
+{
+    return ::smpl::GetNumExpansions(this);
+}
+
+auto MHAStarPP::GetElapsedTime() -> double
+{
+    return ::smpl::GetElapsedTime(this);
+}
+
 
 } // namespace smpl
