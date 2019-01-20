@@ -57,10 +57,10 @@ struct MHASearchState
         int f;
     };
 
+    MHASearchState* bp;
     int call_number;
     int state_id;
     int g;
-    MHASearchState* bp;
     bool closed_in_anc;
     bool closed_in_add;
     HeapData od[1];
@@ -115,6 +115,14 @@ struct MHAStar
     // states which are in the OPEN list, have not been closed inadmissably,
     // and satisfy the P-CRITERION
     std::vector<rank_pq> open;
+
+    std::vector<int> succs;
+    std::vector<int> costs;
+
+    // how many passes to make through additional search queues before expanding
+    // from the anchor search
+    int anchor_expansion_freq = 1;
+    int pass_count = 0;
 
     ~MHAStar();
 };

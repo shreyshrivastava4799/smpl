@@ -107,6 +107,16 @@ void SetDeltaEps(FMHAStar* search, double eps)
     return SetDeltaEps(&search->base, eps);
 }
 
+int GetAnchorExpansionFreq(const FMHAStar* search)
+{
+    return GetAnchorExpansionFreq(&search->base);
+}
+
+void SetAnchorExpansionFreq(FMHAStar* search, int freq)
+{
+    return SetAnchorExpansionFreq(&search->base, freq);
+}
+
 bool UpdateStart(FMHAStar* search, int state_id)
 {
     return UpdateStart(&search->base, state_id);

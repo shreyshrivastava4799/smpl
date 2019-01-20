@@ -394,7 +394,7 @@ auto MakeBFSHeuristic(
     // TODO: this is kinda dumb to have to remember to do this after
     // SetInflationRadius
     heuristic->SyncGridAndBFS();
-    SV_SHOW_DEBUG(heuristic->GetWallsVisualization());
+    SV_SHOW_DEBUG_NAMED("bfs_walls", heuristic->GetWallsVisualization());
 
     return std::move(heuristic);
 }
@@ -579,12 +579,15 @@ auto MakeFMHAStar(
     }
 
     auto w_heur_init = 1.0;
+    auto anchor_expansion_freq = 1;
 
     nh.getParam("w_heur_init", w_heur_init);
+    nh.getParam("anchor_expansion_freq", anchor_expansion_freq);
 
     SetInitialEps(search.get(), w_heur_init);
     SetTargetEps(search.get(), 1.0);
     SetDeltaEps(search.get(), 1.0);
+    SetAnchorExpansionFreq(search.get(), anchor_expansion_freq);
 
     return std::move(search);
 }
@@ -604,12 +607,15 @@ auto MakeUMHAStar(
     }
 
     auto w_heur_init = 1.0;
+    auto anchor_expansion_freq = 1;
 
     nh.getParam("w_heur_init", w_heur_init);
+    nh.getParam("anchor_expansion_freq", anchor_expansion_freq);
 
     SetInitialEps(search.get(), w_heur_init);
     SetTargetEps(search.get(), 1.0);
     SetDeltaEps(search.get(), 1.0);
+    SetAnchorExpansionFreq(search.get(), anchor_expansion_freq);
 
     return std::move(search);
 }
@@ -629,12 +635,15 @@ auto MakeMHAStarPP(
     }
 
     auto w_heur_init = 1.0;
+    auto anchor_expansion_freq = 1;
 
     nh.getParam("w_heur_init", w_heur_init);
+    nh.getParam("anchor_expansion_freq", anchor_expansion_freq);
 
     SetInitialEps(search.get(), w_heur_init);
     SetTargetEps(search.get(), 1.0);
     SetDeltaEps(search.get(), 1.0);
+    SetAnchorExpansionFreq(search.get(), anchor_expansion_freq);
 
     return std::move(search);
 }

@@ -47,6 +47,11 @@
 
 namespace smpl {
 
+static const char* LOG = "search.improved_mha";
+static const char* V_LOG = "search.verbose.improved_mha";
+static const char* E_LOG = "search.expansions.improved_mha";
+static const char* S_LOG = "search.successors.improved_mha";
+
 ////////////////////
 // Implementation //
 ////////////////////
@@ -119,9 +124,10 @@ auto GetState(MHAStar* search, int state_id) -> MHASearchState*
     return search->search_states[state_id];
 }
 
-// Reinitialize the state for a new search. Maintains the state id. Resets the
-// cost-to-go to infinity. Removes the state from both closed lists. Recomputes
-// all heuristics for the state. Does NOT remove from the OPEN or PSET lists.
+// Reinitialize the state for a new search problem. Maintains the state id.
+// Resets the cost-to-go to infinity. Removes the state from both closed lists.
+// Recomputes all heuristics for the state. Does NOT remove from the OPEN or
+// PSET lists.
 static
 void ReinitState(MHAStar* search, MHASearchState* state, bool goal = false)
 {
@@ -141,11 +147,10 @@ void ReinitState(MHAStar* search, MHASearchState* state, bool goal = false)
                 state->od[i].h = ComputeHeuristic(search, state->state_id, i);
                 state->od[i].f = INFINITECOST;
             }
-            SMPL_DEBUG_STREAM("Reinitialized state: " << *state);
+            SMPL_DEBUG_STREAM_NAMED(V_LOG, "Reinitialized state: " << *state);
             for (auto i = 0; i < GetNumHeuristics(search); ++i) {
-                SMPL_DEBUG("  me[%d]: %p", i, state->od[i].me);
-                SMPL_DEBUG("  h[%d]: %d", i, state->od[i].h);
-                SMPL_DEBUG("  f[%d]: %d", i, state->od[i].f);
+                SMPL_DEBUG_NAMED(V_LOG, "  h[%d]: %d", i, state->od[i].h);
+                SMPL_DEBUG_NAMED(V_LOG, "  f[%d]: %d", i, state->od[i].f);
             }
         }
     }
@@ -157,12 +162,6 @@ void ClearOpenLists(MHAStar* search)
     for (auto i = 0; i < GetNumHeuristics(search); ++i) {
         search->open[i].clear();
     }
-}
-
-static
-void ReinitSearch(MHAStar* search)
-{
-    ClearOpenLists(search);
 }
 
 static
@@ -193,7 +192,7 @@ void InsertOrUpdate(MHAStar* search, MHASearchState* state, int hidx)
 inline int ComputeRank(MHAStar* search, MHASearchState* state, int hidx)
 {
     // TODO: calibrated or not?
-    return state->g + search->w_heur * state->od[hidx].h;
+    return state->g + (int)(search->w_heur * (double)state->od[hidx].h);
 //    return state->od[hidx].h;
 }
 
@@ -219,7 +218,7 @@ auto SelectState(MHAStar* search, Derived* derived, int hidx) -> MHASearchState*
 template <class Derived>
 void Expand(MHAStar* search, Derived* derived, MHASearchState* state, int hidx)
 {
-    SMPL_DEBUG("Expanding state %d in search %d", state->state_id, hidx);
+    SMPL_DEBUG_NAMED(E_LOG, "Expanding state %d in search %d", state->state_id, hidx);
 
     ++search->num_expansions;
 
@@ -230,28 +229,32 @@ void Expand(MHAStar* search, Derived* derived, MHASearchState* state, int hidx)
         }
     }
 
-    auto succ_ids = std::vector<int>();
-    auto costs = std::vector<int>();
-    search->space->GetSuccs(state->state_id, &succ_ids, &costs);
-    assert(succ_ids.size() == costs.size());
+    search->succs.clear();
+    search->costs.clear();
+    search->space->GetSuccs(state->state_id, &search->succs, &search->costs);
+    assert(search->succs.size() == search->costs.size());
 
-    for (auto sidx = 0; sidx < succ_ids.size(); ++sidx)  {
-        auto cost = costs[sidx];
-        auto* succ_state = GetState(search, succ_ids[sidx]);
+    SMPL_DEBUG_NAMED(E_LOG, "  %zu successors", search->succs.size());
+
+    for (auto sidx = 0; sidx < search->succs.size(); ++sidx)  {
+        auto cost = search->costs[sidx];
+        auto* succ_state = GetState(search, search->succs[sidx]);
         ReinitState(search, succ_state);
 
-        auto new_g = state->g + costs[sidx];
+        auto new_g = state->g + search->costs[sidx];
+        SMPL_DEBUG_NAMED(S_LOG, "Compare new cost %d vs old cost %d", new_g, succ_state->g);
         if (new_g < succ_state->g) {
             succ_state->g = new_g;
             succ_state->bp = state;
 
-            if (search->goal->IsGoal(succ_ids[sidx])) {
+            if (search->goal->IsGoal(search->succs[sidx])) {
                 search->best_goal = *succ_state;
             }
 
             if (succ_state->closed_in_anc) continue;
 
             succ_state->od[0].f = priority(derived, succ_state);
+            SMPL_DEBUG_NAMED(S_LOG, "Update state %d in ANCHOR with priority %d", succ_state->state_id, succ_state->od[0].f);
             InsertOrUpdate(search, succ_state, 0);
 
             // unless it's been closed in an inadmissible search...
@@ -260,6 +263,7 @@ void Expand(MHAStar* search, Derived* derived, MHASearchState* state, int hidx)
             // insert into the P-SET for each heuristic
             for (auto hidx = 1; hidx < GetNumHeuristics(search); ++hidx) {
                 succ_state->od[hidx].f = ComputeRank(search, succ_state, hidx);
+                SMPL_DEBUG_NAMED(S_LOG, "Update state %d in OPEN_%d with rank %d", succ_state->state_id, hidx, succ_state->od[hidx].f);
                 InsertOrUpdate(search, succ_state, hidx);
             }
         }
@@ -272,7 +276,7 @@ void ExtractPath(
     std::vector<int>* solution_path,
     int* solcost)
 {
-    SMPL_INFO("Extracting path");
+    SMPL_DEBUG_NAMED(LOG, "Extracting path");
     solution_path->clear();
     auto cost = 0;
     for (auto* state = &search->best_goal; state != NULL; state = state->bp) {
@@ -382,7 +386,7 @@ inline void SetDeltaEps(MHAStar* search, double eps)
 
 inline bool UpdateStart(MHAStar* search, int start_state_id)
 {
-    SMPL_INFO("Set start to %d", start_state_id);
+    SMPL_DEBUG_NAMED(LOG, "Update start to %d", start_state_id);
     search->start_state = GetState(search, start_state_id);
     if (search->start_state == NULL) {
         return false;
@@ -404,68 +408,37 @@ inline void ForcePlanningFromScratchAndFreeMemory(MHAStar* search)
 {
 }
 
+enum TermReason {
+    ANCHOR_EXHAUSTED,
+    TIME_LIMIT_REACHED,
+    PATH_FOUND
+};
+
 template <class Derived>
-int Replan(
+auto Search(
     MHAStar* search,
     Derived* derived,
-    const TimeoutCondition& timeout,
-    std::vector<int>* solution,
-    int* solcost)
+    smpl::clock::time_point start_time,
+    const TimeoutCondition& timeout)
+    -> TermReason
 {
-    SMPL_INFO("Call replan");
+    for (;;) {
+        if (search->open[0].empty()) {
+            return ANCHOR_EXHAUSTED;
+        }
 
-    SMPL_INFO("Generic Search parameters:");
-    SMPL_INFO("MHA Search parameters:");
-
-    // TODO: pick up from where last search left off and detect lazy
-    // reinitializations
-    ReinitSearch(search);
-
-    search->w_heur = search->w_heur_init;
-    search->w_heur_found = (double)INFINITECOST;
-
-    // reset time limits
-    search->num_expansions = 0;
-    search->elapsed = 0.0;
-
-    auto start_time = smpl::clock::now();
-
-    ++search->call_number;
-    ReinitState(search, &search->best_goal, true);
-    ReinitState(search, search->start_state);
-    search->start_state->g = 0;
-
-    SMPL_INFO("Insert start state into OPEN and PSET");
-
-    // insert start state into OPEN with g(s) + h(s) as the priority
-    // insert start state into PSET and place in all RANK lists
-    search->start_state->od[0].f = priority(derived, search->start_state);
-    search->open[0].push(&search->start_state->od[0]);
-    for (auto hidx = 1; hidx < GetNumHeuristics(search); ++hidx) {
-        search->start_state->od[hidx].f =
-                ComputeRank(search, search->start_state, hidx);
-        search->open[hidx].push(&search->start_state->od[hidx]);
-        SMPL_INFO("Inserted start state %d into search %d with f = %d", search->start_state->state_id, hidx, search->start_state->od[hidx].f);
-    }
-
-    onSearchReinitialized(derived);
-
-    auto end_time = smpl::clock::now();
-    search->elapsed += to_seconds(end_time - start_time);
-
-    while (!search->open[0].empty() && !TimeLimitReached(search, timeout)) {
-        auto start_time = smpl::clock::now();
+        if (TimeLimitReached(search, timeout)) {
+            return TIME_LIMIT_REACHED;
+        }
 
         for (auto hidx = 1; hidx < GetNumHeuristics(search); ++hidx) {
             if (search->open[0].empty()) {
                 SMPL_WARN("Open list empty during inadmissible expansions?");
-                break;
+                return ANCHOR_EXHAUSTED;
             }
 
             if (terminated(derived)) {
-                search->w_heur_found = search->w_heur;
-                ExtractPath(search, solution, solcost);
-                return 1;
+                return PATH_FOUND;
             }
 
             if (!search->open[hidx].empty()) {
@@ -478,32 +451,91 @@ int Replan(
             }
         }
 
-        if (!search->open[0].empty()) {
-            if (terminated(derived)) {
-                search->w_heur_found = search->w_heur;
-                ExtractPath(search, solution, solcost);
-                return 1;
+        search->pass_count++;
+        if (search->pass_count == search->anchor_expansion_freq) {
+            if (!search->open[0].empty()) {
+                if (terminated(derived)) {
+                    return PATH_FOUND;
+                }
+
+                auto* s = StateFromOpenState(search, search->open[0].min());
+                s->closed_in_anc = true;
+                Expand(search, derived, s, 0);
+
+                onClosedAnchor(derived, s);
             }
-
-            auto* s = StateFromOpenState(search, search->open[0].min());
-            s->closed_in_anc = true;
-            Expand(search, derived, s, 0);
-
-            onClosedAnchor(derived, s);
+            search->pass_count = 0;
         }
 
-        auto end_time = smpl::clock::now();
-        search->elapsed += to_seconds(end_time - start_time);
+        search->elapsed = to_seconds(smpl::clock::now() - start_time);
+    }
+}
+
+template <class Derived>
+int Replan(
+    MHAStar* search,
+    Derived* derived,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* solcost)
+{
+    SMPL_DEBUG_NAMED(LOG, "Call replan");
+
+    // Reset the search. TODO: pick up from where last search left off and
+    // lazily reinitialize when the start changes
+    ClearOpenLists(search);
+
+    search->w_heur = search->w_heur_init;
+    search->w_heur_found = 0.0;
+
+    // reset time limits
+    search->num_expansions = 0;
+    search->elapsed = 0.0;
+    search->pass_count = 0;
+
+    auto start_time = smpl::clock::now();
+
+    ++search->call_number;
+
+    ReinitState(search, &search->best_goal, true);
+    ReinitState(search, search->start_state);
+    search->start_state->g = 0;
+
+    SMPL_DEBUG_NAMED(LOG, "Insert start state into OPEN and PSET");
+
+    // insert start state into OPEN with g(s) + h(s) as the priority
+    // insert start state into PSET and place in all RANK lists
+    search->start_state->od[0].f = priority(derived, search->start_state);
+    search->open[0].push(&search->start_state->od[0]);
+    SMPL_DEBUG_NAMED(LOG, "Insert start state %d into OPEN list with priority %d", search->start_state->state_id, search->start_state->od[0].f);
+    for (auto hidx = 1; hidx < GetNumHeuristics(search); ++hidx) {
+        search->start_state->od[hidx].f =
+                ComputeRank(search, search->start_state, hidx);
+        search->open[hidx].push(&search->start_state->od[hidx]);
+        SMPL_DEBUG_NAMED(LOG, "Inserted start state %d into search %d with rank = %d", search->start_state->state_id, hidx, search->start_state->od[hidx].f);
     }
 
-    if (search->open[0].empty()) {
-        SMPL_INFO("Anchor search exhausted");
-    }
-    if (TimeLimitReached(search, timeout)) {
-        SMPL_INFO("Time limit reached");
-    }
+    onSearchReinitialized(derived);
 
-    return 0;
+    auto end_time = smpl::clock::now();
+    search->elapsed = to_seconds(end_time - start_time);
+
+    auto term_reason = Search(search, derived, start_time, timeout);
+
+    switch (term_reason) {
+    case ANCHOR_EXHAUSTED:
+        SMPL_DEBUG_NAMED(LOG, "Anchor search exhausted");
+        return 0;
+    case TIME_LIMIT_REACHED:
+        SMPL_DEBUG_NAMED(LOG, "Time limit reached");
+        return 0;
+    case PATH_FOUND:
+        search->w_heur_found = search->w_heur;
+        ExtractPath(search, solution, solcost);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 inline auto GetSolutionEps(const MHAStar* search) -> double
@@ -529,6 +561,16 @@ inline auto GetElapsedTime(const MHAStar* search) -> double
 inline auto GetElapsedTimeInitialEps(const MHAStar* search) -> double
 {
     return search->elapsed;
+}
+
+inline int GetAnchorExpansionFreq(const MHAStar* search)
+{
+    return search->anchor_expansion_freq;
+}
+
+inline void SetAnchorExpansionFreq(MHAStar* search, int freq)
+{
+    search->anchor_expansion_freq = freq;
 }
 
 inline void Clear(MHAStar* search)

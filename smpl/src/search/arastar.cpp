@@ -510,7 +510,7 @@ void ARAStar::Expand(SearchState* s)
 
     SMPL_DEBUG_NAMED(SELOG, "  %zu successors", m_succs.size());
 
-    for (size_t sidx = 0; sidx < m_succs.size(); ++sidx) {
+    for (auto sidx = 0; sidx < m_succs.size(); ++sidx) {
         auto succ_state_id = m_succs[sidx];
         auto cost = m_costs[sidx];
 

@@ -63,6 +63,9 @@ void SetTargetEps(MHAStarPP* search, double eps);
 auto GetDeltaEps(const MHAStarPP* search) -> double;
 void SetDeltaEps(MHAStarPP* search, double eps);
 
+int GetAnchorExpansionFreq(const MHAStarPP* search);
+void SetAnchorExpansionFreq(MHAStarPP* search, int freq);
+
 bool UpdateStart(MHAStarPP* search, int state_id);
 bool UpdateGoal(MHAStarPP* search, GoalConstraint* goal);
 

@@ -38,13 +38,13 @@
 
         <rosparam param="heuristic_0">
             type: bfs
-            inflation_radius: 0.04
+            inflation_radius: 0.02
             cost_per_cell: 100
         </rosparam>
 
         <rosparam param="heuristic_1">
             type: bfs
-            inflation_radius: 0.08
+            inflation_radius: 0.2
             cost_per_cell: 100
         </rosparam>
 

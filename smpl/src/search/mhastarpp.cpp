@@ -39,11 +39,13 @@
 
 namespace smpl {
 
+static
 void onSearchReinitialized(MHAStarPP* search)
 {
     search->max_fval_closed_anc = search->base.start_state->od[0].f;
 }
 
+static
 void onClosedAnchor(MHAStarPP* search, MHASearchState* s)
 {
     if (s->od[0].f > search->max_fval_closed_anc) {
@@ -51,16 +53,19 @@ void onClosedAnchor(MHAStarPP* search, MHASearchState* s)
     }
 }
 
+static
 int priority(const MHAStarPP* search, MHASearchState* state)
 {
-    return state->g + (int)(search->base.w_heur * state->od[0].h);
+    return state->g + (int)(search->base.w_heur * (double)state->od[0].h);
 }
 
+static
 bool terminated(const MHAStarPP* search)
 {
     return search->base.best_goal.g <= search->max_fval_closed_anc;
 }
 
+static
 bool satisfies_p_criterion(const MHAStarPP* search, MHASearchState* state)
 {
     auto f_min = search->base.open[0].min()->f;
@@ -105,6 +110,16 @@ auto GetDeltaEps(const MHAStarPP* search) -> double
 void SetDeltaEps(MHAStarPP* search, double eps)
 {
     return SetDeltaEps(&search->base, eps);
+}
+
+int GetAnchorExpansionFreq(const MHAStarPP* search)
+{
+    return GetAnchorExpansionFreq(&search->base);
+}
+
+void SetAnchorExpansionFreq(MHAStarPP* search, int freq)
+{
+    return SetAnchorExpansionFreq(&search->base, freq);
 }
 
 bool UpdateStart(MHAStarPP* search, int state_id)

@@ -45,6 +45,7 @@
 namespace smpl {
 
 static const char* LOG = "heuristic.bfs";
+static const char* V_LOG = "heuristic.verbose.bfs";
 
 static
 auto DiscretizePoint(const OccupancyGrid* grid, const Vector3& p)
@@ -282,7 +283,7 @@ int BFSHeuristic::GetGoalHeuristic(int state_id)
     auto dp = DiscretizePoint(m_grid, p);
 
     auto h = GetBFSCostToGoal(*m_bfs, dp.x(), dp.y(), dp.z());
-    SMPL_DEBUG_NAMED(LOG, "H(%d) = %d", state_id, h);
+    SMPL_DEBUG_NAMED(V_LOG, "H(%p, %d) = H(%d, %d, %d) = %d", this, state_id, dp.x(), dp.y(), dp.z(), h);
     return h;
 }
 
@@ -389,6 +390,8 @@ int BFSHeuristic::GetBFSCostToGoal(const BFS_3D& bfs, int x, int y, int z) const
     if (!bfs.inBounds(x, y, z)) {
         return Infinity;
     } else if (bfs.getDistance(x, y, z) == BFS_3D::WALL) {
+        return Infinity;
+    } else if (bfs.getDistance(x, y, z) == BFS_3D::UNDISCOVERED) {
         return Infinity;
     } else {
         return m_cost_per_cell * bfs.getDistance(x, y, z);

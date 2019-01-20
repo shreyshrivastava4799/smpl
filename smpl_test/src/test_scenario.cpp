@@ -446,7 +446,7 @@ bool InitTestScenario(
 
     scenario->collision_model.setWorldToModelTransform(Eigen::Affine3d::Identity());
 
-    SV_SHOW_DEBUG(scenario->grid.getDistanceFieldVisualization(0.2));
+    SV_SHOW_DEBUG_NAMED("distance_field", scenario->grid.getDistanceFieldVisualization(0.2));
     SV_SHOW_DEBUG(scenario->collision_model.getCollisionRobotVisualization());
     SV_SHOW_INFO(scenario->collision_model.getCollisionWorldVisualization());
     SV_SHOW_INFO(scenario->collision_model.getOccupiedVoxelsVisualization());

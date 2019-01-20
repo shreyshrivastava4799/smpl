@@ -38,7 +38,7 @@ namespace smpl {
 static
 void onSearchReinitialized(UMHAStar* search)
 {
-    search->max_fval_closed_anc = search->base.start_state->od[0].f; //0;
+    search->max_fval_closed_anc = search->base.start_state->od[0].f;
 }
 
 static
@@ -52,7 +52,7 @@ void onClosedAnchor(UMHAStar* search, MHASearchState* s)
 static
 int priority(const UMHAStar* search, MHASearchState* state)
 {
-    return (int)((double)state->g + search->base.w_heur * (double)state->od[0].h);
+    return state->g + (int)(search->base.w_heur * (double)state->od[0].h);
 }
 
 static
@@ -106,6 +106,16 @@ auto GetDeltaEps(const UMHAStar* search) -> double
 void SetDeltaEps(UMHAStar* search, double eps)
 {
     return SetDeltaEps(&search->base, eps);
+}
+
+int GetAnchorExpansionFreq(const UMHAStar* search)
+{
+    return GetAnchorExpansionFreq(&search->base);
+}
+
+void SetAnchorExpansionFreq(UMHAStar* search, int freq)
+{
+    return SetAnchorExpansionFreq(&search->base, freq);
 }
 
 bool UpdateStart(UMHAStar* search, int state_id)
