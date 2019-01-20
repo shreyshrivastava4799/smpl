@@ -49,7 +49,55 @@ class ISearchable;
 class IGoalHeuristic;
 class GoalConstraint;
 class IGoalHeuristic;
-struct StateChangeQuery;
+
+class ARAStar;
+
+bool Init(ARAStar* search, DiscreteSpace* graph, Heuristic* heur);
+
+auto GetInitialEps(const ARAStar* search) -> double;
+void SetInitialEps(ARAStar* search, double eps);
+
+auto GetTargetEps(const ARAStar* search) -> double;
+void SetTargetEps(ARAStar* search, double eps);
+
+auto GetDeltaEps(const ARAStar* search) -> double;
+void SetDeltaEps(ARAStar* search, double eps);
+
+bool AllowPartialSolutions(const ARAStar* search);
+void SetAllowPartialSolutions(ARAStar* search, bool allow);
+
+bool UpdateStart(ARAStar* search, int state_id);
+bool UpdateGoal(ARAStar* search, GoalConstraint* goal);
+
+void ForcePlanningFromScratch(ARAStar* search);
+void ForcePlanningFromScratchAndFreeMemory(ARAStar* search);
+
+int Replan(
+    ARAStar* search,
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* cost);
+
+auto GetSolutionEps(const ARAStar* search) -> double;
+
+int GetNumExpansions(const ARAStar* search);
+int GetNumExpansionsInitialEps(const ARAStar* search);
+
+auto GetElapsedTime(const ARAStar* search) -> double;
+auto GetElapsedTimeInitialEps(const ARAStar* search) -> double;
+
+struct ARASearchState : public heap_element
+{
+    ARASearchState* bp;
+    int state_id;       // corresponding graph state
+    int g;              // cost-to-come
+    int h;              // estimated cost-to-go
+    int f;              // (g + eps * h) at time of insertion into OPEN
+    int eg;             // g-value at time of expansion
+    short iteration_closed;
+    short call_number;
+    bool incons;
+};
 
 /// An implementation of the ARA* (Anytime Repairing A*) search algorithm. This
 /// algorithm runs a series of weighted A* searches with decreasing bounds on
@@ -85,151 +133,72 @@ class ARAStar : public Search
 {
 public:
 
+    struct SearchStateCompare
+    {
+        bool operator()(const ARASearchState& s1, const ARASearchState& s2) const {
+            return s1.f < s2.f;
+        }
+    };
+
+    ISearchable* space = 0;
+    IGoalHeuristic* heur = 0;
+
+    TimeoutCondition time_params;
+
+    double initial_eps = 1.0;
+    double final_eps = 1.0;
+    double delta_eps = 1.0;
+
+    bool allow_partial_solutions = false;
+
+    std::vector<ARASearchState*> states;
+
+    int start_state_id = -1;   // graph state id for the start state
+    GoalConstraint* goal = NULL;
+    int goal_state_id = -1;    // graph state id for the goal state
+
+    // search state (not including the values of g, f, back pointers, and
+    // closed list from stats)
+    intrusive_heap<ARASearchState, SearchStateCompare> open;
+    std::vector<ARASearchState*> incons;
+    double curr_eps = 1.0;
+    int iteration = 1;
+
+    std::vector<int> succs;
+    std::vector<int> costs;
+
+    int call_number = 0;           // for lazy reinitialization of search states
+    int last_start_state_id = -1;  // for lazy reinitialization of the search tree
+    bool new_goal = true;          // for updating the search tree when the goal changes
+    ARASearchState best_goal;
+    double last_eps = 1.0;         // for updating the search tree when heuristics change
+
+    int expand_count_init = 0;
+    clock::duration search_time_init;
+    int expand_count = 0;
+    clock::duration search_time;
+
+    double satisfied_eps;
+
     ARAStar();
     ARAStar(ARAStar&&) = default;
     ~ARAStar();
 
     ARAStar& operator=(ARAStar&&) = default;
 
-    bool Init(DiscreteSpace* space, Heuristic* heuristic);
-
-    /// \name Search Configuration
-    ///@{
-    void SetAllowPartialSolutions(bool enabled);
-    bool AllowPartialSolutions() const;
-
-    void SetAllowedRepairTime(double allowed_time_secs);
-    double GetAllowedRepairTime() const;
-
-    void SetTargetEpsilon(double target_eps);
-    double GetTargetEpsilon() const;
-
-    void SetDeltaEpsilon(double delta_eps);
-    double GetDeltaEpsilon() const;
-
-    void SetInitialEps(double eps);
-    double GetInitialEps();
-
-    void SetImproveSolution(bool improve);
-    bool ImproveSolution() const;
-
-    void SetBoundExpansions(bool bound);
-    bool BoundExpansions() const;
-
-    int SetSearchMode(bool bSearchUntilFirstSolution);
-    ///@}
-
-    /// \name Search Statistics
-    ///@{
-    double GetSolutionEps() const;
-
-    int GetNumExpansions() final;
-    int GetNumExpansionsInitialEps();
-
-    double GetElapsedTime() final;
-    double GetElapsedTimeInitialEps();
-    ///@}
-
-    /// \name Search Queries
+    /// \name Search Interface
     ///@{
     bool UpdateStart(int state_id) final;
     bool UpdateGoal(GoalConstraint* goal) final;
-    void UpdateCosts(const StateChangeQuery& stateChange);
 
-    void ForcePlanningFromScratch();
-    void ForcePlanningFromScratchAndFreeMemory();
+    void ForcePlanningFromScratch() final;
+    void ForcePlanningFromScratchAndFreeMemory() final;
 
-    int Replan(double allowed_time_secs, std::vector<int>* solution);
-    int Replan(double allowed_time_secs, std::vector<int>* solution, int* cost);
-    int Replan(const TimeoutCondition& timeout, std::vector<int>* solution, int* cost);
+    int Replan(const TimeoutCondition& timeout, std::vector<int>* solution, int* cost) final;
+
+    int GetNumExpansions() final;
+    auto GetElapsedTime() -> double final;
     ///@}
-
-public:
-
-    struct SearchState : public heap_element
-    {
-        int state_id;       // corresponding graph state
-        int g;              // cost-to-come
-        int h;              // estimated cost-to-go
-        int f;              // (g + eps * h) at time of insertion into OPEN
-        int eg;             // g-value at time of expansion
-        short iteration_closed;
-        short call_number;
-        SearchState* bp;
-        bool incons;
-    };
-
-    struct SearchStateCompare
-    {
-        bool operator()(const SearchState& s1, const SearchState& s2) const {
-            return s1.f < s2.f;
-        }
-    };
-
-    ISearchable* m_space = 0;
-    IGoalHeuristic* m_heur = 0;
-
-    TimeoutCondition m_time_params;
-
-    double m_initial_eps = 1.0;
-    double m_final_eps = 1.0;
-    double m_delta_eps = 1.0;
-
-    bool m_allow_partial_solutions = false;
-
-    std::vector<SearchState*> m_states;
-
-    int m_start_state_id = -1;   // graph state id for the start state
-    GoalConstraint* m_goal = NULL;
-    int m_goal_state_id = -1;    // graph state id for the goal state
-
-    // search state (not including the values of g, f, back pointers, and
-    // closed list from m_stats)
-    intrusive_heap<SearchState, SearchStateCompare> m_open;
-    std::vector<SearchState*> m_incons;
-    double m_curr_eps = 1.0;
-    int m_iteration = 1;
-
-    std::vector<int> m_succs;
-    std::vector<int> m_costs;
-
-    int m_call_number = 0;           // for lazy reinitialization of search states
-    int m_last_start_state_id = -1;  // for lazy reinitialization of the search tree
-    bool m_new_goal = true;          // for updating the search tree when the goal changes
-    SearchState m_best_goal;
-    double m_last_eps = 1.0;         // for updating the search tree when heuristics change
-
-    int m_expand_count_init = 0;
-    clock::duration m_search_time_init;
-    int m_expand_count = 0;
-    clock::duration m_search_time;
-
-    double m_satisfied_eps;
-
-    bool TimedOut(
-        int elapsed_expansions,
-        const clock::duration& elapsed_time) const;
-
-    int ImprovePath(
-        const clock::time_point& start_time,
-        SearchState* goal_state,
-        int& elapsed_expansions,
-        clock::duration& elapsed_time);
-
-    void Expand(SearchState* s);
-
-    void RecomputeHeuristics();
-    void ReorderOpen();
-    int ComputeKey(SearchState* s) const;
-
-    auto GetSearchState(int state_id) -> SearchState*;
-    auto CreateState(int state_id) -> SearchState*;
-    void ReinitSearchState(SearchState* state, bool goal = false);
-
-    void ExtractPath(
-        SearchState* to_state,
-        std::vector<int>& solution,
-        int& cost) const;
 };
 
 } // namespace smpl

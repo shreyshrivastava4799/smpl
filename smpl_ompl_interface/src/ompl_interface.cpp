@@ -527,7 +527,7 @@ PlannerImpl::PlannerImpl(
     // Initialize the Search //
     ///////////////////////////
 
-    if (!this->search.Init(&this->space, this->heuristic.get())) {
+    if (!Init(&this->search, &this->space, this->heuristic.get())) {
         SMPL_ERROR("Failed to initialize search");
         return;
     }
@@ -631,52 +631,45 @@ PlannerImpl::PlannerImpl(
     // declare search parameters...
 
     {
-        auto set = [&](double val) { this->search.SetInitialEps(val); };
-        auto get = [&]() { return this->search.GetInitialEps(); };
+        auto set = [&](double val) { SetInitialEps(&this->search, val); };
+        auto get = [&]() { return GetInitialEps(&this->search); };
         planner->params().declareParam<double>("epsilon", set, get);
     }
 
     {
-        auto set = [&](bool val) { this->search.SetSearchMode(val); };
-        auto get = [&]() { return false; /* TODO */ };
-        planner->params().declareParam<bool>("search_mode", set, get);
-    }
-
-    {
-        auto set = [&](bool val) { this->search.SetAllowPartialSolutions(val); };
-        auto get = [&]() { return this->search.AllowPartialSolutions(); };
+        auto set = [&](bool val) { SetAllowPartialSolutions(&this->search, val); };
+        auto get = [&]() { return AllowPartialSolutions(&this->search); };
         planner->params().declareParam<bool>("allow_partial_solutions", set, get);
     }
 
     {
-        auto set = [&](double val) { this->search.SetTargetEpsilon(val); };
-        auto get = [&]() { return this->search.GetTargetEpsilon(); };
+        auto set = [&](double val) { SetTargetEps(&this->search, val); };
+        auto get = [&]() { return GetTargetEps(&this->search); };
         planner->params().declareParam<double>("target_epsilon", set, get);
     }
 
     {
-        auto set = [&](double val) { this->search.SetDeltaEpsilon(val); };
-        auto get = [&]() { return this->search.GetDeltaEpsilon(); };
+        auto set = [&](double val) { SetDeltaEps(&this->search, val); };
+        auto get = [&]() { return GetDeltaEps(&this->search); };
         planner->params().declareParam<double>("delta_epsilon", set, get);
     }
 
+    // TODO: these could be parameters of the wrapper, but should not be of ARA*
+    // itself
+#if 0
     {
         auto set = [&](bool val) { this->search.SetImproveSolution(val); };
         auto get = [&]() { return this->search.ImproveSolution(); };
         planner->params().declareParam<double>("improve_solution", set, get);
     }
 
-    {
-        auto set = [&](bool val) { this->search.SetBoundExpansions(val); };
-        auto get = [&]() { return this->search.BoundExpansions(); };
-        planner->params().declareParam<bool>("bound_expansions", set, get);
-    }
 
     {
         auto set = [&](double val) { this->search.SetAllowedRepairTime(val); };
         auto get = [&]() { return this->search.GetAllowedRepairTime(); };
         planner->params().declareParam<double>("repair_time", set, get);
     }
+#endif
 
     this->initialized = true;
 }
@@ -908,8 +901,9 @@ auto PlannerImpl::solve(
     this->search.ForcePlanningFromScratch();
 
     auto time_params = smpl::TimeoutCondition();
-    time_params.bounded = this->search.BoundExpansions();
-    time_params.improve = this->search.ImproveSolution();
+    // TODO: see note above on fine-grained termination control
+    time_params.bounded = true; //this->search.BoundExpansions();
+    time_params.improve = false; //this->search.ImproveSolution();
     time_params.type = smpl::TimeoutCondition::USER;
     time_params.timed_out_fun = [&]() { return ptc.eval(); };
 
@@ -922,10 +916,10 @@ auto PlannerImpl::solve(
         return ompl::base::PlannerStatus(ompl::base::PlannerStatus::TIMEOUT);
     }
 
-    SMPL_DEBUG("Expands: %d", this->search.GetNumExpansions());
-    SMPL_DEBUG("Expands (Init): %d", this->search.GetNumExpansionsInitialEps());
-    SMPL_DEBUG("Epsilon: %f", this->search.GetSolutionEps());
-    SMPL_DEBUG("Epsilon (Init): %f", this->search.GetInitialEps());
+    SMPL_DEBUG("Expands: %d", GetNumExpansions(&this->search));
+    SMPL_DEBUG("Expands (Init): %d", GetNumExpansionsInitialEps(&this->search));
+    SMPL_DEBUG("Epsilon: %f", GetSolutionEps(&this->search));
+    SMPL_DEBUG("Epsilon (Init): %f", GetInitialEps(&this->search));
 
 #if 0
     // TODO: hidden ARA*-specific return codes

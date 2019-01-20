@@ -48,24 +48,237 @@ constexpr auto INFINITECOST = 1000000000;
 static const char* SLOG = "search";
 static const char* SELOG = "search.expansions";
 
-ARAStar::ARAStar() :
-    m_search_time_init(clock::duration::zero()),
-    m_search_time(clock::duration::zero()),
-    m_satisfied_eps(std::numeric_limits<double>::infinity())
-{
-    m_time_params.bounded = true;
-    m_time_params.improve = true;
-    m_time_params.type = TimeoutCondition::TIME;
-    m_time_params.max_expansions_init = 0;
-    m_time_params.max_expansions = 0;
-    m_time_params.max_allowed_time_init = clock::duration::zero();
-    m_time_params.max_allowed_time = clock::duration::zero();
+////////////////////
+// Implementation //
+////////////////////
 
-    // to ensure reinitialization is triggered
-    m_best_goal.call_number = 0;
+// Recompute heuristics for all states.
+static
+void RecomputeHeuristics(ARAStar* search)
+{
+    for (auto* s : search->states) {
+        if (s != NULL) {
+            s->h = search->heur->GetGoalHeuristic(s->state_id);
+        }
+    }
 }
 
-bool ARAStar::Init(DiscreteSpace* space, Heuristic* heuristic)
+// Test whether the search has run out of time.
+static
+bool TimedOut(
+    const ARAStar* search,
+    int elapsed_expansions,
+    const clock::duration& elapsed_time)
+{
+    if (!search->time_params.bounded) {
+        return false;
+    }
+
+    switch (search->time_params.type) {
+    case TimeoutCondition::EXPANSIONS:
+        if (search->satisfied_eps == std::numeric_limits<double>::infinity()) {
+            return elapsed_expansions >= search->time_params.max_expansions_init;
+        } else {
+            return elapsed_expansions >= search->time_params.max_expansions;
+        }
+    case TimeoutCondition::TIME:
+        if (search->satisfied_eps == std::numeric_limits<double>::infinity()) {
+            return elapsed_time >= search->time_params.max_allowed_time_init;
+        } else {
+            return elapsed_time >= search->time_params.max_allowed_time;
+        }
+    case TimeoutCondition::USER:
+        return search->time_params.timed_out_fun();
+    default:
+        SMPL_ERROR_NAMED(SLOG, "Invalid timer type");
+        return true;
+    }
+
+    return true;
+}
+
+// Create a new search state for a graph state.
+static
+auto CreateState(int state_id) -> ARASearchState*
+{
+    auto* ss = new ARASearchState;
+    ss->state_id = state_id;
+    ss->call_number = 0;
+    return ss;
+}
+
+// Get the search state corresponding to a graph state, creating a new state if
+// one has not been created yet.
+static
+auto GetSearchState(ARAStar* search, int state_id) -> ARASearchState*
+{
+    if (search->states.size() <= state_id) {
+        search->states.resize(state_id + 1, nullptr);
+    }
+
+    auto& state = search->states[state_id];
+    if (state == NULL) {
+        state = CreateState(state_id);
+    }
+
+    return state;
+}
+
+// Lazily (re)initialize a search state.
+static
+void ReinitSearchState(ARAStar* search, ARASearchState* state, bool goal = false)
+{
+    if (state->call_number != search->call_number) {
+        SMPL_DEBUG_NAMED(SELOG, "Reinitialize state %d", state->state_id);
+        state->g = INFINITECOST;
+        if (goal) {
+            state->h = 0;
+        } else {
+            state->h = search->heur->GetGoalHeuristic(state->state_id);
+        }
+        state->f = INFINITECOST;
+        state->eg = INFINITECOST;
+        state->iteration_closed = 0;
+        state->call_number = search->call_number;
+        state->bp = nullptr;
+        state->incons = false;
+    }
+}
+
+static
+int ComputeKey(const ARAStar* search, ARASearchState* s)
+{
+    return s->g + (int)(search->curr_eps * (double)s->h);
+}
+
+enum ReplanResultCode
+{
+    SUCCESS = 0,
+    PARTIAL_SUCCESS,
+    START_NOT_SET,
+    GOAL_NOT_SET,
+    TIMED_OUT,
+    EXHAUSTED_OPEN_LIST
+};
+
+// Expand a state, updating its successors and placing them into OPEN, CLOSED,
+// and INCONS list appropriately.
+static
+void Expand(ARAStar* search, ARASearchState* s)
+{
+    search->succs.clear();
+    search->costs.clear();
+    search->space->GetSuccs(s->state_id, &search->succs, &search->costs);
+
+    SMPL_DEBUG_NAMED(SELOG, "  %zu successors", search->succs.size());
+
+    for (auto sidx = 0; sidx < search->succs.size(); ++sidx) {
+        auto succ_state_id = search->succs[sidx];
+        auto cost = search->costs[sidx];
+
+        auto* succ_state = GetSearchState(search, succ_state_id);
+        ReinitSearchState(search, succ_state);
+
+        auto new_cost = s->eg + cost;
+        SMPL_DEBUG_NAMED(SELOG, "Compare new cost %d vs old cost %d", new_cost, succ_state->g);
+        if (new_cost < succ_state->g) {
+            succ_state->g = new_cost;
+            succ_state->bp = s;
+            if (succ_state->iteration_closed != search->iteration) {
+                succ_state->f = ComputeKey(search, succ_state);
+                if (search->open.contains(succ_state)) {
+                    SMPL_DEBUG_NAMED(SELOG, "  Update with new priority %ld", succ_state->f);
+                    search->open.decrease(succ_state);
+                } else {
+                    SMPL_DEBUG_NAMED(SELOG, "  Insert into OPEN with priority %ld", succ_state->f);
+                    search->open.push(succ_state);
+                }
+            } else if (!succ_state->incons) {
+                SMPL_DEBUG_NAMED(SELOG, "  Insert into INCONS");
+                search->incons.push_back(succ_state);
+            }
+            if (search->goal->IsGoal(succ_state->state_id)) {
+                search->best_goal = *succ_state;
+            }
+        }
+    }
+}
+
+// Expand states to improve the current solution until a solution within the
+// current suboptimality bound is found, time runs out, or no solution exists.
+static
+int ImprovePath(
+    ARAStar* search,
+    const clock::time_point& start_time,
+    ARASearchState* goal_state,
+    int& elapsed_expansions,
+    clock::duration& elapsed_time)
+{
+    while (!search->open.empty()) {
+        auto* min_state = search->open.min();
+
+        auto now = clock::now();
+        elapsed_time = now - start_time;
+
+        // path to goal found
+        if (min_state->f >= goal_state->f || search->goal->IsGoal(min_state->state_id)/* TODO: IsGoal necessary? */) {
+            SMPL_DEBUG_NAMED(SLOG, "Found path to goal");
+            return SUCCESS;
+        }
+
+        if (TimedOut(search, elapsed_expansions, elapsed_time)) {
+            SMPL_DEBUG_NAMED(SLOG, "Ran out of time");
+            return TIMED_OUT;
+        }
+
+        SMPL_DEBUG_NAMED(SELOG, "Expand state %d", min_state->state_id);
+
+        search->open.pop();
+
+        assert(min_state->iteration_closed != search->iteration);
+        assert(min_state->g != INFINITECOST);
+
+        min_state->iteration_closed = search->iteration;
+        min_state->eg = min_state->g;
+
+        Expand(search, min_state);
+
+        ++elapsed_expansions;
+    }
+
+    return EXHAUSTED_OPEN_LIST;
+}
+
+// Recompute the f-values of all states in OPEN and reorder OPEN.
+static
+void ReorderOpen(ARAStar* search)
+{
+    for (auto it = search->open.begin(); it != search->open.end(); ++it) {
+        (*it)->f = ComputeKey(search, *it);
+    }
+    search->open.make();
+}
+
+// Extract the path from the start state up to a new state.
+static
+void ExtractPath(
+    const ARAStar* search,
+    ARASearchState* to_state,
+    std::vector<int>& solution,
+    int& cost)
+{
+    for (auto* s = to_state; s; s = s->bp) {
+        solution.push_back(s->state_id);
+    }
+    std::reverse(solution.begin(), solution.end());
+    cost = to_state->g;
+}
+
+///////////////
+// Interface //
+///////////////
+
+bool Init(ARAStar* search, DiscreteSpace* space, Heuristic* heuristic)
 {
     if (space == NULL || heuristic == NULL) return false;
 
@@ -81,204 +294,89 @@ bool ARAStar::Init(DiscreteSpace* space, Heuristic* heuristic)
         return false;
     }
 
-    m_space = searchable;
-    m_heur = goal_heuristic;
+    search->space = searchable;
+    search->heur = goal_heuristic;
     return true;
 }
 
-void ARAStar::SetAllowPartialSolutions(bool enabled)
+/// Return the initial suboptimality bound
+auto GetInitialEps(const ARAStar* search) -> double
 {
-    m_allow_partial_solutions = enabled;
+    return search->initial_eps;
 }
 
-bool ARAStar::AllowPartialSolutions() const
+/// Set the desired suboptimality bound for the initial solution.
+void SetInitialEps(ARAStar* search, double eps)
 {
-    return m_allow_partial_solutions;
+    search->initial_eps = eps;
 }
 
-void ARAStar::SetAllowedRepairTime(double allowed_time_secs)
+auto GetTargetEps(const ARAStar* search) -> double
 {
-    m_time_params.max_allowed_time = to_duration(allowed_time_secs);
+    return search->final_eps;
 }
 
-double ARAStar::GetAllowedRepairTime() const
+void SetTargetEps(ARAStar* search, double target_eps)
 {
-    return to_seconds(m_time_params.max_allowed_time);
+    search->final_eps = std::max(target_eps, 1.0);
 }
 
-void ARAStar::SetTargetEpsilon(double target_eps)
+auto GetDeltaEps(const ARAStar* search) -> double
 {
-    m_final_eps = std::max(target_eps, 1.0);
+    return search->delta_eps;
 }
 
-double ARAStar::GetTargetEpsilon() const
-{
-    return m_final_eps;
-}
-
-void ARAStar::SetDeltaEpsilon(double delta_eps)
+void SetDeltaEps(ARAStar* search, double delta_eps)
 {
     assert(delta_eps > 0.0);
-    m_delta_eps = delta_eps;
+    search->delta_eps = delta_eps;
 }
 
-double ARAStar::GetDeltaEpsilon() const
+bool AllowPartialSolutions(const ARAStar* search)
 {
-    return m_delta_eps;
+    return search->allow_partial_solutions;
 }
 
-void ARAStar::SetImproveSolution(bool improve)
+void SetAllowPartialSolutions(ARAStar* search, bool enabled)
 {
-    m_time_params.improve = improve;
+    search->allow_partial_solutions = enabled;
 }
 
-bool ARAStar::ImproveSolution() const
+/// Set the start state.
+bool UpdateStart(ARAStar* search, int start_state_id)
 {
-    return m_time_params.improve;
+    search->start_state_id = start_state_id;
+    return true;
 }
 
-void ARAStar::SetBoundExpansions(bool bound)
+/// Set the goal state.
+bool UpdateGoal(ARAStar* search, GoalConstraint* goal)
 {
-    m_time_params.bounded = bound;
+    search->goal = goal;
+    search->new_goal = true;
+    return true;
 }
 
-bool ARAStar::BoundExpansions() const
+/// Force the search to forget previous search efforts and start from scratch.
+void ForcePlanningFromScratch(ARAStar* search)
 {
-    return m_time_params.bounded;
+    search->last_start_state_id = -1;
+    search->new_goal = true;
 }
 
-ARAStar::~ARAStar()
+/// Force the planner to forget previous search efforts, begin from scratch,
+/// and free all memory allocated by the planner during previous searches.
+void ForcePlanningFromScratchAndFreeMemory(ARAStar* search)
 {
-    for (auto* s : m_states) {
+    ForcePlanningFromScratch(search);
+    search->open.clear();
+    for (auto* s : search->states) {
         if (s != NULL) {
             delete s;
         }
     }
-}
-
-enum ReplanResultCode
-{
-    SUCCESS = 0,
-    PARTIAL_SUCCESS,
-    START_NOT_SET,
-    GOAL_NOT_SET,
-    TIMED_OUT,
-    EXHAUSTED_OPEN_LIST
-};
-
-int ARAStar::Replan(
-    const TimeoutCondition& params,
-    std::vector<int>* solution,
-    int* cost)
-{
-    SMPL_DEBUG_NAMED(SLOG, "Find path to goal");
-
-    if (m_start_state_id < 0) {
-        SMPL_ERROR_NAMED(SLOG, "Start state not set");
-        return !START_NOT_SET;
-    }
-    if (m_goal == NULL) {
-        SMPL_ERROR_NAMED(SLOG, "Goal state not set");
-        return !GOAL_NOT_SET;
-    }
-
-    m_time_params = params;
-
-    auto* start_state = GetSearchState(m_start_state_id);
-    auto* goal_state = &m_best_goal;
-
-    if (m_start_state_id != m_last_start_state_id) {
-        SMPL_DEBUG_NAMED(SLOG, "Reinitialize search");
-        m_open.clear();
-        m_incons.clear();
-        ++m_call_number; // trigger state reinitializations
-
-        ReinitSearchState(start_state);
-        ReinitSearchState(goal_state, true);
-
-        start_state->g = 0;
-        start_state->f = ComputeKey(start_state);
-        m_open.push(start_state);
-
-        m_iteration = 1; // 0 reserved for "not closed on any iteration"
-
-        m_expand_count_init = 0;
-        m_search_time_init = clock::duration::zero();
-
-        m_expand_count = 0;
-        m_search_time = clock::duration::zero();
-
-        m_curr_eps = m_initial_eps;
-
-        m_satisfied_eps = std::numeric_limits<double>::infinity();
-
-        m_last_start_state_id = m_start_state_id;
-    }
-
-    if (m_new_goal) {
-        SMPL_DEBUG_NAMED(SLOG, "Refresh heuristics, keys, and reorder open list");
-        RecomputeHeuristics();
-        ReorderOpen();
-
-        m_new_goal = false;
-    }
-
-    auto start_time = clock::now();
-    int num_expansions = 0;
-    clock::duration elapsed_time = clock::duration::zero();
-
-    int err;
-    while (m_satisfied_eps > m_final_eps) {
-        if (m_curr_eps == m_satisfied_eps) {
-            if (!m_time_params.improve) {
-                break;
-            }
-            // begin a new search iteration
-            ++m_iteration;
-            m_curr_eps -= m_delta_eps;
-            m_curr_eps = std::max(m_curr_eps, m_final_eps);
-            for (auto* s : m_incons) {
-                s->incons = false;
-                m_open.push(s);
-            }
-            ReorderOpen();
-            m_incons.clear();
-            SMPL_DEBUG_NAMED(SLOG, "Begin new search iteration %d with epsilon = %0.3f", m_iteration, m_curr_eps);
-        }
-        err = ImprovePath(start_time, goal_state, num_expansions, elapsed_time);
-        if (m_curr_eps == m_initial_eps) {
-            m_expand_count_init += num_expansions;
-            m_search_time_init += elapsed_time;
-        }
-        if (err) {
-            break;
-        }
-        SMPL_DEBUG_NAMED(SLOG, "Improved solution");
-        m_satisfied_eps = m_curr_eps;
-    }
-
-    m_search_time += elapsed_time;
-    m_expand_count += num_expansions;
-
-    if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
-        if (m_allow_partial_solutions && !m_open.empty()) {
-            auto* next_state = m_open.min();
-            ExtractPath(next_state, *solution, *cost);
-            return !SUCCESS;
-        }
-        return !err;
-    }
-
-    ExtractPath(goal_state, *solution, *cost);
-    return !SUCCESS;
-}
-
-int ARAStar::Replan(
-    double allowed_time,
-    std::vector<int>* solution)
-{
-    int cost;
-    return Replan(allowed_time, solution, &cost);
+    search->states.clear();
+    search->states.shrink_to_fit();
 }
 
 // decide whether to start the search from scratch
@@ -301,320 +399,207 @@ int ARAStar::Replan(
 //       case epsilon raised
 //           reevaluate heuristics and reorder the open list
 // case scenario_changed
-int ARAStar::Replan(
-    double allowed_time,
+int Replan(
+    ARAStar* search,
+    const TimeoutCondition& params,
     std::vector<int>* solution,
     int* cost)
 {
-    TimeoutCondition tparams = m_time_params;
-    if (tparams.max_allowed_time_init == tparams.max_allowed_time) {
-        // NOTE/TODO: this may lead to awkward behavior, if the caller sets the
-        // allowed time to the current repair time, the repair time will begin
-        // to track the allowed time for further calls to replan. perhaps set
-        // an explicit flag for using repair time or an indicator value as is
-        // done with ReplanParams
-        tparams.max_allowed_time_init = to_duration(allowed_time);
-        tparams.max_allowed_time = to_duration(allowed_time);
-    } else {
-        tparams.max_allowed_time_init = to_duration(allowed_time);
-        // note: retain original allowed improvement time
+    SMPL_DEBUG_NAMED(SLOG, "Find path to goal");
+
+    if (search->start_state_id < 0) {
+        SMPL_ERROR_NAMED(SLOG, "Start state not set");
+        return !START_NOT_SET;
     }
-    return Replan(tparams, solution, cost);
+    if (search->goal == NULL) {
+        SMPL_ERROR_NAMED(SLOG, "Goal state not set");
+        return !GOAL_NOT_SET;
+    }
+
+    search->time_params = params;
+
+    auto* start_state = GetSearchState(search, search->start_state_id);
+    auto* goal_state = &search->best_goal;
+
+    if (search->start_state_id != search->last_start_state_id) {
+        SMPL_DEBUG_NAMED(SLOG, "Reinitialize search");
+        search->open.clear();
+        search->incons.clear();
+        ++search->call_number; // trigger state reinitializations
+
+        ReinitSearchState(search, start_state);
+        ReinitSearchState(search, goal_state, true);
+
+        start_state->g = 0;
+        start_state->f = ComputeKey(search, start_state);
+        search->open.push(start_state);
+
+        search->iteration = 1; // 0 reserved for "not closed on any iteration"
+
+        search->expand_count_init = 0;
+        search->search_time_init = clock::duration::zero();
+
+        search->expand_count = 0;
+        search->search_time = clock::duration::zero();
+
+        search->curr_eps = search->initial_eps;
+
+        search->satisfied_eps = std::numeric_limits<double>::infinity();
+
+        search->last_start_state_id = search->start_state_id;
+    }
+
+    if (search->new_goal) {
+        SMPL_DEBUG_NAMED(SLOG, "Refresh heuristics, keys, and reorder open list");
+        RecomputeHeuristics(search);
+        ReorderOpen(search);
+
+        search->new_goal = false;
+    }
+
+    auto start_time = clock::now();
+    auto num_expansions = 0;
+    auto elapsed_time = clock::duration::zero();
+
+    int err;
+    while (search->satisfied_eps > search->final_eps) {
+        if (search->curr_eps == search->satisfied_eps) {
+            if (!search->time_params.improve) {
+                break;
+            }
+            // begin a new search iteration
+            ++search->iteration;
+            search->curr_eps -= search->delta_eps;
+            search->curr_eps = std::max(search->curr_eps, search->final_eps);
+            for (auto* s : search->incons) {
+                s->incons = false;
+                search->open.push(s);
+            }
+            ReorderOpen(search);
+            search->incons.clear();
+            SMPL_DEBUG_NAMED(SLOG, "Begin new search iteration %d with epsilon = %0.3f", search->iteration, search->curr_eps);
+        }
+        err = ImprovePath(search, start_time, goal_state, num_expansions, elapsed_time);
+        if (search->curr_eps == search->initial_eps) {
+            search->expand_count_init += num_expansions;
+            search->search_time_init += elapsed_time;
+        }
+        if (err) {
+            break;
+        }
+        SMPL_DEBUG_NAMED(SLOG, "Improved solution");
+        search->satisfied_eps = search->curr_eps;
+    }
+
+    search->search_time += elapsed_time;
+    search->expand_count += num_expansions;
+
+    if (search->satisfied_eps == std::numeric_limits<double>::infinity()) {
+        if (search->allow_partial_solutions && !search->open.empty()) {
+            auto* next_state = search->open.min();
+            ExtractPath(search, next_state, *solution, *cost);
+            return !SUCCESS;
+        }
+        return !err;
+    }
+
+    ExtractPath(search, goal_state, *solution, *cost);
+    return !SUCCESS;
 }
 
-/// Force the planner to forget previous search efforts, begin from scratch,
-/// and free all memory allocated by the planner during previous searches.
-void ARAStar::ForcePlanningFromScratchAndFreeMemory()
+/// Return the suboptimality bound of the current solution for the current search.
+auto GetSolutionEps(const ARAStar* search) -> double
 {
-    ForcePlanningFromScratch();
-    m_open.clear();
-    for (auto* s : m_states) {
+    return search->satisfied_eps;
+}
+
+/// Return the number of expansions made in progress to the final solution.
+int GetNumExpansions(const ARAStar* search)
+{
+    return search->expand_count;
+}
+
+/// Return the number of expansions made in progress to the initial solution.
+int GetNumExpansionsInitialEps(const ARAStar* search)
+{
+    return search->expand_count_init;
+}
+
+/// Return the time consumed by the search in progress to the final solution.
+auto GetElapsedTime(const ARAStar* search) -> double
+{
+    return to_seconds(search->search_time);
+}
+
+/// Return the time consumed by the search in progress to the initial solution.
+auto GetElapsedTimeInitialEps(const ARAStar* search) -> double
+{
+    return to_seconds(search->search_time_init);
+}
+
+ARAStar::ARAStar() :
+    search_time_init(clock::duration::zero()),
+    search_time(clock::duration::zero()),
+    satisfied_eps(std::numeric_limits<double>::infinity())
+{
+    this->time_params.bounded = true;
+    this->time_params.improve = true;
+    this->time_params.type = TimeoutCondition::TIME;
+    this->time_params.max_expansions_init = 0;
+    this->time_params.max_expansions = 0;
+    this->time_params.max_allowed_time_init = clock::duration::zero();
+    this->time_params.max_allowed_time = clock::duration::zero();
+
+    // to ensure reinitialization is triggered
+    this->best_goal.call_number = 0;
+}
+
+ARAStar::~ARAStar()
+{
+    for (auto* s : states) {
         if (s != NULL) {
             delete s;
         }
     }
-    m_states.clear();
-    m_states.shrink_to_fit();
 }
 
-/// Return the suboptimality bound of the current solution for the current search.
-double ARAStar::GetSolutionEps() const
+bool ARAStar::UpdateStart(int state_id)
 {
-    return m_satisfied_eps;
+    return ::smpl::UpdateStart(this, state_id);
 }
 
-/// Return the number of expansions made in progress to the final solution.
-int ARAStar::GetNumExpansions()
-{
-    return m_expand_count;
-}
-
-/// Return the initial suboptimality bound
-double ARAStar::GetInitialEps()
-{
-    return m_initial_eps;
-}
-
-/// Return the time consumed by the search in progress to the initial solution.
-double ARAStar::GetElapsedTimeInitialEps()
-{
-    return to_seconds(m_search_time_init);
-}
-
-/// Return the time consumed by the search in progress to the final solution.
-double ARAStar::GetElapsedTime()
-{
-    return to_seconds(m_search_time);
-}
-
-/// Return the number of expansions made in progress to the initial solution.
-int ARAStar::GetNumExpansionsInitialEps()
-{
-    return m_expand_count_init;
-}
-
-/// Set the desired suboptimality bound for the initial solution.
-void ARAStar::SetInitialEps(double eps)
-{
-    m_initial_eps = eps;
-}
-
-/// Set the goal state.
 bool ARAStar::UpdateGoal(GoalConstraint* goal)
 {
-    m_goal = goal;
-    m_new_goal = true;
-    return true;
+    return ::smpl::UpdateGoal(this, goal);
 }
 
-/// Set the start state.
-bool ARAStar::UpdateStart(int start_state_id)
-{
-    m_start_state_id = start_state_id;
-    return true;
-}
-
-/// Force the search to forget previous search efforts and start from scratch.
 void ARAStar::ForcePlanningFromScratch()
 {
-    m_last_start_state_id = -1;
-    m_new_goal = true;
+    return ::smpl::ForcePlanningFromScratch(this);
 }
 
-/// Set whether the number of expansions is bounded by time or total expansions
-/// per call to replan().
-int ARAStar::SetSearchMode(bool first_solution_unbounded)
+void ARAStar::ForcePlanningFromScratchAndFreeMemory()
 {
-    m_time_params.bounded = !first_solution_unbounded;
-    return 0;
+    return ::smpl::ForcePlanningFromScratchAndFreeMemory(this);
 }
 
-/// Notify the search of changes to edge costs in the graph.
-void ARAStar::UpdateCosts(const StateChangeQuery& changes)
+int ARAStar::Replan(
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* cost)
 {
-    ForcePlanningFromScratch();
+    return ::smpl::Replan(this, timeout, solution, cost);
 }
 
-// Recompute heuristics for all states.
-void ARAStar::RecomputeHeuristics()
+int ARAStar::GetNumExpansions()
 {
-    for (auto* s : m_states) {
-        if (s != NULL) {
-            s->h = m_heur->GetGoalHeuristic(s->state_id);
-        }
-    }
+    return ::smpl::GetNumExpansions(this);
 }
 
-// Test whether the search has run out of time.
-bool ARAStar::TimedOut(
-    int elapsed_expansions,
-    const clock::duration& elapsed_time) const
+auto ARAStar::GetElapsedTime() -> double
 {
-    if (!m_time_params.bounded) {
-        return false;
-    }
-
-    switch (m_time_params.type) {
-    case TimeoutCondition::EXPANSIONS:
-        if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
-            return elapsed_expansions >= m_time_params.max_expansions_init;
-        } else {
-            return elapsed_expansions >= m_time_params.max_expansions;
-        }
-    case TimeoutCondition::TIME:
-        if (m_satisfied_eps == std::numeric_limits<double>::infinity()) {
-            return elapsed_time >= m_time_params.max_allowed_time_init;
-        } else {
-            return elapsed_time >= m_time_params.max_allowed_time;
-        }
-    case TimeoutCondition::USER:
-        return m_time_params.timed_out_fun();
-    default:
-        SMPL_ERROR_NAMED(SLOG, "Invalid timer type");
-        return true;
-    }
-
-    return true;
+    return ::smpl::GetElapsedTime(this);
 }
 
-// Expand states to improve the current solution until a solution within the
-// current suboptimality bound is found, time runs out, or no solution exists.
-int ARAStar::ImprovePath(
-    const clock::time_point& start_time,
-    SearchState* goal_state,
-    int& elapsed_expansions,
-    clock::duration& elapsed_time)
-{
-    while (!m_open.empty()) {
-        auto* min_state = m_open.min();
-
-        auto now = clock::now();
-        elapsed_time = now - start_time;
-
-        // path to goal found
-        if (min_state->f >= goal_state->f || m_goal->IsGoal(min_state->state_id)/* TODO: IsGoal necessary? */) {
-            SMPL_DEBUG_NAMED(SLOG, "Found path to goal");
-            return SUCCESS;
-        }
-
-        if (TimedOut(elapsed_expansions, elapsed_time)) {
-            SMPL_DEBUG_NAMED(SLOG, "Ran out of time");
-            return TIMED_OUT;
-        }
-
-        SMPL_DEBUG_NAMED(SELOG, "Expand state %d", min_state->state_id);
-
-        m_open.pop();
-
-        assert(min_state->iteration_closed != m_iteration);
-        assert(min_state->g != INFINITECOST);
-
-        min_state->iteration_closed = m_iteration;
-        min_state->eg = min_state->g;
-
-        Expand(min_state);
-
-        ++elapsed_expansions;
-    }
-
-    return EXHAUSTED_OPEN_LIST;
-}
-
-// Expand a state, updating its successors and placing them into OPEN, CLOSED,
-// and INCONS list appropriately.
-void ARAStar::Expand(SearchState* s)
-{
-    m_succs.clear();
-    m_costs.clear();
-    m_space->GetSuccs(s->state_id, &m_succs, &m_costs);
-
-    SMPL_DEBUG_NAMED(SELOG, "  %zu successors", m_succs.size());
-
-    for (auto sidx = 0; sidx < m_succs.size(); ++sidx) {
-        auto succ_state_id = m_succs[sidx];
-        auto cost = m_costs[sidx];
-
-        auto* succ_state = GetSearchState(succ_state_id);
-        ReinitSearchState(succ_state);
-
-        auto new_cost = s->eg + cost;
-        SMPL_DEBUG_NAMED(SELOG, "Compare new cost %d vs old cost %d", new_cost, succ_state->g);
-        if (new_cost < succ_state->g) {
-            succ_state->g = new_cost;
-            succ_state->bp = s;
-            if (succ_state->iteration_closed != m_iteration) {
-                succ_state->f = ComputeKey(succ_state);
-                if (m_open.contains(succ_state)) {
-                    SMPL_DEBUG_NAMED(SELOG, "  Update with new priority %ld", succ_state->f);
-                    m_open.decrease(succ_state);
-                } else {
-                    SMPL_DEBUG_NAMED(SELOG, "  Insert into OPEN with priority %ld", succ_state->f);
-                    m_open.push(succ_state);
-                }
-            } else if (!succ_state->incons) {
-                SMPL_DEBUG_NAMED(SELOG, "  Insert into INCONS");
-                m_incons.push_back(succ_state);
-            }
-            if (m_goal->IsGoal(succ_state->state_id)) {
-                m_best_goal = *succ_state;
-            }
-        }
-    }
-}
-
-// Recompute the f-values of all states in OPEN and reorder OPEN.
-void ARAStar::ReorderOpen()
-{
-    for (auto it = m_open.begin(); it != m_open.end(); ++it) {
-        (*it)->f = ComputeKey(*it);
-    }
-    m_open.make();
-}
-
-int ARAStar::ComputeKey(SearchState* s) const
-{
-    return s->g + (unsigned int)(m_curr_eps * s->h);
-}
-
-// Get the search state corresponding to a graph state, creating a new state if
-// one has not been created yet.
-auto ARAStar::GetSearchState(int state_id) -> SearchState*
-{
-    if (m_states.size() <= state_id) {
-        m_states.resize(state_id + 1, nullptr);
-    }
-
-    auto& state = m_states[state_id];
-    if (state == NULL) {
-        state = CreateState(state_id);
-    }
-
-    return state;
-}
-
-// Create a new search state for a graph state.
-auto ARAStar::CreateState(int state_id) -> SearchState*
-{
-    assert(state_id < m_states.size());
-
-    auto* ss = new SearchState;
-    ss->state_id = state_id;
-    ss->call_number = 0;
-
-    return ss;
-}
-
-// Lazily (re)initialize a search state.
-void ARAStar::ReinitSearchState(SearchState* state, bool goal)
-{
-    if (state->call_number != m_call_number) {
-        SMPL_DEBUG_NAMED(SELOG, "Reinitialize state %d", state->state_id);
-        state->g = INFINITECOST;
-        if (goal) {
-            state->h = 0;
-        } else {
-            state->h = m_heur->GetGoalHeuristic(state->state_id);
-        }
-        state->f = INFINITECOST;
-        state->eg = INFINITECOST;
-        state->iteration_closed = 0;
-        state->call_number = m_call_number;
-        state->bp = nullptr;
-        state->incons = false;
-    }
-}
-
-// Extract the path from the start state up to a new state.
-void ARAStar::ExtractPath(
-    SearchState* to_state,
-    std::vector<int>& solution,
-    int& cost) const
-{
-    for (auto* s = to_state; s; s = s->bp) {
-        solution.push_back(s->state_id);
-    }
-    std::reverse(solution.begin(), solution.end());
-    cost = to_state->g;
-}
 
 } // namespace smpl

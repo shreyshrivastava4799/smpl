@@ -511,7 +511,7 @@ auto MakeARAStar(
     -> std::unique_ptr<smpl::Search>
 {
     auto search = smpl::make_unique<smpl::ARAStar>();
-    if (!search->Init(graph, heuristic)) {
+    if (!Init(search.get(), graph, heuristic)) {
         SMPL_ERROR("Failed to initialize ARA*");
         return NULL;
     }
@@ -531,10 +531,10 @@ auto MakeARAStar(
     SMPL_INFO_STREAM("target_eps: " << target_eps);
     SMPL_INFO_STREAM("delta_eps: " << delta_eps);
 
-    search->SetInitialEps(initial_eps);
-    search->SetAllowPartialSolutions(allow_partial_solutions);
-    search->SetTargetEpsilon(target_eps);
-    search->SetDeltaEpsilon(delta_eps);
+    SetInitialEps(search.get(), initial_eps);
+    SetAllowPartialSolutions(search.get(), allow_partial_solutions);
+    SetTargetEps(search.get(), target_eps);
+    SetDeltaEps(search.get(), delta_eps);
 
     return std::move(search);
 }

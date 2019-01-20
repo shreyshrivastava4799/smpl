@@ -455,7 +455,7 @@ int main(int argc, char* argv[])
     ///////////////////////
 
     auto search = smpl::ARAStar();
-    if (!search.Init(&space, &h)) {
+    if (!Init(&search, &space, &h)) {
         SMPL_ERROR("Failed to initialize ARA*");
         return 1;
     }
@@ -510,11 +510,11 @@ int main(int argc, char* argv[])
     /////////////////
 
 #if 1
-    search.SetInitialEps(5.0);
+    SetInitialEps(&search, 5.0);
 #else
-    search.SetInitialEps(1.0);
+    SetInitialEps(&search, 1.0);
 #endif
-    search.SetDeltaEpsilon(0.2);
+    SetDeltaEps(&search, 0.2);
 
     auto search_params = smpl::TimeoutCondition();
     search_params.type = smpl::TimeoutCondition::TIME;
@@ -526,7 +526,7 @@ int main(int argc, char* argv[])
     auto then = std::chrono::high_resolution_clock::now();
     auto solution = std::vector<int>();
     int solcost;
-    auto bret = (bool)search.Replan(search_params, &solution, &solcost);
+    auto bret = (bool)Replan(&search, search_params, &solution, &solcost);
     if (!bret) {
         SMPL_ERROR("Search failed to find a solution");
         return 1;
@@ -549,10 +549,10 @@ int main(int argc, char* argv[])
 
     SMPL_INFO("Path found!");
     SMPL_INFO("  Solution Cost: %d", solcost);
-    SMPL_INFO("  Final Epsilon: %f", search.GetSolutionEps());
+    SMPL_INFO("  Final Epsilon: %f", GetSolutionEps(&search));
     SMPL_INFO("  Planning Time: %0.3f", elapsed);
-    SMPL_INFO("  Expansion Count (total): %d", search.GetNumExpansions());
-    SMPL_INFO("  Expansion Count (initial): %d", search.GetNumExpansionsInitialEps());
+    SMPL_INFO("  Expansion Count (total): %d", GetNumExpansions(&search));
+    SMPL_INFO("  Expansion Count (initial): %d", GetNumExpansionsInitialEps(&search));
 
     SMPL_INFO("  Solution (%zu)", solution.size());
     if (print_solution) {

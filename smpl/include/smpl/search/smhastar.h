@@ -135,10 +135,10 @@ class ISearchable;
 
 struct SMHAState
 {
+    SMHAState* bp;
     int call_number;
     int state_id;
     int g;
-    SMHAState* bp;
 
     bool closed_in_anc;
     bool closed_in_add;
