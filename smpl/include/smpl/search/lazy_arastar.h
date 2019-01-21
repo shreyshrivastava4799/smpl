@@ -87,6 +87,12 @@ struct CandidatePred
     bool true_cost;
 };
 
+// A state in the Lazy ARA* search tree. In Lazy ARA*, multiple copies of a
+// state may exist within the OPEN list, with different parent states. Rather
+// than needlessly create duplicates of all state information, this state
+// keeps a list of parent states and the evaluation statuses of the edges to
+// those parents. The key used to order the OPEN list is the minimum f-value
+// of all copies of the state.
 struct LARAState : public heap_element
 {
     using lazy_list_type = std::vector<CandidatePred>;
@@ -108,6 +114,20 @@ struct LARAState : public heap_element
     bool        closed;
 };
 
+// An implementation of the Lazy ARA* (Anytime Repairing A*) search algorithm.
+//
+// This algorithm is an anytime algorithm which runs a series of weighted
+// A*-like searches, decreasing the weight applied to the heuristic function
+// between each iteration to lower the bound on suboptimality. It returns the
+// best solution found within a given timeout.
+//
+// In between iterations, the search repairs the existing search tree rather
+// than starting from scratch.
+//
+// Each iteration runs a variant of weighted-A* which postpones the evaluation
+// of edge costs until they are required by the search. The input successor
+// function must return a lower-bound on the true cost of the edge in order to
+// guarantee the bound on suboptimality.
 class LARAStar : public Search
 {
 public:

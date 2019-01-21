@@ -10,7 +10,10 @@ namespace smpl {
 
 static constexpr auto INFINITECOST = 1000000000;
 
-static const char* LOG = "search";
+static const char* LOG = "search.larastar";
+static const char* V_LOG = "search.verbose.larastar";
+static const char* E_LOG = "search.expansions.larastar";
+static const char* S_LOG = "search.successors.larastar";
 
 ////////////////////
 // Implementation //
@@ -77,9 +80,15 @@ bool IsPredDominated(CandidatePred cand, LARAState* state)
 }
 
 static
+int ComputeFVal(const LARAStar* search, const LARAState* s)
+{
+    return s->g + (int)(search->eps * (double)s->h);
+}
+
+static
 void ExpandState(LARAStar* search, LARAState* state)
 {
-    SMPL_DEBUG_NAMED(LOG, "Expand state %d", state->state_id);
+    SMPL_DEBUG_NAMED(E_LOG, "Expand state %d", state->state_id);
 
     state->closed = true;
 
@@ -98,6 +107,8 @@ void ExpandState(LARAStar* search, LARAState* state)
     assert(search->succs.size() == search->costs.size());
     assert(search->succs.size() == search->true_costs.size());
 
+    SMPL_DEBUG_NAMED(E_LOG, "  %zu successors", search->succs.size());
+
     for (auto i = 0; i < search->succs.size(); ++i) {
         auto succ_id = search->succs[i];
         auto cost = search->costs[i];
@@ -107,12 +118,14 @@ void ExpandState(LARAStar* search, LARAState* state)
         ReinitState(search, succ_state);
 
         if (succ_state->closed) {
+            SMPL_DEBUG_NAMED(S_LOG, "    State %d is closed", succ_state->state_id);
             continue;
         }
 
         auto cand = CandidatePred{ state, state->g + cost, true_cost };
 
         if (IsPredDominated(cand, succ_state)) {
+            SMPL_DEBUG_NAMED(S_LOG, "    State %d is dominated", succ_state->state_id);
             continue;
         }
 
@@ -133,19 +146,22 @@ void ExpandState(LARAStar* search, LARAState* state)
         succ_state->true_cost = best_it->true_cost;
 
         // TODO: check this
-        if (succ_state->g < g_old) {
+        if ((succ_state->g < g_old) & succ_state->true_cost) {
             // if the cost to the goal improved
             if (search->goal->IsGoal(succ_id)) {
+                SMPL_DEBUG_NAMED(S_LOG, "    State %d is a goal state", succ_state->state_id);
                 search->best_goal = *succ_state;
             }
         }
 
         // insert/update succ_state in the OPEN list with the
         // values of its best candidate predecessor
-        if (!search->open.contains(succ_state)) {
-            search->open.push(succ_state);
-        } else {
+        if (search->open.contains(succ_state)) {
+            SMPL_DEBUG_NAMED(S_LOG, "    -> Update in OPEN with priority %d", ComputeFVal(search, succ_state));
             search->open.update(succ_state);
+        } else {
+            SMPL_DEBUG_NAMED(S_LOG, "    -> Insert into OPEN with priority %d", ComputeFVal(search, succ_state));
+            search->open.push(succ_state);
         }
     }
 }
@@ -158,6 +174,8 @@ void EvaluateState(LARAStar* search, LARAState* s)
     assert(!s->cands.empty());
     assert(!search->open.contains(s));
 
+    SMPL_DEBUG_NAMED(E_LOG, "Evaluate transitions %d -> %d", s->bp->state_id, s->state_id);
+
     // get the best candidate
     auto& cands = s->cands;
     auto better_cand = [&](const CandidatePred& a, const CandidatePred& b) {
@@ -167,9 +185,9 @@ void EvaluateState(LARAStar* search, LARAState* s)
 
     assert(!best_it->true_cost);
 
-    SMPL_DEBUG_NAMED(LOG, "Evaluate transitions %d -> %d", s->bp->state_id, s->state_id);
-
     auto cost = search->graph->GetTrueCost(s->bp->state_id, s->state_id);
+
+    SMPL_DEBUG_NAMED(E_LOG, "  cost = %d", cost);
 
     // remove invalid or now-dominated candidate preds
     if (cost < 0) {
@@ -178,6 +196,7 @@ void EvaluateState(LARAStar* search, LARAState* s)
         best_it->true_cost = true;
         best_it->g = best_it->pred->g + cost;
         if (IsPredDominated(*best_it, s)) {
+            SMPL_DEBUG_NAMED(E_LOG, "  State %d is dominated", s->state_id);
             cands.erase(best_it);
         }
     }
@@ -188,9 +207,10 @@ void EvaluateState(LARAStar* search, LARAState* s)
     s->g = best_it->g;
     s->true_cost = best_it->true_cost;
 
-    if (s->g < g_old) {
+    if ((s->g < g_old) & s->true_cost) {
         // if the cost to the goal improved
         if (search->goal->IsGoal(s->state_id)) {
+            SMPL_DEBUG_NAMED(E_LOG, "  State %d is a goal state", s->state_id);
             search->best_goal = *s;
         }
     }
@@ -200,6 +220,7 @@ void EvaluateState(LARAStar* search, LARAState* s)
     // and maintain the s's (bp,g,true) as the current best candidate
 
     if (best_it != end(cands)) {
+        SMPL_DEBUG_NAMED(E_LOG, "  Reinsert into OPEN with priority %d", ComputeFVal(search, s));
         search->open.push(s);
     }
 }
@@ -213,12 +234,6 @@ void ReconstructPath(const LARAStar* search, std::vector<int>* path, int* cost)
 
     std::reverse(begin(*path), end(*path));
     *cost = search->best_goal.g;
-}
-
-static
-int ComputeFVal(const LARAStar* search, const LARAState* s)
-{
-    return s->g + (int)(search->eps * (double)s->h);
 }
 
 static
@@ -336,6 +351,7 @@ int Replan(
     std::vector<int>* solution,
     int* cost)
 {
+    SMPL_DEBUG_NAMED(LOG, "Reset search");
     // TODO: lazily initialize search for new/old start state ids
     Clear(search);
     search->num_expansions = 0;
@@ -347,6 +363,8 @@ int Replan(
     ReinitState(search, start_state);
     ReinitState(search, goal_state, true);
 
+    SMPL_DEBUG(LOG, "Initialize search");
+
     start_state->g = 0;
     start_state->true_cost = true;
     search->open.push(start_state);
@@ -355,10 +373,12 @@ int Replan(
 
     for (;;) {
         if (search->open.empty()) {
+            SMPL_DEBUG_NAMED(LOG, "Exhausted OPEN");
             break;
         }
 
         if (TimedOut(search, timeout)) {
+            SMPL_DEBUG_NAMED(LOG, "Timed out");
             break;
         }
 
@@ -367,6 +387,7 @@ int Replan(
 
         auto fs = ComputeFVal(search, min_state);
         if (goal_state->true_cost && ComputeFVal(search, goal_state) <= fs) {
+            SMPL_DEBUG_NAMED(LOG, "Found path");
             goal_state->ebp = goal_state->bp;
             goal_state->eg = goal_state->g;
             ReconstructPath(search, solution, cost);
@@ -375,6 +396,7 @@ int Replan(
 
         // a state may come up for expansion/evaluation twice
         if (min_state->closed) {
+            SMPL_DEBUG_NAMED(E_LOG, "Skip closed state %d", min_state->state_id);
             continue;
         }
 
