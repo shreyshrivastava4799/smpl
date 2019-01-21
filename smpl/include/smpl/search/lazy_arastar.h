@@ -30,6 +30,7 @@
 /// \author Andrew Dornbush
 
 // standard includes
+#include <limits>
 #include <vector>
 
 // project includes
@@ -110,8 +111,10 @@ struct LARAState : public heap_element
 
     int         call_number;    // scenario when last reinitialized
 
+    int         iteration_closed;
+
     bool        true_cost;
-    bool        closed;
+    bool        incons;
 };
 
 // An implementation of the Lazy ARA* (Anytime Repairing A*) search algorithm.
@@ -140,31 +143,54 @@ public:
 
     using open_list_type = intrusive_heap<LARAState, StateCompare>;
 
+    /// \name Associated Data
+    ///@{
     ILazySearchable*    graph = NULL;
     IGoalHeuristic*     heur = NULL;
 
     GoalConstraint*     goal = NULL;
+    ///@}
 
+    /// \name Search Configuration
+    ///@{}
     double init_eps = 1.0;
     double target_eps = 1.0;
     double delta_eps = 1.0;
+    bool allow_partial_solutions = false;
+    ///@}
 
+    /// \name Search State
+    ///@{
     std::vector<LARAState*> states;
-
     open_list_type open;
+    std::vector<LARAState*> incons;
+    ///@}
 
+    /// \name Lazy Reinitialization
+    ///@{
+    int call_number = 0;
     int last_start_state_id = -1;
-    int start_state_id = -1;
-
     bool new_goal = true;
+    ///@}
 
-    LARAState   best_goal;
+    int start_state_id = -1;
+    LARAState best_goal;
 
-    int     call_number     = 0;
-    double  eps             = 1.0;
+    /// \name Search Iteration
+    ///@{}
+    int iteration = 1;
+    double curr_eps = 1.0;
+    double found_eps = std::numeric_limits<double>::infinity();
+    ///@}
 
+    /// \name Search Statistics
+    ///@{
     int num_expansions = 0;
     smpl::clock::duration elapsed_time = smpl::clock::duration::zero();
+
+    int num_expansions_init = 0;
+    smpl::clock::duration elapsed_time_init = smpl::clock::duration::zero();
+    ///@}
 
     std::vector<int> succs;
     std::vector<int> costs;

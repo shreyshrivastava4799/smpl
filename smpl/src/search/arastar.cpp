@@ -401,7 +401,7 @@ void ForcePlanningFromScratchAndFreeMemory(ARAStar* search)
 // case scenario_changed
 int Replan(
     ARAStar* search,
-    const TimeoutCondition& params,
+    const TimeoutCondition& timeout,
     std::vector<int>* solution,
     int* cost)
 {
@@ -416,7 +416,7 @@ int Replan(
         return !GOAL_NOT_SET;
     }
 
-    search->time_params = params;
+    search->time_params = timeout;
 
     auto* start_state = GetSearchState(search, search->start_state_id);
     auto* goal_state = &search->best_goal;
@@ -464,7 +464,7 @@ int Replan(
     int err;
     while (search->satisfied_eps > search->final_eps) {
         if (search->curr_eps == search->satisfied_eps) {
-            if (!search->time_params.improve) {
+            if (!timeout.improve) {
                 break;
             }
             // begin a new search iteration
@@ -542,14 +542,6 @@ ARAStar::ARAStar() :
     search_time(clock::duration::zero()),
     satisfied_eps(std::numeric_limits<double>::infinity())
 {
-    this->time_params.bounded = true;
-    this->time_params.improve = true;
-    this->time_params.type = TimeoutCondition::TIME;
-    this->time_params.max_expansions_init = 0;
-    this->time_params.max_expansions = 0;
-    this->time_params.max_allowed_time_init = clock::duration::zero();
-    this->time_params.max_allowed_time = clock::duration::zero();
-
     // to ensure reinitialization is triggered
     this->best_goal.call_number = 0;
 }
