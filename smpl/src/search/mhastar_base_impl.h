@@ -40,7 +40,7 @@
 namespace smpl {
 
 class DiscreteSpace;
-class MHAStar;
+struct MHAStar;
 class Heuristic;
 struct TimeoutCondition;
 

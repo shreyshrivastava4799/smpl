@@ -415,7 +415,7 @@ enum TermReason {
 };
 
 template <class Derived>
-auto Search(
+auto DoSearch(
     MHAStar* search,
     Derived* derived,
     smpl::clock::time_point start_time,
@@ -520,7 +520,7 @@ int Replan(
     auto end_time = smpl::clock::now();
     search->elapsed = to_seconds(end_time - start_time);
 
-    auto term_reason = Search(search, derived, start_time, timeout);
+    auto term_reason = DoSearch(search, derived, start_time, timeout);
 
     switch (term_reason) {
     case ANCHOR_EXHAUSTED:
