@@ -35,6 +35,7 @@
 // project includes
 #include <smpl/heap/intrusive_heap.h>
 #include <smpl/search/search.h>
+#include <smpl/time.h>
 
 namespace smpl {
 
@@ -122,7 +123,7 @@ public:
     ILazySearchable*    graph = NULL;
     IGoalHeuristic*     heur = NULL;
 
-    GoalConstraint* goal = NULL;
+    GoalConstraint*     goal = NULL;
 
     double init_eps = 1.0;
     double target_eps = 1.0;
@@ -142,12 +143,29 @@ public:
     int     call_number     = 0;
     double  eps             = 1.0;
 
+    int num_expansions = 0;
+    smpl::clock::duration elapsed_time = smpl::clock::duration::zero();
+
     std::vector<int> succs;
     std::vector<int> costs;
     std::vector<bool> true_costs;
 
     LARAStar();
     ~LARAStar();
+
+    /// \name Search Interface
+    ///@{
+    bool UpdateStart(int state_id) final;
+    bool UpdateGoal(GoalConstraint* goal) final;
+
+    void ForcePlanningFromScratch() final;
+    void ForcePlanningFromScratchAndFreeMemory() final;
+
+    int Replan(const TimeoutCondition& timeout, std::vector<int>* solution, int* cost) final;
+
+    int GetNumExpansions() final;
+    auto GetElapsedTime() -> double final;
+    ///@}
 };
 
 } // namespace smpl

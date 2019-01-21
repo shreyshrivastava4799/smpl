@@ -233,6 +233,26 @@ void Clear(LARAStar* search)
     search->states.clear();
 }
 
+static
+bool TimedOut(LARAStar* search, const TimeoutCondition& timeout)
+{
+    if (!timeout.bounded) return false;
+
+    switch (timeout.type) {
+    case TimeoutCondition::EXPANSIONS:
+        return search->num_expansions >= timeout.max_expansions;
+    case TimeoutCondition::TIME:
+        return search->elapsed_time >= timeout.max_allowed_time;
+    case TimeoutCondition::USER:
+        return timeout.timed_out_fun();
+    default:
+        SMPL_ERROR_NAMED(LOG, "Invalid timer type");
+        return true;
+    }
+
+    return true;
+}
+
 ///////////////
 // Interface //
 ///////////////
@@ -318,6 +338,8 @@ int Replan(
 {
     // TODO: lazily initialize search for new/old start state ids
     Clear(search);
+    search->num_expansions = 0;
+    search->elapsed_time = smpl::clock::duration::zero();
     search->call_number++;
 
     auto* start_state = GetState(search, search->start_state_id);
@@ -329,7 +351,17 @@ int Replan(
     start_state->true_cost = true;
     search->open.push(start_state);
 
-    while (!search->open.empty()) {
+    auto start_time = smpl::clock::now();
+
+    for (;;) {
+        if (search->open.empty()) {
+            break;
+        }
+
+        if (TimedOut(search, timeout)) {
+            break;
+        }
+
         auto* min_state = search->open.min();
         search->open.pop();
 
@@ -348,12 +380,40 @@ int Replan(
 
         if (min_state->true_cost) {
             ExpandState(search, min_state);
+            ++search->num_expansions;
         } else {
             EvaluateState(search, min_state);
         }
+
+        search->elapsed_time = smpl::clock::now() - start_time;
     }
 
     return 0;
+}
+
+auto GetSolutionEps(const LARAStar* search) -> double
+{
+    return 1.0;
+}
+
+int GetNumExpansions(const LARAStar* search)
+{
+    return 0;
+}
+
+int GetNumExpansionsInitialEps(const LARAStar* search)
+{
+    return 0;
+}
+
+auto GetElapsedTime(const LARAStar* search) -> double
+{
+    return 0.0;
+}
+
+auto GetElapsedTimeInitialEps(const LARAStar* search) -> double
+{
+    return 0.0;
 }
 
 bool LARAStar::StateCompare::operator()(
@@ -364,6 +424,46 @@ bool LARAStar::StateCompare::operator()(
 }
 
 LARAStar::LARAStar() : open(StateCompare{this}) { }
+
 LARAStar::~LARAStar() { }
+
+bool LARAStar::UpdateStart(int state_id)
+{
+    return ::smpl::UpdateStart(this, state_id);
+}
+
+bool LARAStar::UpdateGoal(GoalConstraint* goal)
+{
+    return ::smpl::UpdateGoal(this, goal);
+}
+
+void LARAStar::ForcePlanningFromScratch()
+{
+    return ::smpl::ForcePlanningFromScratch(this);
+}
+
+void LARAStar::ForcePlanningFromScratchAndFreeMemory()
+{
+    return ::smpl::ForcePlanningFromScratchAndFreeMemory(this);
+}
+
+int LARAStar::Replan(
+    const TimeoutCondition& timeout,
+    std::vector<int>* solution,
+    int* cost)
+{
+    return ::smpl::Replan(this, timeout, solution, cost);
+}
+
+int LARAStar::GetNumExpansions()
+{
+    return ::smpl::GetNumExpansions(this);
+}
+
+auto LARAStar::GetElapsedTime() -> double
+{
+    return ::smpl::GetElapsedTime(this);
+}
+
 
 } // namespace smpl
