@@ -659,6 +659,35 @@ WorkspaceLatticeState* WorkspaceLattice::getState(int state_id) const
     return m_states[state_id];
 }
 
+int WorkspaceLattice::getOrCreateState(
+    const WorkspaceCoord& coord,
+    const RobotState& robot_state)
+{
+    auto state = smpl::WorkspaceLatticeState();
+    state.coord = coord;
+    auto sit = this->m_state_to_id.find(&state);
+    if (sit != this->m_state_to_id.end()) {
+        return sit->second;
+    }
+
+    auto new_id = (int)this->m_states.size();
+
+    // create a new entry
+    auto* state_entry = new smpl::WorkspaceLatticeState(state);
+
+    // map id <-> state
+    this->m_states.push_back(state_entry);
+    this->m_state_to_id[state_entry] = new_id;
+
+    int* indices = new int[NUMOFINDICES_STATEID2IND];
+    std::fill(indices, indices + NUMOFINDICES_STATEID2IND, -1);
+    this->StateID2IndexMapping.push_back(indices);
+
+    this->m_states[new_id]->state = robot_state;
+
+    return new_id;
+}
+
 bool WorkspaceLattice::isGoal(
     const WorkspaceState& state,
     const RobotState& robot_state) const
