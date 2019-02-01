@@ -168,9 +168,8 @@ bool WorkspaceLattice::setStart(const RobotState& state)
 
     SMPL_DEBUG_STREAM_NAMED(G_LOG, "  coord: " << start_coord);
 
-    m_start_state_id = createState(start_coord);
+    m_start_state_id = getOrCreateState(start_coord, state);
     m_start_entry = getState(m_start_state_id);
-    m_start_entry->state = state;
 
     return RobotPlanningSpace::setStart(state);
 }
@@ -378,9 +377,8 @@ void WorkspaceLattice::GetSuccs(
         stateWorkspaceToCoord(final_state, succ_coord);
 
         // check if hash entry already exists, if not then create one
-        auto succ_id = createState(succ_coord);
+        auto succ_id = getOrCreateState(succ_coord, final_rstate);
         auto* succ_state = getState(succ_id);
-        succ_state->state = final_rstate;
 
         // check if this state meets the goal criteria
         auto is_goal_succ = isGoal(final_state, final_rstate);
@@ -480,9 +478,8 @@ void WorkspaceLattice::GetLazySuccs(
         stateWorkspaceToCoord(final_state, succ_coord);
 
         // check if hash entry already exists, if not then create one
-        int succ_id = createState(succ_coord);
-        WorkspaceLatticeState* succ_state = getState(succ_id);
-        succ_state->state = final_rstate;
+        auto succ_id = getOrCreateState(succ_coord, final_rstate);
+        auto* succ_state = getState(succ_id);
 
         // check if this state meets the goal criteria
         auto is_goal_succ = isGoal(final_state, final_rstate);
