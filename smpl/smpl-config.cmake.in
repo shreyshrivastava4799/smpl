@@ -3,16 +3,6 @@
 # smpl_INCLUDE_DIRS
 # smpl_LIBRARIES
 
-# get the path to this (installed) cmake file
-get_filename_component(SMPL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-set(smpl_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
-
-#if (NOT TARGET smpl AND NOT smpl_BINARY_DIR)
-include(${SMPL_CMAKE_DIR}/smpl-targets.cmake)
-#endif()
-
-#find_package(sbpl REQUIRED)
-
 # Shamelessly copied from GLEW, which similarly uses GLEW::GLEW to refer to
 # GLEW::glew or GLEW::glew_s shared and static library targets.
 function(copy_imported_target_properties src_target dest_target)
@@ -63,12 +53,20 @@ function(copy_imported_target_properties src_target dest_target)
     endforeach()
 endfunction()
 
-if(TARGET smpl::smpl-shared)
-    add_library(smpl::smpl SHARED IMPORTED)
-    copy_imported_target_properties(smpl::smpl-shared smpl::smpl)
-elseif(TARGET smpl::smpl-static)
-    add_library(smpl::smpl STATIC IMPORTED)
-    copy_imported_target_properties(smpl::smpl-static smpl::smpl)
+# get the path to this (installed) cmake file
+get_filename_component(SMPL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(smpl_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+
+if (NOT TARGET smpl::smpl AND NOT smpl_BINARY_DIR)
+    include(${SMPL_CMAKE_DIR}/smpl-targets.cmake)
+
+    if(TARGET smpl::smpl-shared)
+        add_library(smpl::smpl SHARED IMPORTED)
+        copy_imported_target_properties(smpl::smpl-shared smpl::smpl)
+    elseif(TARGET smpl::smpl-static)
+        add_library(smpl::smpl STATIC IMPORTED)
+        copy_imported_target_properties(smpl::smpl-static smpl::smpl)
+    endif()
 endif()
 
 set(smpl_LIBRARIES smpl::smpl)

@@ -6,12 +6,16 @@
     <author email="andrew.dornbush@gmail.com">Andrew Dornbush</author>
     <maintainer email="andrew.dornbush@gmail.com">Andrew Dornbush</maintainer>
     <license>BSD</license>
-    <buildtool_depend>catkin</buildtool_depend>
+
+    <buildtool_depend>cmake</buildtool_depend>
 
     <build_depend>eigen</build_depend>
     <build_depend>liburdfdom-headers-dev</build_depend>
 
     <depend>liburdfdom-dev</depend>
     <depend>smpl</depend>
-    <depend>smpl_ros</depend>
+
+    <export>
+        <build_type>cmake</build_type>
+    </export>
 </package>
