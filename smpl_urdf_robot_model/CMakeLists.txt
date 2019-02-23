@@ -43,7 +43,6 @@ configure_file(
 
 add_library(
     smpl_urdf_robot_model
-    SHARED
     src/robot_model.cpp
     src/robot_state.cpp
     src/robot_state_bounds.cpp

@@ -234,7 +234,7 @@ struct RobotModel
 
     std::vector<Link> links;
 
-    std::vector<Joint> joints;
+    AlignedVector<Joint> joints;
 
     std::vector<JointVariable> variables;
 
@@ -243,8 +243,8 @@ struct RobotModel
     std::vector<Cylinder>   cylinders;
     std::vector<Mesh>       meshes;
 
-    std::vector<LinkCollision>  collisions;
-    std::vector<LinkVisual>     visuals;
+    AlignedVector<LinkCollision>  collisions;
+    AlignedVector<LinkVisual>     visuals;
 
     Link* root_link = NULL;
     Joint* root_joint = NULL;
