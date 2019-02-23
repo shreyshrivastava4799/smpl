@@ -39,7 +39,6 @@
 
 // system includes
 #include <Eigen/Core>       // explicit include here for Eigen::Vector3i
-#include <Eigen/StdVector>
 
 // project includes
 #include <smpl/grid/sparse_grid.h>

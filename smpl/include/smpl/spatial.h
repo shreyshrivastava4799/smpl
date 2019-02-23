@@ -7,6 +7,9 @@
 // system includes
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#if 0
+#include <Eigen/StdVector>
+#endif
 
 namespace smpl {
 
@@ -68,6 +71,9 @@ using AngleAxis = Eigen::AngleAxisd;
 using Quaternion = Eigen::Quaterniond;
 
 using Eigen::Scaling;
+
+template <class T>
+using AlignedVector = std::vector<T, Eigen::aligned_allocator<T>>;
 
 inline auto MakeAffine2(double x, double y) -> Affine2
 {

@@ -38,11 +38,9 @@
 #include <vector>
 
 // system includes
-#include <Eigen/Core>
-#include <Eigen/StdVector>
+#include <Eigen/Core> // Eigen::Vector3i
 
 // project includes
-#include <smpl/forward.h>
 #include <smpl/distance_map/distance_map_interface.h>
 #include <smpl/grid/grid.h>
 #include <smpl/spatial.h>
