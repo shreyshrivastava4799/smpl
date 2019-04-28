@@ -3,6 +3,7 @@
 
 // standard includes
 #include <cmath>
+#include <vector>
 
 // system includes
 #include <Eigen/Core>
