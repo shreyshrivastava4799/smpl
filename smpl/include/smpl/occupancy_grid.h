@@ -38,9 +38,6 @@
 #include <string>
 #include <vector>
 
-// system includes
-#include <Eigen/StdVector>
-
 // project includes
 #include <smpl/forward.h>
 #include <smpl/debug/marker.h>

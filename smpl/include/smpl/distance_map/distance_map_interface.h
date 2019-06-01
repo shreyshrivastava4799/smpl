@@ -35,11 +35,7 @@
 // standard includes
 #include <vector>
 
-// system includes
-#include <Eigen/StdVector>
-
 // project includes
-#include <smpl/forward.h>
 #include <smpl/spatial.h>
 
 namespace smpl {

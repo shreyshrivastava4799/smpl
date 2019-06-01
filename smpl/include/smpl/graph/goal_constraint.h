@@ -4,9 +4,6 @@
 // standard includes
 #include <vector>
 
-// system includes
-#include <Eigen/StdVector>
-
 // project includes
 #include <smpl/extension.h>
 #include <smpl/spatial.h>
@@ -191,9 +188,6 @@ public:
 
     IProjectToPose* m_project_to_pose = NULL;
 };
-
-template <class T>
-using AlignedVector = std::vector<T, Eigen::aligned_allocator<T>>;
 
 class MultiPoseGoal :
     public GoalConstraint,

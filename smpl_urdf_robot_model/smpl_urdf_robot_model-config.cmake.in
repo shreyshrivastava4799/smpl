@@ -1,0 +1,17 @@
+# Config file for the smpl_urdf_robot_model package
+# The following variables are defined:
+# smpl_urdf_robot_model_INCLUDE_DIRS
+# smpl_urdf_robot_model_LIBRARIES
+
+# get the path to this (installed) cmake file
+get_filename_component(SMPL_URDF_ROBOT_MODEL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(smpl_urdf_robot_model_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+
+if (NOT TARGET smpl_urdf_robot_model AND NOT smpl_urdf_robot_model_BINARY_DIR)
+    include(${SMPL_URDF_ROBOT_MODEL_CMAKE_DIR}/smpl_urdf_robot_model-targets.cmake)
+endif()
+
+find_package(smpl REQUIRED)
+
+set(smpl_urdf_robot_model_LIBRARIES smpl_urdf_robot_model)
+

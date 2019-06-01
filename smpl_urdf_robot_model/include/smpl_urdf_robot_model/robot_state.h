@@ -5,7 +5,6 @@
 #include <vector>
 
 // system includes
-#include <Eigen/StdVector>
 #include <smpl/spatial.h>
 
 namespace smpl {
@@ -156,7 +155,7 @@ struct RobotState
     double*                 velocities = NULL;
     double*                 accelerations = NULL;
 
-    std::vector<Affine3, Eigen::aligned_allocator<Affine3>>    transforms;
+    AlignedVector<Affine3>  transforms;
     Affine3*                link_transforms = NULL;
     Affine3*                joint_transforms = NULL;
     Affine3*                link_collision_transforms = NULL;
