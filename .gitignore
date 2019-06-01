@@ -1,2 +1,4 @@
 smpl/include/smpl/config.h
-
+**/debug/**
+**/release/**
+**/build/**
