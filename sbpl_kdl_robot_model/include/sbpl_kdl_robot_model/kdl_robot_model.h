@@ -139,31 +139,31 @@ public:
 
     /// \name RobotModel Interface
     ///@{
-    auto minPosLimit(int jidx) const -> double final;
-    auto maxPosLimit(int jidx) const -> double final;
-    bool hasPosLimit(int jidx) const final;
-    bool isContinuous(int jidx) const final;
-    auto velLimit(int jidx) const -> double final;
-    auto accLimit(int jidx) const -> double final;
-    bool checkJointLimits(const smpl::RobotState& state, bool verbose = false) final;
+    auto MinPosLimit(int jidx) const -> double final;
+    auto MaxPosLimit(int jidx) const -> double final;
+    bool HasPosLimit(int jidx) const final;
+    bool IsContinuous(int jidx) const final;
+    auto VelLimit(int jidx) const -> double final;
+    auto AccLimit(int jidx) const -> double final;
+    bool CheckJointLimits(const smpl::RobotState& state, bool verbose = false) final;
     auto GetVisualization(const smpl::RobotState& state)
         -> std::vector<visual::Marker> final;
     ///@}
 
     /// \name IForwardKinematics Interface
     ///@{
-    auto computeFK(const smpl::RobotState& state) -> smpl::Affine3 final;
+    auto ComputeFK(const smpl::RobotState& state) -> smpl::Affine3 final;
     ///@}
 
     /// \name IInverseKinematics Interface
     ///@{
-    bool computeIK(
+    bool ComputeIK(
         const smpl::Affine3& pose,
         const RobotState& start,
         RobotState& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED) final;
 
-    bool computeIK(
+    bool ComputeIK(
         const smpl::Affine3& pose,
         const RobotState& start,
         std::vector<RobotState>& solutions,
@@ -172,9 +172,9 @@ public:
 
     /// \name IRedundantManipulator Interface
     /// @{
-    const int redundantVariableCount() const final;
-    const int redundantVariableIndex(int vidx) const final;
-    bool computeFastIK(
+    const int RedundantVariableCount() const final;
+    const int RedundantVariableIndex(int vidx) const final;
+    bool ComputeFastIK(
         const smpl::Affine3& pose,
         const RobotState& start,
         RobotState& solution) final;

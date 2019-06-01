@@ -69,16 +69,16 @@ public:
 
     /// \name Required Functions from CollisionChecker
     ///@{
-    bool isStateValid(
+    bool IsStateValid(
         const smpl::RobotState& angles,
         bool verbose) override;
 
-    bool isStateToStateValid(
+    bool IsStateToStateValid(
         const smpl::RobotState& angles0,
         const smpl::RobotState& angles1,
         bool verbose) override;
 
-    bool interpolatePath(
+    bool InterpolatePath(
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
         std::vector<smpl::RobotState>& opath) override;
@@ -86,7 +86,7 @@ public:
 
     /// \name Reimplemented Functions from CollisionChecker
     ///@{
-    auto getCollisionModelVisualization(const smpl::RobotState& angles)
+    auto GetCollisionModelVisualization(const smpl::RobotState& angles)
         -> std::vector<smpl::visual::Marker> override;
     ///@}
 

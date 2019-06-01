@@ -138,7 +138,7 @@ int main(int argc, char **argv)
     SV_SHOW_INFO(cspace.getBoundingBoxVisualization());
     SV_SHOW_INFO(cspace.getOccupiedVoxelsVisualization());
     SV_SHOW_INFO(cspace.getDistanceFieldVisualization());
-    SV_SHOW_INFO(cspace.getCollisionModelVisualization(angles));
+    SV_SHOW_INFO(cspace.GetCollisionModelVisualization(angles));
 
     ros::spinOnce();
     sleep(1);

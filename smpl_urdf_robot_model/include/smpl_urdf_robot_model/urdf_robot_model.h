@@ -35,16 +35,16 @@ struct URDFRobotModel :
     std::vector<int> planning_to_state_variable;
     const Link* planning_link = NULL;
 
-    auto computeFK(const smpl::RobotState& state)
+    auto ComputeFK(const smpl::RobotState& state)
         -> Eigen::Affine3d override;
 
-    double minPosLimit(int jidx) const override;
-    double maxPosLimit(int jidx) const override;
-    bool hasPosLimit(int jidx) const override;
-    bool isContinuous(int jidx) const override;
-    double velLimit(int jidx) const override;
-    double accLimit(int jidx) const override;
-    bool checkJointLimits(
+    double MinPosLimit(int jidx) const override;
+    double MaxPosLimit(int jidx) const override;
+    bool HasPosLimit(int jidx) const override;
+    bool IsContinuous(int jidx) const override;
+    double VelLimit(int jidx) const override;
+    double AccLimit(int jidx) const override;
+    bool CheckJointLimits(
         const smpl::RobotState& state,
         bool verbose = false) override;
 

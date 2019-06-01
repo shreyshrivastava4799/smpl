@@ -75,7 +75,7 @@ bool getCount(int& count, int max_count, int min_count)
 static
 void NormalizeAngles(const KDLRobotModel* model, KDL::JntArray* q)
 {
-    for (auto i = 0; i < model->jointVariableCount(); ++i) {
+    for (auto i = 0; i < model->JointVariableCount(); ++i) {
         if (model->urdf_model.vprops[i].continuous) {
             (*q)(i) = smpl::angles::normalize_angle((*q)(i));
         }
@@ -188,7 +188,7 @@ bool InitKDLRobotModel(
         return false;
     }
 
-    model->setPlanningJoints(planning_joints);
+    model->SetPlanningJoints(planning_joints);
 
     ROS_DEBUG("Initialize planning link");
     // do this after we've initialized the URDFRobotModel...
@@ -204,9 +204,9 @@ bool InitKDLRobotModel(
     model->ik_vel_solver = make_unique<KDL::ChainIkSolverVel_pinv>(model->chain);
 
     ROS_DEBUG("Initialize IK Position solver");
-    auto q_min = KDL::JntArray(model->jointVariableCount());
-    auto q_max = KDL::JntArray(model->jointVariableCount());
-    for (auto i = 0; i < model->jointVariableCount(); ++i) {
+    auto q_min = KDL::JntArray(model->JointVariableCount());
+    auto q_max = KDL::JntArray(model->JointVariableCount());
+    for (auto i = 0; i < model->JointVariableCount(); ++i) {
         if (model->urdf_model.vprops[i].continuous) {
             q_min(i) = -M_PI;
             q_max(i) = M_PI;
@@ -255,12 +255,12 @@ auto GetPlanningLink(const KDLRobotModel* model) -> const std::string&
 
 int GetJointCount(const KDLRobotModel* model)
 {
-    return model->urdf_model.getPlanningJoints().size();
+    return model->urdf_model.GetPlanningJoints().size();
 }
 
 auto GetPlanningJoints(const KDLRobotModel* model) -> const std::vector<std::string>&
 {
-    return model->getPlanningJoints();
+    return model->GetPlanningJoints();
 }
 
 int GetJointVariableCount(const KDLRobotModel* model)
@@ -270,7 +270,7 @@ int GetJointVariableCount(const KDLRobotModel* model)
 
 auto GetPlanningJointVariables(const KDLRobotModel* model) -> const std::vector<std::string>&
 {
-    return model->getPlanningJoints();
+    return model->GetPlanningJoints();
 }
 
 int GetRedundantVariableCount(const KDLRobotModel* model)
@@ -323,7 +323,7 @@ bool CheckJointLimits(
     const smpl::RobotState& state,
     bool verbose)
 {
-    return model->urdf_model.checkJointLimits(state, verbose);
+    return model->urdf_model.CheckJointLimits(state, verbose);
 }
 
 auto GetVisualization(KDLRobotModel* model, const smpl::RobotState& state)
@@ -335,7 +335,7 @@ auto GetVisualization(KDLRobotModel* model, const smpl::RobotState& state)
 auto ComputeFK(KDLRobotModel* model, const smpl::RobotState& state)
     -> smpl::Affine3
 {
-    return model->urdf_model.computeFK(state);
+    return model->urdf_model.ComputeFK(state);
 }
 
 void PrintRobotModelInformation(const KDLRobotModel* model)
@@ -465,37 +465,37 @@ auto GetExtension(KDLRobotModel* model, size_t class_code) -> Extension*
     return NULL;
 }
 
-auto KDLRobotModel::minPosLimit(int jidx) const -> double
+auto KDLRobotModel::MinPosLimit(int jidx) const -> double
 {
     return ::smpl::GetMinPosLimit(this, jidx);
 }
 
-auto KDLRobotModel::maxPosLimit(int jidx) const -> double
+auto KDLRobotModel::MaxPosLimit(int jidx) const -> double
 {
     return ::smpl::GetMaxPosLimit(this, jidx);
 }
 
-bool KDLRobotModel::hasPosLimit(int jidx) const
+bool KDLRobotModel::HasPosLimit(int jidx) const
 {
     return ::smpl::HasPosLimit(this, jidx);
 }
 
-bool KDLRobotModel::isContinuous(int jidx) const
+bool KDLRobotModel::IsContinuous(int jidx) const
 {
     return ::smpl::IsContinuous(this, jidx);
 }
 
-auto KDLRobotModel::velLimit(int jidx) const -> double
+auto KDLRobotModel::VelLimit(int jidx) const -> double
 {
     return ::smpl::GetVelLimit(this, jidx);
 }
 
-auto KDLRobotModel::accLimit(int jidx) const -> double
+auto KDLRobotModel::AccLimit(int jidx) const -> double
 {
     return ::smpl::GetAccLimit(this, jidx);
 }
 
-bool KDLRobotModel::checkJointLimits(
+bool KDLRobotModel::CheckJointLimits(
     const smpl::RobotState& state,
     bool verbose)
 {
@@ -508,12 +508,12 @@ auto KDLRobotModel::GetVisualization(const smpl::RobotState& state)
     return ::smpl::GetVisualization(this, state);
 }
 
-auto KDLRobotModel::computeFK(const smpl::RobotState& state) -> smpl::Affine3
+auto KDLRobotModel::ComputeFK(const smpl::RobotState& state) -> smpl::Affine3
 {
     return ::smpl::ComputeFK(this, state);
 }
 
-bool KDLRobotModel::computeIK(
+bool KDLRobotModel::ComputeIK(
     const smpl::Affine3& pose,
     const RobotState& start,
     RobotState& solution,
@@ -522,7 +522,7 @@ bool KDLRobotModel::computeIK(
     return ::smpl::ComputeIK(this, pose, start, solution, option);
 }
 
-bool KDLRobotModel::computeIK(
+bool KDLRobotModel::ComputeIK(
     const smpl::Affine3& pose,
     const RobotState& start,
     std::vector<RobotState>& solutions,
@@ -531,17 +531,17 @@ bool KDLRobotModel::computeIK(
     return ::smpl::ComputeIK(this, pose, start, solutions, option);
 }
 
-const int KDLRobotModel::redundantVariableCount() const
+const int KDLRobotModel::RedundantVariableCount() const
 {
     return ::smpl::GetRedundantVariableCount(this);
 }
 
-const int KDLRobotModel::redundantVariableIndex(int vidx) const
+const int KDLRobotModel::RedundantVariableIndex(int vidx) const
 {
     return ::smpl::GetRedundantVariableIndex(this, vidx);
 }
 
-bool KDLRobotModel::computeFastIK(
+bool KDLRobotModel::ComputeFastIK(
     const smpl::Affine3& pose,
     const RobotState& start,
     RobotState& solution)

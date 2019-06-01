@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
     ROS_INFO("[ik] output_angles: % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f % 0.3f pose: %s",
             ika[0], ika[1], ika[2], ika[3], ika[4], ika[5], ika[6], buff);
 
-    auto posef = rm.computeFK(ika);
+    auto posef = rm.ComputeFK(ika);
 
     PrintTransform(buff, sizeof(buff), posef);
 

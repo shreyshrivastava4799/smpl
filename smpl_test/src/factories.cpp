@@ -47,7 +47,7 @@ auto MakeManipLattice(
 
     // TODO: read discretization from config
     auto resolutions = std::vector<double>(
-            model->jointVariableCount(),
+            model->JointVariableCount(),
             smpl::to_radians(1.0));
 
     auto actions = smpl::make_unique<smpl::ManipulationActionSpace>();
@@ -284,7 +284,7 @@ auto MakeManipLatticeEGraph(
     auto graph = smpl::make_unique<SimpleManipLatticeEGraph>();
 
     auto resolutions = std::vector<double>(
-            model->jointVariableCount(),
+            model->JointVariableCount(),
             smpl::to_radians(1.0));
 
     auto actions = smpl::make_unique<smpl::ManipulationActionSpace>();

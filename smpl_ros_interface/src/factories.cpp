@@ -149,7 +149,7 @@ auto MakeManipLattice(
     // Parameters //
     ////////////////
 
-    auto resolutions = std::vector<double>(robot->jointVariableCount());
+    auto resolutions = std::vector<double>(robot->JointVariableCount());
 
     auto disc_string = std::string();
     if (!params.getParam("discretization", disc_string)) {
@@ -160,8 +160,8 @@ auto MakeManipLattice(
     auto disc = ParseMapFromString<double>(disc_string);
     SMPL_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
 
-    for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
-        auto& vname = robot->getPlanningJoints()[vidx];
+    for (size_t vidx = 0; vidx < robot->JointVariableCount(); ++vidx) {
+        auto& vname = robot->GetPlanningJoints()[vidx];
         auto joint_name = std::string();
         auto local_name = std::string();
         if (IsMultiDOFJointVariable(vname, &joint_name, &local_name)) {
@@ -255,7 +255,7 @@ auto MakeManipLatticeEGraph(
     // Parameters //
     ////////////////
 
-    std::vector<double> resolutions(robot->jointVariableCount());
+    std::vector<double> resolutions(robot->JointVariableCount());
 
     std::string disc_string;
     if (!params.getParam("discretization", disc_string)) {
@@ -265,8 +265,8 @@ auto MakeManipLatticeEGraph(
     auto disc = ParseMapFromString<double>(disc_string);
     SMPL_DEBUG_NAMED(PI_LOGGER, "Parsed discretization for %zu joints", disc.size());
 
-    for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
-        auto& vname = robot->getPlanningJoints()[vidx];
+    for (size_t vidx = 0; vidx < robot->JointVariableCount(); ++vidx) {
+        auto& vname = robot->GetPlanningJoints()[vidx];
         auto dit = disc.find(vname);
         if (dit == end(disc)) {
             SMPL_ERROR_NAMED(PI_LOGGER, "Discretization for variable '%s' not found in planning parameters", vname.c_str());
@@ -379,10 +379,10 @@ bool GetWorkspaceLatticeParams(
     wsp->P_count = (int)std::round(M_PI / res_P) + 1; // TODO: force discrete values at -pi/2, 0, and pi/2
     wsp->Y_count = (int)std::round(2.0 * M_PI / res_Y);
 
-    wsp->free_angle_res.resize(rmi->redundantVariableCount());
-    for (int i = 0; i < rmi->redundantVariableCount(); ++i) {
-        auto rvi = rmi->redundantVariableIndex(i);
-        auto name = robot->getPlanningJoints()[rvi];
+    wsp->free_angle_res.resize(rmi->RedundantVariableCount());
+    for (int i = 0; i < rmi->RedundantVariableCount(); ++i) {
+        auto rvi = rmi->RedundantVariableIndex(i);
+        auto name = robot->GetPlanningJoints()[rvi];
         std::string joint_name, local_name;
         if (IsMultiDOFJointVariable(name, &joint_name, &local_name)) {
             name = joint_name + "_" + local_name;
@@ -504,7 +504,7 @@ auto MakeAdaptiveWorkspaceLattice(
         SMPL_WARN("Workspace Lattice requires Redundant Manipulator Interface");
         return NULL;
     }
-    wsp.free_angle_res.resize(rmi->redundantVariableCount(), to_radians(1.0));
+    wsp.free_angle_res.resize(rmi->RedundantVariableCount(), to_radians(1.0));
 
     auto space = make_unique<AdaptiveWorkspaceLattice>();
     if (!space->Init(robot, checker, wsp, grid)) {

@@ -42,7 +42,7 @@ CollisionChecker::~CollisionChecker()
 {
 }
 
-auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
+auto CollisionChecker::GetCollisionModelVisualization(const RobotState& state)
     -> std::vector<visual::Marker>
 {
     return { };

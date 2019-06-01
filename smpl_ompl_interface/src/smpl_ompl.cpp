@@ -13,7 +13,7 @@
 
 using StateSpaceType = ompl::base::SE2StateSpace;
 
-bool isStateValid(const ompl::base::State* state)
+bool IsStateValid(const ompl::base::State* state)
 {
     auto* s = state->as<StateSpaceType::StateType>();
     auto dx = s->getX();
@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
     ompl::geometric::SimpleSetup ss(space);
     ss.setStateValidityChecker(
             [](const ompl::base::State* state) {
-                return isStateValid(state);
+                return IsStateValid(state);
             });
 
     ompl::base::ScopedState<StateSpaceType> start(space);
@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
         SMPL_INFO_STREAM("goal = " << goal.reals());
         SMPL_INFO("  r = %f", sqrt(goal->getX() * goal->getX() + goal->getY() * goal->getY()));
         ++count;
-    } while (!isStateValid(start.get()) || !isStateValid(goal.get()));
+    } while (!IsStateValid(start.get()) || !IsStateValid(goal.get()));
     SMPL_INFO("Sampled %d start/goal pairs", count);
 
     ss.setStartAndGoalStates(start, goal);

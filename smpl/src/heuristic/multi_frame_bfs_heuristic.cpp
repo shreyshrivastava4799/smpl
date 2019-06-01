@@ -89,7 +89,7 @@ int GetGoalHeuristicMF(
     int h_planning_link = 0;
     if (use_ee) {
         auto& state = heur->m_ers->ExtractState(state_id);
-        auto pose = heur->m_fk_iface->computeFK(state);
+        auto pose = heur->m_fk_iface->ComputeFK(state);
         auto eex = DiscretizePoint(heur->m_grid, pose.translation());
         h_planning_link = GetBFSCostToGoal(*heur->m_ee_bfs, eex[0], eex[1], eex[2], heur->m_cost_per_cell);
     }

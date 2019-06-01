@@ -49,7 +49,7 @@ bool Init(
         }
     }
 
-    model->setPlanningJoints(planning_variables);
+    model->SetPlanningJoints(planning_variables);
     model->robot_model = robot_model;
 
     if (!InitRobotState(&model->robot_state, robot_model)) {
@@ -85,7 +85,7 @@ void SetReferenceState(URDFRobotModel* model, const double* positions)
 static
 void UpdateState(URDFRobotModel* model, const smpl::RobotState* state)
 {
-    for (auto i = 0; i < model->jointVariableCount(); ++i) {
+    for (auto i = 0; i < model->JointVariableCount(); ++i) {
         SetVariablePosition(
                 &model->robot_state,
                 model->planning_to_state_variable[i],
@@ -93,51 +93,51 @@ void UpdateState(URDFRobotModel* model, const smpl::RobotState* state)
     }
 }
 
-auto URDFRobotModel::computeFK(const smpl::RobotState& state)
+auto URDFRobotModel::ComputeFK(const smpl::RobotState& state)
     -> Eigen::Affine3d
 {
     UpdateState(this, &state);
     return *GetUpdatedLinkTransform(&this->robot_state, this->planning_link);
 }
 
-double URDFRobotModel::minPosLimit(int jidx) const
+double URDFRobotModel::MinPosLimit(int jidx) const
 {
     return this->vprops[jidx].min_position;
 }
 
-double URDFRobotModel::maxPosLimit(int jidx) const
+double URDFRobotModel::MaxPosLimit(int jidx) const
 {
     return this->vprops[jidx].max_position;
 }
 
-bool URDFRobotModel::hasPosLimit(int jidx) const
+bool URDFRobotModel::HasPosLimit(int jidx) const
 {
     return this->vprops[jidx].bounded;
 }
 
-bool URDFRobotModel::isContinuous(int jidx) const
+bool URDFRobotModel::IsContinuous(int jidx) const
 {
     return this->vprops[jidx].continuous;
 }
 
-double URDFRobotModel::velLimit(int jidx) const
+double URDFRobotModel::VelLimit(int jidx) const
 {
     return this->vprops[jidx].vel_limit;
 }
 
-double URDFRobotModel::accLimit(int jidx) const
+double URDFRobotModel::AccLimit(int jidx) const
 {
     return this->vprops[jidx].acc_limit;
 }
 
-bool URDFRobotModel::checkJointLimits(
+bool URDFRobotModel::CheckJointLimits(
     const smpl::RobotState& state,
     bool verbose)
 {
     // TODO: Add a SatisfiesBounds overload that accepts a value for the
     // variable instead of looking up the value within a RobotState.
     UpdateState(this, &state);
-    for (auto i = 0; i < this->jointVariableCount(); ++i) {
+    for (auto i = 0; i < this->JointVariableCount(); ++i) {
         auto* var = GetVariable(this->robot_model, this->planning_to_state_variable[i]);
         if (!SatisfiesBounds(&this->robot_state, var)) {
             return false;

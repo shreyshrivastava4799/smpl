@@ -77,7 +77,7 @@ void ComputeIKAction(
 
     if (actions->m_use_multiple_ik_solutions) {
         auto solutions = std::vector<RobotState>();
-        if (!actions->m_ik_iface->computeIK(goal, state, solutions, option)) {
+        if (!actions->m_ik_iface->ComputeIK(goal, state, solutions, option)) {
             return;
         }
         for (auto& solution : solutions) {
@@ -86,7 +86,7 @@ void ComputeIKAction(
         }
     } else {
         auto ik_sol = RobotState();
-        if (!actions->m_ik_iface->computeIK(goal, state, ik_sol)) {
+        if (!actions->m_ik_iface->ComputeIK(goal, state, ik_sol)) {
             return;
         }
 
@@ -110,7 +110,7 @@ auto GetStartAndGoalDistances(
     }
 
     // TODO: why not use project-to-point here?
-    auto pose = actions->m_fk_iface->computeFK(state);
+    auto pose = actions->m_fk_iface->ComputeFK(state);
 
     auto start_dist = 0.0;
     auto goal_dist = 0.0;

@@ -417,7 +417,7 @@ void ProjectionEvaluatorFK::project(
         ompl::base::EuclideanProjection& projection) const
 {
     auto values = smpl::MakeStateSMPL(this->state_space, state);
-    auto pose = model->computeFK(values);
+    auto pose = model->ComputeFK(values);
     projection.resize(getDimension(), 0.0);
     projection[0] = pose.translation().x();
     projection[1] = pose.translation().y();
@@ -651,7 +651,7 @@ int main(int argc, char* argv[])
     {
         std::vector<double> values;
         state_space->copyToReals(values, state);
-        return cc.isStateValid(values);
+        return cc.IsStateValid(values);
     });
 
     // Set up a projection evaluator to provide forward kinematics...
@@ -698,7 +698,7 @@ int main(int argc, char* argv[])
             [&](const std::vector<double>& state)
                 -> std::vector<smpl::visual::Marker>
             {
-                return cc.getCollisionModelVisualization(state);
+                return cc.GetCollisionModelVisualization(state);
             });
 
     ss.setPlanner(ompl::base::PlannerPtr(planner));

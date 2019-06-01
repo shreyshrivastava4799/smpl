@@ -201,16 +201,16 @@ public:
 
     /// \name Required Functions from CollisionChecker
     ///@{
-    bool isStateValid(
+    bool IsStateValid(
         const RobotState& state,
         bool verbose = false) override;
 
-    bool isStateToStateValid(
+    bool IsStateToStateValid(
         const RobotState& start,
         const RobotState& finish,
         bool verbose = false) override;
 
-    bool interpolatePath(
+    bool InterpolatePath(
         const RobotState& start,
         const RobotState& finish,
         std::vector<RobotState>& path) override;
@@ -218,7 +218,7 @@ public:
 
     /// \name Reimplemented Functions from CollisionChecker
     ///@{
-    auto getCollisionModelVisualization(const RobotState& vals)
+    auto GetCollisionModelVisualization(const RobotState& vals)
         -> std::vector<visual::Marker> override;
     ///@}
 
@@ -250,7 +250,7 @@ private:
         return m_planning_joint_to_collision_model_indices.size();
     }
 
-    bool isContinuous(int vidx) const;
+    bool IsContinuous(int vidx) const;
     bool hasLimit(int vidx) const;
     double minLimit(int vidx) const;
     double maxLimit(int vidx) const;
@@ -297,7 +297,7 @@ auto BuildCollisionSpace(
 ///////////////////////////
 
 inline
-bool CollisionSpace::isContinuous(int vidx) const
+bool CollisionSpace::IsContinuous(int vidx) const
 {
     const int jidx = m_planning_joint_to_collision_model_indices[vidx];
     return m_rcm->jointVarIsContinuous(jidx);

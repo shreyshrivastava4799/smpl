@@ -43,7 +43,7 @@ bool ParseExperienceGraphFile(
     SMPL_DEBUG_NAMED(G_LOG, "  %zu records", parser.recordCount());
     SMPL_DEBUG_NAMED(G_LOG, "  %zu fields", parser.fieldCount());
 
-    auto jvar_count = robot_model->getPlanningJoints().size();
+    auto jvar_count = robot_model->GetPlanningJoints().size();
     if (parser.fieldCount() < jvar_count) {
         SMPL_WARN("Parsed experience graph contains insufficient number of joint variables (%zu < %zu)", parser.fieldCount(), jvar_count);
         return false;
@@ -474,7 +474,7 @@ bool WorkspaceLatticeEGraph::Snap(int src_id, int dst_id, int& cost)
     SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(src_state->state, "snap_from"));
     SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(dst_state->state, "snap_to"));
 
-    if (!GetCollisionChecker()->isStateToStateValid(
+    if (!GetCollisionChecker()->IsStateToStateValid(
             src_state->state, dst_state->state))
     {
         SMPL_WARN("Failed snap!");

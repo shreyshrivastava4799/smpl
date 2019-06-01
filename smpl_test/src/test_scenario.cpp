@@ -407,7 +407,7 @@ bool InitTestScenario(
             robot_description,
             cc_conf,
             group_name,
-            scenario->planning_model->getPlanningJoints()))
+            scenario->planning_model->GetPlanningJoints()))
     {
         SMPL_ERROR("Failed to initialize Collision Space");
         return false;
@@ -483,7 +483,7 @@ auto MakeRobotState(
     -> std::pair<smpl::RobotState, bool>
 {
     auto state = smpl::RobotState();
-    for (auto& var_name : model->getPlanningJoints()) {
+    for (auto& var_name : model->GetPlanningJoints()) {
         auto found = false;
         for (auto i = 0; i < robot_state->joint_state.name.size(); ++i) {
             if (robot_state->joint_state.name[i] == var_name) {
@@ -510,11 +510,11 @@ int WritePathCSV(
     if (f == NULL) return -1;
     DEFER(fclose(f));
 
-    for (auto i = 0; i < model->getPlanningJoints().size(); ++i) {
+    for (auto i = 0; i < model->GetPlanningJoints().size(); ++i) {
         if (i != 0) {
             if (fputs(",", f) < 0) return -1;
         }
-        auto& var = model->getPlanningJoints()[i];
+        auto& var = model->GetPlanningJoints()[i];
         if (fputs(var.c_str(), f) < 0) return -1;
     }
     if (fputs("\n", f) < 0) return -1;

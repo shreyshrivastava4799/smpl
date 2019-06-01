@@ -56,31 +56,31 @@ public:
     virtual ~RobotModel();
 
     /// \brief Return the lower position limit for a joint.
-    virtual double minPosLimit(int jidx) const = 0;
+    virtual double MinPosLimit(int jidx) const = 0;
 
     /// \brief Return the upper position limit for a joint.
-    virtual double maxPosLimit(int jidx) const = 0;
+    virtual double MaxPosLimit(int jidx) const = 0;
 
     /// \brief Return whether a joint has position limits.
-    virtual bool hasPosLimit(int jidx) const = 0;
+    virtual bool HasPosLimit(int jidx) const = 0;
 
     /// \brief Return whether the variable has topology SO(2).
-    virtual bool isContinuous(int jidx) const = 0;
+    virtual bool IsContinuous(int jidx) const = 0;
 
     /// \brief Return the velocity limit for a joint with 0 = unlimited
-    virtual double velLimit(int jidx) const = 0;
+    virtual double VelLimit(int jidx) const = 0;
 
     /// \brief Return the acceleration limit for a joint with 0 = unlimited
-    virtual double accLimit(int jidx) const = 0;
+    virtual double AccLimit(int jidx) const = 0;
 
     /// \brief Check a state for joint limit violations.
-    virtual bool checkJointLimits(const RobotState& state, bool verbose = false) = 0;
+    virtual bool CheckJointLimits(const RobotState& state, bool verbose = false) = 0;
 
-    size_t jointCount() const { return planning_joints_.size(); }
-    size_t jointVariableCount() const { return planning_joints_.size(); }
+    size_t JointCount() const { return planning_joints_.size(); }
+    size_t JointVariableCount() const { return planning_joints_.size(); }
 
-    void setPlanningJoints(const std::vector<std::string>& joints);
-    auto getPlanningJoints() const -> const std::vector<std::string>&;
+    void SetPlanningJoints(const std::vector<std::string>& joints);
+    auto GetPlanningJoints() const -> const std::vector<std::string>&;
 
     virtual auto GetVisualization(const RobotState& state)
         -> std::vector<visual::Marker>;
@@ -103,7 +103,7 @@ public:
     /// { x, y, z, R, P, Y } of the planning link
     ///
     /// \return true if forward kinematics were computed; false otherwise
-    virtual Affine3 computeFK(const RobotState& state) = 0;
+    virtual Affine3 ComputeFK(const RobotState& state) = 0;
 };
 
 namespace ik_option {
@@ -128,14 +128,14 @@ public:
     virtual ~IInverseKinematics();
 
     /// \brief Compute an inverse kinematics solution.
-    virtual bool computeIK(
+    virtual bool ComputeIK(
         const Affine3& pose,
         const RobotState& start,
         RobotState& solution,
         ik_option::IkOption option = ik_option::UNRESTRICTED) = 0;
 
     /// \brief Compute multiple inverse kinematic solutions.
-    virtual bool computeIK(
+    virtual bool ComputeIK(
         const Affine3& pose,
         const RobotState& start,
         std::vector<RobotState>& solutions,
@@ -147,15 +147,15 @@ class IRedundantManipulator : public virtual RobotModel
 public:
 
     /// \brief Return the number of redundant joint variables.
-    virtual const int redundantVariableCount() const = 0;
+    virtual const int RedundantVariableCount() const = 0;
 
     /// \brief Return the index (within planning joints) of the n'th redundant
     ///     variable.
-    virtual const int redundantVariableIndex(int rvidx) const = 0;
+    virtual const int RedundantVariableIndex(int rvidx) const = 0;
 
     /// \brief Compute an inverse kinematics solution while restricting all
     ///     redundant joint variables to the seed state.
-    virtual bool computeFastIK(
+    virtual bool ComputeFastIK(
         const Affine3& pose,
         const RobotState& start,
         RobotState& solution) = 0;
@@ -169,15 +169,15 @@ public:
 
     RobotModelChild(RobotModel* parent) : m_parent(parent) { }
 
-    RobotModel* parent() const { return m_parent; }
+    RobotModel* Parent() const { return m_parent; }
 
-    double minPosLimit(int jidx) const { return m_parent->minPosLimit(jidx); }
-    double maxPosLimit(int jidx) const { return m_parent->maxPosLimit(jidx); }
-    bool hasPosLimit(int jidx) const { return m_parent->hasPosLimit(jidx); }
-    double velLimit(int jidx) const { return m_parent->velLimit(jidx); }
-    double accLimit(int jidx) const { return m_parent->accLimit(jidx); }
-    bool checkJointLimits(const RobotState& state, bool verbose = false) {
-        return m_parent->checkJointLimits(state, verbose);
+    double MinPosLimit(int jidx) const { return m_parent->MinPosLimit(jidx); }
+    double MaxPosLimit(int jidx) const { return m_parent->MaxPosLimit(jidx); }
+    bool HasPosLimit(int jidx) const { return m_parent->HasPosLimit(jidx); }
+    double VelLimit(int jidx) const { return m_parent->VelLimit(jidx); }
+    double AccLimit(int jidx) const { return m_parent->AccLimit(jidx); }
+    bool CheckJointLimits(const RobotState& state, bool verbose = false) {
+        return m_parent->CheckJointLimits(state, verbose);
     }
 
 private:

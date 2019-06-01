@@ -60,7 +60,7 @@ public:
     ///     call to getVisualization
     /// \param[out] dist The distance to the nearest obstacle
     /// \return Whether the state is valid
-    virtual bool isStateValid(const RobotState& state, bool verbose = false) = 0;
+    virtual bool IsStateValid(const RobotState& state, bool verbose = false) = 0;
 
     /// \brief Return whether the interpolated path between two points is valid.
     ///
@@ -73,7 +73,7 @@ public:
     /// \param[out] num_checks The number of collision checks to perform
     /// \param[out] dist The distance to the nearest obstacle
     /// \return true if the interpolated path is valid; false otherwise
-    virtual bool isStateToStateValid(
+    virtual bool IsStateToStateValid(
         const RobotState& start,
         const RobotState& finish,
         bool verbose = false) = 0;
@@ -81,20 +81,20 @@ public:
     /// \brief Return a linearly interpolated path between two joint states.
     ///
     /// This intended use is for this member function should return the path
-    /// interpolated at the resolution used internally by isStateToStateValid.
+    /// interpolated at the resolution used internally by IsStateToStateValid.
     ///
     /// \param[in] start The start configuration of the joint group
     /// \param[in] end The end configuration of the joint group
     /// \param[out] path The output path
     /// \return Whether a valid linearly interpolated path could be constructed
-    virtual bool interpolatePath(
+    virtual bool InterpolatePath(
         const RobotState& start,
         const RobotState& finish,
         std::vector<RobotState>& path) = 0;
 
     /// \name Visualization
     ///@{
-    virtual auto getCollisionModelVisualization(const RobotState& state)
+    virtual auto GetCollisionModelVisualization(const RobotState& state)
         -> std::vector<visual::Marker>;
     ///@}
 };
@@ -104,11 +104,11 @@ class CollisionDistanceExtension : public virtual Extension
 public:
 
     /// Return the distance to collision with the nearest obstacle.
-    virtual double distanceToCollision(const RobotState& state) = 0;
+    virtual double DistanceToCollision(const RobotState& state) = 0;
 
     /// Return the distance to collision with the nearest obstacle along a
     /// motion.
-    virtual double distanceToCollision(
+    virtual double DistanceToCollision(
         const RobotState& start,
         const RobotState& finish) = 0;
 };

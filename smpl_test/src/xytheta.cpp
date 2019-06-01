@@ -42,12 +42,12 @@ public:
     KinematicVehicleModel() : smpl::RobotModel(), smpl::IForwardKinematics()
     {
         const std::vector<std::string> joint_names = { "x", "y" };
-        setPlanningJoints(joint_names);
+        SetPlanningJoints(joint_names);
     }
 
     /// \name Required Public Functions from IForwardKinematics
     ///@{
-    Eigen::Affine3d computeFK(const smpl::RobotState& state) override
+    Eigen::Affine3d ComputeFK(const smpl::RobotState& state) override
     {
         return Eigen::Affine3d(Eigen::Translation3d(state[0], state[1], 0.0));
     }
@@ -55,14 +55,14 @@ public:
 
     /// \name Required Public Functions from Robot Model
     ///@{
-    double minPosLimit(int jidx) const override { return 0.0; }
-    double maxPosLimit(int jidx) const override { return 0.0; }
-    bool hasPosLimit(int jidx) const override { return false; }
-    bool isContinuous(int jidx) const override { return false; }
-    double velLimit(int jidx) const override { return 0.0; }
-    double accLimit(int jidx) const override { return 0.0; }
+    double MinPosLimit(int jidx) const override { return 0.0; }
+    double MaxPosLimit(int jidx) const override { return 0.0; }
+    bool HasPosLimit(int jidx) const override { return false; }
+    bool IsContinuous(int jidx) const override { return false; }
+    double VelLimit(int jidx) const override { return 0.0; }
+    double AccLimit(int jidx) const override { return 0.0; }
 
-    bool checkJointLimits(
+    bool CheckJointLimits(
         const smpl::RobotState& angles,
         bool verbose = false) override
     {
@@ -107,14 +107,14 @@ public:
 
     /// \name Required Functions from CollisionChecker
     ///@{
-    bool isStateValid(const smpl::RobotState& state, bool verbose) override;
+    bool IsStateValid(const smpl::RobotState& state, bool verbose) override;
 
-    bool isStateToStateValid(
+    bool IsStateToStateValid(
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
         bool verbose) override;
 
-    bool interpolatePath(
+    bool InterpolatePath(
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
         std::vector<smpl::RobotState>& path) override;
@@ -126,7 +126,7 @@ private:
     smpl::OccupancyGrid* m_grid;
 };
 
-bool GridCollisionChecker::isStateValid(
+bool GridCollisionChecker::IsStateValid(
     const smpl::RobotState& state,
     bool verbose)
 {
@@ -148,24 +148,24 @@ bool GridCollisionChecker::isStateValid(
     return true;
 }
 
-bool GridCollisionChecker::isStateToStateValid(
+bool GridCollisionChecker::IsStateToStateValid(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
     bool verbose)
 {
     std::vector<smpl::RobotState> path;
-    if (!interpolatePath(start, finish, path)) {
+    if (!InterpolatePath(start, finish, path)) {
         return false;
     }
     return std::all_of(
         path.begin(), path.end(),
         [&](const smpl::RobotState& state)
         {
-            return isStateValid(state, false);
+            return IsStateValid(state, false);
         });
 }
 
-bool GridCollisionChecker::interpolatePath(
+bool GridCollisionChecker::InterpolatePath(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
     std::vector<smpl::RobotState>& path)

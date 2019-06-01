@@ -120,7 +120,7 @@ void SimpleWorkspaceLatticeActionSpace::Apply(
             SMPL_DEBUG("try ik");
             auto ik_sol = RobotState();
             auto goal_pose = m_get_goal_pose->GetPose();
-            if (space->m_proj.ik_iface->computeIK(
+            if (space->m_proj.ik_iface->ComputeIK(
                     goal_pose, state.state, ik_sol))
             {
                 SMPL_DEBUG(" -> ik succeeded");

@@ -68,7 +68,7 @@ int ApplyTransition(ManipLattice* lattice, const Action& action)
 {
     assert(!action.empty());
     auto& succ_real_coords = action.back();
-    auto succ_coord = RobotCoord(lattice->GetRobotModel()->jointVariableCount());
+    auto succ_coord = RobotCoord(lattice->GetRobotModel()->JointVariableCount());
     lattice->StateToCoord(succ_real_coords, succ_coord);
     return lattice->GetOrCreateState(succ_coord, succ_real_coords);
 }
@@ -121,7 +121,7 @@ bool ManipLattice::Init(
         return false;
     }
 
-    if (resolutions.size() != robot->jointVariableCount()) {
+    if (resolutions.size() != robot->JointVariableCount()) {
         SMPL_ERROR_NAMED(G_LOG, "Insufficient variable resolutions for robot model");
         return false;
     }
@@ -137,15 +137,15 @@ bool ManipLattice::Init(
 
     m_fk_iface = robot->GetExtension<IForwardKinematics>();
 
-    m_min_limits.resize(robot->jointVariableCount());
-    m_max_limits.resize(robot->jointVariableCount());
-    m_continuous.resize(robot->jointVariableCount());
-    m_bounded.resize(robot->jointVariableCount());
-    for (auto jidx = 0; jidx < robot->jointVariableCount(); ++jidx) {
-        m_min_limits[jidx] = robot->minPosLimit(jidx);
-        m_max_limits[jidx] = robot->maxPosLimit(jidx);
-        m_continuous[jidx] = robot->isContinuous(jidx);
-        m_bounded[jidx] = robot->hasPosLimit(jidx);
+    m_min_limits.resize(robot->JointVariableCount());
+    m_max_limits.resize(robot->JointVariableCount());
+    m_continuous.resize(robot->JointVariableCount());
+    m_bounded.resize(robot->JointVariableCount());
+    for (auto jidx = 0; jidx < robot->JointVariableCount(); ++jidx) {
+        m_min_limits[jidx] = robot->MinPosLimit(jidx);
+        m_max_limits[jidx] = robot->MaxPosLimit(jidx);
+        m_continuous[jidx] = robot->IsContinuous(jidx);
+        m_bounded[jidx] = robot->HasPosLimit(jidx);
 
         SMPL_DEBUG_NAMED(G_LOG, "variable %d: { min: %f, max: %f, continuous: %s, bounded: %s }",
                 jidx,
@@ -155,9 +155,9 @@ bool ManipLattice::Init(
                 m_bounded[jidx] ? "true" : "false");
     }
 
-    auto discretization = std::vector<int>(robot->jointVariableCount());
-    auto deltas = std::vector<double>(robot->jointVariableCount());
-    for (auto vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
+    auto discretization = std::vector<int>(robot->JointVariableCount());
+    auto deltas = std::vector<double>(robot->JointVariableCount());
+    for (auto vidx = 0; vidx < robot->JointVariableCount(); ++vidx) {
         if (m_continuous[vidx]) {
             discretization[vidx] = (int)std::round((2.0 * M_PI) / resolutions[vidx]);
             deltas[vidx] = (2.0 * M_PI) / (double)discretization[vidx];
@@ -217,8 +217,8 @@ void ManipLattice::SetVisualizationFrameId(const std::string& frame_id)
 
 auto ManipLattice::GetDiscreteCenter(const RobotState& state) const -> RobotState
 {
-    auto coord = RobotCoord(GetRobotModel()->jointVariableCount());
-    auto center = RobotState(GetRobotModel()->jointVariableCount());
+    auto coord = RobotCoord(GetRobotModel()->JointVariableCount());
+    auto center = RobotState(GetRobotModel()->JointVariableCount());
     StateToCoord(state, coord);
     CoordToState(coord, center);
     return center;
@@ -226,7 +226,7 @@ auto ManipLattice::GetDiscreteCenter(const RobotState& state) const -> RobotStat
 
 auto ManipLattice::GetDiscreteState(const RobotState& state) const -> RobotCoord
 {
-    auto coord = RobotCoord(GetRobotModel()->jointVariableCount());
+    auto coord = RobotCoord(GetRobotModel()->JointVariableCount());
     StateToCoord(state, coord);
     return coord;
 }
@@ -237,8 +237,8 @@ void ManipLattice::CoordToState(
     const RobotCoord& coord,
     RobotState& state) const
 {
-    assert((int)state.size() == GetRobotModel()->jointVariableCount() &&
-            (int)coord.size() == GetRobotModel()->jointVariableCount());
+    assert((int)state.size() == GetRobotModel()->JointVariableCount() &&
+            (int)coord.size() == GetRobotModel()->JointVariableCount());
 
     for (auto i = 0; i < (int)coord.size(); ++i) {
         if (m_continuous[i]) {
@@ -255,8 +255,8 @@ void ManipLattice::StateToCoord(
     const RobotState& state,
     RobotCoord& coord) const
 {
-    assert((int)state.size() == GetRobotModel()->jointVariableCount() &&
-            (int)coord.size() == GetRobotModel()->jointVariableCount());
+    assert((int)state.size() == GetRobotModel()->JointVariableCount() &&
+            (int)coord.size() == GetRobotModel()->JointVariableCount());
 
     for (auto i = 0; i < (int)state.size(); ++i) {
         if (m_continuous[i]) {
@@ -352,7 +352,7 @@ bool ManipLattice::IsActionWithinBounds(
     const Action& action)
 {
     for (auto& waypoint : action) {
-        if (!GetRobotModel()->checkJointLimits(waypoint)) {
+        if (!GetRobotModel()->CheckJointLimits(waypoint)) {
             return false;
         }
     }
@@ -402,7 +402,7 @@ auto ManipLattice::GetStateVisualization(
     const std::string& ns)
     -> std::vector<visual::Marker>
 {
-    auto markers = GetCollisionChecker()->getCollisionModelVisualization(state);
+    auto markers = GetCollisionChecker()->GetCollisionModelVisualization(state);
     for (auto& marker : markers) {
         marker.ns = ns;
     }
@@ -457,7 +457,7 @@ void ManipLattice::GetSuccs(
 
     auto* state = GetHashEntry(state_id);
 
-    assert(state->coord.size() >= GetRobotModel()->jointVariableCount());
+    assert(state->coord.size() >= GetRobotModel()->JointVariableCount());
 
     // log expanded state details
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state->coord);
@@ -513,18 +513,18 @@ void ManipLattice::GetSuccs(
 
 int ManipLattice::GetStateID(const RobotState& state)
 {
-    if ((int)state.size() < GetRobotModel()->jointVariableCount()) {
+    if ((int)state.size() < GetRobotModel()->JointVariableCount()) {
         SMPL_ERROR_NAMED(G_LOG, "state does not contain enough variables");
         return -1;
     }
 
     // check joint limits of starting configuration
-    if (!GetRobotModel()->checkJointLimits(state, true)) {
+    if (!GetRobotModel()->CheckJointLimits(state, true)) {
         SMPL_WARN(" -> violates the joint limits");
         return -1;
     }
 
-    auto state_coord = RobotCoord(GetRobotModel()->jointVariableCount());
+    auto state_coord = RobotCoord(GetRobotModel()->JointVariableCount());
     StateToCoord(state, state_coord);
     SMPL_DEBUG_STREAM_NAMED(G_LOG, "  coord: " << state_coord);
 
@@ -600,9 +600,9 @@ bool ManipLattice::UpdateStart(int state_id)
     SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state: " << state->state);
 
     // check if the start configuration is in collision
-    if (!GetCollisionChecker()->isStateValid(state->state, true)) {
+    if (!GetCollisionChecker()->IsStateValid(state->state, true)) {
         auto* vis_name = "invalid_start";
-        SV_SHOW_WARN_NAMED(vis_name, GetCollisionChecker()->getCollisionModelVisualization(state->state));
+        SV_SHOW_WARN_NAMED(vis_name, GetCollisionChecker()->GetCollisionModelVisualization(state->state));
         SMPL_WARN(" -> in collision");
         return false;
     }
@@ -665,7 +665,7 @@ void ManipLattice::GetLazySuccs(
 
     auto* state = GetHashEntry(state_id);
 
-    assert(state->coord.size() >= GetRobotModel()->jointVariableCount());
+    assert(state->coord.size() >= GetRobotModel()->JointVariableCount());
 
     // log expanded state details
     SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << state->coord);
@@ -713,8 +713,8 @@ int ManipLattice::GetTrueCost(int state_id, int succ_id)
 
     auto* state = GetHashEntry(state_id);
     auto* succ_state = GetHashEntry(succ_id);
-    assert(state->coord.size() >= GetRobotModel()->jointVariableCount());
-    assert(succ_state->coord.size() >= GetRobotModel()->jointVariableCount());
+    assert(state->coord.size() >= GetRobotModel()->JointVariableCount());
+    assert(succ_state->coord.size() >= GetRobotModel()->JointVariableCount());
 
     auto* vis_name = "expansion";
     SV_SHOW_DEBUG_NAMED(vis_name, GetStateVisualization(state->state, vis_name));
@@ -761,7 +761,7 @@ int ManipLattice::GetTrueCost(int state_id, int succ_id)
 
 auto ManipLattice::ProjectToPose(int state_id) -> Affine3
 {
-    return m_fk_iface->computeFK(GetHashEntry(state_id)->state);
+    return m_fk_iface->ComputeFK(GetHashEntry(state_id)->state);
 }
 
 } // namespace smpl

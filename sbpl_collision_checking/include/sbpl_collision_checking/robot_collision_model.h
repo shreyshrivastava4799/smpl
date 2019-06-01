@@ -123,7 +123,7 @@ public:
 
     /// \name Robot Model - Joint Information
     ///@{
-    size_t jointCount() const;
+    size_t JointCount() const;
     auto   jointName(int jidx) const -> const std::string&;
 
     int    jointParentLinkIndex(int jidx) const;
@@ -437,7 +437,7 @@ double RobotCollisionModel::jointVarMaxPosition(int jidx) const
 }
 
 inline
-size_t RobotCollisionModel::jointCount() const
+size_t RobotCollisionModel::JointCount() const
 {
     return m_joint_transforms.size();
 }
@@ -508,7 +508,7 @@ JointType RobotCollisionModel::jointType(int jidx) const
 inline
 bool RobotCollisionModel::isDescendantJoint(int jidx, int pjidx) const
 {
-    return m_desc_joint_matrix[jidx * jointCount() + pjidx];
+    return m_desc_joint_matrix[jidx * JointCount() + pjidx];
 }
 
 inline

@@ -66,12 +66,12 @@ RobotModel::~RobotModel()
 {
 }
 
-void RobotModel::setPlanningJoints(const std::vector<std::string>& joints)
+void RobotModel::SetPlanningJoints(const std::vector<std::string>& joints)
 {
     planning_joints_ = joints;
 }
 
-auto RobotModel::getPlanningJoints() const -> const std::vector<std::string>&
+auto RobotModel::GetPlanningJoints() const -> const std::vector<std::string>&
 {
     return planning_joints_;
 }

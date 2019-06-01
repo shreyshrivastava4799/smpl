@@ -63,56 +63,56 @@ struct RobotModel :
     ompl::base::SpaceInformation* si = NULL;
     ompl::base::ProjectionEvaluator* projection = NULL;
 
-    double minPosLimit(int vidx) const override;
-    double maxPosLimit(int vidx) const override;
-    bool hasPosLimit(int vidx) const override;
-    bool isContinuous(int vidx) const override;
-    double velLimit(int vidx) const override;
-    double accLimit(int vidx) const override;
-    bool checkJointLimits(const smpl::RobotState& state, bool verbose = false) override;
+    double MinPosLimit(int vidx) const override;
+    double MaxPosLimit(int vidx) const override;
+    bool HasPosLimit(int vidx) const override;
+    bool IsContinuous(int vidx) const override;
+    double VelLimit(int vidx) const override;
+    double AccLimit(int vidx) const override;
+    bool CheckJointLimits(const smpl::RobotState& state, bool verbose = false) override;
 
-    auto computeFK(const smpl::RobotState& state) -> Eigen::Affine3d override;
+    auto ComputeFK(const smpl::RobotState& state) -> Eigen::Affine3d override;
 
     auto GetExtension(size_t class_code) -> smpl::Extension* override;
 };
 
-double RobotModel::minPosLimit(int vidx) const
+double RobotModel::MinPosLimit(int vidx) const
 {
     return variables[vidx].min_position;
 }
 
-double RobotModel::maxPosLimit(int vidx) const
+double RobotModel::MaxPosLimit(int vidx) const
 {
     return variables[vidx].max_position;
 }
 
-bool RobotModel::hasPosLimit(int vidx) const
+bool RobotModel::HasPosLimit(int vidx) const
 {
     return (variables[vidx].flags & VariableProperties::BOUNDED) != 0;
 }
 
-bool RobotModel::isContinuous(int vidx) const
+bool RobotModel::IsContinuous(int vidx) const
 {
     return (variables[vidx].flags & VariableProperties::CONTINUOUS) != 0;
 }
 
-double RobotModel::velLimit(int vidx) const
+double RobotModel::VelLimit(int vidx) const
 {
     return variables[vidx].max_velocity;
 }
 
-double RobotModel::accLimit(int vidx) const
+double RobotModel::AccLimit(int vidx) const
 {
     return variables[vidx].max_acceleration;
 }
 
-bool RobotModel::checkJointLimits(const smpl::RobotState& state, bool verbose)
+bool RobotModel::CheckJointLimits(const smpl::RobotState& state, bool verbose)
 {
     // TODO: extract these from SpaceInformation
     return true;
 }
 
-auto RobotModel::computeFK(const smpl::RobotState& state) -> Eigen::Affine3d
+auto RobotModel::ComputeFK(const smpl::RobotState& state) -> Eigen::Affine3d
 {
     auto s = MakeStateOMPL(this->si->getStateSpace(), state);
     ompl::base::EuclideanProjection projected;
@@ -152,21 +152,21 @@ struct CollisionChecker : public smpl::CollisionChecker
 
     /// \name smpl::CollisionChecker Interface
     ///@{
-    bool isStateValid(
+    bool IsStateValid(
         const smpl::RobotState& state,
         bool verbose = false) override;
 
-    bool isStateToStateValid(
+    bool IsStateToStateValid(
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
         bool verbose = false) override;
 
-    bool interpolatePath(
+    bool InterpolatePath(
         const smpl::RobotState& start,
         const smpl::RobotState& finish,
         std::vector<smpl::RobotState>& path) override;
 
-    auto getCollisionModelVisualization(const RobotState& state)
+    auto GetCollisionModelVisualization(const RobotState& state)
         -> std::vector<smpl::visual::Marker> override;
     ///@}
 
@@ -176,7 +176,7 @@ struct CollisionChecker : public smpl::CollisionChecker
     ///@}
 };
 
-bool CollisionChecker::isStateValid(
+bool CollisionChecker::IsStateValid(
     const smpl::RobotState& state,
     bool verbose)
 {
@@ -185,7 +185,7 @@ bool CollisionChecker::isStateValid(
     return this->checker->isValid(s);
 }
 
-bool CollisionChecker::isStateToStateValid(
+bool CollisionChecker::IsStateToStateValid(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
     bool verbose)
@@ -197,7 +197,7 @@ bool CollisionChecker::isStateToStateValid(
     return this->validator->checkMotion(s, f);
 }
 
-bool CollisionChecker::interpolatePath(
+bool CollisionChecker::InterpolatePath(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
     std::vector<smpl::RobotState>& path)
@@ -209,7 +209,7 @@ bool CollisionChecker::interpolatePath(
     return true;
 }
 
-auto CollisionChecker::getCollisionModelVisualization(const RobotState& state)
+auto CollisionChecker::GetCollisionModelVisualization(const RobotState& state)
     -> std::vector<smpl::visual::Marker>
 {
     return this->visualizer(state);
@@ -421,7 +421,7 @@ PlannerImpl::PlannerImpl(
 
         SMPL_DEBUG_STREAM("variable names = " << names);
 
-        model.setPlanningJoints(names);
+        model.SetPlanningJoints(names);
         model.variables = std::move(props);
 
         if (si->getStateSpace()->hasProjection("fk")) {
@@ -445,7 +445,7 @@ PlannerImpl::PlannerImpl(
     auto res = 0.05;
 
     auto resolutions = std::vector<double>();
-    resolutions.resize(this->model.getPlanningJoints().size(), res);
+    resolutions.resize(this->model.GetPlanningJoints().size(), res);
     if (!this->space.Init(
             &this->model,
             &this->checker,
@@ -466,8 +466,8 @@ PlannerImpl::PlannerImpl(
         return;
     }
 
-    for (int i = 0; i < (int)this->model.getPlanningJoints().size(); ++i) {
-        auto mprim = std::vector<double>(this->model.getPlanningJoints().size(), 0.0);
+    for (int i = 0; i < (int)this->model.GetPlanningJoints().size(); ++i) {
+        auto mprim = std::vector<double>(this->model.GetPlanningJoints().size(), 0.0);
         mprim[i] = res;
         this->actions.AddMotionPrimitive(mprim, true);
     }
@@ -537,8 +537,8 @@ PlannerImpl::PlannerImpl(
     ////////////////////////
 
     // declare state space discretization parameters...
-    for (auto i = 0; i < this->model.getPlanningJoints().size(); ++i) {
-        auto& vname = this->model.getPlanningJoints()[i];
+    for (auto i = 0; i < this->model.GetPlanningJoints().size(); ++i) {
+        auto& vname = this->model.GetPlanningJoints()[i];
         auto set = [this](double discretization) { /* TODO */ };
         auto get = [this, i]() { return this->space.GetResolutions()[i]; };
         planner->params().declareParam<double>("discretization_" + vname, set, get);

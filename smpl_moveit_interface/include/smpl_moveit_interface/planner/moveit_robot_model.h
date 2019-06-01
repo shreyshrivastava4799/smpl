@@ -97,26 +97,26 @@ public:
 
     void printRobotModelInformation();
 
-    auto computeFK(
+    auto ComputeFK(
         const smpl::RobotState& state,
         const std::string& name)
         -> Eigen::Affine3d;
 
     /// \name ForwardKinematicsInterface Interface
     ///@{
-    auto computeFK(const smpl::RobotState& state)
+    auto ComputeFK(const smpl::RobotState& state)
         -> Eigen::Affine3d override;
     ///@}
 
     /// \name InverseKinematicsInterface Interface
     ///@{
-    bool computeIK(
+    bool ComputeIK(
         const Eigen::Affine3d& pose,
         const smpl::RobotState& start,
         smpl::RobotState& solution,
         smpl::ik_option::IkOption option = smpl::ik_option::UNRESTRICTED) override;
 
-    bool computeIK(
+    bool ComputeIK(
         const Eigen::Affine3d& pose,
         const smpl::RobotState& start,
         std::vector<smpl::RobotState>& solutions,
@@ -125,11 +125,11 @@ public:
 
     /// \name RedundantManipulatorInterface Interface
     ///@{
-    const int redundantVariableCount() const override;
+    const int RedundantVariableCount() const override;
 
-    const int redundantVariableIndex(int rvidx) const override;
+    const int RedundantVariableIndex(int rvidx) const override;
 
-    bool computeFastIK(
+    bool ComputeFastIK(
         const Eigen::Affine3d& pose,
         const smpl::RobotState& start,
         smpl::RobotState& solution) override;
@@ -137,14 +137,14 @@ public:
 
     /// \name RobotModel Interface
     ///@{
-    double minPosLimit(int jidx) const override;
-    double maxPosLimit(int jidx) const override;
-    bool hasPosLimit(int jidx) const override;
-    bool isContinuous(int jidx) const override;
-    double velLimit(int jidx) const override;
-    double accLimit(int jidx) const override;
+    double MinPosLimit(int jidx) const override;
+    double MaxPosLimit(int jidx) const override;
+    bool HasPosLimit(int jidx) const override;
+    bool IsContinuous(int jidx) const override;
+    double VelLimit(int jidx) const override;
+    double AccLimit(int jidx) const override;
 
-    bool checkJointLimits(
+    bool CheckJointLimits(
         const smpl::RobotState& state,
         bool verbose = false) override;
     ///@}

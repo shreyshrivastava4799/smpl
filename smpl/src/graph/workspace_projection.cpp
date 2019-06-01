@@ -70,21 +70,21 @@ bool InitWorkspaceProjection(
     proj->ik_iface = ik_iface;
     proj->rm_iface = rm_iface;
 
-    proj->fa_indices.resize(rm_iface->redundantVariableCount());
-    proj->fa_min_limits.resize(rm_iface->redundantVariableCount());
-    proj->fa_max_limits.resize(rm_iface->redundantVariableCount());
-    proj->fa_bounded.resize(rm_iface->redundantVariableCount());
-    proj->fa_continuous.resize(rm_iface->redundantVariableCount());
+    proj->fa_indices.resize(rm_iface->RedundantVariableCount());
+    proj->fa_min_limits.resize(rm_iface->RedundantVariableCount());
+    proj->fa_max_limits.resize(rm_iface->RedundantVariableCount());
+    proj->fa_bounded.resize(rm_iface->RedundantVariableCount());
+    proj->fa_continuous.resize(rm_iface->RedundantVariableCount());
 
     SMPL_DEBUG_NAMED(G_LOG, "%zu free angles", proj->fa_indices.size());
     for (auto i = 0; i < (int)proj->fa_indices.size(); ++i) {
-        proj->fa_indices[i] = proj->rm_iface->redundantVariableIndex(i);
-        proj->fa_min_limits[i] = robot->minPosLimit(proj->fa_indices[i]);
-        proj->fa_max_limits[i] = robot->maxPosLimit(proj->fa_indices[i]);
-        proj->fa_bounded[i] = robot->hasPosLimit(proj->fa_indices[i]);
-        proj->fa_continuous[i] = robot->isContinuous(proj->fa_indices[i]);
+        proj->fa_indices[i] = proj->rm_iface->RedundantVariableIndex(i);
+        proj->fa_min_limits[i] = robot->MinPosLimit(proj->fa_indices[i]);
+        proj->fa_max_limits[i] = robot->MaxPosLimit(proj->fa_indices[i]);
+        proj->fa_bounded[i] = robot->HasPosLimit(proj->fa_indices[i]);
+        proj->fa_continuous[i] = robot->IsContinuous(proj->fa_indices[i]);
         SMPL_DEBUG_NAMED(G_LOG, "  name = %s, index = %zu, min = %f, max = %f, bounded = %d, continuous = %d",
-                proj->rm_iface->getPlanningJoints()[proj->fa_indices[i]].c_str(),
+                proj->rm_iface->GetPlanningJoints()[proj->fa_indices[i]].c_str(),
                 proj->fa_indices[i],
                 proj->fa_min_limits[i],
                 proj->fa_max_limits[i],
@@ -167,7 +167,7 @@ void StateRobotToWorkspace(
     const RobotState& state,
     WorkspaceState& ostate)
 {
-    auto pose = proj->fk_iface->computeFK(state);
+    auto pose = proj->fk_iface->ComputeFK(state);
 
     ostate.resize(proj->dof_count);
     ostate[0] = pose.translation().x();
@@ -196,7 +196,7 @@ bool StateWorkspaceToRobot(
     const WorkspaceState& state,
     RobotState& ostate)
 {
-    auto seed = RobotState(proj->robot_model->jointVariableCount(), 0);
+    auto seed = RobotState(proj->robot_model->JointVariableCount(), 0);
     for (auto fai = 0; fai < GetNumFreeAngles(proj); ++fai) {
         seed[proj->fa_indices[fai]] = state[6 + fai];
     }
@@ -204,7 +204,7 @@ bool StateWorkspaceToRobot(
     auto pose = MakeAffine(
             state[0], state[1], state[2], state[5], state[4], state[3]);
 
-    return proj->rm_iface->computeFastIK(pose, seed, ostate);
+    return proj->rm_iface->ComputeFastIK(pose, seed, ostate);
 }
 
 void StateWorkspaceToCoord(
@@ -247,7 +247,7 @@ bool StateWorkspaceToRobot(
             state[0], state[1], state[2], state[5], state[4], state[3]);
 
     // TODO: unrestricted variant?
-    return proj->rm_iface->computeFastIK(pose, seed, ostate);
+    return proj->rm_iface->ComputeFastIK(pose, seed, ostate);
 }
 
 void PosWorkspaceToCoord(

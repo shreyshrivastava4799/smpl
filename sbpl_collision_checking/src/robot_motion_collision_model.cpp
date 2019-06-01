@@ -50,12 +50,12 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     ROS_DEBUG_NAMED(RMCM_LOGGER, "Compute motion spheres");
 
     // queue of joints to be processed
-    std::vector<int> q_joint(rcm->jointCount(), -1);
+    std::vector<int> q_joint(rcm->JointCount(), -1);
     int q_head = 0;
     int q_tail = 0;
 
     // number of child joints processed for determining topological ordering
-    std::vector<int> p_joint(rcm->jointCount(), 0);
+    std::vector<int> p_joint(rcm->JointCount(), 0);
 
     // initialize the queue with the parent joint indices of each leaf link
     for (int lidx = 0; lidx < rcm->linkCount(); ++lidx) {
@@ -67,19 +67,19 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     }
 
     // M(n), n = 1...num_joints
-    std::vector<Eigen::Vector3d> m_centers(rcm->jointCount());
-    std::vector<double> m_radii(rcm->jointCount(), 0.0);
+    std::vector<Eigen::Vector3d> m_centers(rcm->JointCount());
+    std::vector<double> m_radii(rcm->JointCount(), 0.0);
 
     // MR(n), n - 1...num_joints
-    std::vector<Eigen::Vector3d> mr_centers(rcm->jointCount());
-    std::vector<double> mr_radii(rcm->jointCount());
+    std::vector<Eigen::Vector3d> mr_centers(rcm->JointCount());
+    std::vector<double> mr_radii(rcm->JointCount());
 
     // the sample spheres (MR spheres of child links + R of current link) used
     // to construct the (motion) M sphere for each joint
-    std::vector<std::vector<Eigen::Vector3d>> sample_spheres(rcm->jointCount());
+    std::vector<std::vector<Eigen::Vector3d>> sample_spheres(rcm->JointCount());
 
     // the sample sphere radii
-    std::vector<double> sample_radii(rcm->jointCount(), 0.0);
+    std::vector<double> sample_radii(rcm->JointCount(), 0.0);
 
     while (q_head != q_tail) {
         int jidx = q_joint[q_head++];
@@ -264,7 +264,7 @@ RobotMotionCollisionModel::RobotMotionCollisionModel(
     m_mr_centers = std::move(mr_centers);
     m_mr_radii = std::move(mr_radii);
 
-    for (size_t jidx = 0; jidx < rcm->jointCount(); ++jidx) {
+    for (size_t jidx = 0; jidx < rcm->JointCount(); ++jidx) {
         const Eigen::Vector3d &mr_center = m_mr_centers[jidx];
         const double mr_radius = m_mr_radii[jidx];
         const Eigen::Vector3d &m_center = m_m_centers[jidx];
@@ -282,7 +282,7 @@ double RobotMotionCollisionModel::getMaxSphereMotion(
     assert(finish.size() == m_rcm->jointVarCount());
 
     double motion = 0.0;
-    for (size_t jidx; jidx < m_rcm->jointCount(); ++jidx) {
+    for (size_t jidx; jidx < m_rcm->JointCount(); ++jidx) {
         size_t fvidx = m_rcm->jointVarIndexFirst(jidx);
 
         double dist = 0.0;

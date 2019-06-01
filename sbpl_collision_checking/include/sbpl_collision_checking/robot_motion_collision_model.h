@@ -190,7 +190,7 @@ void MotionInterpolation::setEndpoints(
 {
     m_start = start;
     m_diffs.resize(m_rcm->jointVarCount());
-    for (size_t jidx = 0; jidx < m_rcm->jointCount(); ++jidx) {
+    for (size_t jidx = 0; jidx < m_rcm->JointCount(); ++jidx) {
         const int fvidx = m_rcm->jointVarIndexFirst(jidx);
         switch (m_rcm->jointType(jidx)) {
         case JointType::FIXED:
@@ -261,7 +261,7 @@ void MotionInterpolation::interpolate(int n, RobotState& state) const
 {
     state.resize(m_start.size());
     const double alpha = (double)n * m_waypoint_count_inv;
-    for (size_t jidx = 0; jidx < m_rcm->jointCount(); ++jidx) {
+    for (size_t jidx = 0; jidx < m_rcm->JointCount(); ++jidx) {
         const int fvidx = m_rcm->jointVarIndexFirst(jidx);
         switch (m_rcm->jointType(jidx)) {
         case JointType::FIXED:

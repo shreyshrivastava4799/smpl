@@ -54,8 +54,8 @@ double distance(
     const RobotState& to)
 {
     auto dist = 0.0;
-    for (auto vidx = 0; vidx < robot.getPlanningJoints().size(); ++vidx) {
-        if (!robot.hasPosLimit(vidx)) {
+    for (auto vidx = 0; vidx < robot.GetPlanningJoints().size(); ++vidx) {
+        if (!robot.HasPosLimit(vidx)) {
             dist += shortest_angle_dist(to[vidx], from[vidx]);
         } else {
             dist += fabs(to[vidx] - from[vidx]);
@@ -73,11 +73,11 @@ double pv_distance(
     auto pweight = 1.0;
     auto vweight = 1.0;
 
-    auto var_count = (int)robot.getPlanningJoints().size();
+    auto var_count = (int)robot.GetPlanningJoints().size();
 
     auto dist = 0.0;
     for (auto vidx = 0; vidx < var_count; ++vidx) {
-        if (!robot.hasPosLimit(vidx)) {
+        if (!robot.HasPosLimit(vidx)) {
             dist += shortest_angle_dist(to[vidx], from[vidx]);
         }
         else {
@@ -107,8 +107,8 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        auto var_count = m_robot->getPlanningJoints().size();
-        if (m_cc->isStateToStateValid(start, finish)) {
+        auto var_count = m_robot->GetPlanningJoints().size();
+        if (m_cc->IsStateToStateValid(start, finish)) {
             *ofirst++ = start;
             *ofirst++ = finish;
             cost = distance(*m_robot, start, finish);
@@ -141,10 +141,10 @@ public:
         const RobotState& start, const RobotState& finish,
         OutputIt ofirst, double& cost) const
     {
-        auto var_count = m_robot->getPlanningJoints().size();
+        auto var_count = m_robot->GetPlanningJoints().size();
         auto pstart = RobotState(start.begin(), start.begin() + var_count);
         auto pend = RobotState(finish.begin(), finish.begin() + var_count);
-        if (m_cc->isStateToStateValid(pstart, pend)) {
+        if (m_cc->IsStateToStateValid(pstart, pend)) {
             *ofirst++ = start;
             *ofirst++ = finish;
             cost = pv_distance(*m_robot, start, finish);
@@ -185,8 +185,8 @@ public:
         }
 
         // compute forward kinematics for the start an end configurations
-        auto from_pose = m_fk_iface->computeFK(start);
-        auto to_pose = m_fk_iface->computeFK(end);
+        auto from_pose = m_fk_iface->ComputeFK(start);
+        auto to_pose = m_fk_iface->ComputeFK(end);
 
         auto pstart = Vector3(from_pose.translation());
         auto pend = Vector3(to_pose.translation());
@@ -219,13 +219,13 @@ public:
 
             // run inverse kinematics with the previous pose as the seed state
             auto& prev_wp = cpath.back();
-            auto wp = RobotState(m_rm->getPlanningJoints().size(), 0.0);
-            if (!m_ik_iface->computeIK(ptrans, prev_wp, wp)) {
+            auto wp = RobotState(m_rm->GetPlanningJoints().size(), 0.0);
+            if (!m_ik_iface->ComputeIK(ptrans, prev_wp, wp)) {
                 return false;
             }
 
             // check the path segment for collisions
-            if (!m_cc->isStateToStateValid(prev_wp, wp)) {
+            if (!m_cc->IsStateToStateValid(prev_wp, wp)) {
                 return false;
             }
 
@@ -355,7 +355,7 @@ bool CreatePositionVelocityPath(
     const std::vector<RobotState>& path,
     std::vector<RobotState>& opath)
 {
-    auto var_count = (int)rm->getPlanningJoints().size();
+    auto var_count = (int)rm->GetPlanningJoints().size();
 
     // position + zero velocity for the first point
     auto pv_path = std::vector<RobotState>(path.size());
@@ -373,7 +373,7 @@ bool CreatePositionVelocityPath(
         pv_path[i].resize(2 * var_count);
         std::copy(to.begin(), to.begin() + var_count, pv_path[i].begin());
         for (auto vidx = 0; vidx < var_count; ++vidx) {
-            if (!rm->hasPosLimit(vidx)) {
+            if (!rm->HasPosLimit(vidx)) {
                 pv_path[i][var_count + vidx] = std::copysign(1.0, shortest_angle_diff(to[vidx], from[vidx]));
             }
             else {
@@ -392,7 +392,7 @@ bool ExtractPositionPath(
     std::vector<RobotState>& path)
 {
     path.resize(pv_path.size());
-    auto var_count = (int)rm->getPlanningJoints().size();
+    auto var_count = (int)rm->GetPlanningJoints().size();
     for (auto pidx = 0; pidx < pv_path.size(); ++pidx) {
         path[pidx].resize(var_count);
         std::copy(&pv_path[pidx][0], &pv_path[pidx][0] + var_count, &path[pidx][0]);
@@ -461,7 +461,7 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         SMPL_DEBUG_STREAM("Interpolating between " << curr << " and " << next);
 
         auto ipath = std::vector<RobotState>();
-        if (!cc.interpolatePath(curr, next, ipath)) {
+        if (!cc.InterpolatePath(curr, next, ipath)) {
             SMPL_ERROR("Failed to interpolate between waypoint %d and %d because it's infeasible given the limits.", i, i + 1);
             return false;
         }
@@ -470,7 +470,7 @@ bool InterpolatePath(CollisionChecker& cc, std::vector<RobotState>& path)
         // take a slightly different
         auto collision = false;
         for (auto& point : ipath) {
-            if (!cc.isStateValid(point, false)) {
+            if (!cc.IsStateValid(point, false)) {
                 collision = true;
                 break;
             }

@@ -193,7 +193,7 @@ bool JointStateGoal::IsGoal(int state_id)
     assert(state.size() == m_state.size());
 
     for (auto i = 0; i < m_state.size(); i++) {
-        if (robot_model->isContinuous(i)) {
+        if (robot_model->IsContinuous(i)) {
             auto dist = shortest_angle_dist(m_state[i], state[i]);
             if (dist > m_tolerance[i]) {
                 return false;
@@ -238,12 +238,12 @@ auto JointStateGoal::GetExtension(size_t class_id) -> Extension*
 
 auto JointStateGoal::GetPose() -> Affine3
 {
-    return m_fk->computeFK(m_state);
+    return m_fk->ComputeFK(m_state);
 }
 
 auto JointStateGoal::GetPosition() -> Vector3
 {
-    return m_fk->computeFK(m_state).translation();
+    return m_fk->ComputeFK(m_state).translation();
 }
 
 ///////////////

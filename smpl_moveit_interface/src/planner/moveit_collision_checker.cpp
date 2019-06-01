@@ -95,8 +95,8 @@ bool MoveItCollisionChecker::init(
 
     m_robot_model = robot_model;
 
-    m_var_incs.reserve(m_robot_model->getPlanningJoints().size());
-    for (auto& joint_name : m_robot_model->getPlanningJoints()) {
+    m_var_incs.reserve(m_robot_model->GetPlanningJoints().size());
+    for (auto& joint_name : m_robot_model->GetPlanningJoints()) {
         m_var_incs.push_back(smpl::angles::to_radians(2.0));
     }
     ROS_INFO_STREAM("Increments: " << m_var_incs);
@@ -139,7 +139,7 @@ auto MoveItCollisionChecker::getExtension(size_t class_code) -> smpl::Extension*
     return nullptr;
 }
 
-bool MoveItCollisionChecker::isStateValid(
+bool MoveItCollisionChecker::IsStateValid(
     const smpl::RobotState& state,
     bool verbose)
 {
@@ -169,7 +169,7 @@ bool MoveItCollisionChecker::isStateValid(
     }
 }
 
-bool MoveItCollisionChecker::isStateToStateValid(
+bool MoveItCollisionChecker::IsStateToStateValid(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
     bool verbose)
@@ -181,7 +181,7 @@ bool MoveItCollisionChecker::isStateToStateValid(
     }
 }
 
-bool MoveItCollisionChecker::interpolatePath(
+bool MoveItCollisionChecker::InterpolatePath(
     const smpl::RobotState& start,
     const smpl::RobotState& finish,
     std::vector<smpl::RobotState>& opath)
@@ -233,7 +233,7 @@ auto MoveItCollisionChecker::checkInterpolatedPathCollision(
 
     for (int widx = 0; widx < waypoint_count; ++widx) {
         auto& p = m_waypoint_path[widx];
-        if (!isStateValid(p, false)) {
+        if (!IsStateValid(p, false)) {
             return false;
         }
     }
@@ -261,8 +261,8 @@ int MoveItCollisionChecker::interpolatePathFast(
             finish.size() == m_robot_model->activeVariableCount());
 
     // check joint limits on the start and finish points
-    if (!(m_robot_model->checkJointLimits(start) &&
-            m_robot_model->checkJointLimits(finish)))
+    if (!(m_robot_model->CheckJointLimits(start) &&
+            m_robot_model->CheckJointLimits(finish)))
     {
         ROS_ERROR("Joint limits violated");
         return -1;
@@ -312,7 +312,7 @@ int MoveItCollisionChecker::interpolatePathFast(
     return waypoint_count;
 }
 
-auto MoveItCollisionChecker::getCollisionModelVisualization(
+auto MoveItCollisionChecker::GetCollisionModelVisualization(
     const smpl::RobotState& state)
     -> std::vector<smpl::visual::Marker>
 {

@@ -387,8 +387,8 @@ bool MoveItRobotModel::init(
                 begin(joint->getVariableNames()),
                 end(joint->getVariableNames()));
     }
-    setPlanningJoints(planning_variables);
-    ROS_DEBUG_STREAM_NAMED(LOG, "Planning Variables: " << getPlanningJoints());
+    SetPlanningJoints(planning_variables);
+    ROS_DEBUG_STREAM_NAMED(LOG, "Planning Variables: " << GetPlanningJoints());
 
     m_var_min_limits = std::move(var_min_limits);
     m_var_max_limits = std::move(var_max_limits);
@@ -558,7 +558,7 @@ void MoveItRobotModel::printRobotModelInformation()
     ROS_INFO("MoveIt Robot Model for '%s': %s", m_robot_model->getName().c_str(), ss.str().c_str());
 }
 
-auto MoveItRobotModel::computeFK(
+auto MoveItRobotModel::ComputeFK(
     const smpl::RobotState& state,
     const std::string& name)
     -> Eigen::Affine3d
@@ -588,7 +588,7 @@ auto MoveItRobotModel::computeFK(
     return T_model_link; // actually, T_planning_link
 }
 
-auto MoveItRobotModel::computeFK(const smpl::RobotState& state)
+auto MoveItRobotModel::ComputeFK(const smpl::RobotState& state)
     -> Eigen::Affine3d
 {
     // how do we know what the planning link is for an arbitrary model? This
@@ -597,10 +597,10 @@ auto MoveItRobotModel::computeFK(const smpl::RobotState& state)
 
     assert(initialized());
     assert(m_tip_link);
-    return computeFK(state, m_tip_link->getName());
+    return ComputeFK(state, m_tip_link->getName());
 }
 
-bool MoveItRobotModel::computeIK(
+bool MoveItRobotModel::ComputeIK(
     const Eigen::Affine3d& pose,
     const smpl::RobotState& start,
     smpl::RobotState& solution,
@@ -612,7 +612,7 @@ bool MoveItRobotModel::computeIK(
     }
 
     if (!m_tip_link || !m_ik_group->canSetStateFromIK(m_tip_link->getName())) {
-        ROS_WARN_ONCE("computeIK not available for this Robot Model");
+        ROS_WARN_ONCE("ComputeIK not available for this Robot Model");
         return false;
     }
 
@@ -628,7 +628,7 @@ bool MoveItRobotModel::computeIK(
     return false;
 }
 
-bool MoveItRobotModel::computeIK(
+bool MoveItRobotModel::ComputeIK(
     const Eigen::Affine3d& pose,
     const smpl::RobotState& start,
     std::vector<smpl::RobotState>& solutions,
@@ -639,7 +639,7 @@ bool MoveItRobotModel::computeIK(
     // offers; for later versions of moveit, this will need to be implemented
     // properly
     smpl::RobotState solution;
-    if (!computeIK(pose, start, solution, option)) {
+    if (!ComputeIK(pose, start, solution, option)) {
         return false;
     } else {
         solutions.push_back(std::move(solution));
@@ -647,17 +647,17 @@ bool MoveItRobotModel::computeIK(
     }
 }
 
-auto MoveItRobotModel::redundantVariableCount() const -> const int
+auto MoveItRobotModel::RedundantVariableCount() const -> const int
 {
     return m_redundant_var_count;
 }
 
-auto MoveItRobotModel::redundantVariableIndex(int rvidx) const -> const int
+auto MoveItRobotModel::RedundantVariableIndex(int rvidx) const -> const int
 {
     return m_redundant_var_indices[rvidx];
 }
 
-bool MoveItRobotModel::computeFastIK(
+bool MoveItRobotModel::ComputeFastIK(
     const Eigen::Affine3d& pose,
     const smpl::RobotState& start,
     smpl::RobotState& solution)
@@ -668,44 +668,44 @@ bool MoveItRobotModel::computeFastIK(
     }
 
     if (!m_tip_link || !m_ik_group->canSetStateFromIK(m_tip_link->getName())) {
-        ROS_WARN_ONCE("computeIK not available for this Robot Model");
+        ROS_WARN_ONCE("ComputeIK not available for this Robot Model");
         return false;
     }
 
     return computeUnrestrictedIK(pose, start, solution, m_redundant_ik_group);
 }
 
-double MoveItRobotModel::minPosLimit(int vidx) const
+double MoveItRobotModel::MinPosLimit(int vidx) const
 {
     return m_var_min_limits[vidx];
 }
 
-double MoveItRobotModel::maxPosLimit(int vidx) const
+double MoveItRobotModel::MaxPosLimit(int vidx) const
 {
     return m_var_max_limits[vidx];
 }
 
-bool MoveItRobotModel::hasPosLimit(int vidx) const
+bool MoveItRobotModel::HasPosLimit(int vidx) const
 {
     return m_var_bounded[vidx];
 }
 
-bool MoveItRobotModel::isContinuous(int vidx) const
+bool MoveItRobotModel::IsContinuous(int vidx) const
 {
     return m_var_continuous[vidx];
 }
 
-double MoveItRobotModel::velLimit(int vidx) const
+double MoveItRobotModel::VelLimit(int vidx) const
 {
     return m_var_vel_limits[vidx];
 }
 
-double MoveItRobotModel::accLimit(int vidx) const
+double MoveItRobotModel::AccLimit(int vidx) const
 {
     return m_var_acc_limits[vidx];
 }
 
-bool MoveItRobotModel::checkJointLimits(
+bool MoveItRobotModel::CheckJointLimits(
     const smpl::RobotState& state,
     bool verbose)
 {

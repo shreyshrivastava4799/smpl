@@ -128,7 +128,7 @@ bool InitPR2RobotModel(
         return false;
     }
 
-    model->setPlanningJoints(GetPlanningJoints(&model->kdl_model));
+    model->SetPlanningJoints(GetPlanningJoints(&model->kdl_model));
 
     ROS_INFO("Initialize PR2 Arm IK Solver");
     auto search_discretization_angle = 0.02;
@@ -486,37 +486,37 @@ auto GetExtension(PR2RobotModel* model, size_t class_code) -> Extension*
 // Interface Methods //
 ///////////////////////
 
-auto PR2RobotModel::minPosLimit(int vidx) const -> double
+auto PR2RobotModel::MinPosLimit(int vidx) const -> double
 {
     return ::smpl::GetMinPosLimit(this, vidx);
 }
 
-auto PR2RobotModel::maxPosLimit(int vidx) const -> double
+auto PR2RobotModel::MaxPosLimit(int vidx) const -> double
 {
     return ::smpl::GetMaxPosLimit(this, vidx);
 }
 
-bool PR2RobotModel::hasPosLimit(int vidx) const
+bool PR2RobotModel::HasPosLimit(int vidx) const
 {
     return ::smpl::HasPosLimit(this, vidx);
 }
 
-bool PR2RobotModel::isContinuous(int vidx) const
+bool PR2RobotModel::IsContinuous(int vidx) const
 {
     return ::smpl::IsContinuous(this, vidx);
 }
 
-auto PR2RobotModel::velLimit(int vidx) const -> double
+auto PR2RobotModel::VelLimit(int vidx) const -> double
 {
     return ::smpl::GetVelLimit(this, vidx);
 }
 
-auto PR2RobotModel::accLimit(int vidx) const -> double
+auto PR2RobotModel::AccLimit(int vidx) const -> double
 {
     return ::smpl::GetAccLimit(this, vidx);
 }
 
-bool PR2RobotModel::checkJointLimits(
+bool PR2RobotModel::CheckJointLimits(
     const smpl::RobotState& state,
     bool verbose)
 {
@@ -529,12 +529,12 @@ auto PR2RobotModel::GetVisualization(const smpl::RobotState& state)
     return ::smpl::GetVisualization(this, state);
 }
 
-auto PR2RobotModel::computeFK(const smpl::RobotState& state) -> smpl::Affine3
+auto PR2RobotModel::ComputeFK(const smpl::RobotState& state) -> smpl::Affine3
 {
     return ::smpl::ComputeFK(this, state);
 }
 
-bool PR2RobotModel::computeIK(
+bool PR2RobotModel::ComputeIK(
     const smpl::Affine3& pose,
     const RobotState& start,
     RobotState& solution,
@@ -543,7 +543,7 @@ bool PR2RobotModel::computeIK(
     return ::smpl::ComputeIK(this, pose, start, solution, option);
 }
 
-bool PR2RobotModel::computeIK(
+bool PR2RobotModel::ComputeIK(
     const smpl::Affine3& pose,
     const RobotState& start,
     std::vector<RobotState>& solutions,
@@ -552,17 +552,17 @@ bool PR2RobotModel::computeIK(
     return ::smpl::ComputeIK(this, pose, start, solutions, option);
 }
 
-const int PR2RobotModel::redundantVariableCount() const
+const int PR2RobotModel::RedundantVariableCount() const
 {
     return ::smpl::GetRedundantVariableCount(this);
 }
 
-const int PR2RobotModel::redundantVariableIndex(int vidx) const
+const int PR2RobotModel::RedundantVariableIndex(int vidx) const
 {
     return ::smpl::GetRedundantVariableIndex(this, vidx);
 }
 
-bool PR2RobotModel::computeFastIK(
+bool PR2RobotModel::ComputeFastIK(
     const smpl::Affine3& pose,
     const RobotState& start,
     RobotState& solution)

@@ -171,7 +171,7 @@ bool ParseExperienceGraphFile(
     SMPL_INFO("  %zu records", parser.recordCount());
     SMPL_INFO("  %zu fields", parser.fieldCount());
 
-    auto jvar_count = lattice->GetRobotModel()->getPlanningJoints().size();
+    auto jvar_count = lattice->GetRobotModel()->GetPlanningJoints().size();
     if (parser.fieldCount() != jvar_count) {
         SMPL_ERROR("Parsed experience graph contains insufficient number of joint variables");
         return false;
@@ -443,7 +443,7 @@ bool ManipLatticeEGraph::LoadExperienceGraph(const std::string& path)
         SMPL_INFO("Create hash entries for experience graph states");
 
         auto& pp = egraph_states.front();  // previous robot state
-        auto pdp = RobotCoord(GetRobotModel()->jointVariableCount()); // previous robot coord
+        auto pdp = RobotCoord(GetRobotModel()->JointVariableCount()); // previous robot coord
         m_lattice.StateToCoord(egraph_states.front(), pdp);
 
         auto pid = m_egraph.insert_node(pp);
@@ -462,7 +462,7 @@ bool ManipLatticeEGraph::LoadExperienceGraph(const std::string& path)
         auto edge_data = std::vector<RobotState>();
         for (auto i = 1; i < egraph_states.size(); ++i) {
             auto& p = egraph_states[i];
-            auto dp = RobotCoord(GetRobotModel()->jointVariableCount());
+            auto dp = RobotCoord(GetRobotModel()->JointVariableCount());
             m_lattice.StateToCoord(p, dp);
             if (dp != pdp) {
                 // found a new discrete state along the path
@@ -534,7 +534,7 @@ bool ManipLatticeEGraph::Snap(
     SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(first_entry->state, "snap_from"));
     SV_SHOW_INFO_NAMED(vis_name, m_lattice.GetStateVisualization(second_entry->state, "snap_to"));
 
-    if (!GetCollisionChecker()->isStateToStateValid(first_entry->state, second_entry->state)) {
+    if (!GetCollisionChecker()->IsStateToStateValid(first_entry->state, second_entry->state)) {
         SMPL_WARN("Failed snap!");
         return false;
     }

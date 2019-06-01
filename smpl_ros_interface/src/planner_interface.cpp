@@ -352,7 +352,7 @@ static
 bool IsPathValid(CollisionChecker* checker, const std::vector<RobotState>& path)
 {
     for (size_t i = 1; i < path.size(); ++i) {
-        if (!checker->isStateToStateValid(path[i - 1], path[i])) {
+        if (!checker->IsStateToStateValid(path[i - 1], path[i])) {
             SMPL_ERROR_STREAM("path between " << path[i - 1] << " and " << path[i] << " is invalid (" << i - 1 << " -> " << i << ")");
             return false;
         }
@@ -379,7 +379,7 @@ void ConvertJointVariablePathToJointTrajectory(
     traj.multi_dof_joint_trajectory.points.clear();
 
     // fill joint names header for both single- and multi-dof joint trajectories
-    auto& variable_names = robot->getPlanningJoints();
+    auto& variable_names = robot->GetPlanningJoints();
     for (auto& var_name : variable_names) {
         std::string joint_name;
         if (IsMultiDOFJointVariable(var_name, &joint_name)) {
@@ -490,12 +490,12 @@ void ProfilePath(RobotModel* robot, trajectory_msgs::JointTrajectory& traj)
         for (size_t jidx = 0; jidx < joint_names.size(); ++jidx) {
             auto from_pos = prev_point.positions[jidx];
             auto to_pos = curr_point.positions[jidx];
-            auto vel = robot->velLimit(jidx);
+            auto vel = robot->VelLimit(jidx);
             if (vel <= 0.0) {
                 continue;
             }
             auto t = 0.0;
-            if (robot->isContinuous(jidx)) {
+            if (robot->IsContinuous(jidx)) {
                 t = angles::shortest_angle_dist(from_pos, to_pos) / vel;
             } else {
                 t = fabs(to_pos - from_pos) / vel;
@@ -569,10 +569,10 @@ bool WritePath(
     SMPL_INFO("Log path to %s", p.native().c_str());
 
     // write header
-    for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
-        auto& var_name = robot->getPlanningJoints()[vidx];
+    for (size_t vidx = 0; vidx < robot->JointVariableCount(); ++vidx) {
+        auto& var_name = robot->GetPlanningJoints()[vidx];
         ofs << var_name; // TODO: sanitize variable name for csv?
-        if (vidx != robot->jointVariableCount() - 1) {
+        if (vidx != robot->JointVariableCount() - 1) {
             ofs << ',';
         }
     }
@@ -619,8 +619,8 @@ bool WritePath(
         }
 
         // write the planning variables out to file
-        for (size_t vidx = 0; vidx < robot->jointVariableCount(); ++vidx) {
-            auto& var_name = robot->getPlanningJoints()[vidx];
+        for (size_t vidx = 0; vidx < robot->JointVariableCount(); ++vidx) {
+            auto& var_name = robot->GetPlanningJoints()[vidx];
 
             std::string joint_name, local_name;
             if (IsMultiDOFJointVariable(var_name, &joint_name, &local_name)) {
@@ -679,7 +679,7 @@ bool WritePath(
                 ofs << vp;
             }
 
-            if (vidx != robot->jointVariableCount() - 1) {
+            if (vidx != robot->JointVariableCount() - 1) {
                 ofs << ',';
             }
         }
@@ -800,20 +800,20 @@ bool ExtractJointStateGoal(
 
     SMPL_INFO_NAMED(PI_LOGGER, "Set goal configuration");
 
-    auto sbpl_angle_goal = RobotState(model->jointVariableCount(), 0);
-    auto sbpl_angle_tolerance = RobotState(model->jointVariableCount(), angles::to_radians(3.0));
+    auto sbpl_angle_goal = RobotState(model->JointVariableCount(), 0);
+    auto sbpl_angle_tolerance = RobotState(model->JointVariableCount(), angles::to_radians(3.0));
 
-    if (goal_constraints.joint_constraints.size() < model->jointVariableCount()) {
-        SMPL_WARN_NAMED(PI_LOGGER, "Insufficient joint constraints specified (%zu < %zu)!", goal_constraints.joint_constraints.size(), model->jointVariableCount());
+    if (goal_constraints.joint_constraints.size() < model->JointVariableCount()) {
+        SMPL_WARN_NAMED(PI_LOGGER, "Insufficient joint constraints specified (%zu < %zu)!", goal_constraints.joint_constraints.size(), model->JointVariableCount());
 //        return false;
     }
-    if (goal_constraints.joint_constraints.size() > model->jointVariableCount()) {
-        SMPL_WARN_NAMED(PI_LOGGER, "Excess joint constraints specified (%zu > %zu)!", goal_constraints.joint_constraints.size(), model->jointVariableCount());
+    if (goal_constraints.joint_constraints.size() > model->JointVariableCount()) {
+        SMPL_WARN_NAMED(PI_LOGGER, "Excess joint constraints specified (%zu > %zu)!", goal_constraints.joint_constraints.size(), model->JointVariableCount());
 //        return false;
     }
 
-    for (size_t i = 0; i < model->jointVariableCount(); ++i) {
-        auto& variable_name = model->getPlanningJoints()[i];
+    for (size_t i = 0; i < model->JointVariableCount(); ++i) {
+        auto& variable_name = model->GetPlanningJoints()[i];
 
         auto jit = std::find_if(
                 begin(goal_constraints.joint_constraints),
@@ -841,7 +841,7 @@ bool ExtractJointStateGoal(
 
     // TODO: really need to reevaluate the necessity of the planning link
     if (fk_iface) {
-        goal.pose = fk_iface->computeFK(goal.angles);
+        goal.pose = fk_iface->ComputeFK(goal.angles);
     } else {
         goal.pose = smpl::Affine3::Identity();
     }
@@ -1092,7 +1092,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     // TODO: Ideally, the RobotModel should specify joints rather than variables
     if (!state.multi_dof_joint_state.joint_names.empty()) {
         auto& mdof_joint_names = state.multi_dof_joint_state.joint_names;
-        for (auto& joint_name : m_robot->getPlanningJoints()) {
+        for (auto& joint_name : m_robot->GetPlanningJoints()) {
             auto it = std::find(begin(mdof_joint_names), end(mdof_joint_names), joint_name);
             if (it != end(mdof_joint_names)) {
                 SMPL_WARN_NAMED(PI_LOGGER, "planner does not currently support planning for multi-dof joints. found '%s' in planning joints", joint_name.c_str());
@@ -1105,7 +1105,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
     if (!leatherman::getJointPositions(
             state.joint_state,
             state.multi_dof_joint_state,
-            m_robot->getPlanningJoints(),
+            m_robot->GetPlanningJoints(),
             initial_positions,
             missing))
     {
@@ -1121,7 +1121,7 @@ bool PlannerInterface::setStart(const moveit_msgs::RobotState& state)
         if (!leatherman::getJointPositions(
                 fixed_state.joint_state,
                 fixed_state.multi_dof_joint_state,
-                m_robot->getPlanningJoints(),
+                m_robot->GetPlanningJoints(),
                 initial_positions,
                 missing))
         {
@@ -1278,7 +1278,7 @@ auto PlannerInterface::makePathVisualization(
 
     auto cinc = 1.0f / float(path.size());
     for (size_t i = 0; i < path.size(); ++i) {
-        auto markers = m_checker->getCollisionModelVisualization(path[i]);
+        auto markers = m_checker->GetCollisionModelVisualization(path[i]);
 
         for (auto& marker : markers) {
             auto r = 0.1f;

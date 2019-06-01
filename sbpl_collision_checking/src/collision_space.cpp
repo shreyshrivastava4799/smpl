@@ -405,13 +405,13 @@ auto CollisionSpace::GetExtension(size_t class_code) -> Extension*
     return nullptr;
 }
 
-bool CollisionSpace::isStateValid(const RobotState& state, bool verbose)
+bool CollisionSpace::IsStateValid(const RobotState& state, bool verbose)
 {
     double dist = std::numeric_limits<double>::max();
     return checkCollision(state, dist);
 }
 
-bool CollisionSpace::isStateToStateValid(
+bool CollisionSpace::IsStateToStateValid(
     const RobotState& start,
     const RobotState& finish,
     bool verbose)
@@ -441,7 +441,7 @@ bool CollisionSpace::isStateToStateValid(
         for (int i = 0; i < inc_cc; i++) {
             for (size_t j = i; j < interp.waypointCount(); j = j + inc_cc) {
                 interp.interpolate(j, interm, m_planning_joint_to_collision_model_indices);
-                if (!isStateValid(interm, verbose)) {
+                if (!IsStateValid(interm, verbose)) {
                     return false;
                 }
             }
@@ -449,7 +449,7 @@ bool CollisionSpace::isStateToStateValid(
     } else {
         for (size_t i = 0; i < interp.waypointCount(); i++) {
             interp.interpolate(i, interm, m_planning_joint_to_collision_model_indices);
-            if (!isStateValid(interm, verbose)) {
+            if (!IsStateValid(interm, verbose)) {
                 return false;
             }
         }
@@ -458,7 +458,7 @@ bool CollisionSpace::isStateToStateValid(
     return true;
 }
 
-bool CollisionSpace::interpolatePath(
+bool CollisionSpace::InterpolatePath(
     const RobotState& start,
     const RobotState& finish,
     std::vector<RobotState>& opath)
@@ -492,7 +492,7 @@ bool CollisionSpace::interpolatePath(
     return true;
 }
 
-auto CollisionSpace::getCollisionModelVisualization(const RobotState& state)
+auto CollisionSpace::GetCollisionModelVisualization(const RobotState& state)
     -> std::vector<visual::Marker>
 {
     auto ma = getCollisionRobotVisualization(state);
@@ -511,7 +511,7 @@ auto CollisionSpace::getCollisionModelVisualization(const RobotState& state)
 /// \param config Collision model configuration
 /// \param group_name The group for which collision detection is performed
 /// \param planning_joints The set of joint variable names in the order they
-///     will appear in calls to isStateValid and friends
+///     will appear in calls to IsStateValid and friends
 bool CollisionSpace::init(
     OccupancyGrid* grid,
     const std::string& urdf_string,
@@ -533,7 +533,7 @@ bool CollisionSpace::init(
 /// \param config Collision model configuration
 /// \param group_name Group for which collision detection is performed
 /// \param planning_joints The set of joint variable names in the order they
-///     will appear in calls to isStateValid and friends
+///     will appear in calls to IsStateValid and friends
 bool CollisionSpace::init(
     OccupancyGrid* grid,
     const ::urdf::ModelInterface& urdf,
@@ -551,7 +551,7 @@ bool CollisionSpace::init(
 /// \param rcm The robot collision model
 /// \param group_name The group for which collision detection is performed
 /// \param planning_joints The set of joint variable names in the order they
-///     will appear in calls to isStateValid and friends
+///     will appear in calls to IsStateValid and friends
 bool CollisionSpace::init(
     OccupancyGrid* grid,
     const RobotCollisionModelConstPtr& rcm,
@@ -648,7 +648,7 @@ bool CollisionSpace::withinJointPositionLimits(
     assert(positions.size() == planningVariableCount());
     for (size_t vidx = 0; vidx < planningVariableCount(); ++vidx) {
         const double pos = positions[vidx];
-        if (!(isContinuous(vidx) ||
+        if (!(IsContinuous(vidx) ||
             !hasLimit(vidx) ||
             (pos >= minLimit(vidx) && pos <= maxLimit(vidx))))
         {

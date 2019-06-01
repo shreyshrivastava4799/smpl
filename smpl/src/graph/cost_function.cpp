@@ -78,14 +78,14 @@ bool IsActionValid(
     const ManipLatticeAction* action)
 {
     // collision check the trajectory between the source state and the first waypoint
-    if (!checker->isStateToStateValid(src_state, action->motion[0])) {
+    if (!checker->IsStateToStateValid(src_state, action->motion[0])) {
         return false;
     }
 
     for (auto i = 1; i < action->motion.size(); ++i) {
         auto& prev_state = action->motion[i - 1];
         auto& curr_state = action->motion[i];
-        if (!checker->isStateToStateValid(prev_state, curr_state)) {
+        if (!checker->IsStateToStateValid(prev_state, curr_state)) {
             return false;
         }
     }

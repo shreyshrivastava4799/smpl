@@ -192,7 +192,7 @@ bool WorkspaceLattice::CheckAction(
             return false;
         }
 
-        if (!GetRobotModel()->checkJointLimits(irstate)) {
+        if (!GetRobotModel()->CheckJointLimits(irstate)) {
             SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> violates joint limits");
             return false;
         }
@@ -203,7 +203,7 @@ bool WorkspaceLattice::CheckAction(
     // check for collisions between the waypoints
     assert(wptraj.size() == action.size());
 
-    if (!GetCollisionChecker()->isStateToStateValid(state, wptraj[0])) {
+    if (!GetCollisionChecker()->IsStateToStateValid(state, wptraj[0])) {
         SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> path to first waypoint in collision");
         return false;
     }
@@ -211,7 +211,7 @@ bool WorkspaceLattice::CheckAction(
     for (auto widx = 1; widx < wptraj.size(); ++widx) {
         auto& prev_wp = wptraj[widx - 1];
         auto& curr_wp = wptraj[widx];
-        if (!GetCollisionChecker()->isStateToStateValid(prev_wp, curr_wp)) {
+        if (!GetCollisionChecker()->IsStateToStateValid(prev_wp, curr_wp)) {
             SMPL_DEBUG_NAMED(G_SUCCESSORS_LOG, "        -> path between waypoints in collision");
             return false;
         }
@@ -253,7 +253,7 @@ bool WorkspaceLattice::CheckLazyAction(
 
         wptraj.push_back(irstate);
 
-        if (!GetRobotModel()->checkJointLimits(irstate)) {
+        if (!GetRobotModel()->CheckJointLimits(irstate)) {
             SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        -> violates joint limits");
             return false;
         }
@@ -273,7 +273,7 @@ auto WorkspaceLattice::GetStateVisualization(
     const std::string& ns)
     -> std::vector<visual::Marker>
 {
-    auto markers = GetCollisionChecker()->getCollisionModelVisualization(state);
+    auto markers = GetCollisionChecker()->GetCollisionModelVisualization(state);
     for (auto& marker : markers) {
         marker.ns = ns;
     }
@@ -316,7 +316,7 @@ auto WorkspaceLattice::ProjectToPose(int state_id) -> Affine3
     // within tolerance to a goal pose without relying on the discretization of
     // the lattice to guarantee that any center coordinate will be within
     // tolerance.
-    return m_proj.fk_iface->computeFK(state->state);
+    return m_proj.fk_iface->ComputeFK(state->state);
 #else
     double p[6];
     PoseCoordToWorkspace(&m_proj, &state->coord[0], &p[0]);
@@ -327,14 +327,14 @@ auto WorkspaceLattice::ProjectToPose(int state_id) -> Affine3
 
 int WorkspaceLattice::GetStateID(const RobotState& real_coords)
 {
-    if (real_coords.size() < GetRobotModel()->jointVariableCount()) {
+    if (real_coords.size() < GetRobotModel()->JointVariableCount()) {
         SMPL_ERROR_NAMED(G_LOG, "state contains insufficient coordinate positions");
         return -1;
     }
 
     SMPL_DEBUG_STREAM_NAMED(G_LOG, "  state: " << real_coords);
 
-    if (!GetRobotModel()->checkJointLimits(real_coords)) {
+    if (!GetRobotModel()->CheckJointLimits(real_coords)) {
         SMPL_ERROR_NAMED(G_LOG, "state violates joint limits");
         return -1;
     }
@@ -533,9 +533,9 @@ bool WorkspaceLattice::UpdateStart(int state_id)
 
     auto* state = GetState(state_id);
 
-    if (!GetCollisionChecker()->isStateValid(state->state, true)) {
+    if (!GetCollisionChecker()->IsStateValid(state->state, true)) {
         auto* vis_name = "invalid_start";
-        SV_SHOW_WARN_NAMED(vis_name, GetCollisionChecker()->getCollisionModelVisualization(state->state));
+        SV_SHOW_WARN_NAMED(vis_name, GetCollisionChecker()->GetCollisionModelVisualization(state->state));
         SMPL_WARN("start state is in collision");
         return false;
     }
