@@ -21,6 +21,8 @@
 #include <smpl/robot_model.h>
 #include <smpl/search/adaptive_planner.h>
 #include <smpl/search/arastar.h>
+#include <smpl/search/island_search.h>
+
 #include <smpl/search/awastar.h>
 #include <smpl/search/experience_graph_planner.h>
 #include <smpl/stl/memory.h>
@@ -609,6 +611,55 @@ auto MakeARAStar(
     -> std::unique_ptr<SBPLPlanner>
 {
     auto search = make_unique<ARAStar>(space, heuristic);
+
+    double epsilon;
+    params.param("epsilon", epsilon, 1.0);
+    search->set_initialsolution_eps(epsilon);
+
+    bool search_mode;
+    params.param("search_mode", search_mode, false);
+    search->set_search_mode(search_mode);
+
+    bool allow_partial_solutions;
+    if (params.getParam("allow_partial_solutions", allow_partial_solutions)) {
+        search->allowPartialSolutions(allow_partial_solutions);
+    }
+
+    double target_eps;
+    if (params.getParam("target_epsilon", target_eps)) {
+        search->setTargetEpsilon(target_eps);
+    }
+
+    double delta_eps;
+    if (params.getParam("delta_epsilon", delta_eps)) {
+        search->setDeltaEpsilon(delta_eps);
+    }
+
+    bool improve_solution;
+    if (params.getParam("improve_solution", improve_solution)) {
+        search->setImproveSolution(improve_solution);
+    }
+
+    bool bound_expansions;
+    if (params.getParam("bound_expansions", bound_expansions)) {
+        search->setBoundExpansions(bound_expansions);
+    }
+
+    double repair_time;
+    if (params.getParam("repair_time", repair_time)) {
+        search->setAllowedRepairTime(repair_time);
+    }
+
+    return std::move(search);
+}
+
+auto MakeIslandSearch(
+    RobotPlanningSpace* space,
+    RobotHeuristic* heuristic,
+    const PlanningParams& params)
+    -> std::unique_ptr<SBPLPlanner>
+{
+    auto search = make_unique<IslandSearch>(space, heuristic);
 
     double epsilon;
     params.param("epsilon", epsilon, 1.0);

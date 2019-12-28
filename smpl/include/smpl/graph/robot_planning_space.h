@@ -113,6 +113,11 @@ public:
         int state_id,
         std::vector<int>* succs,
         std::vector<int>* costs) override = 0;
+    
+    // virtual void GetIslandSuccs(
+    //     int state_id,
+    //     std::vector<int>* succs,
+    //     std::vector<int>* costs) override = 0;
 
     virtual void GetPreds(
         int state_id,

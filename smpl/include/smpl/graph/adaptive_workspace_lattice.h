@@ -174,6 +174,11 @@ public:
         std::vector<int>* succs,
         std::vector<int>* costs) override;
 
+    void GetIslandSuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs) override;
+
     void GetPreds(
         int state_id,
         std::vector<int>* preds,

@@ -3,11 +3,12 @@
 
     <param name="robot_description" command="$(find xacro)/xacro.py '$(find pr2_description)/robots/pr2.urdf.xacro'"/>
 
+
     <arg unless="$(arg debug)" name="launch-prefix" value=""/>
     <arg     if="$(arg debug)" name="launch-prefix" value="gdb ex --args"/>
 
     <node pkg="smpl_test" type="callPlanner" name="call_planner"
-            launch-prefix="$(arg launch-prefix)">
+            launch-prefix="$(arg launch-prefix)" output="screen">
         <param name="planning_frame" value="odom_combined"/>
 
         <!-- 1. robot model (for planning) -->
@@ -33,7 +34,7 @@
         <!-- planner params -->
         <rosparam command="load" file="$(find smpl_test)/config/pr2_right_arm.yaml"/>
         <param name="planning/mprim_filename" value="$(find smpl_test)/config/pr2.mprim"/>
-        <param name="allowed_planning_time" value="15.0"/>
+        <param name="allowed_planning_time" value="1500.0"/>
 
         <!-- 2. scene -->
         <!-- 2.1 robot state -->

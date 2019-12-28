@@ -488,6 +488,29 @@ void AdaptiveWorkspaceLattice::GetSuccs(
     SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, " -> %zu successors", succs->size());
 }
 
+void AdaptiveWorkspaceLattice::GetIslandSuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    assert(state_id >= 0 && state_id < (int)m_states.size());
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
+
+    if (state_id == m_goal_state_id) {
+        return;
+    }
+
+    AdaptiveState* state = m_states[state_id];
+    if (state->hid) {
+        AdaptiveWorkspaceState* hi_state = (AdaptiveWorkspaceState*)state;
+        GetSuccs(*hi_state, succs, costs);
+    } else {
+        AdaptiveGridState* lo_state = (AdaptiveGridState*)state;
+        GetSuccs(*lo_state, succs, costs);
+    }
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, " -> %zu successors", succs->size());
+}
 void AdaptiveWorkspaceLattice::GetPreds(
     int state_id,
     std::vector<int>* preds,

@@ -283,6 +283,8 @@ PlannerInterface::PlannerInterface(
     m_planner_factories["larastar"] = MakeLARAStar;
     m_planner_factories["egwastar"] = MakeEGWAStar;
     m_planner_factories["padastar"] = MakePADAStar;
+    m_planner_factories["islandsearch"] = MakeIslandSearch;
+
 }
 
 PlannerInterface::~PlannerInterface()
@@ -1439,6 +1441,7 @@ bool PlannerInterface::reinitPlanner(const std::string& planner_id)
         return false;
     }
 
+    // imp
     auto first_heuristic = begin(m_heuristics);
     m_planner = pait->second(m_pspace.get(), first_heuristic->second.get(), m_params);
     if (!m_planner) {

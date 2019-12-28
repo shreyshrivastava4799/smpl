@@ -73,7 +73,8 @@ bool ManipLattice::init(
     CollisionChecker* checker,
     const std::vector<double>& resolutions,
     ActionSpace* actions)
-{
+{    
+
     SMPL_DEBUG_NAMED(G_LOG, "Initialize Manip Lattice");
 
     if (!actions) {
@@ -137,6 +138,11 @@ bool ManipLattice::init(
     m_coord_deltas = std::move(deltas);
 
     m_actions = actions;
+
+    // change 
+    initIslands();
+
+
 
     return true;
 }
@@ -279,6 +285,56 @@ void ManipLattice::GetSuccs(
     if (goal_succ_count > 0) {
         SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Got %d goal successors!", goal_succ_count);
     }
+}
+
+
+void ManipLattice::GetIslandSuccs(
+    int state_id,
+    std::vector<int>* island_succs,
+    std::vector<int>* island_costs)
+{
+    // printf("Inside GetIslandSuccs\n");
+    assert(state_id >= 0 && state_id < m_states.size() && "state id out of bounds");
+    assert(succs && costs && "successor buffer is null");
+    assert(m_actions && "action space is uninitialized");
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "expanding state %d", state_id);
+
+    // goal state should be absorbing
+    if (state_id == m_goal_state_id) {
+        return;
+    }
+
+    ManipLatticeState* parent_entry = m_states[state_id];
+
+    assert(parent_entry);
+    assert(parent_entry->coord.size() >= robot()->jointVariableCount());
+
+    // log expanded state details
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  angles: " << parent_entry->state);
+
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
+
+
+    RobotCoord succ_coord(robot()->jointVariableCount(), 0);
+    for (int i = 0; i < islands.size(); ++i)
+    {
+ 
+        if( insideActivationRegion(parent_entry->state, islands[i]) )
+        {
+            // compute destination coords
+            stateToCoord(islands[i], succ_coord);
+            // check if hash entry already exists, if not then create one
+            int succ_state_id = getOrCreateState(succ_coord, islands[i]);
+            ManipLatticeState* succ_entry = getHashEntry(succ_state_id);
+            // add the islands to succesor list of the parent state
+            island_succs->push_back(succ_state_id);
+            island_costs->push_back(cost(parent_entry, succ_entry, false));
+        }
+    }
+
 }
 
 Stopwatch GetLazySuccsStopwatch("GetLazySuccs", 10);
@@ -586,13 +642,22 @@ auto ManipLattice::computePlanningFrameFK(const RobotState& state) const
     return m_fk_iface->computeFK(state);
 }
 
+// change
+// changing to have different cost for different distance
 int ManipLattice::cost(
     ManipLatticeState* HashEntry1,
     ManipLatticeState* HashEntry2,
     bool bState2IsGoal) const
 {
     auto DefaultCostMultiplier = 1000;
-    return DefaultCostMultiplier;
+
+    double distance = 0;
+    for (int i = 0; i < HashEntry1->state.size(); ++i)
+        distance += std::pow(HashEntry1->state[i]-HashEntry2->state[i], 2);
+
+    return int(std::sqrt(distance)*DefaultCostMultiplier);
+
+
 }
 
 bool ManipLattice::checkAction(const RobotState& state, const Action& action)
@@ -1102,4 +1167,75 @@ bool ManipLattice::setUserGoal(const GoalConstraint& goal)
     return RobotPlanningSpace::setGoal(goal);
 }
 
+bool ManipLattice::insideActivationRegion(const RobotState& state, const RobotState& island)
+{
+    double distance = 0;
+    for (int i = 0; i < state.size(); ++i)
+        distance += std::pow(state[i]-island[i], 2);
+
+    // printf("%lf %lf\n",std::sqrt(distance), activationRadius);
+    return (std::sqrt(distance) <= activationRadius);
+}
+//change
+void ManipLattice::initIslands()
+{
+    // entering random states that will be passed to main file for checking
+    RobotState temp;
+    temp.push_back(-0.522581);
+    temp.push_back(1.111512);
+    temp.push_back(-1.588889);
+    temp.push_back(-0.682027);
+    temp.push_back(0.209440);
+    temp.push_back(-1.956422);
+    temp.push_back(-0.139626);
+    islands.push_back(temp);
+    temp.clear();
+
+    temp.push_back(-1.149677);
+    temp.push_back(1.180981);
+    temp.push_back(-0.750794);
+    temp.push_back(-1.589173);
+    temp.push_back(0.558505);
+    temp.push_back(-0.631651);
+    temp.push_back(-1.60570);
+    islands.push_back(temp);
+    temp.clear();
+
+    temp.push_back(-0.452903);
+    temp.push_back(1.111512);
+    temp.push_back(-1.449206);
+    temp.push_back(-0.682027);
+    temp.push_back(-0.279253);
+    temp.push_back(-1.956422);
+    temp.push_back(-0.139626);
+    islands.push_back(temp);
+    temp.clear();
+
+    temp.push_back(-0.452903);
+    temp.push_back(1.111512);
+    temp.push_back(-1.519048);
+    temp.push_back(-0.612246);
+    temp.push_back(-0.279253);
+    temp.push_back(-1.956422);
+    temp.push_back(-0.139626);
+    islands.push_back(temp);
+    temp.clear();
+
+}
+
 } // namespace smpl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

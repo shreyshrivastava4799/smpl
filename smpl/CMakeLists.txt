@@ -162,6 +162,7 @@ set(SMPL_LIBRARY_SOURCES
     src/search/mhastarpp.cpp
     src/search/umhastar.cpp
     src/search/arastar.cpp
+    src/search/island_search.cpp    
     src/search/experience_graph_planner.cpp
     src/search/adaptive_planner.cpp
     src/search/lazy_arastar.cpp

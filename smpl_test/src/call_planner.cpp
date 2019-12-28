@@ -643,7 +643,7 @@ int main(int argc, char* argv[])
     req.max_velocity_scaling_factor = 1.0;
     req.num_planning_attempts = 1;
 //    req.path_constraints;
-    req.planner_id = "arastar.bfs.manip";
+    req.planner_id = "islandsearch.bfs.manip";
     req.start_state = start_state;
 //    req.trajectory_constraints;
 //    req.workspace_parameters;

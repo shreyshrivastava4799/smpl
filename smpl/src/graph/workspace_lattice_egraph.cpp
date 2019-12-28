@@ -647,6 +647,23 @@ void WorkspaceLatticeEGraph::GetSuccs(
     }
 }
 
+void WorkspaceLatticeEGraph::GetIslandSuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    auto prev_count = succs->size();
+    getUniqueSuccs(state_id, succs, costs);
+    auto curr_count = succs->size();
+    for (auto i = prev_count; i != curr_count; ++i) {
+        auto* state = getState((*succs)[i]);
+        WorkspaceState workspace_state;
+        stateCoordToWorkspace(state->coord, workspace_state);
+        if (isGoal(workspace_state, state->state)) {
+            (*succs)[i] = getGoalStateID();
+        }
+    }
+}
 auto WorkspaceLatticeEGraph::getExtension(size_t class_code) -> Extension*
 {
     if (class_code == GetClassCode<ExperienceGraphExtension>()) {

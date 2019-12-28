@@ -159,12 +159,25 @@ public:
         int state_id,
         std::vector<int>* succs,
         std::vector<int>* costs) override;
+    // change
+    void GetIslandSuccs(
+        int state_id,
+        std::vector<int>* islandSuccs,
+        std::vector<int>* islandCosts) override;
+
     void PrintState(int state_id, bool verbose, FILE* fout = nullptr) override;
     void GetPreds(
         int state_id,
         std::vector<int>* preds,
         std::vector<int>* costs) override;
     ///@}
+
+    // added for island search
+    // change
+    void initIslands();
+    bool insideActivationRegion(const RobotState& state, const RobotState& island);
+
+
 
 protected:
 
@@ -200,6 +213,12 @@ private:
     ForwardKinematicsInterface* m_fk_iface = nullptr;
     ActionSpace* m_actions = nullptr;
 
+
+    // initialise space for islands
+    // change
+    double activationRadius = 1.0;
+    std::vector<RobotState> islands;
+    
     // cached from robot model
     std::vector<double> m_min_limits;
     std::vector<double> m_max_limits;

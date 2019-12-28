@@ -326,6 +326,81 @@ Extension* WorkspaceLattice::getExtension(size_t class_code)
     return nullptr;
 }
 
+void WorkspaceLattice::GetIslandSuccs(
+    int state_id,
+    std::vector<int>* succs,
+    std::vector<int>* costs)
+{
+    assert(state_id >= 0 && state_id < m_states.size());
+
+    // clear the successor arrays
+    succs->clear();
+    costs->clear();
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "Expand state %d", state_id);
+
+    // goal state should be absorbing
+    if (state_id == m_goal_state_id) {
+        return;
+    }
+
+    auto* parent_entry = getState(state_id);
+
+    assert(parent_entry);
+    assert(parent_entry->coord.size() == m_dof_count);
+
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "  workspace coord: " << parent_entry->coord);
+    SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "      robot state: " << parent_entry->state);
+
+    auto* vis_name = "expansion";
+    SV_SHOW_DEBUG_NAMED(vis_name, getStateVisualization(parent_entry->state, vis_name));
+
+    std::vector<WorkspaceAction> actions;
+    m_actions->apply(*parent_entry, actions);
+
+    SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "  actions: %zu", actions.size());
+
+    // iterate through successors of source state
+    for (size_t i = 0; i < actions.size(); ++i) {
+        auto& action = actions[i];
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "    action %zu", i);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      waypoints: %zu", action.size());
+
+        RobotState final_rstate;
+        if (!checkAction(parent_entry->state, action, &final_rstate)) {
+            continue;
+        }
+
+        auto& final_state = action.back();
+        WorkspaceCoord succ_coord;
+        stateWorkspaceToCoord(final_state, succ_coord);
+
+        // check if hash entry already exists, if not then create one
+        auto succ_id = getOrCreateState(succ_coord, final_rstate);
+        auto* succ_state = getState(succ_id);
+
+        // check if this state meets the goal criteria
+        auto is_goal_succ = isGoal(final_state, final_rstate);
+
+        // put successor on successor list with the proper cost
+        if (is_goal_succ) {
+            succs->push_back(m_goal_state_id);
+        } else {
+            succs->push_back(succ_id);
+        }
+
+        auto edge_cost = computeCost(*parent_entry, *succ_state);
+        costs->push_back(edge_cost);
+
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "      succ: %d", succ_id);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        coord: " << succ_state->coord);
+        SMPL_DEBUG_STREAM_NAMED(G_EXPANSIONS_LOG, "        state: " << succ_state->state);
+        SMPL_DEBUG_NAMED(G_EXPANSIONS_LOG, "        cost: %5d", edge_cost);
+    }
+}
+
+
 void WorkspaceLattice::GetSuccs(
     int state_id,
     std::vector<int>* succs,
